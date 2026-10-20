@@ -1,0 +1,664 @@
+package session
+
+Int lobbyServerMaximumPlayers() { return 8 }
+Int lobbyServerMaximumChatMessages() { return 32 }
+Int lobbyServerMaximumPlayerNameLength() { return 16 }
+Int lobbyServerMaximumChatLength() { return 80 }
+
+Int lobbyServerGameFreeRoam() { return 0 }
+Int lobbyServerGameRace() { return 1 }
+Int lobbyServerGameTargetPractice() { return 2 }
+Int lobbyServerGameTag() { return 3 }
+
+Int lobbyServerCommandOk() { return 0 }
+Int lobbyServerCommandOffline() { return 1 }
+Int lobbyServerCommandPermissionDenied() { return 2 }
+Int lobbyServerCommandInvalid() { return 3 }
+Int lobbyServerCommandFull() { return 4 }
+Int lobbyServerCommandNotBot() { return 5 }
+
+class DedicatedLobbyServer {
+    Bool runningValue
+    Int roomValue
+    Int ownerIdValue
+    Int nextPlayerIdValue
+    Int playerCountValue
+    Int gameModeValue
+    Int tickValue
+    Int chatSequenceValue
+    Int lastCommandResultValue
+    Int[] playerIds
+    String[] playerNames
+    Int[] playerTeams
+    Int[] playerScores
+    Int[] playerXs
+    Int[] playerZs
+    Int[] playerRaceStages
+    Int[] playerActionTicks
+    Bool[] playerBots
+    String[] playerIdentities
+    String[] registeredIdentities
+    String[] registeredNicknames
+    Int[] chatSenders
+    Int[] chatTicks
+    String[] chatMessages
+
+    public constructor() {
+        runningValue = false
+        roomValue = 0
+        ownerIdValue = 0
+        nextPlayerIdValue = 1
+        playerCountValue = 0
+        gameModeValue = lobbyServerGameFreeRoam()
+        tickValue = 0
+        chatSequenceValue = 0
+        lastCommandResultValue = lobbyServerCommandOk()
+        playerIds = new Int[lobbyServerMaximumPlayers()]
+        playerNames = new String[lobbyServerMaximumPlayers()]
+        playerTeams = new Int[lobbyServerMaximumPlayers()]
+        playerScores = new Int[lobbyServerMaximumPlayers()]
+        playerXs = new Int[lobbyServerMaximumPlayers()]
+        playerZs = new Int[lobbyServerMaximumPlayers()]
+        playerRaceStages = new Int[lobbyServerMaximumPlayers()]
+        playerActionTicks = new Int[lobbyServerMaximumPlayers()]
+        playerBots = new Bool[lobbyServerMaximumPlayers()]
+        playerIdentities = new String[lobbyServerMaximumPlayers()]
+        registeredIdentities = new String[256]
+        registeredNicknames = new String[256]
+        chatSenders = new Int[lobbyServerMaximumChatMessages()]
+        chatTicks = new Int[lobbyServerMaximumChatMessages()]
+        chatMessages = new String[lobbyServerMaximumChatMessages()]
+        for (var index = 0; index < lobbyServerMaximumPlayers(); index = index + 1) {
+            clearSlot(index)
+        }
+        for (var index = 0; index < lobbyServerMaximumChatMessages(); index = index + 1) {
+            chatSenders[index] = 0
+            chatTicks[index] = 0
+            chatMessages[index] = ""
+        }
+        for (var index = 0; index < 256; index = index + 1) {
+            registeredIdentities[index] = ""
+            registeredNicknames[index] = ""
+        }
+    }
+
+    void clearSlot(Int slot) {
+        playerIds[slot] = 0
+        playerNames[slot] = ""
+        playerTeams[slot] = 0
+        playerScores[slot] = 0
+        playerXs[slot] = 0
+        playerZs[slot] = 0
+        playerRaceStages[slot] = 0
+        playerActionTicks[slot] = 0
+        playerIdentities[slot] = ""
+    }
+
+    Bool validName(String name) {
+        if (name.length() < 1 ||
+            name.length() > lobbyServerMaximumPlayerNameLength()) {
+            return false
+        }
+        for (var index = 0; index < name.length(); index = index + 1) {
+            var value = name.charAt(index) as Int
+            if (!((value >= 65 && value <= 90) ||
+                    (value >= 97 && value <= 122) ||
+                    (value >= 48 && value <= 57) ||
+                    value == 45 || value == 95)) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Bool validPlayerIdentity(String identity) {
+        if (identity.length() < 1 || identity.length() > 64) { return false }
+        for (var index = 0; index < identity.length(); index = index + 1) {
+            var value = identity.charAt(index) as Int
+            if (!((value >= 65 && value <= 90) ||
+                    (value >= 97 && value <= 122) ||
+                    (value >= 48 && value <= 57) ||
+                    value == 45 || value == 95 || value == 58)) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Bool identityInUse(String identity) {
+        if (identity == "") { return false }
+        for (var slot = 0; slot < playerIdentities.length; slot = slot + 1) {
+            if (playerIds[slot] > 0 && playerIdentities[slot] == identity) {
+                return true
+            }
+        }
+        return false
+    }
+
+    Bool nameInUse(String name) {
+        for (var slot = 0; slot < playerNames.length; slot = slot + 1) {
+            if (playerIds[slot] > 0 &&
+                sameNickname(playerNames[slot], name)) { return true }
+        }
+        return false
+    }
+
+    Bool sameNickname(String left, String right) {
+        if (left.length() != right.length()) { return false }
+        for (var index = 0; index < left.length(); index = index + 1) {
+            var leftValue = left.charAt(index) as Int
+            var rightValue = right.charAt(index) as Int
+            if (leftValue >= 65 && leftValue <= 90) {
+                leftValue = leftValue + 32
+            }
+            if (rightValue >= 65 && rightValue <= 90) {
+                rightValue = rightValue + 32
+            }
+            if (leftValue != rightValue) { return false }
+        }
+        return true
+    }
+
+    Bool identityClaimAllowed(String identity, String nickname) {
+        if (identity == "") { return true }
+        var available = false
+        for (var index = 0; index < registeredIdentities.length; index = index + 1) {
+            if (registeredIdentities[index] == identity) {
+                return sameNickname(registeredNicknames[index], nickname)
+            }
+            if (sameNickname(registeredNicknames[index], nickname)) {
+                return false
+            }
+            if (registeredIdentities[index] == "") { available = true }
+        }
+        return available
+    }
+
+    void registerIdentity(String identity, String nickname) {
+        if (identity == "") { return }
+        for (var index = 0; index < registeredIdentities.length; index = index + 1) {
+            if (registeredIdentities[index] == identity) { return }
+            if (registeredIdentities[index] == "") {
+                registeredIdentities[index] = identity
+                registeredNicknames[index] = nickname
+                return
+            }
+        }
+    }
+
+    Int findPlayer(Int playerId) {
+        for (var slot = 0; slot < playerIds.length; slot = slot + 1) {
+            if (playerIds[slot] == playerId && playerId > 0) { return slot }
+        }
+        return -1
+    }
+
+    Int freeSlot() {
+        for (var slot = 0; slot < playerIds.length; slot = slot + 1) {
+            if (playerIds[slot] == 0) { return slot }
+        }
+        return -1
+    }
+
+    Int addParticipant(String name, Int team, Bool bot, String identity) {
+        if (!runningValue || !validName(name) || team < 0 || team > 4 ||
+            nextPlayerIdValue > 1000000 || nameInUse(name) ||
+            identityInUse(identity) ||
+            (identity != "" && (!validPlayerIdentity(identity) ||
+                !identityClaimAllowed(identity, name)))) {
+            return 0
+        }
+        var slot = freeSlot()
+        if (slot < 0) { return 0 }
+        registerIdentity(identity, name)
+        var playerId = nextPlayerIdValue
+        nextPlayerIdValue = nextPlayerIdValue + 1
+        playerIds[slot] = playerId
+        playerNames[slot] = name
+        playerIdentities[slot] = identity
+        playerTeams[slot] = team
+        playerScores[slot] = 0
+        playerXs[slot] = -40 + slot * 8
+        playerZs[slot] = 0
+        playerRaceStages[slot] = 0
+        playerActionTicks[slot] = 0
+        playerBots[slot] = bot
+        playerCountValue = playerCountValue + 1
+        return playerId
+    }
+
+    Bool startRoom(Int room, String ownerName) {
+        if (runningValue || room < 0 || room > 1000000 ||
+            !validName(ownerName)) {
+            return false
+        }
+        runningValue = true
+        roomValue = room
+        gameModeValue = lobbyServerGameFreeRoam()
+        tickValue = 0
+        chatSequenceValue = 0
+        playerCountValue = 0
+        ownerIdValue = 0
+        var ownerId = addParticipant(ownerName, 0, false, "")
+        if (ownerId <= 0) {
+            runningValue = false
+            return false
+        }
+        ownerIdValue = ownerId
+        return true
+    }
+
+    Bool start(Int room, String ownerName, String identity) {
+        if (!validPlayerIdentity(identity) ||
+            !identityClaimAllowed(identity, ownerName) ||
+            !startRoom(room, ownerName)) {
+            return false
+        }
+        var slot = findPlayer(ownerIdValue)
+        playerIdentities[slot] = identity
+        registerIdentity(identity, ownerName)
+        return true
+    }
+
+    Bool stop() {
+        if (!runningValue) { return false }
+        runningValue = false
+        roomValue = 0
+        ownerIdValue = 0
+        playerCountValue = 0
+        gameModeValue = lobbyServerGameFreeRoam()
+        tickValue = 0
+        chatSequenceValue = 0
+        for (var slot = 0; slot < playerIds.length; slot = slot + 1) {
+            clearSlot(slot)
+        }
+        for (var index = 0; index < chatSenders.length; index = index + 1) {
+            chatSenders[index] = 0
+            chatTicks[index] = 0
+            chatMessages[index] = ""
+        }
+        return true
+    }
+
+    Int joinPlayer(String identity, String name) {
+        if (!runningValue || !validPlayerIdentity(identity)) { return 0 }
+        return addParticipant(name, 0, false, identity)
+    }
+
+    Bool leavePlayer(Int playerId) {
+        var slot = findPlayer(playerId)
+        if (!runningValue || slot < 0 || playerBots[slot]) { return false }
+        clearSlot(slot)
+        playerCountValue = playerCountValue - 1
+        if (playerId == ownerIdValue) {
+            ownerIdValue = 0
+            for (var index = 0; index < playerIds.length; index = index + 1) {
+                if (playerIds[index] > 0 && !playerBots[index]) {
+                    ownerIdValue = playerIds[index]
+                    break
+                }
+            }
+        }
+        if (ownerIdValue == 0) { return stop() }
+        return true
+    }
+
+    Int teamFromName(String name) {
+        if (name == "red") { return 1 }
+        if (name == "blue") { return 2 }
+        if (name == "yellow") { return 3 }
+        if (name == "green") { return 4 }
+        return -1
+    }
+
+    Int slotNumber(Int slot) { return slot + 1 }
+
+    Int addBot(Int issuerId, String name, Int team) {
+        if (!runningValue || issuerId != ownerIdValue) { return 0 }
+        return addParticipant(name, team, true, "")
+    }
+
+    Bool removeBotSlot(Int issuerId, Int slotNumberValue) {
+        if (!runningValue || issuerId != ownerIdValue ||
+            slotNumberValue < 1 || slotNumberValue > playerIds.length) {
+            return false
+        }
+        var slot = slotNumberValue - 1
+        if (playerIds[slot] <= 0 || !playerBots[slot]) { return false }
+        clearSlot(slot)
+        playerCountValue = playerCountValue - 1
+        return true
+    }
+
+    Int parsePositiveInt(String value) {
+        if (value.length() < 1 || value.length() > 8) { return -1 }
+        var result = 0
+        for (var index = 0; index < value.length(); index = index + 1) {
+            var digit = (value.charAt(index) as Int) - 48
+            if (digit < 0 || digit > 9) { return -1 }
+            result = result * 10 + digit
+        }
+        if (result <= 0 || result > lobbyServerMaximumPlayers()) { return -1 }
+        return result
+    }
+
+    Int executeAdminCommand(Int issuerId, String command) {
+        lastCommandResultValue = lobbyServerCommandInvalid()
+        if (!runningValue) {
+            lastCommandResultValue = lobbyServerCommandOffline()
+            return lastCommandResultValue
+        }
+        if (issuerId <= 0 || issuerId != ownerIdValue) {
+            lastCommandResultValue = lobbyServerCommandPermissionDenied()
+            return lastCommandResultValue
+        }
+        if (command.length() < 1 || command.length() > 96) {
+            return lastCommandResultValue
+        }
+        var firstSpace = -1
+        var secondSpace = -1
+        for (var index = 0; index < command.length(); index = index + 1) {
+            if ((command.charAt(index) as Int) == 32) {
+                if (firstSpace < 0) {
+                    firstSpace = index
+                } else if (secondSpace < 0) {
+                    secondSpace = index
+                } else {
+                    return lastCommandResultValue
+                }
+            }
+        }
+        if (firstSpace <= 0 || firstSpace >= command.length() - 1) {
+            return lastCommandResultValue
+        }
+        var commandName = command.substring(0, firstSpace)
+        var argumentOneEnd = if (secondSpace < 0) command.length() else secondSpace
+        var argumentOne = command.substring(firstSpace + 1, argumentOneEnd)
+        if (argumentOne.length() == 0) { return lastCommandResultValue }
+        if (commandName == "addbot") {
+            var team = 0
+            if (secondSpace >= 0) {
+                var teamName = command.substring(secondSpace + 1, command.length())
+                team = teamFromName(teamName)
+                if (team < 1) { return lastCommandResultValue }
+            }
+            var result = addBot(issuerId, argumentOne, team)
+            if (result <= 0) {
+                lastCommandResultValue = if (playerCountValue >= playerIds.length)
+                    lobbyServerCommandFull() else lobbyServerCommandInvalid()
+                return lastCommandResultValue
+            }
+            lastCommandResultValue = lobbyServerCommandOk()
+            return lastCommandResultValue
+        }
+        if (commandName == "delbot" && secondSpace < 0) {
+            var slot = parsePositiveInt(argumentOne)
+            if (slot < 1) { return lastCommandResultValue }
+            if (!removeBotSlot(issuerId, slot)) {
+                lastCommandResultValue = lobbyServerCommandNotBot()
+                return lastCommandResultValue
+            }
+            lastCommandResultValue = lobbyServerCommandOk()
+            return lastCommandResultValue
+        }
+        return lastCommandResultValue
+    }
+
+    Bool setGameMode(Int mode) {
+        if (!runningValue || mode < lobbyServerGameFreeRoam() ||
+            mode > lobbyServerGameTag()) {
+            return false
+        }
+        gameModeValue = mode
+        for (var slot = 0; slot < playerIds.length; slot = slot + 1) {
+            playerScores[slot] = 0
+            playerRaceStages[slot] = 0
+            playerActionTicks[slot] = 0
+        }
+        return true
+    }
+
+    Int clampWorld(Int position) {
+        if (position < -100) { return -100 }
+        if (position > 100) { return 100 }
+        return position
+    }
+
+    Bool movePlayer(Int playerId, Int deltaX, Int deltaZ) {
+        var slot = findPlayer(playerId)
+        if (!runningValue || slot < 0 || playerBots[slot] ||
+            deltaX < -4 || deltaX > 4 || deltaZ < -4 || deltaZ > 4) {
+            return false
+        }
+        playerXs[slot] = clampWorld(playerXs[slot] + deltaX)
+        playerZs[slot] = clampWorld(playerZs[slot] + deltaZ)
+        updatePlayerMinigame(slot)
+        return true
+    }
+
+    Int absolute(Int value) { return if (value < 0) -value else value }
+
+    Bool near(Int leftX, Int leftZ, Int rightX, Int rightZ, Int range) {
+        return absolute(leftX - rightX) + absolute(leftZ - rightZ) <= range
+    }
+
+    void updatePlayerMinigame(Int slot) {
+        if (gameModeValue != lobbyServerGameRace()) { return }
+        var checkpoint = playerRaceStages[slot]
+        var checkpointX = 0
+        var checkpointZ = 0
+        if (checkpoint == 0) { checkpointX = -30; checkpointZ = 0 }
+        else if (checkpoint == 1) { checkpointX = 0; checkpointZ = 30 }
+        else if (checkpoint == 2) { checkpointX = 30; checkpointZ = 0 }
+        else { checkpointX = 0; checkpointZ = -30 }
+        if (near(playerXs[slot], playerZs[slot], checkpointX, checkpointZ, 5)) {
+            checkpoint = checkpoint + 1
+            if (checkpoint >= 4) {
+                checkpoint = 0
+                playerScores[slot] = playerScores[slot] + 1
+            }
+            playerRaceStages[slot] = checkpoint
+        }
+    }
+
+    Bool performMinigameAction(Int playerId, Int targetId) {
+        var slot = findPlayer(playerId)
+        if (!runningValue || slot < 0 || playerBots[slot] ||
+            tickValue - playerActionTicks[slot] < 10) {
+            return false
+        }
+        if (gameModeValue == lobbyServerGameTargetPractice()) {
+            if (targetId < 1 || targetId > 3) { return false }
+            var targetX = (targetId - 2) * 20
+            var targetZ = if (targetId == 2) 20 else 0
+            if (!near(playerXs[slot], playerZs[slot], targetX, targetZ, 8)) {
+                return false
+            }
+            playerScores[slot] = playerScores[slot] + 1
+        } else if (gameModeValue == lobbyServerGameTag()) {
+            var targetSlot = findPlayer(targetId)
+            if (targetSlot < 0 || targetSlot == slot ||
+                !near(playerXs[slot], playerZs[slot],
+                    playerXs[targetSlot], playerZs[targetSlot], 4)) {
+                return false
+            }
+            playerScores[slot] = playerScores[slot] + 1
+            playerActionTicks[targetSlot] = tickValue
+            playerXs[targetSlot] = -40 + targetSlot * 8
+            playerZs[targetSlot] = 0
+        } else {
+            return false
+        }
+        playerActionTicks[slot] = tickValue
+        return true
+    }
+
+    Bool validChat(String message) {
+        if (message.length() < 1 ||
+            message.length() > lobbyServerMaximumChatLength()) {
+            return false
+        }
+        for (var index = 0; index < message.length(); index = index + 1) {
+            var character = message.charAt(index) as Int
+            if (character < 32 || character > 126) { return false }
+        }
+        return true
+    }
+
+    Bool sendChat(Int playerId, String message) {
+        var slot = findPlayer(playerId)
+        if (!runningValue || slot < 0 || playerBots[slot] ||
+            !validChat(message) || chatSequenceValue >= 1000000) {
+            return false
+        }
+        chatSequenceValue = chatSequenceValue + 1
+        var index = (chatSequenceValue - 1) % chatSenders.length
+        chatSenders[index] = playerId
+        chatTicks[index] = tickValue
+        chatMessages[index] = message
+        return true
+    }
+
+    Bool advanceTick() {
+        if (!runningValue || tickValue >= 10000000) { return false }
+        tickValue = tickValue + 1
+        for (var slot = 0; slot < playerIds.length; slot = slot + 1) {
+            if (playerIds[slot] <= 0 || !playerBots[slot]) { continue }
+            if (gameModeValue == lobbyServerGameRace()) {
+                var checkpoint = playerRaceStages[slot]
+                var goalX = if (checkpoint == 0) -30 else if (checkpoint == 2) 30 else 0
+                var goalZ = if (checkpoint == 1) 30 else if (checkpoint == 3) -30 else 0
+                if (playerXs[slot] < goalX) { playerXs[slot] = playerXs[slot] + 1 }
+                else if (playerXs[slot] > goalX) { playerXs[slot] = playerXs[slot] - 1 }
+                if (playerZs[slot] < goalZ) { playerZs[slot] = playerZs[slot] + 1 }
+                else if (playerZs[slot] > goalZ) { playerZs[slot] = playerZs[slot] - 1 }
+                updatePlayerMinigame(slot)
+            } else if (gameModeValue == lobbyServerGameTargetPractice()) {
+                var target = (tickValue / 20 + playerIds[slot]) % 3 + 1
+                var targetX = (target - 2) * 20
+                var targetZ = if (target == 2) 20 else 0
+                if (playerXs[slot] < targetX) { playerXs[slot] = playerXs[slot] + 1 }
+                else if (playerXs[slot] > targetX) { playerXs[slot] = playerXs[slot] - 1 }
+                if (playerZs[slot] < targetZ) { playerZs[slot] = playerZs[slot] + 1 }
+                else if (playerZs[slot] > targetZ) { playerZs[slot] = playerZs[slot] - 1 }
+                if (near(playerXs[slot], playerZs[slot], targetX, targetZ, 1) &&
+                    tickValue - playerActionTicks[slot] >= 10) {
+                    playerScores[slot] = playerScores[slot] + 1
+                    playerActionTicks[slot] = tickValue
+                }
+            } else if (gameModeValue == lobbyServerGameTag()) {
+                var targetSlot = -1
+                var nearestDistance = 1000000
+                for (var target = 0; target < playerIds.length; target = target + 1) {
+                    if (playerIds[target] <= 0 || playerBots[target]) { continue }
+                    var distance = absolute(playerXs[slot] - playerXs[target]) +
+                        absolute(playerZs[slot] - playerZs[target])
+                    if (distance < nearestDistance) {
+                        targetSlot = target
+                        nearestDistance = distance
+                    }
+                }
+                if (targetSlot >= 0) {
+                    if (playerXs[slot] < playerXs[targetSlot]) { playerXs[slot] = playerXs[slot] + 1 }
+                    else if (playerXs[slot] > playerXs[targetSlot]) { playerXs[slot] = playerXs[slot] - 1 }
+                    if (playerZs[slot] < playerZs[targetSlot]) { playerZs[slot] = playerZs[slot] + 1 }
+                    else if (playerZs[slot] > playerZs[targetSlot]) { playerZs[slot] = playerZs[slot] - 1 }
+                    if (near(playerXs[slot], playerZs[slot],
+                            playerXs[targetSlot], playerZs[targetSlot], 2) &&
+                        tickValue - playerActionTicks[slot] >= 10) {
+                        playerScores[slot] = playerScores[slot] + 1
+                        playerActionTicks[slot] = tickValue
+                    }
+                }
+            } else {
+                var direction = if ((tickValue + playerIds[slot]) % 2 == 0) 1 else -1
+                playerXs[slot] = clampWorld(playerXs[slot] + direction)
+            }
+        }
+        return true
+    }
+
+    Int chatCount() {
+        return if (chatSequenceValue < chatMessages.length)
+            chatSequenceValue else chatMessages.length
+    }
+
+    Int chatSequenceAt(Int index) {
+        if (index < 0 || index >= chatCount()) { return 0 }
+        var firstSequence = chatSequenceValue - chatCount() + 1
+        return firstSequence + index
+    }
+
+    Int chatSlot(Int index) {
+        var sequence = chatSequenceAt(index)
+        if (sequence <= 0) { return -1 }
+        return (sequence - 1) % chatSenders.length
+    }
+
+    Int chatSenderAt(Int index) {
+        var slot = chatSlot(index)
+        if (slot < 0) { return 0 }
+        return chatSenders[slot]
+    }
+
+    String chatMessageAt(Int index) {
+        var slot = chatSlot(index)
+        if (slot < 0) { return "" }
+        return chatMessages[slot]
+    }
+
+    Int playerIdAt(Int slot) {
+        if (slot < 0 || slot >= playerIds.length) { return 0 }
+        return playerIds[slot]
+    }
+
+    String playerNameAt(Int slot) {
+        if (slot < 0 || slot >= playerNames.length) { return "" }
+        return playerNames[slot]
+    }
+
+    String playerIdentityAt(Int slot) {
+        if (slot < 0 || slot >= playerIdentities.length) { return "" }
+        return playerIdentities[slot]
+    }
+
+    Int playerTeamAt(Int slot) {
+        if (slot < 0 || slot >= playerTeams.length) { return -1 }
+        return playerTeams[slot]
+    }
+
+    Int playerScoreAt(Int slot) {
+        if (slot < 0 || slot >= playerScores.length) { return -1 }
+        return playerScores[slot]
+    }
+
+    Int playerXAt(Int slot) {
+        if (slot < 0 || slot >= playerXs.length) { return 0 }
+        return playerXs[slot]
+    }
+
+    Int playerZAt(Int slot) {
+        if (slot < 0 || slot >= playerZs.length) { return 0 }
+        return playerZs[slot]
+    }
+
+    Bool playerIsBotAt(Int slot) {
+        return slot >= 0 && slot < playerBots.length &&
+            playerIds[slot] > 0 && playerBots[slot]
+    }
+
+    Bool running() { return runningValue }
+    Int room() { return roomValue }
+    Int ownerId() { return ownerIdValue }
+    Int playerCount() { return playerCountValue }
+    Int botCount() {
+        var count = 0
+        for (var slot = 0; slot < playerBots.length; slot = slot + 1) {
+            if (playerIds[slot] > 0 && playerBots[slot]) { count = count + 1 }
+        }
+        return count
+    }
+    Int gameMode() { return gameModeValue }
+    Int tick() { return tickValue }
+    Int lastCommandResult() { return lastCommandResultValue }
+}

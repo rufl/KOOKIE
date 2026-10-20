@@ -519,6 +519,26 @@ class CameraState {
         return gpuMatrixValues[index]
     }
 
+    Bool setFreePosition(Int x, Int y, Int z) {
+        if (x < -900 || x > 900 || y < -900 || y > 900 ||
+            z < -900 || z > 900) {
+            return false
+        }
+        followXValue = x
+        followYValue = y
+        followZValue = z
+        followReadyValue = false
+        return true
+    }
+
+    Bool setFollowViewDistance(Int distance) {
+        if (distance < 0 || distance > cameraFollowMaximumDistance()) {
+            return false
+        }
+        desiredFollowDistanceValue = distance
+        return true
+    }
+
     Int currentX() { return followXValue }
     Int currentY() { return followYValue }
     Int currentZ() { return followZValue }
@@ -542,5 +562,190 @@ class CameraState {
     Int viewUpY() { return cosineFixed(pitch) }
     Int viewUpZ() {
         return -sineFixed(pitch) * cosineFixed(yaw) / 1000
+    }
+}
+
+Int spectatorModeFree() { return 0 }
+Int spectatorModeFollow() { return 1 }
+Int spectatorModeFirstPerson() { return 2 }
+Int spectatorTargetCapacityMaximum() { return 32 }
+
+class SpectatorMode {
+    Bool activeValue
+    Int modeValue
+    Int targetCountValue
+    Int targetIndexValue
+    Int[] targetIds
+    Int[] targetXs
+    Int[] targetYs
+    Int[] targetZs
+
+    public constructor(Int capacity) {
+        if (capacity < 1) { capacity = 1 }
+        if (capacity > spectatorTargetCapacityMaximum()) {
+            capacity = spectatorTargetCapacityMaximum()
+        }
+        activeValue = false
+        modeValue = spectatorModeFree()
+        targetCountValue = 0
+        targetIndexValue = 0
+        targetIds = new Int[capacity]
+        targetXs = new Int[capacity]
+        targetYs = new Int[capacity]
+        targetZs = new Int[capacity]
+    }
+
+    Bool enter(CameraState camera) {
+        activeValue = true
+        modeValue = spectatorModeFree()
+        return camera.clearFollowTarget()
+    }
+
+    Bool leave(CameraState camera) {
+        activeValue = false
+        modeValue = spectatorModeFree()
+        return camera.clearFollowTarget()
+    }
+
+    Bool active() { return activeValue }
+    Int mode() { return modeValue }
+    Int targetCount() { return targetCountValue }
+
+    Int targetId() {
+        if (targetCountValue == 0 || targetIndexValue >= targetCountValue) {
+            return 0
+        }
+        return targetIds[targetIndexValue]
+    }
+
+    Bool setMode(Int nextMode, CameraState camera) {
+        if (!activeValue || nextMode < spectatorModeFree() ||
+            nextMode > spectatorModeFirstPerson() ||
+            (nextMode != spectatorModeFree() && targetCountValue == 0)) {
+            return false
+        }
+        modeValue = nextMode
+        if (nextMode == spectatorModeFree()) {
+            return camera.clearFollowTarget()
+        }
+        return camera.setFollowViewDistance(
+            if (nextMode == spectatorModeFirstPerson()) 0 else 10)
+    }
+
+    Bool setTarget(Int id, Int x, Int y, Int z) {
+        if (id <= 0 || x < -900 || x > 900 || y < -900 || y > 900 ||
+            z < -900 || z > 900) {
+            return false
+        }
+        for (var index = 0; index < targetCountValue; index = index + 1) {
+            if (targetIds[index] == id) {
+                targetXs[index] = x
+                targetYs[index] = y
+                targetZs[index] = z
+                return true
+            }
+        }
+        if (targetCountValue >= targetIds.length) { return false }
+        targetIds[targetCountValue] = id
+        targetXs[targetCountValue] = x
+        targetYs[targetCountValue] = y
+        targetZs[targetCountValue] = z
+        targetCountValue = targetCountValue + 1
+        return true
+    }
+
+    Bool removeTarget(Int id, CameraState camera) {
+        var removedIndex = -1
+        for (var index = 0; index < targetCountValue; index = index + 1) {
+            if (targetIds[index] == id) {
+                removedIndex = index
+                break
+            }
+        }
+        if (removedIndex < 0) { return false }
+        var previousTarget = targetId()
+        for (var index = removedIndex; index < targetCountValue - 1;
+             index = index + 1) {
+            targetIds[index] = targetIds[index + 1]
+            targetXs[index] = targetXs[index + 1]
+            targetYs[index] = targetYs[index + 1]
+            targetZs[index] = targetZs[index + 1]
+        }
+        targetCountValue = targetCountValue - 1
+        if (targetCountValue == 0) {
+            targetIndexValue = 0
+            modeValue = spectatorModeFree()
+            return camera.clearFollowTarget()
+        }
+        if (previousTarget == id) {
+            targetIndexValue = removedIndex
+            if (targetIndexValue >= targetCountValue) { targetIndexValue = 0 }
+        } else {
+            if (removedIndex < targetIndexValue) {
+                targetIndexValue = targetIndexValue - 1
+            }
+            if (targetIndexValue >= targetCountValue) { targetIndexValue = 0 }
+        }
+        if (activeValue && modeValue != spectatorModeFree()) {
+            if (!camera.setFollowTarget(
+                    targetXs[targetIndexValue], targetYs[targetIndexValue],
+                    targetZs[targetIndexValue])) {
+                return false
+            }
+            if (modeValue == spectatorModeFirstPerson() &&
+                !camera.setFollowViewDistance(0)) {
+                return false
+            }
+            return camera.stepFollow()
+        }
+        return true
+    }
+
+    Bool cycleTarget() {
+        if (!activeValue || targetCountValue == 0) { return false }
+        targetIndexValue = (targetIndexValue + 1) % targetCountValue
+        if (modeValue == spectatorModeFree()) {
+            modeValue = spectatorModeFollow()
+        }
+        return true
+    }
+
+    Bool step(
+        CameraState camera, Int forward, Int strafe, Int vertical, Int speed
+    ) {
+        if (!activeValue || speed < 1 || speed > 8 ||
+            forward < -1 || forward > 1 || strafe < -1 || strafe > 1 ||
+            vertical < -1 || vertical > 1) {
+            return false
+        }
+        if (modeValue == spectatorModeFree()) {
+            camera.clearFollowTarget()
+            var x = camera.currentX() +
+                camera.movementWorldX(forward, strafe) * speed
+            var y = camera.currentY() + vertical * speed * 4
+            var z = camera.currentZ() +
+                camera.movementWorldZ(forward, strafe) * speed
+            if (x < -900) { x = -900 }
+            if (x > 900) { x = 900 }
+            if (y < -900) { y = -900 }
+            if (y > 900) { y = 900 }
+            if (z < -900) { z = -900 }
+            if (z > 900) { z = 900 }
+            return camera.setFreePosition(x, y, z)
+        }
+        if (targetCountValue == 0) {
+            modeValue = spectatorModeFree()
+            return camera.clearFollowTarget()
+        }
+        if (!camera.setFollowTarget(
+                targetXs[targetIndexValue], targetYs[targetIndexValue],
+                targetZs[targetIndexValue])) {
+            return false
+        }
+        if (modeValue == spectatorModeFirstPerson() &&
+            !camera.setFollowViewDistance(0)) {
+            return false
+        }
+        return camera.stepFollow()
     }
 }

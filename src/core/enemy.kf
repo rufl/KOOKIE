@@ -307,6 +307,55 @@ class EnemySpatialWorld {
             true, false, true, distance, endX, endY, endZ)
     }
 
+    SpatialPositionResult coverPosition(
+        Int enemyId, Int attackerId, Int radius
+    ) {
+        var enemyIndex = find(enemyId)
+        var attackerIndex = find(attackerId)
+        if (enemyIndex < 0 || attackerIndex < 0 ||
+            radius <= 0 || radius > maxDistance ||
+            obstacles.triangleCount() == 0) {
+            return SpatialPositionResult(false, 0, 0, 0)
+        }
+        var originX = positionsX[enemyIndex]
+        var originY = positionsY[enemyIndex]
+        var originZ = positionsZ[enemyIndex]
+        var attackerX = positionsX[attackerIndex]
+        var attackerY = positionsY[attackerIndex]
+        var attackerZ = positionsZ[attackerIndex]
+        for (var candidate = 0; candidate < 8; candidate = candidate + 1) {
+            var offsetX = 0
+            var offsetZ = 0
+            if (candidate == 0 || candidate == 4 || candidate == 5) {
+                offsetX = radius
+            } else if (candidate == 2 || candidate == 6 || candidate == 7) {
+                offsetX = -radius
+            }
+            if (candidate == 1 || candidate == 4 || candidate == 7) {
+                offsetZ = radius
+            } else if (candidate == 3 || candidate == 5 || candidate == 6) {
+                offsetZ = -radius
+            }
+            var candidateX = originX + offsetX
+            var candidateZ = originZ + offsetZ
+            if (!navigator.inside(candidateX, originY, candidateZ)) {
+                continue
+            }
+            var path = traceSegment(
+                originX, originY, originZ,
+                candidateX, originY, candidateZ)
+            if (!path.accepted() || path.collided()) { continue }
+            var sight = traceSegment(
+                candidateX, originY, candidateZ,
+                attackerX, attackerY, attackerZ)
+            if (sight.accepted() && sight.collided()) {
+                return SpatialPositionResult(
+                    true, candidateX, originY, candidateZ)
+            }
+        }
+        return SpatialPositionResult(false, 0, 0, 0)
+    }
+
 
 
     EnemyMoveResult moveToward(Int enemyId, Int targetId, Int step) {

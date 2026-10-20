@@ -227,12 +227,17 @@ class LoopbackSession {
     Bool[] enemySpatialPerceptionActive
     Bool[] enemyAutonomous
     Int[] enemyArchetypes
-    Int[] enemyAggroExpiryTicks
+    Int[] enemyAggroDurationTicks
+    Int[] enemyAggroLastSeenTicks
     Int[] enemyRouteCounts
     Int[] enemyRouteIndices
     Int[] enemyRouteX
     Int[] enemyRouteY
     Int[] enemyRouteZ
+    Bool[] enemyCoverPending
+    Int[] enemyCoverX
+    Int[] enemyCoverY
+    Int[] enemyCoverZ
     Int enemyCount
     Int enemySnapshotSequence
     Int clientEnemySnapshotSequence
@@ -524,12 +529,17 @@ class LoopbackSession {
         enemySpatialPerceptionActive = new Bool[entityCapacity]
         enemyAutonomous = new Bool[entityCapacity]
         enemyArchetypes = new Int[entityCapacity]
-        enemyAggroExpiryTicks = new Int[entityCapacity]
+        enemyAggroDurationTicks = new Int[entityCapacity]
+        enemyAggroLastSeenTicks = new Int[entityCapacity]
         enemyRouteCounts = new Int[entityCapacity]
         enemyRouteIndices = new Int[entityCapacity]
         enemyRouteX = new Int[entityCapacity * 8]
         enemyRouteY = new Int[entityCapacity * 8]
         enemyRouteZ = new Int[entityCapacity * 8]
+        enemyCoverPending = new Bool[entityCapacity]
+        enemyCoverX = new Int[entityCapacity]
+        enemyCoverY = new Int[entityCapacity]
+        enemyCoverZ = new Int[entityCapacity]
         enemyCount = 0
         enemySnapshotSequence = 0
         clientEnemySnapshotSequence = 0
@@ -557,9 +567,14 @@ class LoopbackSession {
             enemySpatialPerceptionActive[index] = false
             enemyAutonomous[index] = false
             enemyArchetypes[index] = 0
-            enemyAggroExpiryTicks[index] = 0
+            enemyAggroDurationTicks[index] = 0
+            enemyAggroLastSeenTicks[index] = -1
             enemyRouteCounts[index] = 0
             enemyRouteIndices[index] = 0
+            enemyCoverPending[index] = false
+            enemyCoverX[index] = 0
+            enemyCoverY[index] = 0
+            enemyCoverZ[index] = 0
             playerCombatRewardTargets[index] = 0
             playerCombatRewardCurrencies[index] = 0
             playerCombatRewardClaimed[index] = false
@@ -961,6 +976,26 @@ class LoopbackSession {
     Bool playerMegaphoneActive(Int player, Int tick) {
         if (player == 1) { return playerOnePowerUps.megaphoneActive(tick) }
         if (player == 2) { return playerTwoPowerUps.megaphoneActive(tick) }
+        return false
+    }
+    Int playerFlourCloudRadius(Int player) {
+        if (player == 1) {
+            return playerOnePowerUps.flourCloudRadius(serverTick)
+        }
+        if (player == 2) {
+            return playerTwoPowerUps.flourCloudRadius(serverTick)
+        }
+        return 0
+    }
+    Bool playerFlourCloudBlocksSight(
+        Int player, Int distance, Int tick
+    ) {
+        if (player == 1) {
+            return playerOnePowerUps.flourCloudBlocksSight(distance, tick)
+        }
+        if (player == 2) {
+            return playerTwoPowerUps.flourCloudBlocksSight(distance, tick)
+        }
         return false
     }
 
@@ -3197,6 +3232,7 @@ class LoopbackSession {
                 SpatialPoint(
                     enemyCombat.enemySpatialPositionX(enemyId),
                     enemyCombat.enemySpatialPositionY(enemyId),
+
                     enemyCombat.enemySpatialPositionZ(enemyId)))) {
             return false
         }
@@ -3207,6 +3243,23 @@ class LoopbackSession {
             return false
         }
         enemyLootClaimed[slot] = true
+        return true
+    }
+    Bool triggerSniperCover(Int attackerId, Int enemyId, Int distance) {
+        var slot = enemySlot(enemyId)
+        if (slot < 0 ||
+            enemyArchetypes[slot] != enemyArchetypeSniper() ||
+            distance <= 8 ||
+            !enemyCombat.hasSpatialPosition(attackerId) ||
+            enemyCombat.currentHealth(enemyId) <= 0) {
+            return false
+        }
+        var cover = enemyCombat.enemyCoverPosition(enemyId, attackerId, 4)
+        if (!cover.accepted()) { return false }
+        enemyCoverX[slot] = cover.x()
+        enemyCoverY[slot] = cover.y()
+        enemyCoverZ[slot] = cover.z()
+        enemyCoverPending[slot] = true
         return true
     }
 
@@ -3252,6 +3305,9 @@ class LoopbackSession {
                 result.applied(), result.remainingHealth(),
                 result.died(), result.eventSequence())
         }
+        if (result.accepted() && result.applied() > 0 && !result.died()) {
+            triggerSniperCover(sourceId, targetId, distance)
+        }
         presentEnemyResolution(result, tick)
         return result
     }
@@ -3275,6 +3331,9 @@ class LoopbackSession {
                 false, result.actionId(), sourceId, targetId,
                 result.applied(), result.remainingHealth(),
                 result.died(), result.eventSequence())
+        }
+        if (result.accepted() && result.applied() > 0 && !result.died()) {
+            triggerSniperCover(sourceId, targetId, distance)
         }
         presentEnemyResolution(result, tick)
         return result
@@ -3367,6 +3426,15 @@ class LoopbackSession {
         enemyPerceptionActive[slot] = false
         enemySpatialPerceptionActive[slot] = false
         enemyAutonomous[slot] = false
+        enemyArchetypes[slot] = 0
+        enemyAggroDurationTicks[slot] = 0
+        enemyAggroLastSeenTicks[slot] = -1
+        enemyRouteCounts[slot] = 0
+        enemyRouteIndices[slot] = 0
+        enemyCoverPending[slot] = false
+        enemyCoverX[slot] = 0
+        enemyCoverY[slot] = 0
+        enemyCoverZ[slot] = 0
         enemyLootStableIds[slot] = 0
         enemyLootSeeds[slot] = 0
         enemyLootLevels[slot] = 0
@@ -3525,13 +3593,13 @@ class LoopbackSession {
     ) {
         if (archetype < enemyArchetypeRoamer() ||
             archetype > enemyArchetypeSniper() ||
-            aggroDurationTicks < 0) {
-            return false
+            aggroDurationTicks < 0 || aggroDurationTicks > 1000000) {
         }
         var slot = enemySlot(enemyId)
         if (slot < 0) { return false }
         enemyArchetypes[slot] = archetype
-        enemyAggroExpiryTicks[slot] = aggroDurationTicks
+        enemyAggroDurationTicks[slot] = aggroDurationTicks
+        enemyAggroLastSeenTicks[slot] = -1
         enemyAutonomous[slot] = true
         enemyPerceptionActive[slot] = true
         enemySpatialPerceptionActive[slot] = true
@@ -3543,6 +3611,7 @@ class LoopbackSession {
     ) {
         var slot = enemySlot(enemyId)
         if (slot < 0 || routeIndex < 0 || routeIndex >= 8 ||
+            routeIndex > enemyRouteCounts[slot] ||
             !enemyCombat.hasSpatialPosition(enemyId)) {
             return false
         }
@@ -3550,10 +3619,61 @@ class LoopbackSession {
         enemyRouteX[offset] = x
         enemyRouteY[offset] = y
         enemyRouteZ[offset] = z
-        if (routeIndex >= enemyRouteCounts[slot]) {
+        if (routeIndex == enemyRouteCounts[slot]) {
             enemyRouteCounts[slot] = routeIndex + 1
         }
         return true
+    }
+
+    Int nearestVisibleEnemyTarget(Int enemyId, Int tick) {
+        var targetId = 0
+        var targetDistance = 1000001
+        for (var player = 1; player <= 2; player = player + 1) {
+            if (enemyTargetEligible(player)) {
+                var sight = enemyCombat.spatialVisibility(
+                    enemyId, player, enemyCombat.enemyPerceptionRange())
+                var blockedByFlour = playerFlourCloudBlocksSight(
+                    player, sight.distance(), tick)
+                if (sight.accepted() && sight.visible() &&
+                    !blockedByFlour &&
+                    (sight.distance() < targetDistance ||
+                        (sight.distance() == targetDistance &&
+                            (targetId == 0 || player < targetId)))) {
+                    targetId = player
+                    targetDistance = sight.distance()
+                }
+            }
+        }
+        return targetId
+    }
+
+    Bool stepEnemyRoute(Int slot, Int enemyId) {
+        var count = enemyRouteCounts[slot]
+        if (count <= 0) { return true }
+        var routeIndex = enemyRouteIndices[slot]
+        if (routeIndex < 0 || routeIndex >= count) {
+            routeIndex = 0
+            enemyRouteIndices[slot] = 0
+        }
+        var offset = slot * 8 + routeIndex
+        var dx = enemyCombat.enemySpatialPositionX(enemyId) -
+            enemyRouteX[offset]
+        var dy = enemyCombat.enemySpatialPositionY(enemyId) -
+            enemyRouteY[offset]
+        var dz = enemyCombat.enemySpatialPositionZ(enemyId) -
+            enemyRouteZ[offset]
+        if (dx < 0) { dx = -dx }
+        if (dy < 0) { dy = -dy }
+        if (dz < 0) { dz = -dz }
+        if (dx <= 1 && dy <= 1 && dz <= 1) {
+            routeIndex = routeIndex + 1
+            if (routeIndex >= count) { routeIndex = 0 }
+            enemyRouteIndices[slot] = routeIndex
+            offset = slot * 8 + routeIndex
+        }
+        return enemyCombat.moveEnemyTowardPoint(
+            enemyId, enemyRouteX[offset], enemyRouteY[offset],
+            enemyRouteZ[offset], enemyCombat.enemyMoveStep(enemyId)).accepted()
     }
 
     Bool enemyTargetEligible(Int player) {
@@ -3621,6 +3741,67 @@ class LoopbackSession {
     }
 
 
+    Int enemyArchetypeTarget(Int slot, Int tick) {
+        var enemyId = enemyIds[slot]
+        var visibleTarget = nearestVisibleEnemyTarget(enemyId, tick)
+        if (visibleTarget > 0) {
+            enemyPerceptionTargets[slot] = visibleTarget
+            enemyAggroLastSeenTicks[slot] = tick
+            return visibleTarget
+        }
+        if (enemyArchetypes[slot] == enemyArchetypeChaser()) {
+            var rememberedTarget = enemyPerceptionTargets[slot]
+            var lastSeen = enemyAggroLastSeenTicks[slot]
+            if (enemyTargetEligible(rememberedTarget) &&
+                lastSeen >= 0 &&
+                (enemyAggroDurationTicks[slot] == 0 ||
+                    tick - lastSeen < enemyAggroDurationTicks[slot])) {
+                return rememberedTarget
+            }
+        }
+        enemyPerceptionTargets[slot] = 0
+        enemyAggroLastSeenTicks[slot] = -1
+        return 0
+    }
+
+    Bool stepEnemyArchetype(Int slot, Int tick) {
+        var enemyId = enemyIds[slot]
+        var archetype = enemyArchetypes[slot]
+        if (archetype == enemyArchetypeSniper() &&
+            enemyCoverPending[slot]) {
+            var dx = enemyCombat.enemySpatialPositionX(enemyId) -
+                enemyCoverX[slot]
+            var dy = enemyCombat.enemySpatialPositionY(enemyId) -
+                enemyCoverY[slot]
+            var dz = enemyCombat.enemySpatialPositionZ(enemyId) -
+                enemyCoverZ[slot]
+            if (dx < 0) { dx = -dx }
+            if (dy < 0) { dy = -dy }
+            if (dz < 0) { dz = -dz }
+            if (dx <= 1 && dy <= 1 && dz <= 1) {
+                enemyCoverPending[slot] = false
+            } else {
+                return enemyCombat.moveEnemyTowardPoint(
+                    enemyId, enemyCoverX[slot], enemyCoverY[slot],
+                    enemyCoverZ[slot], enemyCombat.enemyMoveStep(enemyId)
+                ).accepted()
+            }
+        }
+        var targetId = enemyArchetypeTarget(slot, tick)
+        if (targetId <= 0) {
+            if (archetype == enemyArchetypeRoamer() ||
+                archetype == enemyArchetypeChaser()) {
+                return stepEnemyRoute(slot, enemyId)
+            }
+            return true
+        }
+        var pursue = archetype == enemyArchetypeChaser()
+        lastEnemyDecision = enemyCombat.stepEnemyRoleSpatial(
+            enemyId, tick, targetId,
+            enemyPerceptionCriticals[slot], pursue)
+        return lastEnemyDecision.accepted()
+    }
+
     Bool advanceEnemyTick(Int tick) {
         if (!started || tick < 0) {
             return false
@@ -3631,13 +3812,20 @@ class LoopbackSession {
                 continue
             }
             if (enemyAutonomous[index]) {
-                var targetId = nearestLiveEnemyTarget(enemyIds[index])
-                if (targetId <= 0) { continue }
-                lastEnemyDecision = enemyCombat.stepEnemyRoleSpatial(
-                    enemyIds[index], tick, targetId,
-                    enemyPerceptionCriticals[index])
+                if (enemyArchetypes[index] > 0) {
+                    lastEnemyDecision = EnemyAttackDecision(
+                        false, 0, 0, 0, false, 0, 0, false)
+                    accepted = stepEnemyArchetype(index, tick)
+                } else {
+                    var targetId = nearestLiveEnemyTarget(enemyIds[index])
+                    if (targetId <= 0) { continue }
+                    lastEnemyDecision = enemyCombat.stepEnemyRoleSpatial(
+                        enemyIds[index], tick, targetId,
+                        enemyPerceptionCriticals[index], true)
+                }
                 if (accepted && lastEnemyDecision.fired() &&
                     lastEnemyDecision.applied() > 0) {
+                    var targetId = lastEnemyDecision.targetId()
                     var gain = 70
                     if (lastEnemyDecision.died()) {
                         gain = 100

@@ -8,6 +8,7 @@ import ui
 class G1Demo {
     G1Arena arena
     CameraState camera
+    SpectatorMode spectator
     BoundedG3Config g3Config
     Bool g3ConfigLoadedValue
     LoopbackSession loopback
@@ -28,6 +29,7 @@ class G1Demo {
             g3Config.value("sessionPlayerCapacity"))
         arena = G1Arena()
         camera = CameraState(-450, 450)
+        spectator = SpectatorMode(8)
         hud = ShooterHud(
             g3Config.value("playerActorHealth"),
             g3Config.value("playerWeaponMagazineSize"))
@@ -38,6 +40,47 @@ class G1Demo {
         hudCapacityValue = hudFrame.vertexCapacity()
         worldChecksumValue = 0
         hudChecksumValue = 0
+    }
+
+    Bool enterSpectatorMode() {
+        return spectator.enter(camera)
+    }
+
+    Bool leaveSpectatorMode() {
+        return spectator.leave(camera)
+    }
+
+    Bool spectatorActive() {
+        return spectator.active()
+    }
+
+    Bool setSpectatorTarget(Int playerId, Int x, Int y, Int z) {
+        return spectator.setTarget(playerId, x, y, z)
+    }
+
+    Bool removeSpectatorTarget(Int playerId) {
+        return spectator.removeTarget(playerId, camera)
+    }
+
+    Bool cycleSpectatorTarget() {
+        return spectator.cycleTarget()
+    }
+
+    Bool setSpectatorView(Int viewMode) {
+        return spectator.setMode(viewMode, camera)
+    }
+
+    Bool stepSpectator(Int forward, Int strafe, Int vertical, Int speed) {
+        return spectator.step(camera, forward, strafe, vertical, speed)
+    }
+
+    Int spectatorTarget() {
+        return spectator.targetId()
+    }
+
+    Bool lookSpectator(Int deltaYaw, Int deltaPitch) {
+        return spectator.active() &&
+            camera.applyLook(deltaYaw, deltaPitch)
     }
 
     Bool failAt(Int step) {

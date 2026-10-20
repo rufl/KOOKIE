@@ -3,8 +3,36 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
-- Added bounded authoritative enemy archetype and ordered world-space route
-  configuration APIs. Archetypes are distinct from the existing weapon roles.
+- Converted the Unity cat and swan FBX animation sets into source-rig GLBs,
+  then retargeted seven state clips onto the existing cat and goose skeletons.
+  The retargeted clips replace both runtime model animation sets; swan wing
+  tracks are omitted because the current goose model has no wing bones. The
+  user confirmed Asset Store purchase; applicable Unity Asset Store terms govern
+  use.
+
+- Added `session/lobby_server.kf`: bounded eight-participant lobby state, host-
+  owned bot `addbot`/`delbot` commands, chat history, and server-ticked
+  free-roam, race, target-practice and tag minigames. This is the authoritative
+  in-process model only; existing network admission, client presentation and
+  remote lobby commands are not integrated.
+- Added identity-aware lobby admission with caller-supplied stable player IDs,
+  case-insensitive nickname uniqueness, and ID-to-nickname ownership retained
+  across lobby stop/start (bounded to 256 identities per server object). The
+  registry is in-memory and trusts the caller; authentication and durable
+  cross-process identity storage are not connected.
+- Added the flour-bag power-up pickup. Its 240-tick, 24-unit cloud blocks
+  authoritative enemy target acquisition while a player is inside it; the
+  active radius is exposed for presentation. A persistent rendered smoke cloud
+  is not yet wired into the game presentation.
+- Added authoritative roamer patrol/return, chaser pursuit with configurable
+  tick-based aggro expiry (zero is indefinite), and sniper ranged attacks with
+  geometry-derived cover seeking after distant hits. Archetypes remain separate
+  from weapon roles; routes are bounded to eight ordered world-space points.
+- Added a bounded spectator camera controller for free flight, third-person
+  follow, and first-person follow, with ordered target cycling and immediate
+  target removal. `G1Demo` exposes enter/leave, target, view, and movement APIs;
+  callers provide only targets permitted by their authoritative visibility and
+  lifecycle policy.
 - Reduced hot enemy AI evaluation cost: sealed behavior programs no longer run
   full topology/checksum validation for every enemy step; the public validation
   path remains available for admission and serialization. The pinned Kof 0.6.5

@@ -32,6 +32,16 @@
       "license": "CC0",
       "license_file": "licenses/classic64-cc0-readme.txt",
       "creator": "Craig Snedeker"
+    },
+    {
+      "id": "unity-animals-animation-packs",
+      "archive_name": "Animals.zip",
+      "archive_sha256": "25f8ae280182ea0269a79969974cfdd86dff6309e87c7dd5f7990ab286ee180f",
+      "license": "user-confirmed Unity Asset Store purchase; subject to applicable Unity Asset Store terms",
+      "products": [
+        "Quirky Series - Animals Mega Pack Vol 1 (productId 137259, version 1.5)",
+        "Quirky Series - River Animals Vol 1 (productId 183279, version 1.5)"
+      ]
     }
   ],
   "direct_sources": [
@@ -94,9 +104,9 @@
       "authored_path": "models/goose/goose.glb",
       "runtime_path": "models/goose/goose.glb",
       "format": "glb",
-      "animations": ["Idle", "Walk", "Run", "Attack", "Damage", "Death", "Eat"],
+      "animations": ["idle", "walk", "run", "attack", "damage_taken", "death", "eat"],
       "license": "upstream-commercial-use-with-no-model-redistribution",
-      "cook_status": "standard-glb-preserved; bounded GLB intake requires a stricter canonical subset"
+      "cook_status": "swan Unity Asset Store animations retargeted onto existing goose skeleton; wing tracks omitted because current model has no wing bones"
     },
     {
       "id": "model.modular-character",
@@ -398,7 +408,7 @@
       "runtime_path": "models/cat/cat.glb",
       "format": "glb",
       "license": "upstream-use-permission-no-credit-required",
-      "cook_status": "Blender 5.2.2 GLB derivative; source blend, FBX and texture retained; prototype-only"
+      "cook_status": "cat Unity Asset Store animations retargeted onto existing cat skeleton; prototype-only"
     },
     {
       "id": "ui.player-hearts",
@@ -510,6 +520,15 @@
       "source": "authored",
       "authored_path": "runtime/power_ups/wool_ball.json",
       "runtime_path": "runtime/power_ups/wool_ball.json",
+      "format": "json",
+      "license": "project-authored"
+    },
+    {
+      "id": "config.power-ups.flour-bag",
+      "kind": "runtime-config",
+      "source": "authored",
+      "authored_path": "runtime/power_ups/flour_bag.json",
+      "runtime_path": "runtime/power_ups/flour_bag.json",
       "format": "json",
       "license": "project-authored"
     }

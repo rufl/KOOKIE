@@ -171,10 +171,34 @@ The server owns mutable authoritative state:
 
 
 Autonomous enemies have an AI archetype independent of their weapon role.
-Authoritative sessions expose bounded roamer, chaser and sniper archetype
-configuration plus an eight-point world-space route per admitted enemy. Weapon
-roles continue to select hitscan, projectile or shotgun attack behavior; they
-do not select movement/aggro behavior.
+Authoritative sessions expose bounded roamer, chaser and sniper configuration,
+plus an eight-point world-space patrol route per enemy. Roamers attack visible
+targets and return to the route when vision is lost. Chasers pursue visible
+targets outside their route; zero aggro duration is indefinite, while a positive
+duration expires after that many ticks without sight. Snipers attack from range
+using their configured weapon and seek geometry-derived cover after taking a
+hit from beyond eight world-space units. Weapon roles continue to select
+hitscan, projectile or shotgun attack behavior; they do not select
+movement/aggro behavior.
+Power-up definitions are bounded to eight pickups and seven kinds. The
+project-authored flour-bag pickup applies a 240-tick, 24-unit smoke radius;
+authoritative enemy target acquisition treats players inside that radius as
+not visible. `playerFlourCloudRadius` exposes the active concealment state to
+presentation code; the current game presentation does not yet stage a persistent
+smoke-cloud visual.
+
+`session/lobby_server.kf` provides a bounded dedicated-lobby authority for up to
+eight participants, a 32-message chat ring, host-only `addbot NAME [team]` and
+`delbot SLOT` commands, and server-ticked free-roam, race, target-practice and
+tag activities. Human lobby admission requires a caller-supplied stable player
+ID, enforces case-insensitive unique nicknames, and retains ID-to-nickname
+ownership across lobby stop/start for up to 256 identities per server object.
+The ID must come from a trusted authentication layer; the registry is in-memory
+and does not survive process restart. This is an in-process server model; the
+current WebSocket qualification server is not wired to this lobby, so network
+admission, remote chat/commands and a rendered lobby/minigame client are not
+claimed.
+
 Server systems read approved state, emit bounded commands and commit mutations at
 defined tick phases. Stable IDs and declared ordering break ties.
 
@@ -235,6 +259,13 @@ words and a D16 depth target; only the validated cat image range is decoded
 and overlaid by SDL. Kof owns camera input, world extraction, texture
 generation, UV mapping and pass selection. The native adapter only owns GPU
 resources, scalar transfers and draw submission.
+
+`core/camera.kf` also provides a fixed-capacity `SpectatorMode` controller:
+free-flight, third-person follow and first-person follow, with ordered target
+cycling. Callers own eligibility and visibility filtering; they register only
+valid living targets and remove a target on death or disconnect. The controller
+holds no authoritative player state and allocates its bounded roster at
+construction, not during camera updates.
 
 ### Blockcraft investigation: bounded presentation lessons
 

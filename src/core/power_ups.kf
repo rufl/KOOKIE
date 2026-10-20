@@ -6,7 +6,8 @@ Int powerUpKindMegaphone() { return 3 }
 Int powerUpKindScubaKit() { return 4 }
 Int powerUpKindWatermelon() { return 5 }
 Int powerUpKindWoolBall() { return 6 }
-Int powerUpMaximumKinds() { return 6 }
+Int powerUpKindFlourBag() { return 7 }
+Int powerUpMaximumKinds() { return 7 }
 Int powerUpMaximumDefinitions() { return 8 }
 Int powerUpMaximumId() { return 64 }
 Int powerUpMaximumRadius() { return 32 }
@@ -19,7 +20,7 @@ Int powerUpRenderBobAmplitude() { return 1 }
 
 Bool validPowerUpKind(Int kind) {
     return kind >= powerUpKindCoffeeMug() &&
-        kind <= powerUpKindWoolBall()
+        kind <= powerUpKindFlourBag()
 }
 
 String powerUpName(Int kind) {
@@ -29,6 +30,7 @@ String powerUpName(Int kind) {
     if (kind == powerUpKindScubaKit()) { return "SCUBA KIT" }
     if (kind == powerUpKindWatermelon()) { return "WATERMELON" }
     if (kind == powerUpKindWoolBall()) { return "WOOL BALL" }
+    if (kind == powerUpKindFlourBag()) { return "FLOUR BAG" }
     return ""
 }
 
@@ -281,6 +283,8 @@ class PowerUpEffectState {
     Int watermelonNextShotTickValue
     Int woolMaceDamageValue
     Int woolMaceExpiryValue
+    Int flourCloudRadiusValue
+    Int flourCloudExpiryValue
     Int lastKindValue
     Int lastResourceValue
 
@@ -302,6 +306,8 @@ class PowerUpEffectState {
         watermelonNextShotTickValue = 0
         woolMaceDamageValue = 0
         woolMaceExpiryValue = 0
+        flourCloudRadiusValue = 0
+        flourCloudExpiryValue = 0
         lastKindValue = 0
         lastResourceValue = 0
         return true
@@ -354,8 +360,13 @@ class PowerUpEffectState {
             watermelonNextShotTickValue = tick
             return true
         }
-        woolMaceDamageValue = pickup.effectValue()
-        woolMaceExpiryValue = expiry
+        if (pickup.kind() == powerUpKindWoolBall()) {
+            woolMaceDamageValue = pickup.effectValue()
+            woolMaceExpiryValue = expiry
+            return true
+        }
+        flourCloudRadiusValue = pickup.effectValue()
+        flourCloudExpiryValue = expiry
         return true
     }
 
@@ -386,6 +397,10 @@ class PowerUpEffectState {
             woolMaceDamageValue = 0
             woolMaceExpiryValue = 0
         }
+        if (flourCloudExpiryValue > 0 && tick >= flourCloudExpiryValue) {
+            flourCloudRadiusValue = 0
+            flourCloudExpiryValue = 0
+        }
         if ((lastKindValue == powerUpKindCoffeeMug() &&
                 coffeeExpiryValue == 0) ||
             (lastKindValue == powerUpKindJetpack() &&
@@ -397,7 +412,9 @@ class PowerUpEffectState {
             (lastKindValue == powerUpKindWatermelon() &&
                 watermelonExpiryValue == 0) ||
             (lastKindValue == powerUpKindWoolBall() &&
-                woolMaceExpiryValue == 0)) {
+                woolMaceExpiryValue == 0) ||
+            (lastKindValue == powerUpKindFlourBag() &&
+                flourCloudExpiryValue == 0)) {
             lastKindValue = 0
             lastResourceValue = 0
         }
@@ -425,6 +442,14 @@ class PowerUpEffectState {
     Bool woolMaceActive(Int tick) {
         return tick >= 0 && woolMaceExpiryValue > tick &&
             woolMaceDamageValue > 0
+    }
+    Int flourCloudRadius(Int tick) {
+        return if (tick >= 0 && flourCloudExpiryValue > tick)
+            flourCloudRadiusValue else 0
+    }
+    Bool flourCloudBlocksSight(Int distance, Int tick) {
+        var radius = flourCloudRadius(tick)
+        return distance >= 0 && radius > 0 && distance <= radius
     }
     Bool megaphoneActive(Int tick) {
         return tick >= 0 && megaphoneExpiryValue > tick &&
@@ -467,6 +492,10 @@ class PowerUpEffectState {
         if (lastKindValue == powerUpKindWoolBall()) {
             return if (woolMaceExpiryValue > tick)
                 woolMaceExpiryValue - tick else 0
+        }
+        if (lastKindValue == powerUpKindFlourBag()) {
+            return if (flourCloudExpiryValue > tick)
+                flourCloudExpiryValue - tick else 0
         }
         return 0
     }

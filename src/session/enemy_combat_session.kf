@@ -536,6 +536,11 @@ class AuthoritativeEnemySession {
     ) {
         return spatial.moveTowardPoint(enemyId, x, y, z, step)
     }
+    SpatialPositionResult enemyCoverPosition(
+        Int enemyId, Int attackerId, Int radius
+    ) {
+        return spatial.coverPosition(enemyId, attackerId, radius)
+    }
 
     Bool loadNavigationProduct(BoundedNavigationProduct product) {
         return spatial.loadNavigationProduct(product)
@@ -960,19 +965,42 @@ class AuthoritativeEnemySession {
         return lastEnemySteering
     }
 
-    EnemyStepResult prepareEnemySpatial(
-        Int enemyId, Int tick, Int targetId, Int critical
+    EnemyStepResult prepareEnemySpatialWithPursuit(
+        Int enemyId, Int tick, Int targetId, Int critical,
+        Bool pursue, Bool directPursuit
     ) {
+        var perceptionRange = enemies.perceptionRangeValue()
         var visibility = spatial.visibility(
-            enemyId, targetId, enemies.perceptionRangeValue())
+            enemyId, targetId, perceptionRange)
+        var targetVisible = visibility.visible()
+        var targetDistance = visibility.distance()
         if (!visibility.accepted()) {
-            return EnemyStepResult(
-                false, enemyId, 0, targetId, false, false)
+            if (!directPursuit ||
+                targetDistance <= perceptionRange ||
+                spatialDistance(enemyId, targetId) < 0) {
+                return EnemyStepResult(
+                    false, enemyId, 0, targetId, false, false)
+            }
+            targetVisible = false
         }
-        if (!visibility.visible() ||
-            visibility.distance() > enemies.attackRangeValue()) {
-            lastEnemySteering = spatial.steerToward(
-                enemyId, targetId, enemies.moveStep(enemyId))
+        if (pursue &&
+            (!targetVisible ||
+                targetDistance > enemies.attackRangeValue())) {
+            if (directPursuit) {
+                var movement = spatial.moveToward(
+                    enemyId, targetId, enemies.moveStep(enemyId))
+                if (!movement.accepted()) {
+                    return EnemyStepResult(
+                        false, enemyId, 0, targetId, false, false)
+                }
+                lastEnemySteering = EnemySteeringResult(
+                    true, true, movement.collided(), enemyId, 0, 0,
+                    movement.resolvedX(), movement.resolvedY(),
+                    movement.resolvedZ())
+            } else {
+                lastEnemySteering = spatial.steerToward(
+                    enemyId, targetId, enemies.moveStep(enemyId))
+            }
         } else {
             var current = spatial.position(enemyId)
             lastEnemySteering = EnemySteeringResult(
@@ -981,7 +1009,14 @@ class AuthoritativeEnemySession {
         }
         return enemies.step(
             enemyId, tick, targetId,
-            visibility.visible(), visibility.distance())
+            targetVisible, targetDistance)
+    }
+
+    EnemyStepResult prepareEnemySpatial(
+        Int enemyId, Int tick, Int targetId, Int critical
+    ) {
+        return prepareEnemySpatialWithPursuit(
+            enemyId, tick, targetId, critical, true, false)
     }
 
     EnemyAttackDecision stepEnemySpatial(
@@ -1008,10 +1043,11 @@ class AuthoritativeEnemySession {
     }
 
     EnemyAttackDecision stepEnemyRoleSpatial(
-        Int enemyId, Int tick, Int targetId, Int critical
+        Int enemyId, Int tick, Int targetId, Int critical,
+        Bool pursue
     ) {
-        var step = prepareEnemySpatial(
-            enemyId, tick, targetId, critical)
+        var step = prepareEnemySpatialWithPursuit(
+            enemyId, tick, targetId, critical, pursue, pursue)
         if (!step.accepted()) {
             return EnemyAttackDecision(
                 false, enemyId, targetId, tick, false, 0, 0, false)

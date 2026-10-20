@@ -96,7 +96,20 @@ main() {
         println(g1.failureStep())
     }
     assert(g1Passed, "G1 authoritative shooter scenario must complete")
-    println("KOOKIE G1 authoritative shooter verified")
+    assert(g1.setSpectatorTarget(1, 20, 1, 20) &&
+        g1.setSpectatorTarget(2, 40, 2, 40) &&
+        g1.enterSpectatorMode() &&
+        g1.lookSpectator(15, 5) &&
+        g1.stepSpectator(1, 0, 0, 1) &&
+        g1.cycleSpectatorTarget() &&
+        g1.spectatorTarget() == 2 &&
+        g1.stepSpectator(0, 0, 0, 1) &&
+        g1.setSpectatorView(spectatorModeFirstPerson()) &&
+        g1.stepSpectator(0, 0, 0, 1) &&
+        g1.removeSpectatorTarget(2) &&
+        g1.spectatorTarget() == 1 &&
+        g1.leaveSpectatorMode() && !g1.spectatorActive(),
+        "G1 demo must expose usable spectator input, target and lifecycle controls")
 
 }
 test "game shell menus transact display audio and lobby state" {
@@ -203,6 +216,143 @@ test "game shell pointer rows follow the options visual grid" {
         shell.screen() == gameShellScreenMain(),
         "options pointer hitboxes must track the widened row grid")
 }
+test "dedicated lobby owns chat, minigames, and admin bot commands" {
+    var lobby = DedicatedLobbyServer()
+    assert(lobby.start(77, "Host", "test:host-77") && lobby.running() &&
+        lobby.room() == 77 && lobby.playerCount() == 1,
+        "dedicated lobby must create a host-owned waiting room")
+    var host = lobby.ownerId()
+    var guest = lobby.joinPlayer("test:guest-77", "Guest")
+    assert(guest > 0 && guest != host && lobby.playerCount() == 2,
+        "human players must join the bounded dedicated lobby")
+    assert(lobby.executeAdminCommand(host, "addbot Sparring red") ==
+            lobbyServerCommandOk() &&
+        lobby.botCount() == 1 && lobby.playerCount() == 3 &&
+        lobby.playerIsBotAt(2) && lobby.playerTeamAt(2) == 1,
+        "owner addbot must create a server-owned team bot")
+    var botId = lobby.playerIdAt(2)
+    assert(lobby.executeAdminCommand(guest, "delbot 3") ==
+            lobbyServerCommandPermissionDenied() &&
+        lobby.botCount() == 1 &&
+        lobby.executeAdminCommand(host, "addbot BadName! blue") ==
+            lobbyServerCommandInvalid(),
+        "admin commands must deny guests and validate bot names")
+    assert(lobby.executeAdminCommand(host, "delbot 3") ==
+            lobbyServerCommandOk() &&
+        lobby.botCount() == 0 && !lobby.playerIsBotAt(2) &&
+        botId > 0,
+        "owner delbot must release the bot slot without removing humans")
+    assert(lobby.addBot(guest, "Unauthorized", 1) == 0 &&
+        !lobby.removeBotSlot(guest, 3) &&
+        lobby.executeAdminCommand(host, "addbot RaceBot blue") ==
+            lobbyServerCommandOk() &&
+        lobby.setGameMode(lobbyServerGameRace()),
+        "bot mutation APIs must recheck admin and accept a second minigame bot")
+    var raceBotX = lobby.playerXAt(2)
+    assert(lobby.advanceTick() && lobby.playerXAt(2) != raceBotX &&
+        lobby.playerTeamAt(2) == 2,
+        "race bots must move on authoritative lobby ticks")
+    for (var tick = 0; tick < 200; tick = tick + 1) {
+        assert(lobby.advanceTick(),
+            "race bot must continue executing the server-owned course")
+    }
+    assert(lobby.playerScoreAt(2) > 0 &&
+        lobby.executeAdminCommand(host, "delbot 3") ==
+            lobbyServerCommandOk(),
+        "race bot must complete the course and remain removable by its admin")
+    assert(lobby.sendChat(host, "ready when you are") &&
+        lobby.chatCount() == 1 && lobby.chatSenderAt(0) == host &&
+        lobby.chatMessageAt(0) == "ready when you are" &&
+        !lobby.sendChat(guest, "bad\nmessage"),
+        "lobby chat must retain bounded authored text and reject controls")
+    for (var index = 0; index < 35; index = index + 1) {
+        assert(lobby.sendChat(guest, "message"),
+            "chat ring must accept valid messages through wraparound")
+    }
+    assert(lobby.chatCount() == lobbyServerMaximumChatMessages() &&
+        lobby.chatSequenceAt(0) == 5 &&
+        lobby.chatSenderAt(0) == guest,
+        "chat history must retain the newest bounded ordered messages")
+    assert(lobby.setGameMode(lobbyServerGameTargetPractice()) &&
+        lobby.movePlayer(host, 4, 0) &&
+        lobby.movePlayer(host, 4, 0) &&
+        lobby.movePlayer(host, 4, 0) &&
+        lobby.movePlayer(host, 4, 0) &&
+        lobby.movePlayer(host, 4, 0),
+        "players must move in the authoritative waiting-room target range")
+    for (var tick = 0; tick < 10; tick = tick + 1) {
+        assert(lobby.advanceTick(), "lobby minigames must advance on server ticks")
+    }
+    assert(lobby.performMinigameAction(host, 1) &&
+        lobby.playerScoreAt(0) == 1,
+        "target-practice actions must score only in the target zone")
+    assert(lobby.setGameMode(lobbyServerGameTag()) &&
+        lobby.movePlayer(host, -4, 0) &&
+        lobby.movePlayer(host, -4, 0) &&
+        lobby.performMinigameAction(host, guest) &&
+        lobby.playerScoreAt(0) == 1,
+        "tag must require proximity and score a valid player hit")
+    assert(lobby.leavePlayer(host) && lobby.ownerId() == guest &&
+        lobby.running() && lobby.leavePlayer(guest) &&
+        !lobby.running() && lobby.playerCount() == 0,
+        "lobby owner departure must transfer ownership, then shut down empty rooms")
+}
+
+test "dedicated lobby bots compete in target practice and tag" {
+    var practice = DedicatedLobbyServer()
+    assert(practice.start(88, "Host", "test:practice-host"),
+        "target practice lobby must start")
+    var practiceOwner = practice.ownerId()
+    assert(practice.executeAdminCommand(
+            practiceOwner, "addbot PracticeBot") == lobbyServerCommandOk() &&
+        practice.setGameMode(lobbyServerGameTargetPractice()),
+        "admin must add a bot to target practice")
+    for (var tick = 0; tick < 100; tick = tick + 1) {
+        assert(practice.advanceTick(),
+            "target-practice bot must advance on server ticks")
+    }
+    assert(practice.playerScoreAt(1) > 0,
+        "target-practice bots must navigate and score target hits")
+
+    var tag = DedicatedLobbyServer()
+    assert(tag.start(89, "Host", "test:tag-host") &&
+        tag.joinPlayer("test:runner", "Runner") > 0,
+        "tag lobby must admit a human opponent")
+    var tagOwner = tag.ownerId()
+    assert(tag.executeAdminCommand(tagOwner, "addbot Tagger") ==
+            lobbyServerCommandOk() &&
+        tag.setGameMode(lobbyServerGameTag()),
+        "admin must add an autonomous tag opponent")
+    for (var tick = 0; tick < 12; tick = tick + 1) {
+        assert(tag.advanceTick(), "tag bot must pursue players each server tick")
+    }
+    assert(tag.playerScoreAt(2) > 0,
+        "tag bots must chase and score valid proximity tags")
+}
+
+test "lobby identity binds unique nicknames to trusted player IDs" {
+    var lobby = DedicatedLobbyServer()
+    assert(lobby.start(91, "Admin", "account:admin-7"),
+        "identity-aware lobby startup must accept a trusted stable ID")
+    var host = lobby.ownerId()
+    var guest = lobby.joinPlayer("account:guest-42", "Raven")
+    assert(guest > 0 && lobby.playerIdentityAt(1) == "account:guest-42",
+        "roster must expose the trusted identity independently of session ID")
+    assert(lobby.joinPlayer("account:other", "rAVEN") == 0 &&
+        lobby.joinPlayer("account:guest-42", "Other") == 0 &&
+        lobby.joinPlayer("bad id!", "Valid") == 0,
+        "lobby must reject case-folded duplicate nicknames, duplicate active IDs and malformed IDs")
+    assert(lobby.leavePlayer(guest) &&
+        lobby.joinPlayer("account:guest-42", "Raven") > 0,
+        "a returning stable identity may reclaim its nickname after disconnect")
+    assert(lobby.playerIdentityAt(1) == "account:guest-42" &&
+        lobby.stop() &&
+        !lobby.start(92, "Raven", "account:new") &&
+        lobby.start(92, "Raven", "account:guest-42") &&
+        host > 0,
+        "nickname ownership must survive lobby restarts and remain bound to its stable identity")
+}
+
 test "lobby options select cat with nickname and color" {
     var shell = GameShell()
     assert(shell.handleAction(gameShellActionDown()) &&
@@ -825,6 +975,79 @@ test "third person camera keeps downward pitch above the floor line" {
         camera.snapFollowTarget() &&
         camera.currentY() >= 1,
         "downward camera pitch must never place the follow camera below its focus")
+}
+
+test "spectator mode flies, follows, cycles, and removes invalid targets" {
+    var camera = CameraState(-450, 450)
+    var spectator = SpectatorMode(4)
+    assert(camera.setFreePosition(0, 4, -8) &&
+        spectator.enter(camera) &&
+        !spectator.setTarget(0, 1, 1, 1) &&
+        !spectator.setTarget(1, 901, 1, 1) &&
+        !spectator.step(camera, 1, 0, 0, 9) &&
+        !spectator.setMode(9, camera),
+        "spectator controls must reject invalid targets, modes and speeds")
+    assert(spectator.step(camera, 1, 0, 0, 2) &&
+        camera.currentZ() == 0,
+        "spectator free flight must move relative to camera yaw")
+    var bounded = SpectatorMode(0)
+    assert(bounded.setTarget(10, 0, 0, 0) &&
+        !bounded.setTarget(11, 1, 1, 1) &&
+        bounded.targetCount() == 1,
+        "spectator target storage must clamp to a positive bounded capacity")
+    assert(spectator.setTarget(2, 20, 2, 30) &&
+        spectator.setTarget(3, 40, 3, 50) &&
+        spectator.setMode(spectatorModeFollow(), camera) &&
+        spectator.step(camera, 0, 0, 0, 1) &&
+        spectator.targetId() == 2,
+        "spectator follow must track the first living target")
+    var firstFollowX = camera.currentX()
+    assert(spectator.cycleTarget() &&
+        spectator.step(camera, 0, 0, 0, 1) &&
+        spectator.targetId() == 3 &&
+        camera.currentX() > firstFollowX,
+        "cycling must select and follow the next registered target")
+    assert(spectator.setMode(spectatorModeFirstPerson(), camera),
+        "first-person spectator view must activate for a valid target")
+    for (var tick = 0; tick < 24; tick = tick + 1) {
+        assert(spectator.step(camera, 0, 0, 0, 1),
+            "first-person camera must continue tracking its target")
+    }
+    assert(camera.currentFollowDistance() == 0 &&
+        camera.currentX() == 40 && camera.currentZ() == 50,
+        "first-person view must settle at the selected target position")
+    assert(spectator.removeTarget(3, camera) &&
+        spectator.targetId() == 2 && camera.currentX() > 20 &&
+        spectator.removeTarget(2, camera) &&
+        spectator.targetCount() == 0 &&
+        spectator.mode() == spectatorModeFree() &&
+        !camera.hasFollowTarget(),
+        "removing targets must clear stale views or follow the next target")
+    assert(spectator.leave(camera) && !spectator.active() &&
+        !camera.hasFollowTarget(),
+        "leaving spectator mode must clear the follow camera")
+}
+
+test "G1 demo exposes spectator camera lifecycle controls" {
+    var config = BoundedG3Config()
+    assert(BoundedG3ConfigFileLoader().load(config, "config/g3/demo.json"),
+        "G1 spectator demo config must load")
+    var demo = G1Demo(config)
+    assert(demo.run(), "G1 demo must initialize before spectator control")
+    assert(demo.setSpectatorTarget(1, 20, 1, 20) &&
+        demo.setSpectatorTarget(2, 40, 2, 40) &&
+        demo.enterSpectatorMode() &&
+        demo.lookSpectator(15, 5) &&
+        demo.stepSpectator(1, 0, 0, 1) &&
+        demo.cycleSpectatorTarget() &&
+        demo.spectatorTarget() == 2 &&
+        demo.stepSpectator(0, 0, 0, 1) &&
+        demo.setSpectatorView(spectatorModeFirstPerson()) &&
+        demo.stepSpectator(0, 0, 0, 1) &&
+        demo.removeSpectatorTarget(2) &&
+        demo.spectatorTarget() == 1 &&
+        demo.leaveSpectatorMode() && !demo.spectatorActive(),
+        "G1 demo must connect spectator input, camera and target lifecycle")
 }
 
 test "third person camera resolves authored tower collision" {
@@ -5325,6 +5548,7 @@ test "power-up JSON definitions stage named pickups" {
     var scuba = PowerUpConfig()
     var watermelon = PowerUpConfig()
     var woolBall = PowerUpConfig()
+    var flourBag = PowerUpConfig()
     assert(loader.load(
             coffee, "assets/prototype/runtime/power_ups/coffee_mug.json") &&
         loader.load(
@@ -5340,18 +5564,22 @@ test "power-up JSON definitions stage named pickups" {
         loader.load(
             woolBall,
             "assets/prototype/runtime/power_ups/wool_ball.json") &&
+        loader.load(
+            flourBag, "assets/prototype/runtime/power_ups/flour_bag.json") &&
         coffee.kind() == powerUpKindCoffeeMug() &&
         jetpack.kind() == powerUpKindJetpack() &&
         megaphone.kind() == powerUpKindMegaphone() &&
         scuba.kind() == powerUpKindScubaKit() &&
         watermelon.kind() == powerUpKindWatermelon() &&
         woolBall.kind() == powerUpKindWoolBall() &&
+        flourBag.kind() == powerUpKindFlourBag() &&
         powerUpName(coffee.kind()) == "COFFEE MUG" &&
         powerUpName(jetpack.kind()) == "JETPACK" &&
         powerUpName(megaphone.kind()) == "MEGAPHONE" &&
         powerUpName(scuba.kind()) == "SCUBA KIT" &&
         powerUpName(watermelon.kind()) == "WATERMELON" &&
-        powerUpName(woolBall.kind()) == "WOOL BALL",
+        powerUpName(woolBall.kind()) == "WOOL BALL" &&
+        powerUpName(flourBag.kind()) == "FLOUR BAG",
         "power-up JSON must load every named pickup definition")
     var world = PowerUpWorld(powerUpMaximumDefinitions())
     assert(world.add(coffee.definition()) &&
@@ -5360,15 +5588,16 @@ test "power-up JSON definitions stage named pickups" {
         world.add(scuba.definition()) &&
         world.add(watermelon.definition()) &&
         world.add(woolBall.definition()) &&
-        world.count() == 6 &&
-        world.activeCount() == 6 &&
-        world.renderVertexCount() == 36,
+        world.add(flourBag.definition()) &&
+        world.count() == 7 &&
+        world.activeCount() == 7 &&
+        world.renderVertexCount() == 42,
         "power-up definitions must populate the bounded pickup world")
     var frame = FrameStaging(world.renderVertexCount())
     assert(world.stage(frame, 3) &&
-        frame.stagedCount() == 36 &&
-        frame.resourceAt(0) == coffee.resource() &&
-        frame.resourceAt(6) == jetpack.resource(),
+        frame.stagedCount() == 42 &&
+        frame.resourceAt(6) == jetpack.resource() &&
+        frame.resourceAt(36) == flourBag.resource(),
         "power-up world must stage resource-backed diamond pickups")
 }
 
@@ -5423,6 +5652,18 @@ test "power-up state applies configurable effects" {
                 true, 6, powerUpKindWoolBall(), 600, 30, 14),
             10, animalKindGoose()),
         "role-specific power-up effects must apply without watermelon healing")
+    assert(state.apply(
+            PowerUpPickup(
+                true, 7, powerUpKindFlourBag(), 240, 24, 15),
+            100) &&
+        state.flourCloudRadius(100) == 24 &&
+        state.flourCloudBlocksSight(24, 100) &&
+        !state.flourCloudBlocksSight(25, 100) &&
+        state.remaining(100) == 240 &&
+        state.advance(340) &&
+        state.flourCloudRadius(340) == 0 &&
+        state.remaining(340) == 0,
+        "flour smoke must block sight only inside its bounded radius and expire on time")
 }
 test "animal abilities enforce role actions and stamina" {
     var abilities = AnimalAbilityController(2)
@@ -5473,6 +5714,24 @@ test "FPS session consumes configured coffee mug pickup" {
         session.powerUpRemaining(1) == 600,
         "session must consume the coffee mug and expose its effect state")
 }
+
+test "FPS session applies flour smoke concealment" {
+    var world = PowerUpWorld(powerUpMaximumDefinitions())
+    assert(world.add(PowerUpDefinition(
+            7, powerUpKindFlourBag(), 20, 1, 30, 3, 240, 24, 2, 15)),
+        "session must admit the flour-bag pickup")
+    var session = LoopbackSession(4, 2)
+    assert(session.configurePowerUps(world) &&
+        session.start() && session.connectPlayer() == 1 &&
+        session.applyPowerUpPickup(
+            1, PowerUpPickup(
+                true, 7, powerUpKindFlourBag(), 240, 24, 15), 0) &&
+        session.playerFlourCloudRadius(1) == 24 &&
+        session.playerFlourCloudBlocksSight(1, 24, 0) &&
+        !session.playerFlourCloudBlocksSight(1, 25, 0),
+        "session must expose flour smoke to enemy perception within its radius")
+}
+
 test "FPS session assigns role-specific powerups" {
     var arena = G1Arena()
     var world = PowerUpWorld(powerUpMaximumDefinitions())
@@ -6522,12 +6781,7 @@ test "continuous multi-role enemies retarget and replicate" {
         host.admitEnemyAt(9, 12, 0, 60, 0, 41, 0, 0, 0) &&
         host.configureEnemyRole(10, 1, 2, 2, 0) &&
         host.configureEnemyRole(11, 2, 2, 1, 0) &&
-        host.configureEnemyRole(12, 3, 2, 2, 0) &&
-        host.configureEnemyArchetype(10, host.enemyArchetypeRoamer(), 0) &&
-        host.configureEnemyRoutePoint(10, 0, -8, 0, 0) &&
-        host.configureEnemyRoutePoint(10, 1, -6, 0, 0) &&
-        host.configureEnemyArchetype(11, host.enemyArchetypeChaser(), 0) &&
-        host.configureEnemyArchetype(12, host.enemyArchetypeSniper(), 0),
+        host.configureEnemyRole(12, 3, 2, 2, 0),
         "three autonomous combat roles must configure")
     assert(host.advance(66668) == 4 &&
         host.enemyRole(10) == 1 &&
@@ -6556,6 +6810,106 @@ test "continuous multi-role enemies retarget and replicate" {
             host.enemySpatialPositionX(12),
         "encounter replication must preserve continuous position")
 }
+
+test "enemy archetypes patrol, time out aggro, and seek ranged cover" {
+    var roamer = LoopbackSession(8, 8)
+    assert(roamer.configureEnemyRules(100, 5, 1) &&
+        roamer.configureEnemySpatialBounds(-200, -20, -20, 200, 20, 20) &&
+        roamer.defineEnemyWeapon(41, 32, 0, 3, 1) &&
+        roamer.defineEnemyEncounter(9, 1, 1) &&
+        roamer.start() && roamer.connectPlayer() == 1 &&
+        roamer.addPlayerCombatActor(1, 1000, 0) &&
+        roamer.addEnemyCombatActor(1, 1000, 0) &&
+        roamer.setEnemySpatialPosition(1, 0, 0, 0) &&
+        roamer.admitEnemyAt(9, 10, 0, 100, 0, 41, -8, 0, 0) &&
+        roamer.configureEnemyRole(10, 1, 2, 2, 0) &&
+        roamer.configureEnemyArchetype(
+            10, roamer.enemyArchetypeRoamer(), 0) &&
+        roamer.configureEnemyRoutePoint(10, 0, -8, 0, 0) &&
+        roamer.configureEnemyRoutePoint(10, 1, -4, 0, 0),
+        "roamer route and sight fixture must configure")
+    assert(roamer.enemySpatialVisibility(10, 1, 100).visible(),
+        "roamer sight fixture must expose a clear target ray")
+    assert(roamer.advance(16667) == 1,
+        "roamer first fixed tick must run")
+    assert(roamer.enemyTarget(10) == 1,
+        "roamer must acquire the visible player")
+    assert(roamer.enemySpatialPositionX(10) == -8,
+        "visible roamer must hold its route while attacking from sight")
+    assert(roamer.setEnemySpatialPosition(1, 150, 0, 0) &&
+        roamer.advance(16667) == 1 &&
+        roamer.enemySpatialPositionX(10) > -8,
+        "roamer must resume its route after losing line of sight")
+
+    var chaser = LoopbackSession(8, 8)
+    assert(chaser.configureEnemyRules(100, 5, 1) &&
+        chaser.configureEnemySpatialBounds(-200, -20, -20, 200, 20, 20) &&
+        chaser.defineEnemyWeapon(41, 32, 0, 3, 1) &&
+        chaser.defineEnemyEncounter(9, 1, 1) &&
+        chaser.start() && chaser.connectPlayer() == 1 &&
+        chaser.addPlayerCombatActor(1, 1000, 0) &&
+        chaser.addEnemyCombatActor(1, 1000, 0) &&
+        chaser.setEnemySpatialPosition(1, 20, 0, 0) &&
+        chaser.admitEnemyAt(9, 10, 0, 100, 0, 41, 0, 0, 0) &&
+        chaser.configureEnemyRole(10, 1, 2, 2, 0) &&
+        chaser.configureEnemyArchetype(
+            10, chaser.enemyArchetypeChaser(), 2),
+        "timed chaser fixture must configure")
+    assert(chaser.advance(16667) == 1 &&
+        chaser.enemySpatialPositionX(10) > 0,
+        "chaser must pursue a visible target")
+    assert(chaser.setEnemySpatialPosition(1, 180, 0, 0),
+        "target loss position must update")
+    assert(chaser.advance(16667) == 1,
+        "chaser must process its first lost-sight aggro tick")
+    assert(chaser.enemySpatialPositionX(10) > 2,
+        "chaser must move toward remembered target after losing sight")
+    assert(chaser.advance(16667) == 1,
+        "chaser must process its final aggro tick")
+    var expiredChaserX = chaser.enemySpatialPositionX(10)
+    assert(chaser.advance(16667) == 1 &&
+        chaser.enemySpatialPositionX(10) == expiredChaserX,
+        "finite chaser aggro must expire after the configured tick duration")
+    assert(chaser.setEnemySpatialPosition(1, 20, 0, 0) &&
+        chaser.configureEnemyArchetype(
+            10, chaser.enemyArchetypeChaser(), 0) &&
+        chaser.advance(16667) == 1,
+        "zero aggro duration must restore an indefinite visible chase")
+    var indefiniteChaserX = chaser.enemySpatialPositionX(10)
+    assert(chaser.setEnemySpatialPosition(1, 180, 0, 0) &&
+        chaser.advance(16667) == 1 &&
+        chaser.enemySpatialPositionX(10) > indefiniteChaserX,
+        "indefinite chaser must keep pursuing after sight is lost")
+
+    var sniper = LoopbackSession(8, 8)
+    assert(sniper.configureEnemyRules(100, 20, 1) &&
+        sniper.configureEnemySpatialBounds(-20, -20, -20, 20, 20, 20) &&
+        sniper.addEnemySpatialObstacle(
+            5, -5, 1, 5, 5, 1, 5, 5, 7) &&
+        sniper.addEnemySpatialObstacle(
+            5, -5, 1, 5, 5, 7, 5, -5, 7) &&
+        sniper.defineEnemyWeapon(41, 32, 0, 3, 1) &&
+        sniper.setEnemyWeaponRange(41, 20) &&
+        sniper.defineEnemyEncounter(9, 1, 1) &&
+        sniper.start() && sniper.connectPlayer() == 1 &&
+        sniper.addPlayerCombatActor(1, 1000, 0) &&
+        sniper.addEnemyCombatActor(1, 1000, 0) &&
+        sniper.setEnemySpatialPosition(1, 10, 0, 0) &&
+        sniper.admitEnemyAt(9, 10, 0, 100, 0, 41, 0, 0, 0) &&
+        sniper.configureEnemyRole(10, 2, 1, 2, 0) &&
+        sniper.configureEnemyArchetype(
+            10, sniper.enemyArchetypeSniper(), 0) &&
+        sniper.equipEnemyCombatWeapon(1, 41),
+        "sniper cover fixture must configure")
+    var rangedHit = sniper.resolveEnemyHitscan(1, 10, 1, 10, 0)
+    assert(rangedHit.accepted() && rangedHit.applied() > 0,
+        "distant player hit must damage the sniper")
+    assert(sniper.advance(16667) == 1,
+        "sniper must process its cover response")
+    assert(sniper.enemySpatialPositionZ(10) > 0,
+        "sniper must seek geometry-derived cover after a ranged hit")
+}
+
 
 test "G3 authoritative loot progression replication and save reload" {
     var host = LoopbackSession(16, 12)
