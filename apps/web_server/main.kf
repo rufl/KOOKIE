@@ -433,7 +433,8 @@ class WebServerMetrics {
     }
 
     String healthBody() {
-        return "{\"status\":\"ok\",\"protocol\":\"kookie.v1\",\"transport\":\"tcp\",\"auth_required\":false,\"active_sessions\":" +
+        return "{\"status\":\"ok\",\"protocol\":\"kookie.v1\",\"transport\":\"tcp\"," +
+            "\"auth_required\":false,\"active_sessions\":" +
             activeSessionsValue + "}\n"
     }
 

@@ -624,20 +624,20 @@ test "WASD movement axes match gameplay controls" {
 test "mouse yaw steers movement relative to the follow camera" {
     var camera = CameraState(-450, 450)
     assert(camera.movementWorldX(1, 0) == 0 &&
-        camera.movementWorldZ(1, 0) == 1 &&
-        camera.movementWorldX(0, 1) == -1 &&
+        camera.movementWorldZ(1, 0) == 4 &&
+        camera.movementWorldX(0, 1) == -4 &&
         camera.movementWorldZ(0, 1) == 0,
         "zero-yaw movement must use camera forward and left")
     assert(camera.applyLook(90, 0) &&
-        camera.movementWorldX(1, 0) == 1 &&
+        camera.movementWorldX(1, 0) == 4 &&
         camera.movementWorldZ(1, 0) == 0 &&
         camera.movementWorldX(0, 1) == 0 &&
-        camera.movementWorldZ(0, 1) == 1,
+        camera.movementWorldZ(0, 1) == 4,
         "horizontal mouse yaw must rotate forward and strafe axes")
     assert(camera.applyLook(90, 0) &&
         camera.movementWorldX(1, 0) == 0 &&
-        camera.movementWorldZ(1, 0) == -1 &&
-        camera.movementWorldX(0, 1) == 1 &&
+        camera.movementWorldZ(1, 0) == -4 &&
+        camera.movementWorldX(0, 1) == 4 &&
         camera.movementWorldZ(0, 1) == 0,
         "camera-relative movement must remain deterministic across turns")
 }
@@ -788,29 +788,43 @@ test "third person camera eases animal follow and zoom" {
         camera.setFollowTarget(10, 1, 20) &&
         camera.snapFollowTarget() &&
         camera.currentFollowDistance() == 10 &&
-        camera.currentX() == 10 &&
-        camera.currentZ() == 10,
-        "third person camera must start behind the followed animal")
+        camera.currentX() < 10 &&
+        camera.currentZ() > 10 &&
+        camera.currentY() > 1,
+        "third person camera must orbit behind and above the followed animal")
     assert(camera.applyZoom(5) &&
-        camera.desiredFollowDistance() == 0 &&
+        camera.desiredFollowDistance() == 4 &&
         camera.stepFollow() &&
-        camera.currentFollowDistance() > 0 &&
+        camera.currentFollowDistance() > 4 &&
         camera.currentFollowDistance() < 10,
-        "scroll zoom must ease toward first person")
+        "scroll zoom must ease toward the bounded close distance")
     for (var tick = 0; tick < 12; tick = tick + 1) {
         assert(camera.stepFollow(),
             "camera zoom easing must remain deterministic")
     }
-    assert(camera.currentFollowDistance() == 0 &&
-        camera.currentX() == 10 &&
-        camera.currentY() == 5 &&
-        camera.currentZ() == 20,
-        "first person zoom must converge at the animal focus point")
+    assert(camera.currentFollowDistance() == 4 &&
+        camera.currentY() >= 2 &&
+        camera.currentY() > 1,
+        "close zoom must remain above the animal focus point")
+    assert(camera.applyZoom(-100) &&
+        camera.desiredFollowDistance() == 18 &&
+        camera.applyZoom(100) &&
+        camera.desiredFollowDistance() == 4,
+        "mouse-wheel zoom must remain inside the third-person distance bounds")
     assert(camera.setFollowTarget(20, 1, 20) &&
         camera.stepFollow() &&
         camera.currentX() > 10 &&
         camera.currentX() < 20,
         "camera follow must ease instead of teleporting")
+}
+
+test "third person camera keeps downward pitch above the floor line" {
+    var camera = CameraState(-450, 450)
+    assert(camera.applyLook(0, 450) &&
+        camera.setFollowTarget(40, 0, 60) &&
+        camera.snapFollowTarget() &&
+        camera.currentY() >= 1,
+        "downward camera pitch must never place the follow camera below its focus")
 }
 
 test "third person camera resolves authored tower collision" {
@@ -820,7 +834,8 @@ test "third person camera resolves authored tower collision" {
         camera.applyLook(90, -20) &&
         camera.setFollowTarget(98, 1, 124) &&
         camera.snapFollowTarget() &&
-        camera.currentX() == 88 &&
+        camera.currentX() > 80 &&
+        camera.currentX() < 98 &&
         camera.resolveFollowCollision(arena.collisionGeometry()) &&
         camera.currentX() >= 90 &&
         camera.currentX() < 98,
@@ -841,7 +856,7 @@ test "third person camera resolves authored tower collision" {
         guardCamera.setFollowTarget(0, 0, 0) &&
         guardCamera.snapFollowTarget() &&
         guardCamera.resolveFollowCollision(guardGeometry) &&
-        guardCamera.currentY() == 0 && guardCamera.currentZ() == 0,
+        guardCamera.currentY() >= 1 && guardCamera.currentZ() == 0,
         "camera collision must reject an integer candidate beyond the surface")
 }
 
@@ -5218,6 +5233,28 @@ test "tuned FPS movement preserves air control and jump assists" {
         "held jump must flap the airborne goose")
 
 }
+test "continuous contact climbs ramps and snaps to their surface" {
+    var arena = G1Arena()
+    var ramp = arena.move(19, 1, 68, 26, 1, 68)
+    assert(arena.ready() && ramp.accepted() && ramp.collided() &&
+        ramp.slopeAccepted() && ramp.resolvedX() > 19 &&
+        ramp.resolvedY() > 1,
+        "triangle contact must climb a walkable ramp without entering it")
+    var controller = FpsMovementController(1)
+    assert(controller.configure(arena.authoredCollision()) &&
+        controller.addActor(1, 16, 1, 68),
+        "ramp traversal controller must load the authored arena")
+    for (var tick = 0; tick < 24; tick = tick + 1) {
+        assert(controller.step(1, 4, 0, false, false),
+            "ramp traversal must accept each fixed movement step")
+    }
+    assert(controller.positionX(1) > 20 &&
+        controller.positionY(1) > 1 &&
+        controller.positionY(1) < 10 &&
+        controller.grounded(1),
+        "FPS movement must follow the ramp surface without falling through it")
+}
+
 test "FPS controller permits coyote jumps from a ledge" {
     var ledge = BoundedAuthoredCollision(6, 2)
     assert(ledge.configure(

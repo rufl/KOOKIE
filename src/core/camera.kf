@@ -48,6 +48,12 @@ Int clampMovementAxis(Int value) {
     if (value > 4) { return 4 }
     return value
 }
+Int cameraFollowFocusHeight() { return 4 }
+Int cameraFollowMinimumHeight() { return 1 }
+Int cameraFollowMinimumDistance() { return 4 }
+Int cameraFollowMaximumDistance() { return 18 }
+Int cameraFollowZoomStep() { return 2 }
+
 
 Int movementForwardAxis(Int forwardPressed, Int backwardPressed) {
     var value = 0
@@ -133,12 +139,12 @@ class CameraState {
         if (wheel < -8) { wheel = -8 }
         if (wheel > 8) { wheel = 8 }
         desiredFollowDistanceValue =
-            desiredFollowDistanceValue - wheel * 2
-        if (desiredFollowDistanceValue < 0) {
-            desiredFollowDistanceValue = 0
+            desiredFollowDistanceValue - wheel * cameraFollowZoomStep()
+        if (desiredFollowDistanceValue < cameraFollowMinimumDistance()) {
+            desiredFollowDistanceValue = cameraFollowMinimumDistance()
         }
-        if (desiredFollowDistanceValue > 12) {
-            desiredFollowDistanceValue = 12
+        if (desiredFollowDistanceValue > cameraFollowMaximumDistance()) {
+            desiredFollowDistanceValue = cameraFollowMaximumDistance()
         }
         return true
     }
@@ -159,76 +165,53 @@ class CameraState {
         return value
     }
 
-    Int yawSector() {
-        var sector = (normalizedYaw() + 22) / 45
-        if (sector >= 8) { sector = sector - 8 }
-        return sector
-    }
-
-    Int movementForwardX() {
-        var sector = yawSector()
-        if (sector == 1 || sector == 2 || sector == 3) { return 1 }
-        if (sector == 5 || sector == 6 || sector == 7) { return -1 }
-        return 0
-    }
-
-    Int movementForwardZ() {
-        var sector = yawSector()
-        if (sector == 0 || sector == 1 || sector == 7) { return 1 }
-        if (sector == 3 || sector == 4 || sector == 5) { return -1 }
-        return 0
-    }
-
-    Int movementLeftX() {
-        return -movementForwardZ()
-    }
-
-    Int movementLeftZ() {
-        return movementForwardX()
-    }
 
     Int movementWorldX(Int forward, Int strafe) {
-        return clampMovementAxis(
-            forward * movementForwardX() + strafe * movementLeftX())
+        var value = (
+            forward * sineFixed(yaw) -
+            strafe * cosineFixed(yaw)) * fpsMovementInputAxisLimit() / 1000
+        return clampMovementAxis(value)
     }
 
     Int movementWorldZ(Int forward, Int strafe) {
-        return clampMovementAxis(
-            forward * movementForwardZ() + strafe * movementLeftZ())
+        var value = (
+            forward * cosineFixed(yaw) +
+            strafe * sineFixed(yaw)) * fpsMovementInputAxisLimit() / 1000
+        return clampMovementAxis(value)
     }
 
     Int followDirectionX() {
-        var sector = yawSector()
-        if (sector == 2 || sector == 6) {
-            return if (sector == 2) 100 else -100
-        }
-        if (sector == 1 || sector == 3) { return 71 }
-        if (sector == 5 || sector == 7) { return -71 }
-        return 0
+        return aimDirectionX()
+    }
+
+    Int followDirectionY() {
+        return aimDirectionY()
     }
 
     Int followDirectionZ() {
-        var sector = yawSector()
-        if (sector == 0) { return 100 }
-        if (sector == 4) { return -100 }
-        if (sector == 1 || sector == 7) { return 71 }
-        if (sector == 3 || sector == 5) { return -71 }
-        return 0
+        return aimDirectionZ()
     }
 
     Int desiredFollowX() {
         return followTargetXValue -
-            followDirectionX() * followDistanceValue / 100
+            followDirectionX() * followDistanceValue / 1000
     }
 
     Int desiredFollowY() {
-        return followTargetYValue + 4 + followDistanceValue / 4
+        var value = followTargetYValue + cameraFollowFocusHeight() -
+            followDirectionY() * followDistanceValue / 1000
+        var minimum = followTargetYValue + cameraFollowMinimumHeight()
+        if (value < minimum) {
+            value = minimum
+        }
+        return value
     }
 
     Int desiredFollowZ() {
         return followTargetZValue -
-            followDirectionZ() * followDistanceValue / 100
+            followDirectionZ() * followDistanceValue / 1000
     }
+
 
     Bool setFollowTarget(Int x, Int y, Int z) {
         if (x < -900 || x > 900 ||
@@ -345,7 +328,11 @@ class CameraState {
                     followYValue = candidateY
                     followZValue = candidateZ
                 }
-            }
+        }
+        }
+        var minimumY = followTargetYValue + cameraFollowMinimumHeight()
+        if (followYValue < minimumY) {
+            followYValue = minimumY
         }
         return true
     }

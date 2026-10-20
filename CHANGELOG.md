@@ -3,6 +3,11 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Fixed goose traversal and follow-camera safety: camera-relative WASD now uses
+  smooth yaw vectors, mouse-wheel zoom stays within a bounded third-person
+  range, walkable ramps are climbed through a raised sweep and grounded
+  movement snaps to the ramp surface without floor noclip or camera-under-floor
+  placement. Added JVM/native ramp and camera regression coverage.
 - Added the Kof-owned native HTTP/WebSocket qualification server in
   `apps/web_server/main.kf`. It owns the bounded HTTP routes, RFC 6455 upgrade,
   Kof framing, handshake, authoritative full-scene movement and live health/
