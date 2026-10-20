@@ -169,6 +169,12 @@ The server owns mutable authoritative state:
 - `session`: admission, tick ownership, replication, persistence and roles.
 - `extensions`: registries, capability checks and server extension execution.
 
+
+Autonomous enemies have an AI archetype independent of their weapon role.
+Authoritative sessions expose bounded roamer, chaser and sniper archetype
+configuration plus an eight-point world-space route per admitted enemy. Weapon
+roles continue to select hitscan, projectile or shotgun attack behavior; they
+do not select movement/aggro behavior.
 Server systems read approved state, emit bounded commands and commit mutations at
 defined tick phases. Stable IDs and declared ordering break ties.
 

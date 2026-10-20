@@ -6522,7 +6522,12 @@ test "continuous multi-role enemies retarget and replicate" {
         host.admitEnemyAt(9, 12, 0, 60, 0, 41, 0, 0, 0) &&
         host.configureEnemyRole(10, 1, 2, 2, 0) &&
         host.configureEnemyRole(11, 2, 2, 1, 0) &&
-        host.configureEnemyRole(12, 3, 2, 2, 0),
+        host.configureEnemyRole(12, 3, 2, 2, 0) &&
+        host.configureEnemyArchetype(10, host.enemyArchetypeRoamer(), 0) &&
+        host.configureEnemyRoutePoint(10, 0, -8, 0, 0) &&
+        host.configureEnemyRoutePoint(10, 1, -6, 0, 0) &&
+        host.configureEnemyArchetype(11, host.enemyArchetypeChaser(), 0) &&
+        host.configureEnemyArchetype(12, host.enemyArchetypeSniper(), 0),
         "three autonomous combat roles must configure")
     assert(host.advance(66668) == 4 &&
         host.enemyRole(10) == 1 &&

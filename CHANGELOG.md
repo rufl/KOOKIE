@@ -3,6 +3,8 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Added bounded authoritative enemy archetype and ordered world-space route
+  configuration APIs. Archetypes are distinct from the existing weapon roles.
 - Reduced hot enemy AI evaluation cost: sealed behavior programs no longer run
   full topology/checksum validation for every enemy step; the public validation
   path remains available for admission and serialization. The pinned Kof 0.6.5

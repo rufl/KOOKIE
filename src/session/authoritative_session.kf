@@ -226,6 +226,13 @@ class LoopbackSession {
     Bool[] enemyPerceptionActive
     Bool[] enemySpatialPerceptionActive
     Bool[] enemyAutonomous
+    Int[] enemyArchetypes
+    Int[] enemyAggroExpiryTicks
+    Int[] enemyRouteCounts
+    Int[] enemyRouteIndices
+    Int[] enemyRouteX
+    Int[] enemyRouteY
+    Int[] enemyRouteZ
     Int enemyCount
     Int enemySnapshotSequence
     Int clientEnemySnapshotSequence
@@ -516,6 +523,13 @@ class LoopbackSession {
         enemyPerceptionActive = new Bool[entityCapacity]
         enemySpatialPerceptionActive = new Bool[entityCapacity]
         enemyAutonomous = new Bool[entityCapacity]
+        enemyArchetypes = new Int[entityCapacity]
+        enemyAggroExpiryTicks = new Int[entityCapacity]
+        enemyRouteCounts = new Int[entityCapacity]
+        enemyRouteIndices = new Int[entityCapacity]
+        enemyRouteX = new Int[entityCapacity * 8]
+        enemyRouteY = new Int[entityCapacity * 8]
+        enemyRouteZ = new Int[entityCapacity * 8]
         enemyCount = 0
         enemySnapshotSequence = 0
         clientEnemySnapshotSequence = 0
@@ -542,6 +556,10 @@ class LoopbackSession {
             enemyPerceptionActive[index] = false
             enemySpatialPerceptionActive[index] = false
             enemyAutonomous[index] = false
+            enemyArchetypes[index] = 0
+            enemyAggroExpiryTicks[index] = 0
+            enemyRouteCounts[index] = 0
+            enemyRouteIndices[index] = 0
             playerCombatRewardTargets[index] = 0
             playerCombatRewardCurrencies[index] = 0
             playerCombatRewardClaimed[index] = false
@@ -3497,6 +3515,45 @@ class LoopbackSession {
             }
         }
         return false
+    }
+    Int enemyArchetypeRoamer() { return 1 }
+    Int enemyArchetypeChaser() { return 2 }
+    Int enemyArchetypeSniper() { return 3 }
+
+    Bool configureEnemyArchetype(
+        Int enemyId, Int archetype, Int aggroDurationTicks
+    ) {
+        if (archetype < enemyArchetypeRoamer() ||
+            archetype > enemyArchetypeSniper() ||
+            aggroDurationTicks < 0) {
+            return false
+        }
+        var slot = enemySlot(enemyId)
+        if (slot < 0) { return false }
+        enemyArchetypes[slot] = archetype
+        enemyAggroExpiryTicks[slot] = aggroDurationTicks
+        enemyAutonomous[slot] = true
+        enemyPerceptionActive[slot] = true
+        enemySpatialPerceptionActive[slot] = true
+        return true
+    }
+
+    Bool configureEnemyRoutePoint(
+        Int enemyId, Int routeIndex, Int x, Int y, Int z
+    ) {
+        var slot = enemySlot(enemyId)
+        if (slot < 0 || routeIndex < 0 || routeIndex >= 8 ||
+            !enemyCombat.hasSpatialPosition(enemyId)) {
+            return false
+        }
+        var offset = slot * 8 + routeIndex
+        enemyRouteX[offset] = x
+        enemyRouteY[offset] = y
+        enemyRouteZ[offset] = z
+        if (routeIndex >= enemyRouteCounts[slot]) {
+            enemyRouteCounts[slot] = routeIndex + 1
+        }
+        return true
     }
 
     Bool enemyTargetEligible(Int player) {

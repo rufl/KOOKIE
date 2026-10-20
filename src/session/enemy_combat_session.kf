@@ -531,6 +531,11 @@ class AuthoritativeEnemySession {
     EnemyMoveResult moveEnemyToward(Int enemyId, Int targetId, Int step) {
         return spatial.moveToward(enemyId, targetId, step)
     }
+    EnemyMoveResult moveEnemyTowardPoint(
+        Int enemyId, Int x, Int y, Int z, Int step
+    ) {
+        return spatial.moveTowardPoint(enemyId, x, y, z, step)
+    }
 
     Bool loadNavigationProduct(BoundedNavigationProduct product) {
         return spatial.loadNavigationProduct(product)
