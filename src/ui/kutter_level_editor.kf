@@ -9,6 +9,7 @@ Int kutterLevelToolTrigger() { return 6 }
 Int kutterLevelToolLight() { return 7 }
 Int kutterLevelToolErase() { return 8 }
 Int kutterLevelToolCount() { return 8 }
+Int kutterLevelNodeGroup() { return 9 }
 
 Int kutterLevelGridSmall() { return 25 }
 Int kutterLevelGridMedium() { return 100 }
@@ -180,6 +181,13 @@ class BoundedKutterLevelEditor {
         return true
     }
 
+    Bool selectTool(Int tool) {
+        if (tool < kutterLevelToolSelect() ||
+            tool > kutterLevelToolCount()) { return false }
+        toolValue = tool
+        return true
+    }
+
     Bool cycleGrid(Int direction) {
         if (direction != -1 && direction != 1) { return false }
         if (gridSizeValue == kutterLevelGridSmall()) {
@@ -212,15 +220,33 @@ class BoundedKutterLevelEditor {
         return true
     }
 
+    Bool setCursor(Int x, Int z) {
+        if (x < -1000000 || x > 1000000 ||
+            z < -1000000 || z > 1000000) { return false }
+        cursorXValue = snapValue(x)
+        cursorZValue = snapValue(z)
+        return true
+    }
+
     Bool selectAtCursor() {
         var bestNode = 0
         var bestDistance = 2000000000
         for (var index = 0; index < documentValue.nodeCount(); index = index + 1) {
-            var distance = absolute(documentValue.nodeXValue(index) - cursorXValue) +
-                absolute(documentValue.nodeZValue(index) - cursorZValue)
-            if (distance < bestDistance) {
-                bestDistance = distance
-                bestNode = documentValue.nodeId(index)
+            var distanceX = absolute(
+                documentValue.nodeXValue(index) - cursorXValue)
+            var distanceZ = absolute(
+                documentValue.nodeZValue(index) - cursorZValue)
+            var radiusX = documentValue.nodeScaleXValue(index) / 20
+            var radiusZ = documentValue.nodeScaleZValue(index) / 20
+            var minimumRadius = gridSizeValue / 2
+            if (radiusX < minimumRadius) { radiusX = minimumRadius }
+            if (radiusZ < minimumRadius) { radiusZ = minimumRadius }
+            if (distanceX <= radiusX && distanceZ <= radiusZ) {
+                var distance = distanceX + distanceZ
+                if (distance < bestDistance) {
+                    bestDistance = distance
+                    bestNode = documentValue.nodeId(index)
+                }
             }
         }
         if (bestNode <= 0) { return false }
@@ -238,11 +264,54 @@ class BoundedKutterLevelEditor {
         selectedNodeValue = documentValue.nodeId(documentValue.nodeCount() - 1)
         return true
     }
+    Bool addAssetAtCursor(Int assetToken) {
+        if (assetToken <= 0 || assetToken > 1000000 ||
+            !beginMutation()) { return false }
+        var nodeId = nextNodeId()
+        var accepted = documentValue.addNode(
+            nodeId, 0, kutterLevelToolProp(),
+            cursorXValue, 0, cursorZValue, 0, 1000) &&
+            documentValue.setNodeAssetToken(nodeId, assetToken)
+        if (!finishMutation(accepted)) { return false }
+        selectedNodeValue = nodeId
+        return true
+    }
+    Bool assignAssetToSelected(Int assetToken) {
+        if (assetToken <= 0 || assetToken > 1000000 ||
+            selectedNodeValue <= 0) { return false }
+        var index = documentValue.nodeIndex(selectedNodeValue)
+        if (index < 0 ||
+            documentValue.nodeKind(index) != kutterLevelToolProp() ||
+            !beginMutation()) { return false }
+        return finishMutation(
+            documentValue.setNodeAssetToken(selectedNodeValue, assetToken))
+    }
+
+
 
     Bool removeSelected() {
-        if (selectedNodeValue <= 0) { return false }
-        if (!beginMutation()) { return false }
-        var accepted = documentValue.removeNode(selectedNodeValue)
+        if (selectedNodeValue <= 0 || !beginMutation()) { return false }
+        var accepted = true
+        var index = documentValue.nodeIndex(selectedNodeValue)
+        if (index >= 0 &&
+            documentValue.nodeKind(index) == kutterLevelNodeGroup()) {
+            while (accepted) {
+                var childId = 0
+                for (var child = 0;
+                     child < documentValue.nodeCount();
+                     child = child + 1) {
+                    if (documentValue.nodeParent(child) == selectedNodeValue) {
+                        childId = documentValue.nodeId(child)
+                        break
+                    }
+                }
+                if (childId == 0) { break }
+                accepted = documentValue.removeNode(childId)
+            }
+        }
+        if (accepted) {
+            accepted = documentValue.removeNode(selectedNodeValue)
+        }
         if (!finishMutation(accepted)) { return false }
         selectedNodeValue = 0
         return true
@@ -256,6 +325,134 @@ class BoundedKutterLevelEditor {
             selectedNodeValue, cursorXValue, documentValue.nodeYValue(index), cursorZValue)
         return finishMutation(accepted)
     }
+    Bool adjustSelectedHeight(Int direction) {
+        if ((direction != -1 && direction != 1) ||
+            selectedNodeValue <= 0) { return false }
+        var index = documentValue.nodeIndex(selectedNodeValue)
+        if (index < 0) { return false }
+        var nextY = documentValue.nodeYValue(index) +
+            direction * gridSizeValue
+        if (nextY < -1000000 || nextY > 1000000 ||
+            !beginMutation()) { return false }
+        return finishMutation(documentValue.moveNode(
+            selectedNodeValue, documentValue.nodeXValue(index), nextY,
+            documentValue.nodeZValue(index)))
+    }
+    Bool duplicateSelected() {
+        if (selectedNodeValue <= 0) { return false }
+        var sourceIndex = documentValue.nodeIndex(selectedNodeValue)
+        if (sourceIndex < 0 ||
+            documentValue.nodeKind(sourceIndex) == kutterLevelNodeGroup() ||
+            !beginMutation()) { return false }
+        var cloneId = nextNodeId()
+        var accepted = documentValue.addNode(
+            cloneId, 0, documentValue.nodeKind(sourceIndex),
+            documentValue.nodeXValue(sourceIndex) + gridSizeValue,
+            documentValue.nodeYValue(sourceIndex),
+            documentValue.nodeZValue(sourceIndex),
+            documentValue.nodeRotationValue(sourceIndex),
+            documentValue.nodeScaleXValue(sourceIndex))
+        if (accepted) {
+            accepted = documentValue.setNodeScale(
+                cloneId,
+                documentValue.nodeScaleXValue(sourceIndex),
+                documentValue.nodeScaleYValue(sourceIndex),
+                documentValue.nodeScaleZValue(sourceIndex)) &&
+                documentValue.setNodeColor(
+                    cloneId, documentValue.nodeColorValue(sourceIndex)) &&
+                documentValue.setNodeAssetToken(
+                    cloneId, documentValue.nodeAssetToken(sourceIndex))
+        }
+        if (!finishMutation(accepted)) { return false }
+        selectedNodeValue = cloneId
+        return true
+    }
+
+    Bool rotateSelected(Int direction) {
+        if (selectedNodeValue <= 0 ||
+            (direction != -1 && direction != 1) ||
+            !beginMutation()) { return false }
+        var index = documentValue.nodeIndex(selectedNodeValue)
+        var accepted = index >= 0 &&
+            documentValue.nodeKind(index) != kutterLevelNodeGroup() &&
+            documentValue.setNodeRotation(
+                selectedNodeValue,
+                documentValue.nodeRotationValue(index) + direction * 15000)
+        return finishMutation(accepted)
+    }
+
+    Bool resizeSelected(Int axis, Int direction) {
+        if (selectedNodeValue <= 0 ||
+            (axis < 0 || axis > 2) ||
+            (direction != -1 && direction != 1)) { return false }
+        var index = documentValue.nodeIndex(selectedNodeValue)
+        if (index < 0 ||
+            documentValue.nodeKind(index) == kutterLevelNodeGroup()) {
+            return false
+        }
+        var scaleX = documentValue.nodeScaleXValue(index)
+        var scaleY = documentValue.nodeScaleYValue(index)
+        var scaleZ = documentValue.nodeScaleZValue(index)
+        if (axis == 0) { scaleX = scaleX + direction * 100 }
+        else if (axis == 1) { scaleY = scaleY + direction * 100 }
+        else { scaleZ = scaleZ + direction * 100 }
+        if (scaleX < 100) { scaleX = 100 }
+        if (scaleY < 100) { scaleY = 100 }
+        if (scaleZ < 100) { scaleZ = 100 }
+        if (scaleX == documentValue.nodeScaleXValue(index) &&
+            scaleY == documentValue.nodeScaleYValue(index) &&
+            scaleZ == documentValue.nodeScaleZValue(index)) { return false }
+        if (!beginMutation()) { return false }
+        return finishMutation(documentValue.setNodeScale(
+            selectedNodeValue, scaleX, scaleY, scaleZ))
+    }
+
+    Bool recolorSelected(Int color) {
+        if (selectedNodeValue <= 0 || !beginMutation()) { return false }
+        var accepted = documentValue.setNodeColor(selectedNodeValue, color)
+        return finishMutation(accepted)
+    }
+
+    Bool groupSelectedWith(Int otherNodeId) {
+        if (selectedNodeValue <= 0 || otherNodeId <= 0 ||
+            selectedNodeValue == otherNodeId) { return false }
+        var firstIndex = documentValue.nodeIndex(selectedNodeValue)
+        var secondIndex = documentValue.nodeIndex(otherNodeId)
+        if (firstIndex < 0 || secondIndex < 0 ||
+            documentValue.nodeKind(firstIndex) == kutterLevelNodeGroup() ||
+            documentValue.nodeKind(secondIndex) == kutterLevelNodeGroup() ||
+            !beginMutation()) { return false }
+        var groupId = nextNodeId()
+        var accepted = documentValue.addNode(
+            groupId, 0, kutterLevelNodeGroup(), 0, 0, 0, 0, 1000) &&
+            documentValue.setNodeParent(selectedNodeValue, groupId) &&
+            documentValue.setNodeParent(otherNodeId, groupId)
+        if (!finishMutation(accepted)) { return false }
+        selectedNodeValue = groupId
+        return true
+    }
+
+    Bool ungroupSelected() {
+        if (selectedNodeValue <= 0) { return false }
+        var groupId = selectedNodeValue
+        var groupIndex = documentValue.nodeIndex(groupId)
+        if (groupIndex < 0 ||
+            documentValue.nodeKind(groupIndex) != kutterLevelNodeGroup() ||
+            !beginMutation()) { return false }
+        var accepted = true
+        for (var child = 0; child < documentValue.nodeCount(); child = child + 1) {
+            if (documentValue.nodeParent(child) == groupId) {
+                accepted = documentValue.setNodeParent(
+                    documentValue.nodeId(child), 0)
+                if (!accepted) { break }
+            }
+        }
+        if (accepted) { accepted = documentValue.removeNode(groupId) }
+        if (!finishMutation(accepted)) { return false }
+        selectedNodeValue = 0
+        return true
+    }
+
 
     Bool applyTool() {
         if (toolValue == kutterLevelToolSelect()) { return selectAtCursor() }
@@ -322,6 +519,12 @@ class BoundedKutterLevelEditor {
         return documentValue.validate() && validationMask() == 0
     }
 
+
+    Bool selectNode(Int nodeId) {
+        if (documentValue.nodeIndex(nodeId) < 0) { return false }
+        selectedNodeValue = nodeId
+        return true
+    }
 
     BoundedKutterStudio document() { return documentValue }
     Int tool() { return toolValue }

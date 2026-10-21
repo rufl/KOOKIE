@@ -4093,6 +4093,24 @@ int kookie_poll_event(void) {
                         gameplay_mouse_delta_x + (int)event.motion.xrel);
                     gameplay_mouse_delta_y = kookie_clamp_mouse_delta(
                         gameplay_mouse_delta_y + (int)event.motion.yrel);
+                    if ((SDL_GetMouseState(NULL, NULL) &
+                            SDL_BUTTON_LMASK) != 0) {
+                        SDL_Window *motion_window =
+                            SDL_GetWindowFromID(event.motion.windowID);
+                        int width = 0;
+                        int height = 0;
+                        if (motion_window != NULL &&
+                            SDL_GetWindowSize(motion_window, &width, &height) &&
+                            width > 0 && height > 0) {
+                            last_event_a =
+                                (int)(event.motion.x * 200.0f /
+                                    (float)width) - 100;
+                            last_event_b =
+                                100 - (int)(event.motion.y * 200.0f /
+                                    (float)height);
+                            return 11;
+                        }
+                    }
                     break;
                 case SDL_EVENT_MOUSE_WHEEL: {
                     int wheel = (int)event.wheel.y;

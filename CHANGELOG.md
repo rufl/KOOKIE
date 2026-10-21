@@ -23,6 +23,30 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   tracks are omitted because the current goose model has no wing bones. The
   user confirmed Asset Store purchase; applicable Unity Asset Store terms govern
   use.
+- Extended Kutter's editor document with per-axis scale, RGB color, persisted
+  rotation and schema-v3 asset-token references; migration supports v1/v2
+  documents. Duplicate preserves the asset reference. Added a fixed native
+  workspace with model-backed 2D overview, hierarchy, inspector and snapped
+  placement. Viewport mapping aligns clicks with displayed grid markers;
+  Select clicks pick the nearest node inside its scaled footprint, preserve
+  selection on empty space, and keep the selected hierarchy page visible.
+  Focused hierarchy rows support Up/Down selection and Enter/Escape exit.
+  The paginated 75-entry greybox picker lists type labels; Prop placement or
+  Enter on a selected Prop stores the chosen asset token.
+  MOVE / ROTATE arms a move; the next viewport click relocates the selected node
+  to the snapped cursor, and Escape cancels.
+  Screen-space footprints use transformed box corners, so rotation and X/Z scale
+  change the colored marker shape; Y offsets it with a bounded elevation stem.
+  It clips to the viewport, shows facing and muted/red/green fills; height
+  edits participate in undo/redo. Native presentation stages 3D box proxies in
+  its world pass, snaps a dedicated bounded camera to the selected node, and
+  supports bounded wheel zoom; gameplay camera state remains separate. UI panels
+  are not a clipped render target; catalog GLBs still do not render.
+  Thumbnails, search, arbitrary RGB materials and rearrangeable panels remain
+  unsupported. Divider drag widens the hierarchy/inspector dock; paginated
+  hierarchy shows its page count with four-entry pages, bidirectional X/Y/Z
+  scale controls, a two-color chip and typed rows.
+
 
 - Added `session/lobby_server.kf`: bounded eight-participant lobby state, host-
   owned bot `addbot`/`delbot` commands, chat history, and server-ticked

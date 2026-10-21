@@ -1,6 +1,7 @@
 package ui
 
 import session
+import world
 
 Int gameShellScreenMain() { return 1 }
 Int gameShellScreenOptions() { return 2 }
@@ -60,7 +61,18 @@ class GameShell {
     BoundedKutterGreyboxCatalog greyboxCatalogValue
     BoundedKutterGreyboxLevel greyboxLevelValue
     BoundedKutterLevelEditor levelEditorValue
+    Int editorInspectorLeftValue
+    Bool editorInspectorResizeActiveValue
+    Int editorScaleAxisValue
+    Int editorAssetIndexValue
+    Bool editorAssetBrowserOpenValue
+    Int editorAssetPageValue
+    Int editorHierarchyPageValue
+    Bool editorHierarchyKeyboardFocusValue
+    Bool editorMoveArmedValue
+    KutterScenePreview editorScenePreviewValue
     public constructor() {
+
         themeValue = KookieUiNativeTheme()
         screenValue = gameShellScreenMain()
         selectionValue = 0
@@ -93,6 +105,16 @@ class GameShell {
         greyboxCatalogValue.loadRgsdevPack()
         greyboxLevelValue = BoundedKutterGreyboxLevel(128)
         levelEditorValue = BoundedKutterLevelEditor()
+        editorInspectorLeftValue = 48
+        editorInspectorResizeActiveValue = false
+        editorAssetIndexValue = 0
+        editorAssetBrowserOpenValue = false
+        editorAssetPageValue = 0
+        editorHierarchyPageValue = 0
+        editorHierarchyKeyboardFocusValue = false
+        editorMoveArmedValue = false
+        editorScenePreviewValue = KutterScenePreview(1)
+        editorScaleAxisValue = 0
     }
 
     Int screen() { return screenValue }
@@ -130,6 +152,109 @@ class GameShell {
     }
     BoundedKutterLevelEditor levelEditor() {
         return levelEditorValue
+    }
+    Int inspectorLeft() { return editorInspectorLeftValue }
+
+    Int editorScaleAxis() { return editorScaleAxisValue }
+    Bool cycleEditorScaleAxis() {
+        editorScaleAxisValue = editorScaleAxisValue + 1
+        if (editorScaleAxisValue > 2) { editorScaleAxisValue = 0 }
+        return true
+    }
+    Bool cycleEditorAsset(Int direction) {
+        var count = greyboxCatalogValue.count()
+        if (!greyboxCatalogValue.validate() || count <= 0 ||
+            (direction != -1 && direction != 1)) {
+            return false
+        }
+        editorAssetIndexValue = editorAssetIndexValue + direction
+        if (editorAssetIndexValue < 0) {
+            editorAssetIndexValue = count - 1
+        } else if (editorAssetIndexValue >= count) {
+            editorAssetIndexValue = 0
+        }
+        editorAssetPageValue = editorAssetIndexValue / 7
+        return true
+    }
+    Bool cycleEditorAssetPage(Int direction) {
+        var count = greyboxCatalogValue.count()
+        if (!greyboxCatalogValue.validate() || count <= 0 ||
+            (direction != -1 && direction != 1)) { return false }
+        var pages = (count + 6) / 7
+        editorAssetPageValue = editorAssetPageValue + direction
+        if (editorAssetPageValue < 0) { editorAssetPageValue = pages - 1 }
+        else if (editorAssetPageValue >= pages) { editorAssetPageValue = 0 }
+        editorAssetIndexValue = editorAssetPageValue * 7
+        return true
+    }
+    Bool selectEditorAsset(Int index) {
+        if (!greyboxCatalogValue.validate() ||
+            index < 0 || index >= greyboxCatalogValue.count() ||
+            !levelEditorValue.selectTool(kutterLevelToolProp())) {
+            return false
+        }
+        editorAssetIndexValue = index
+        editorAssetPageValue = index / 7
+        editorAssetBrowserOpenValue = false
+        selectionValue = 0
+        return true
+    }
+    Bool focusHierarchySelection() {
+        var index = levelEditorValue.document().nodeIndex(
+            levelEditorValue.selectedNode())
+        if (index < 0) { return false }
+        editorHierarchyPageValue = index / 4
+        return true
+    }
+    Bool focusHierarchyAfter(Bool changed) {
+        if (changed) { focusHierarchySelection() }
+        return changed
+    }
+    Bool moveHierarchySelection(Int direction) {
+        if (direction != -1 && direction != 1) { return false }
+        var currentIndex = levelEditorValue.document().nodeIndex(
+            levelEditorValue.selectedNode())
+        var nextIndex = currentIndex + direction
+        if (currentIndex < 0 || nextIndex < 0 ||
+            nextIndex >= levelEditorValue.nodeCount()) {
+            return false
+        }
+        if (!levelEditorValue.selectNode(
+                levelEditorValue.nodeId(nextIndex))) {
+            return false
+        }
+        return focusHierarchySelection()
+    }
+    Bool cycleEditorHierarchyPage(Int direction) {
+        var count = levelEditorValue.nodeCount()
+        if (direction != -1 && direction != 1) { return false }
+        var pages = (count + 3) / 4
+        if (pages < 1) { pages = 1 }
+        editorHierarchyPageValue = editorHierarchyPageValue + direction
+        if (editorHierarchyPageValue < 0) {
+            editorHierarchyPageValue = pages - 1
+        } else if (editorHierarchyPageValue >= pages) {
+            editorHierarchyPageValue = 0
+        }
+        return true
+    }
+    Bool editorAssetBrowserOpen() { return editorAssetBrowserOpenValue }
+    Int selectedEditorAssetToken() {
+        return greyboxCatalogValue.assetToken(editorAssetIndexValue)
+    }
+    Int selectedScaleValue(Int nodeIndex) {
+        if (editorScaleAxisValue == 1) {
+            return levelEditorValue.document().nodeScaleYValue(nodeIndex)
+        }
+        if (editorScaleAxisValue == 2) {
+            return levelEditorValue.document().nodeScaleZValue(nodeIndex)
+        }
+        return levelEditorValue.document().nodeScaleXValue(nodeIndex)
+    }
+    String scaleAxisLabel() {
+        if (editorScaleAxisValue == 1) { return "SY" }
+        if (editorScaleAxisValue == 2) { return "SZ" }
+        return "SX"
     }
 
     Int resolutionIndex() { return resolutionValue }
@@ -587,11 +712,65 @@ class GameShell {
         if (action < gameShellActionUp() || action > gameShellActionBack()) {
             return false
         }
-        if (action == gameShellActionUp() || action == gameShellActionDown()) {
+        if (editorHierarchyKeyboardFocusValue) {
+            if (action == gameShellActionBack() ||
+                action == gameShellActionActivate()) {
+                editorHierarchyKeyboardFocusValue = false
+                return true
+            }
+            if (action == gameShellActionUp()) {
+                return moveHierarchySelection(-1)
+            }
+            if (action == gameShellActionDown()) {
+                return moveHierarchySelection(1)
+            }
+            return false
+        }
+        if (editorAssetBrowserOpenValue) {
+            if (action == gameShellActionBack()) {
+                editorAssetBrowserOpenValue = false
+                return true
+            }
+            if (action == gameShellActionUp() ||
+                action == gameShellActionDown()) {
+                return moveSelection(
+                    if (action == gameShellActionUp()) -1 else 1)
+            }
+            if (action == gameShellActionLeft() ||
+                action == gameShellActionRight()) {
+                var direction = if (action == gameShellActionLeft()) -1 else 1
+                if (selectionValue == 8) { return cycleEditorAssetPage(-1) }
+                if (selectionValue == 9) { return cycleEditorAssetPage(1) }
+                return cycleEditorAssetPage(direction)
+            }
+            if (action == gameShellActionActivate()) {
+                if (selectionValue == 0) {
+                    editorAssetBrowserOpenValue = false
+                    return true
+                }
+                if (selectionValue >= 1 && selectionValue <= 7) {
+                    return selectEditorAsset(
+                        editorAssetPageValue * 7 + selectionValue - 1)
+                }
+                if (selectionValue == 8) {
+                    return cycleEditorAssetPage(-1)
+                }
+                if (selectionValue == 9) {
+                    return cycleEditorAssetPage(1)
+                }
+            }
+            return false
+        }
+        if (action == gameShellActionUp() ||
+            action == gameShellActionDown()) {
             return moveSelection(
                 if (action == gameShellActionUp()) -1 else 1)
         }
         if (action == gameShellActionBack()) {
+            if (editorMoveArmedValue) {
+                editorMoveArmedValue = false
+                return true
+            }
             screenValue = gameShellScreenKutter()
             selectionValue = 2
             return true
@@ -600,6 +779,9 @@ class GameShell {
             action == gameShellActionRight()) {
             var direction = if (action == gameShellActionLeft()) -1 else 1
             if (selectionValue == 0) {
+                if (levelEditorValue.tool() == kutterLevelToolProp()) {
+                    return cycleEditorAsset(direction)
+                }
                 return levelEditorValue.cycleTool(direction)
             }
             if (selectionValue == 1) {
@@ -617,12 +799,30 @@ class GameShell {
             if (selectionValue == 7) {
                 return levelEditorValue.redo()
             }
+            if (selectionValue == 5) {
+                return levelEditorValue.rotateSelected(direction)
+            }
+            if (selectionValue == 8) {
+                return levelEditorValue.resizeSelected(
+                    editorScaleAxisValue, direction)
+            }
             return false
         }
         if (action != gameShellActionActivate()) { return false }
-        if (selectionValue == 4) { return levelEditorValue.applyTool() }
+        if (selectionValue == 0) {
+            return levelEditorValue.assignAssetToSelected(
+                selectedEditorAssetToken())
+        }
+        if (selectionValue == 4) {
+            if (levelEditorValue.tool() == kutterLevelToolProp()) {
+                return levelEditorValue.addAssetAtCursor(
+                    selectedEditorAssetToken())
+            }
+            return levelEditorValue.applyTool()
+        }
         if (selectionValue == 5) {
-            return levelEditorValue.moveSelectedToCursor()
+            editorMoveArmedValue = !editorMoveArmedValue
+            return true
         }
         if (selectionValue == 6) { return levelEditorValue.undo() }
         if (selectionValue == 7) { return levelEditorValue.redo() }
@@ -719,6 +919,24 @@ class GameShell {
         return activateMultiplayer()
     }
 
+    Bool handlePointerMove(Int x, Int y) {
+        if (!editorInspectorResizeActiveValue ||
+            screenValue != gameShellScreenKutterLevel()) {
+            return false
+        }
+        var nextLeft = x
+        if (nextLeft < 30) { nextLeft = 30 }
+        if (nextLeft > 48) { nextLeft = 48 }
+        editorInspectorLeftValue = nextLeft
+        return true
+    }
+
+    Bool endPointerDrag() {
+        if (!editorInspectorResizeActiveValue) { return false }
+        editorInspectorResizeActiveValue = false
+        return true
+    }
+
     Bool handlePointer(Int x, Int y) {
         if (x < -100 || x > 100 || y < -100 || y > 100 ||
             screenValue == gameShellScreenGame()) { return false }
@@ -769,18 +987,176 @@ class GameShell {
             return activateKutter()
         }
         if (screenValue == gameShellScreenKutterLevel()) {
-            if (y >= 38 && y <= 50) { selectionValue = 0 }
-            else if (y >= 24 && y <= 36) { selectionValue = 1 }
-            else if (y >= 10 && y <= 22) { selectionValue = 2 }
-            else if (y >= -4 && y <= 8) { selectionValue = 3 }
-            else if (y >= -18 && y <= -6) { selectionValue = 4 }
-            else if (y >= -32 && y <= -20) { selectionValue = 5 }
-            else if (y >= -46 && y <= -34) { selectionValue = 6 }
-            else if (y >= -60 && y <= -48) { selectionValue = 7 }
-            else if (y >= -74 && y <= -62) { selectionValue = 8 }
-            else if (y >= -88 && y <= -76) { selectionValue = 9 }
-            else { return false }
-            return handleKutterLevelAction(gameShellActionActivate())
+            editorHierarchyKeyboardFocusValue = false
+            if (x >= editorInspectorLeftValue - 2 &&
+                x <= editorInspectorLeftValue + 2 &&
+                y >= -94 && y <= 44) {
+                editorInspectorResizeActiveValue = true
+                return true
+            }
+            if (x < -42) {
+                editorMoveArmedValue = false
+                if (editorAssetBrowserOpenValue) {
+                    if (y >= 30 && y <= 40) {
+                        if (x < -68) {
+                            editorAssetBrowserOpenValue = false
+                            return true
+                        }
+                        return cycleEditorAssetPage(
+                            if (x < -56) -1 else 1)
+                    }
+                    if (y >= 17 && y <= 27) {
+                        return selectEditorAsset(editorAssetPageValue * 7)
+                    }
+                    if (y >= 4 && y <= 14) {
+                        return selectEditorAsset(editorAssetPageValue * 7 + 1)
+                    }
+                    if (y >= -9 && y <= 1) {
+                        return selectEditorAsset(editorAssetPageValue * 7 + 2)
+                    }
+                    if (y >= -22 && y <= -12) {
+                        return selectEditorAsset(editorAssetPageValue * 7 + 3)
+                    }
+                    if (y >= -35 && y <= -25) {
+                        return selectEditorAsset(editorAssetPageValue * 7 + 4)
+                    }
+                    if (y >= -48 && y <= -38) {
+                        return selectEditorAsset(editorAssetPageValue * 7 + 5)
+                    }
+                    if (y >= -61 && y <= -51) {
+                        return selectEditorAsset(editorAssetPageValue * 7 + 6)
+                    }
+                    if (y >= -74 && y <= -64) {
+                        return cycleEditorAssetPage(-1)
+                    }
+                    if (y >= -87 && y <= -77) {
+                        return cycleEditorAssetPage(1)
+                    }
+                    return false
+                }
+                if (y >= 30 && y <= 40) { selectionValue = 0 }
+                else if (y >= 17 && y <= 27) { selectionValue = 1 }
+                else if (y >= 4 && y <= 14) { selectionValue = 2 }
+                else if (y >= -9 && y <= 1) { selectionValue = 3 }
+                else if (y >= -22 && y <= -12) { selectionValue = 4 }
+                else if (y >= -35 && y <= -25) { selectionValue = 5 }
+                else if (y >= -48 && y <= -38) { selectionValue = 6 }
+                else if (y >= -61 && y <= -51) { selectionValue = 7 }
+                else if (y >= -74 && y <= -64) { selectionValue = 8 }
+                else if (y >= -87 && y <= -77) { selectionValue = 9 }
+                else { return false }
+                if (selectionValue == 0) {
+                    if (x < -68) {
+                        return levelEditorValue.cycleTool(
+                            if (x < -78) -1 else 1)
+                    }
+                    editorAssetBrowserOpenValue = true
+                    return true
+                }
+                return handleKutterLevelAction(gameShellActionActivate())
+            }
+            if (x >= editorInspectorLeftValue && x <= 89) {
+                if (y >= 34 && y <= 44) {
+                    if (x >= 84) { return cycleEditorHierarchyPage(1) }
+                    if (x <= 73) { return cycleEditorHierarchyPage(-1) }
+                    return false
+                }
+                var row = -1
+                if (y >= 22 && y <= 33) { row = 0 }
+                else if (y >= 10 && y <= 21) { row = 1 }
+                else if (y >= -2 && y <= 9) { row = 2 }
+                else if (y >= -14 && y <= -3) { row = 3 }
+                if (row >= 0) {
+                    var nodeIndex = editorHierarchyPageValue * 4 + row
+                    if (nodeIndex >= levelEditorValue.nodeCount()) {
+                        return false
+                    }
+                    editorHierarchyKeyboardFocusValue = true
+                    return levelEditorValue.selectNode(
+                        levelEditorValue.nodeId(nodeIndex))
+                }
+                if (y >= -36 && y <= -27) {
+                    return levelEditorValue.adjustSelectedHeight(
+                        if (x < 70) -1 else 1)
+                }
+                if (y >= -47 && y <= -38) {
+                    return levelEditorValue.rotateSelected(
+                        if (x < 70) -1 else 1)
+                }
+                if (y >= -56 && y <= -47) {
+                    if (x >= 82) {
+                        var selectedIndex = levelEditorValue.document().nodeIndex(
+                            levelEditorValue.selectedNode())
+                        if (selectedIndex < 0) { return false }
+                        var color = levelEditorValue.document().nodeColorValue(
+                            selectedIndex)
+                        return levelEditorValue.recolorSelected(
+                            if (color == 16711615) 16776960 else 16711615)
+                    }
+                    if (x < 65) { return cycleEditorScaleAxis() }
+                    return levelEditorValue.resizeSelected(
+                        editorScaleAxisValue, if (x < 72) -1 else 1)
+                }
+                if (y >= -68 && y <= -58) {
+                    if (x < 69) {
+                        return focusHierarchyAfter(
+                            levelEditorValue.duplicateSelected())
+                    }
+                    var otherNode = 0
+                    for (var index = 0;
+                         index < levelEditorValue.nodeCount();
+                         index = index + 1) {
+                        if (levelEditorValue.nodeId(index) !=
+                            levelEditorValue.selectedNode()) {
+                            otherNode = levelEditorValue.nodeId(index)
+                            break
+                        }
+                    }
+                    return focusHierarchyAfter(
+                        levelEditorValue.groupSelectedWith(otherNode))
+                }
+                if (y >= -84 && y <= -74) {
+                    if (x < 69) {
+                        return focusHierarchyAfter(
+                            levelEditorValue.ungroupSelected())
+                    }
+                    return focusHierarchyAfter(
+                        levelEditorValue.removeSelected())
+                }
+                return false
+            }
+            if (x >= -39 && x < editorInspectorLeftValue &&
+                y >= -67 && y <= 37) {
+                var worldX = (x + 34) * 25
+                var worldZ = (y + 66) * 20
+                if (!levelEditorValue.setCursor(worldX, worldZ)) {
+                    return false
+                }
+                if (editorMoveArmedValue) {
+                    var moved = levelEditorValue.moveSelectedToCursor()
+                    if (moved) {
+                        editorMoveArmedValue = false
+                        focusHierarchySelection()
+                    }
+                    return moved
+                }
+                if (levelEditorValue.tool() == kutterLevelToolSelect()) {
+                    var selectedAtCursor = levelEditorValue.selectAtCursor()
+                    if (selectedAtCursor) { focusHierarchySelection() }
+                    return selectedAtCursor
+                }
+                selectionValue = 4
+                var changed = false
+                if (levelEditorValue.tool() == kutterLevelToolProp()) {
+                    changed = levelEditorValue.addAssetAtCursor(
+                        selectedEditorAssetToken())
+                } else {
+                    changed = levelEditorValue.applyTool()
+                }
+                if (changed) { focusHierarchySelection() }
+                return changed
+            }
+            return false
         }
         if (y >= 8 && y <= 20) { selectionValue = 0 }
         else if (y >= -8 && y <= 8) { selectionValue = 1 }
@@ -802,6 +1178,7 @@ class GameShell {
     }
 
     Bool pushScreenFrame(FrameStaging target) {
+        if (screenValue == gameShellScreenKutterLevel()) { return true }
         return pushQuad(
                 target, kookieUiNativeResourceBackground(),
                 -100, -100, 100, 100) &&
@@ -1405,62 +1782,396 @@ class GameShell {
         return "SELECT"
     }
 
+    String levelNodeLabel(Int index) {
+        var kind = levelEditorValue.document().nodeKind(index)
+        if (kind == kutterLevelToolPlayerSpawn()) { return "PLAYER" }
+        if (kind == kutterLevelToolEnemySpawn()) { return "ENEMY" }
+        if (kind == kutterLevelToolEncounter()) { return "ENCOUNTER" }
+        if (kind == kutterLevelToolTrigger()) { return "TRIGGER" }
+        if (kind == kutterLevelToolLight()) { return "LIGHT" }
+        if (kind == kutterLevelToolProp()) { return "PROP" }
+        if (kind == kutterLevelNodeGroup()) { return "GROUP" }
+        return "NODE"
+    }
+
+    Bool pushKutterDockPanel(
+        FrameStaging target, Int left, Int bottom, Int right, Int top,
+        Bool selected
+    ) {
+        var panel = themeValue.panelResource()
+        if (selected) { panel = themeValue.selectedPanelResource() }
+        return pushQuad(target, panel, left, bottom, right, top) &&
+            pushQuad(
+                target, kookieUiNativeResourceBackground(),
+                left + 1, bottom + 1, right - 1, top - 1)
+    }
+
+    Bool stageKutterEditorViewport(FrameStaging target) {
+        if (!pushQuad(
+                target, themeValue.focusRailResource(),
+                -40, -76, 45, -75) ||
+            !pushQuad(
+                target, themeValue.focusRailResource(),
+                -40, 43, 45, 44) ||
+            !pushQuad(
+                target, themeValue.focusRailResource(),
+                -40, -76, -39, 44) ||
+            !pushQuad(
+                target, themeValue.focusRailResource(),
+                44, -76, 45, 44) ||
+            !pushText(target, "LEVEL VIEW", -37, 39, 1, accentTextColor())) {
+            return false
+        }
+        for (var grid = 0; grid <= 8; grid = grid + 1) {
+            var x = -34 + grid * 9
+            var z = -68 + grid * 13
+            if (!pushQuad(
+                    target, kookieUiNativeResourceFocus(),
+                    x, -67, x + 1, 37) ||
+                !pushQuad(
+                    target, kookieUiNativeResourceFocus(),
+                    -34, z, 36, z + 1)) {
+                return false
+            }
+        }
+        for (var index = 0; index < levelEditorValue.nodeCount(); index = index + 1) {
+            var nodeX = levelEditorValue.nodeX(index)
+            var nodeZ = levelEditorValue.nodeZ(index)
+            var markerX = -34 + nodeX / 25
+            var groundY = -66 + nodeZ / 20
+            var heightOffset =
+                levelEditorValue.document().nodeYValue(index) / 25
+            var markerY = groundY + heightOffset
+            var halfX = levelEditorValue.document().nodeScaleXValue(index) / 500
+            var halfY = levelEditorValue.document().nodeScaleZValue(index) / 500
+            if (halfX < 1) { halfX = 1 }
+            if (halfX > 8) { halfX = 8 }
+            if (halfY < 1) { halfY = 1 }
+            if (halfY > 8) { halfY = 8 }
+            var left = markerX - halfX
+            var right = markerX + halfX + 1
+            var bottom = markerY - halfY
+            var top = markerY + halfY + 1
+            if (left < -39) { left = -39 }
+            if (right > 44) { right = 44 }
+            if (bottom < -75) { bottom = -75 }
+            if (top > 43) { top = 43 }
+            if (left < right && bottom < top) {
+                var selected = levelEditorValue.nodeId(index) ==
+                    levelEditorValue.selectedNode()
+                var color = levelEditorValue.document().nodeColorValue(index)
+                var marker = kookieUiNativeResourceMuted()
+                if (color == 16711615) {
+                    marker = kookieUiNativeResourceDanger()
+                } else if (color == 16776960) {
+                    marker = kookieUiNativeResourceSuccess()
+                }
+                if (selected) {
+                    marker = themeValue.selectedPanelResource()
+                }
+                if (heightOffset != 0 && markerX > -39 && markerX < 44) {
+                    var stemBottom = groundY
+                    var stemTop = markerY
+                    if (stemBottom > stemTop) {
+                        var swap = stemBottom
+                        stemBottom = stemTop
+                        stemTop = swap
+                    }
+                    if (stemBottom < -75) { stemBottom = -75 }
+                    if (stemTop > 43) { stemTop = 43 }
+                    if (stemBottom < stemTop && !pushQuad(
+                            target, themeValue.focusRailResource(),
+                            markerX, stemBottom, markerX + 1, stemTop)) {
+                        return false
+                    }
+                }
+                if (!pushQuad(
+                        target, marker, left, bottom, right, top)) {
+                    return false
+                }
+                if (!editorScenePreviewValue.stageOverviewFootprint(
+                        target, levelEditorValue.document(), index,
+                        markerX, markerY, -39, -75, 44, 43)) {
+                    return false
+                }
+                if (selected && markerX >= -39 && markerX <= 43 &&
+                    markerY >= -75 && markerY <= 42) {
+                    var fill = kookieUiNativeResourceMuted()
+                    if (color == 16711615) {
+                        fill = kookieUiNativeResourceDanger()
+                    } else if (color == 16776960) {
+                        fill = kookieUiNativeResourceSuccess()
+                    }
+                    if (!pushQuad(
+                            target, fill, markerX, markerY,
+                            markerX + 1, markerY + 1)) {
+                        return false
+                    }
+                    var rotation = levelEditorValue.document().nodeRotationValue(index)
+                    var direction = (rotation + 7500) / 15000
+                    direction = direction % kutterScenePreviewRotationSteps()
+                    if (direction < 0) {
+                        direction = direction + kutterScenePreviewRotationSteps()
+                    }
+                    var facingX = editorScenePreviewValue.rotationSine(direction)
+                    var facingY = editorScenePreviewValue.rotationCosine(direction)
+                    var tipX = markerX + facingX * 5 / 1000
+                    var tipY = markerY + facingY * 5 / 1000
+                    var baseX = markerX + facingX / 1000
+                    var baseY = markerY + facingY / 1000
+                    var sideX = editorScenePreviewValue.rotationCosine(direction) * 2 / 1000
+                    var sideY = -editorScenePreviewValue.rotationSine(direction) * 2 / 1000
+                    var leftX = baseX + sideX
+                    var leftY = baseY + sideY
+                    var rightX = baseX - sideX
+                    var rightY = baseY - sideY
+                    if (tipX >= -39 && tipX <= 43 &&
+                        tipY >= -75 && tipY <= 42 &&
+                        leftX >= -39 && leftX <= 43 &&
+                        leftY >= -75 && leftY <= 42 &&
+                        rightX >= -39 && rightX <= 43 &&
+                        rightY >= -75 && rightY <= 42 &&
+                        !target.pushTriangle(
+                            kookieUiNativeResourceForeground(),
+                            tipX, tipY, leftX, leftY, rightX, rightY)) {
+                        return false
+                    }
+                }
+            }
+        }
+        return true
+    }
+
+    Bool stageKutterHierarchyAndInspector(FrameStaging target) {
+        var pageCount = (levelEditorValue.nodeCount() + 3) / 4
+        if (pageCount < 1) { pageCount = 1 }
+        if (editorHierarchyPageValue >= pageCount) {
+            editorHierarchyPageValue = pageCount - 1
+        }
+        if (!pushKutterDockPanel(
+                target, editorInspectorLeftValue, -94, 89, 44, false) ||
+            !pushQuad(
+                target, themeValue.focusRailResource(),
+                editorInspectorLeftValue - 1, -94,
+                editorInspectorLeftValue, 44) ||
+            !pushQuad(
+                target, themeValue.selectedPanelResource(),
+                editorInspectorLeftValue - 3, 0,
+                editorInspectorLeftValue + 2, 1) ||
+            !pushQuad(
+                target, themeValue.selectedPanelResource(),
+                editorInspectorLeftValue - 3, 2,
+                editorInspectorLeftValue + 2, 3) ||
+            !pushQuad(
+                target, themeValue.selectedPanelResource(),
+                editorInspectorLeftValue - 3, 4,
+                editorInspectorLeftValue + 2, 5) ||
+            !pushText(
+                target, "HIERARCHY", 51, 39, 1,
+                if (editorHierarchyKeyboardFocusValue)
+                    selectedTextColor() else accentTextColor()) ||
+            !pushText(target, "<", 69, 39, 1, mutedTextColor()) ||
+            !pushNumber(
+                target, editorHierarchyPageValue + 1, 73, 39, 1,
+                mutedTextColor()) ||
+            !pushText(target, "/", 76, 39, 1, mutedTextColor()) ||
+            !pushNumber(target, pageCount, 79, 39, 1, mutedTextColor()) ||
+            !pushText(target, ">", 85, 39, 1, mutedTextColor())) {
+            return false
+        }
+        var firstNode = editorHierarchyPageValue * 4
+        var visibleNodes = levelEditorValue.nodeCount() - firstNode
+        if (visibleNodes > 4) { visibleNodes = 4 }
+        for (var row = 0; row < visibleNodes; row = row + 1) {
+            var index = firstNode + row
+            var rowY = 28 - row * 12
+            var color = normalTextColor()
+            if (levelEditorValue.nodeId(index) ==
+                levelEditorValue.selectedNode()) {
+                color = selectedTextColor()
+            }
+            if (!pushText(
+                    target, levelNodeLabel(index), 51, rowY, 1, color) ||
+                !pushNumber(
+                    target, levelEditorValue.nodeId(index),
+                    75, rowY, 1, color)) {
+                return false
+            }
+        }
+        if (!pushQuad(
+                target, themeValue.focusRailResource(),
+                50, -14, 87, -13) ||
+            !pushText(target, "INSPECTOR", 51, -20, 1, accentTextColor())) {
+            return false
+        }
+        var selected = levelEditorValue.document().nodeIndex(
+            levelEditorValue.selectedNode())
+        if (selected < 0) {
+            return pushText(target, "NO SELECTION", 51, -32, 1, mutedTextColor())
+        }
+        return pushText(target, "HEIGHT", 51, -32, 1, normalTextColor()) &&
+            pushSignedNumber(
+                target, levelEditorValue.document().nodeYValue(selected),
+                78, -32, 1, mutedTextColor()) &&
+            pushText(target, "ROT", 51, -42, 1, normalTextColor()) &&
+            pushNumber(
+                target, levelEditorValue.document().nodeRotationValue(selected),
+                68, -42, 1, mutedTextColor()) &&
+            pushText(target, scaleAxisLabel(), 51, -52, 1, normalTextColor()) &&
+            pushText(target, "-", 67, -52, 1, mutedTextColor()) &&
+            pushNumber(
+                target, selectedScaleValue(selected),
+                71, -52, 1, mutedTextColor()) &&
+            pushText(target, "+", 78, -52, 1, mutedTextColor()) &&
+            pushKutterDockPanel(target, 81, -56, 88, -47, false) &&
+            pushText(target, "C", 83, -54, 1, accentTextColor()) &&
+            pushKutterDockPanel(target, 50, -68, 68, -58, false) &&
+            pushText(target, "DUP", 53, -66, 1, normalTextColor()) &&
+            pushKutterDockPanel(target, 70, -68, 87, -58, false) &&
+            pushText(target, "GROUP", 72, -66, 1, normalTextColor()) &&
+            pushKutterDockPanel(target, 50, -84, 68, -74, false) &&
+            pushText(target, "UNGROUP", 51, -82, 1, normalTextColor()) &&
+            pushKutterDockPanel(target, 70, -84, 87, -74, false) &&
+            pushText(target, "DELETE", 72, -82, 1, dangerTextColor())
+    }
+
+    String editorAssetKindLabel(Int kind) {
+        if (kind == kutterGreyboxKindGround()) { return "GROUND" }
+        if (kind == kutterGreyboxKindWall()) { return "WALL" }
+        if (kind == kutterGreyboxKindDoorway()) { return "DOOR" }
+        if (kind == kutterGreyboxKindStairs()) { return "STAIRS" }
+        if (kind == kutterGreyboxKindRamp()) { return "RAMP" }
+        if (kind == kutterGreyboxKindFence()) { return "FENCE" }
+        if (kind == kutterGreyboxKindRailing()) { return "RAIL" }
+        if (kind == kutterGreyboxKindLadder()) { return "LADDER" }
+        if (kind == kutterGreyboxKindPillar()) { return "PILLAR" }
+        if (kind == kutterGreyboxKindWindow()) { return "WINDOW" }
+        if (kind == kutterGreyboxKindProp()) { return "PROP" }
+        return "UNKNOWN"
+    }
+
+    Bool stageKutterAssetBrowser(FrameStaging target) {
+        if (!greyboxCatalogValue.validate()) { return false }
+        for (var row = 0; row < 10; row = row + 1) {
+            var centerY = 35 - row * 13
+            if (!pushKutterDockPanel(
+                    target, -90, centerY - 5, -45, centerY + 5,
+                    selectionValue == row)) {
+                return false
+            }
+            if (row == 0) {
+                if (!pushText(target, "TOOLS", -87, centerY - 3, 1,
+                        selectedTextColor()) ||
+                    !pushText(target, "PG", -66, centerY - 3, 1,
+                        mutedTextColor()) ||
+                    !pushNumber(target, editorAssetPageValue + 1, -52,
+                        centerY - 3, 1, mutedTextColor())) {
+                    return false
+                }
+            } else if (row <= 7) {
+                var index = editorAssetPageValue * 7 + row - 1
+                if (index < greyboxCatalogValue.count()) {
+                    var color = if (index == editorAssetIndexValue)
+                        selectedTextColor() else normalTextColor()
+                    if (!pushNumber(target, index + 1, -87,
+                            centerY - 3, 1, color) ||
+                        !pushTextFitted(
+                            target, editorAssetKindLabel(
+                                greyboxCatalogValue.kind(index)),
+                            -68, centerY - 3, 1, color, 22)) {
+                        return false
+                    }
+                }
+            } else if (row == 8) {
+                if (!pushText(target, "PREVIOUS PAGE", -87,
+                        centerY - 3, 1, normalTextColor())) {
+                    return false
+                }
+            } else if (!pushText(
+                    target, "NEXT PAGE", -87, centerY - 3, 1,
+                    normalTextColor())) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Bool stageKutterToolsPanel(FrameStaging target, Int normal) {
+        for (var row = 0; row < 10; row = row + 1) {
+            var centerY = 35 - row * 13
+            if (!pushKutterDockPanel(
+                    target, -90, centerY - 5, -45, centerY + 5,
+                    selectionValue == row)) {
+                return false
+            }
+        }
+        return pushText(target, levelToolLabel(), -87, 32, 1,
+                if (selectionValue == 0) selectedTextColor() else normal) &&
+            pushText(target, "ASSET", -67, 32, 1,
+                if (selectionValue == 0) selectedTextColor() else normal) &&
+            pushNumber(target, editorAssetIndexValue + 1, -46, 32, 1,
+                if (selectionValue == 0) selectedTextColor() else normal) &&
+            pushText(target, "CURSOR X", -87, 19, 1,
+                if (selectionValue == 1) selectedTextColor() else normal) &&
+            pushSignedNumber(target, levelEditorValue.cursorX(), -57, 19, 1,
+                if (selectionValue == 1) selectedTextColor() else normal) &&
+            pushText(target, "CURSOR Z", -87, 6, 1,
+                if (selectionValue == 2) selectedTextColor() else normal) &&
+            pushSignedNumber(target, levelEditorValue.cursorZ(), -57, 6, 1,
+                if (selectionValue == 2) selectedTextColor() else normal) &&
+            pushText(target, "GRID", -87, -7, 1,
+                if (selectionValue == 3) selectedTextColor() else normal) &&
+            pushNumber(target, levelEditorValue.gridSize(), -57, -7, 1,
+                if (selectionValue == 3) selectedTextColor() else normal) &&
+            pushText(target, "PLACE TOOL", -87, -20, 1,
+                if (selectionValue == 4) selectedTextColor() else normal) &&
+            pushText(
+                target,
+                if (editorMoveArmedValue)
+                    "MOVE ARMED: CLICK VIEW" else "MOVE / ROTATE",
+                -87, -33, 1,
+                if (selectionValue == 5) selectedTextColor() else normal) &&
+            pushText(target, "UNDO", -87, -46, 1,
+                if (selectionValue == 6) selectedTextColor() else normal) &&
+            pushText(target, "REDO", -87, -59, 1,
+                if (selectionValue == 7) selectedTextColor() else normal) &&
+            pushText(target,
+                if (levelEditorValue.previewActive())
+                    "PREVIEW ON" else "PREVIEW OFF",
+                -87, -72, 1,
+                if (selectionValue == 8) selectedTextColor() else normal) &&
+            pushText(target, "BACK", -87, -85, 1,
+                if (selectionValue == 9) selectedTextColor() else normal) &&
+            pushCenteredText(target,
+                "HEIGHT/ROT/SCALE +/-; SCALE LABEL XYZ; C COLOR",
+                -97, 1, mutedTextColor())
+    }
+
     Bool stageKutterLevel(FrameStaging target) {
         var normal = normalTextColor()
         var issueColor = if (levelEditorValue.validLevel())
             successTextColor() else dangerTextColor()
-        return pushScreenFrame(target) &&
-            pushCenteredText(target, "LEVEL EDITOR",
-                menuTitleBottom(), 2, accentTextColor()) &&
-            pushText(target, "GEN", -88, menuSubtitleBottom(), 1, normal) &&
-            pushNumber(target, levelEditorValue.generation(), -66,
-                menuSubtitleBottom(), 1, mutedTextColor()) &&
-            pushText(target, "NODES", -20, menuSubtitleBottom(), 1, normal) &&
-            pushNumber(target, levelEditorValue.nodeCount(), 16,
-                menuSubtitleBottom(), 1, mutedTextColor()) &&
-            pushText(target, "ISSUES", 45, menuSubtitleBottom(), 1, issueColor) &&
-            pushNumber(target, levelEditorValue.validationIssueCount(), 84,
-                menuSubtitleBottom(), 1, issueColor) &&
-            pushSelectionPanel(target, 0, 38, 50) &&
-            pushCenteredText(target, levelToolLabel(), 41, 1,
-                if (selectionValue == 0) selectedTextColor() else normal) &&
-            pushSelectionPanel(target, 1, 24, 36) &&
-            pushText(target, "CURSOR X", -84, 27, 1,
-                if (selectionValue == 1) selectedTextColor() else normal) &&
-            pushSignedNumber(target, levelEditorValue.cursorX(), 40, 27, 1,
-                if (selectionValue == 1) selectedTextColor() else normal) &&
-            pushSelectionPanel(target, 2, 10, 22) &&
-            pushText(target, "CURSOR Z", -84, 13, 1,
-                if (selectionValue == 2) selectedTextColor() else normal) &&
-            pushSignedNumber(target, levelEditorValue.cursorZ(), 40, 13, 1,
-                if (selectionValue == 2) selectedTextColor() else normal) &&
-            pushSelectionPanel(target, 3, -4, 8) &&
-            pushText(target, "GRID", -84, -1, 1,
-                if (selectionValue == 3) selectedTextColor() else normal) &&
-            pushNumber(target, levelEditorValue.gridSize(), 40, -1, 1,
-                if (selectionValue == 3) selectedTextColor() else normal) &&
-            pushSelectionPanel(target, 4, -18, -6) &&
-            pushCenteredText(target, "APPLY TOOL", -15, 1,
-                if (selectionValue == 4) selectedTextColor() else normal) &&
-            pushSelectionPanel(target, 5, -32, -20) &&
-            pushCenteredText(target, "MOVE SELECTED", -29, 1,
-                if (selectionValue == 5) selectedTextColor() else normal) &&
-            pushSelectionPanel(target, 6, -46, -34) &&
-            pushCenteredText(target, "UNDO", -43, 1,
-                if (selectionValue == 6) selectedTextColor() else normal) &&
-            pushSelectionPanel(target, 7, -60, -48) &&
-            pushCenteredText(target, "REDO", -57, 1,
-                if (selectionValue == 7) selectedTextColor() else normal) &&
-            pushSelectionPanel(target, 8, -74, -62) &&
-            pushCenteredText(target,
-                if (levelEditorValue.previewActive())
-                    "PREVIEW ON" else "PREVIEW OFF",
-                -71, 1, if (selectionValue == 8) selectedTextColor() else normal) &&
-            pushSelectionPanel(target, 9, -88, -76) &&
-            pushCenteredText(target, "BACK", -85, 1,
-                if (selectionValue == 9) selectedTextColor() else normal) &&
-            pushCenteredText(target, "L/R CHANGE ENTER APPLY ESC BACK",
-                -97, 1, mutedTextColor())
+        if (!pushScreenFrame(target) ||
+            !pushCenteredText(target, "KUTTER LEVEL WORKSPACE",
+                menuTitleBottom(), 2, accentTextColor()) ||
+            !pushText(target, "GEN", -88, menuSubtitleBottom(), 1, normal) ||
+            !pushNumber(target, levelEditorValue.generation(), -66,
+                menuSubtitleBottom(), 1, mutedTextColor()) ||
+            !pushText(target, "NODES", -25, menuSubtitleBottom(), 1, normal) ||
+            !pushNumber(target, levelEditorValue.nodeCount(), -3,
+                menuSubtitleBottom(), 1, mutedTextColor()) ||
+            !pushText(target, "ISSUES", 22, menuSubtitleBottom(), 1, issueColor) ||
+            !pushNumber(target, levelEditorValue.validationIssueCount(), 48,
+                menuSubtitleBottom(), 1, issueColor) ||
+            !pushKutterDockPanel(target, -92, -88, -43, 44, false) ||
+            !stageKutterEditorViewport(target) ||
+            !stageKutterHierarchyAndInspector(target)) {
+            return false
+        }
+        if (editorAssetBrowserOpenValue) {
+            return stageKutterAssetBrowser(target)
+        }
+        return stageKutterToolsPanel(target, normal)
     }
 
     Bool stageKutter(FrameStaging target) {

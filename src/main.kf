@@ -399,7 +399,7 @@ test "game shell dense menu pointers follow compact visual grids" {
         editor.screen() == gameShellScreenKutterLevel() &&
         editor.stage(frame, 1) &&
         frame.retire(1) &&
-        editor.handlePointer(0, -82) &&
+        editor.handlePointer(-60, -82) &&
         editor.screen() == gameShellScreenKutter() &&
         editor.stage(frame, 2) &&
         frame.retire(2),
@@ -8491,21 +8491,28 @@ test "kutter inspector editors publish atomic undoable products" {
 
 test "kutter level editor provides bounded tools validation and history" {
     var editor = BoundedKutterLevelEditor()
-    assert(editor.nodeCount() == 1 &&
-        !editor.validLevel() &&
-        editor.validationIssueCount() == 1 &&
-        editor.cycleTool(1) &&
-        editor.tool() == kutterLevelToolProp() &&
-        editor.moveCursor(0, 1) &&
-        editor.moveCursor(1, 1) &&
-        editor.cursorX() == 100 && editor.cursorZ() == 100 &&
-        editor.applyTool() &&
-        editor.nodeCount() == 2 &&
-        editor.undo() &&
-        editor.nodeCount() == 1 &&
-        editor.redo() &&
-        editor.nodeCount() == 2,
-        "level editor must place snapped props and preserve bounded undo redo")
+    assert(editor.nodeCount() == 1,
+        "new level creates its required player node")
+    assert(!editor.validLevel(),
+        "new level remains invalid until a goal is placed")
+    assert(editor.validationIssueCount() == 1,
+        "new level reports one missing goal issue")
+    assert(editor.cycleTool(1) &&
+        editor.tool() == kutterLevelToolProp(),
+        "level editor cycles to the prop tool")
+    assert(editor.moveCursor(0, 1) && editor.moveCursor(1, 1) &&
+        editor.cursorX() == 100 && editor.cursorZ() == 100,
+        "level editor moves its snapped cursor")
+    assert(editor.applyTool() && editor.nodeCount() == 2,
+        "level editor places a prop")
+    assert(editor.selectAtCursor() && editor.selectedNode() == 2 &&
+        editor.setCursor(10000, 10000) && !editor.selectAtCursor() &&
+        editor.selectedNode() == 2,
+        "viewport picking selects within node bounds and preserves selection on empty space")
+    assert(editor.undo() && editor.nodeCount() == 1,
+        "level editor undo restores the previous document")
+    assert(editor.redo() && editor.nodeCount() == 2,
+        "level editor redo restores the placement")
     assert(editor.cycleTool(1) &&
         editor.cycleTool(1) &&
         editor.cycleTool(1) &&
@@ -8528,16 +8535,539 @@ test "kutter level editor provides bounded tools validation and history" {
         "Kutter must open the dedicated level editor surface")
     var frame = FrameStaging(shell.renderVertexCapacity())
     assert(shell.stage(frame, 1) && frame.stagedCount() > 0 &&
-        frame.retire(1) &&
+        frame.retire(1),
+        "Kutter editor view must render its initial tools and live viewport")
+    assert(shell.handleAction(gameShellActionRight()) &&
+        shell.levelEditor().tool() == kutterLevelToolProp(),
+        "keyboard tool cycling must select Prop from Select")
+    assert(shell.handleAction(gameShellActionDown()),
+        "cursor row must become active")
+    assert(shell.handleAction(gameShellActionRight()) &&
+        shell.levelEditor().cursorX() == 100,
+        "cursor row arrows must move the snapped X coordinate")
+    assert(shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.levelEditor().nodeCount() == 2,
+        "Place Tool must add a prop from the cursor")
+    assert(shell.handleAction(gameShellActionDown()) &&
         shell.handleAction(gameShellActionRight()) &&
-        shell.levelEditor().tool() == kutterLevelToolProp() &&
+        shell.levelEditor().document().nodeRotationValue(1) == 15000 &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
         shell.handleAction(gameShellActionDown()) &&
         shell.handleAction(gameShellActionRight()) &&
-        shell.levelEditor().cursorX() == 100 &&
-        shell.handleAction(gameShellActionBack()) &&
+        shell.levelEditor().document().nodeScaleXValue(1) == 1100,
+        "inspector controls must rotate and scale the selected prop")
+    assert(shell.handleAction(gameShellActionBack()) &&
         shell.screen() == gameShellScreenKutter(),
-        "level editor UI must expose tool, cursor, render, and back controls")
+        "Back must leave the level workspace")
 }
+test "Kutter scale floor rejects empty resize history" {
+    var editor = BoundedKutterLevelEditor()
+    var shrunk = true
+    for (var step = 0; step < 9; step = step + 1) {
+        shrunk = shrunk && editor.resizeSelected(0, -1)
+    }
+    assert(shrunk &&
+        editor.document().nodeScaleXValue(0) == 100,
+        "scale must decrease to its bounded minimum")
+    var historyBefore = editor.undoCount()
+    assert(!editor.resizeSelected(0, -1) &&
+        editor.undoCount() == historyBefore,
+        "a resize at minimum scale must not create empty history")
+    assert(editor.undo() &&
+        editor.document().nodeScaleXValue(0) == 200,
+        "minimum-scale edits remain individually undoable")
+}
+test "kutter level editor transforms, duplicates, groups, and removes nodes" {
+    var editor = BoundedKutterLevelEditor()
+    assert(editor.cycleTool(1) && editor.addAssetAtCursor(51001),
+        "editor must create an asset-linked prop for transform commands")
+    var sourceId = editor.selectedNode()
+    assert(editor.rotateSelected(1) &&
+        editor.document().nodeRotationValue(
+            editor.document().nodeIndex(sourceId)) == 15000,
+        "rotation command must change the selected node")
+    assert(editor.resizeSelected(0, 1) &&
+        editor.document().nodeScaleXValue(
+            editor.document().nodeIndex(sourceId)) == 1100,
+        "resize command must change the selected axis")
+    assert(editor.recolorSelected(16711680) &&
+        editor.document().nodeColorValue(
+            editor.document().nodeIndex(sourceId)) == 16711680,
+        "recolor command must update persisted node color")
+    assert(editor.duplicateSelected() && editor.nodeCount() == 3,
+        "duplicate must create a new node")
+    var cloneId = editor.selectedNode()
+    assert(editor.document().nodeColorValue(
+            editor.document().nodeIndex(cloneId)) == 16711680 &&
+        editor.document().nodeAssetToken(
+            editor.document().nodeIndex(cloneId)) == 51001 &&
+        editor.groupSelectedWith(sourceId) &&
+        editor.document().nodeKind(
+            editor.document().nodeIndex(editor.selectedNode())) ==
+            kutterLevelNodeGroup(),
+        "duplicate preserves appearance and group reparents both nodes")
+    var groupId = editor.selectedNode()
+
+    assert(editor.undo() &&
+        editor.document().nodeParent(
+            editor.document().nodeIndex(cloneId)) == 0,
+        "undo restores the pre-group hierarchy")
+    assert(editor.redo() && editor.selectNode(groupId) &&
+        editor.ungroupSelected() &&
+        editor.nodeCount() == 3,
+        "redo and ungroup restore root-level nodes")
+    assert(editor.selectNode(cloneId) &&
+        editor.removeSelected() && editor.nodeCount() == 2,
+        "delete removes the selected node")
+}
+test "kutter studio migrates legacy schemas and persists asset-linked v3 round trips" {
+    var legacy = new Int[19]
+    legacy[0] = kutterStudioMagic()
+    legacy[1] = 1
+    legacy[2] = 19
+    legacy[4] = 1
+    legacy[5] = 1
+    legacy[6] = 1
+    legacy[7] = 1
+    legacy[9] = 1
+    legacy[11] = 1
+    legacy[13] = kutterLevelToolPlayerSpawn()
+    legacy[18] = 1000
+    var checksum = 137
+    checksum = (checksum * 31 + 1) % 1000003
+    checksum = (checksum * 31 + 1) % 1000003
+    checksum = (checksum * 31 + 1) % 1000003
+    checksum = (checksum * 31 + 1) % 1000003
+    checksum = (checksum * 31 + 1) % 1000003
+    checksum = (checksum * 31 + 1) % 1000003
+    checksum = (checksum * 31 + 1) % 1000003
+    checksum = (checksum * 31 + 0) % 1000003
+    checksum = (checksum * 31 + kutterLevelToolPlayerSpawn()) % 1000003
+    checksum = (checksum * 31 + 0) % 1000003
+    checksum = (checksum * 31 + 0) % 1000003
+    checksum = (checksum * 31 + 0) % 1000003
+    checksum = (checksum * 31 + 0) % 1000003
+    checksum = (checksum * 31 + 1000) % 1000003
+    checksum = (checksum * 31 + 0) % 1000003
+    legacy[3] = checksum
+    var migrated = BoundedKutterStudio(8, 4)
+    assert(migrated.decode(legacy) &&
+        migrated.nodeCount() == 1 &&
+        migrated.nodeScaleYValue(0) == 1000 &&
+        migrated.nodeColorValue(0) == kutterStudioDefaultColor() &&
+        migrated.nodeAssetToken(0) == 0,
+        "schema v1 migration must preserve its node and supply a blank asset reference")
+    assert(migrated.beginEdit() &&
+        migrated.addNode(2, 0, kutterLevelToolProp(),
+            250, 0, -500, 45000, 1000) &&
+        migrated.setNodeAssetToken(2, 51001) &&
+        migrated.seal() && migrated.encode() &&
+        migrated.encodedWord(1) == kutterStudioSchemaVersion() &&
+        migrated.nodeAssetToken(1) == 51001,
+        "studio v3 must encode a node's modular asset token")
+    var v2Source = new Int[23]
+    v2Source[0] = kutterStudioMagic()
+    v2Source[1] = 2
+    v2Source[2] = 23
+    v2Source[4] = 1
+    v2Source[5] = 2
+    v2Source[6] = 3
+    v2Source[7] = 1
+    v2Source[9] = 4
+    v2Source[11] = 1
+    v2Source[13] = kutterLevelToolProp()
+    v2Source[16] = 1000
+    v2Source[17] = 30000
+    v2Source[18] = 1000
+    v2Source[19] = 1250
+    v2Source[20] = 750
+    v2Source[21] = 16711680
+    var v2Values = new Int[18]
+    v2Values[0] = 2
+    v2Values[1] = 1
+    v2Values[2] = 2
+    v2Values[3] = 3
+    v2Values[4] = 4
+    v2Values[5] = 1
+    v2Values[6] = 1
+    v2Values[7] = 0
+    v2Values[8] = kutterLevelToolProp()
+    v2Values[9] = 0
+    v2Values[10] = 0
+    v2Values[11] = 500
+    v2Values[12] = 15000
+    v2Values[13] = 1000
+    v2Values[14] = 1250
+    v2Values[15] = 750
+    v2Values[16] = 16711680
+    v2Values[17] = 0
+    var v2Checksum = 137
+    for (var valueIndex = 0; valueIndex < v2Values.length;
+         valueIndex = valueIndex + 1) {
+        v2Checksum = (v2Checksum * 31 + v2Values[valueIndex]) % 1000003
+    }
+    v2Source[3] = if (v2Checksum <= 0) 1 else v2Checksum
+    var migratedV2 = BoundedKutterStudio(8, 4)
+    assert(migratedV2.decode(v2Source) &&
+        migratedV2.nodeColorValue(0) == 16711680 &&
+        migratedV2.nodeRotationValue(0) == 15000 &&
+        migratedV2.nodeAssetToken(0) == 0 &&
+        migratedV2.encodedWord(1) == kutterStudioSchemaVersion(),
+        "schema v2 migration must retain transforms and initialize asset tokens")
+    var path = "/tmp/kookie-kutter-studio-roundtrip.bin"
+    var store = BoundedKutterStudioFileStore()
+    var restored = BoundedKutterStudio(8, 4)
+    assert(store.save(migrated, path) && store.load(restored, path) &&
+        restored.validate() && restored.checksum() == migrated.checksum() &&
+        restored.nodeColorValue(0) == kutterStudioDefaultColor() &&
+        restored.nodeAssetToken(1) == 51001,
+        "studio file round trip must retain modular asset references")
+}
+
+test "Kutter scene preview stages transformed colored 3D nodes" {
+    var document = BoundedKutterStudio(4, 1)
+    assert(document.configure(1, 1, 1) &&
+        document.addNode(1, 0, kutterLevelToolPlayerSpawn(),
+            0, 0, 0, 0, 1000) &&
+        document.addNode(2, 0, kutterLevelToolProp(),
+            10, 0, 0, 15000, 1000) &&
+        document.setNodeColor(2, 16711680) &&
+        document.addNode(3, 0, kutterLevelNodeGroup(),
+            0, 0, 0, 0, 1000) &&
+        document.setNodeParent(2, 3) &&
+        document.seal(),
+        "preview test document must contain a transformed grouped prop")
+    var preview = KutterScenePreview(4)
+    var editorCamera = CameraState(-890, 890)
+    assert(preview.configureEditorCamera(editorCamera, document, 2) &&
+        editorCamera.currentYaw() == 0 &&
+        editorCamera.currentPitch() == -300 &&
+        editorCamera.currentX() == 10 &&
+        editorCamera.currentY() > 0 &&
+        editorCamera.currentZ() < 0 &&
+        editorCamera.currentFollowDistance() == cameraFollowMaximumDistance(),
+        "editor camera must frame the selected node from above and in front")
+    assert(preview.applyEditorZoom(1) &&
+        preview.configureEditorCamera(editorCamera, document, 2) &&
+        editorCamera.currentFollowDistance() ==
+            cameraFollowMaximumDistance() - cameraFollowZoomStep() &&
+        preview.applyEditorZoom(100) &&
+        preview.configureEditorCamera(editorCamera, document, 2) &&
+        editorCamera.currentFollowDistance() == cameraFollowMinimumDistance() &&
+        preview.applyEditorZoom(-100) &&
+        preview.configureEditorCamera(editorCamera, document, 2) &&
+        editorCamera.currentFollowDistance() == cameraFollowMaximumDistance(),
+        "editor wheel zoom must clamp and persist its viewport distance")
+    var farDocument = BoundedKutterStudio(1, 1)
+    assert(farDocument.configure(1, 1, 1) &&
+        farDocument.addNode(1, 0, kutterLevelToolProp(),
+            1000000, -1000000, 1000000, 0, 1000) &&
+        farDocument.seal(),
+        "camera clamp test document must admit the bounded far node")
+    var farCamera = CameraState(-890, 890)
+    assert(preview.configureEditorCamera(farCamera, farDocument, 1) &&
+        farCamera.currentX() == 900,
+        "far selection must clamp into camera bounds without failing the editor")
+    var frame = FrameStaging(preview.vertexCapacity())
+    assert(preview.stage(frame, 1, document) &&
+        frame.stagedCount() == 72 &&
+        frame.resourceAt(36) == 13,
+        "preview must render leaves as bounded colored 3D boxes")
+    var minimumX = 1000000
+    var maximumX = -1000000
+    var minimumZ = 1000000
+    var maximumZ = -1000000
+    for (var index = 36; index < frame.stagedCount(); index = index + 1) {
+        if (frame.xAt(index) < minimumX) { minimumX = frame.xAt(index) }
+        if (frame.xAt(index) > maximumX) { maximumX = frame.xAt(index) }
+        if (frame.zAt(index) < minimumZ) { minimumZ = frame.zAt(index) }
+        if (frame.zAt(index) > maximumZ) { maximumZ = frame.zAt(index) }
+    }
+    assert(minimumX == 8 && maximumX == 12 &&
+        minimumZ == -2 && maximumZ == 2 &&
+        frame.retire(1),
+        "3D preview vertices must honor position, rotation and extents")
+}
+
+test "Kutter workspace pointer edits viewport hierarchy and inspector" {
+    var shell = GameShell()
+    var browserFrame = FrameStaging(shell.renderVertexCapacity())
+    assert(shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.screen() == gameShellScreenKutterLevel() &&
+        shell.handlePointer(48, 0) &&
+        shell.handlePointerMove(35, 0) &&
+        shell.endPointerDrag() &&
+        !shell.handlePointerMove(20, 0) &&
+        shell.inspectorLeft() == 35 &&
+        shell.handleAction(gameShellActionRight()) &&
+        shell.handlePointer(0, -16) &&
+        shell.levelEditor().nodeCount() == 2 &&
+        shell.levelEditor().document().nodeAssetToken(1) ==
+            shell.selectedEditorAssetToken() &&
+        shell.handlePointer(-50, 35) &&
+        shell.editorAssetBrowserOpen() &&
+        shell.handlePointer(-80, -80) &&
+        shell.selectedEditorAssetToken() ==
+            shell.greyboxCatalog().assetToken(7) &&
+        shell.stage(browserFrame, 10) &&
+        browserFrame.stagedCount() > 0 &&
+        browserFrame.retire(10) &&
+        shell.handlePointer(-80, -67) &&
+        shell.selectedEditorAssetToken() ==
+            shell.greyboxCatalog().assetToken(0) &&
+        shell.handlePointer(-60, 9) &&
+        !shell.editorAssetBrowserOpen() &&
+        shell.selectedEditorAssetToken() == shell.greyboxCatalog().assetToken(1) &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.levelEditor().document().nodeAssetToken(1) ==
+            shell.greyboxCatalog().assetToken(1) &&
+        shell.handlePointer(-60, -44) &&
+        shell.levelEditor().document().nodeAssetToken(1) ==
+            shell.greyboxCatalog().assetToken(0) &&
+        shell.handlePointer(-50, 35) &&
+        shell.handlePointer(-60, 22) &&
+        shell.selectedEditorAssetToken() == shell.greyboxCatalog().assetToken(0) &&
+        shell.handlePointer(-80, 35) &&
+        shell.handlePointer(0, -16) &&
+        shell.levelEditor().selectedNode() == 2,
+        "viewport placement persists the selected catalog token and select mode picks the authored node")
+    assert(shell.levelNodeLabel(0) == "PLAYER" &&
+        shell.levelNodeLabel(1) == "PROP",
+        "hierarchy rows must identify each authored node kind")
+    assert(shell.handlePointer(60, 28) &&
+        shell.levelEditor().selectedNode() == 1 &&
+        shell.handlePointer(55, -63) &&
+        shell.levelEditor().nodeCount() == 3,
+        "hierarchy selection and inspector duplicate must update the document")
+    assert(shell.handlePointer(55, -63) &&
+        shell.handlePointer(55, -63) &&
+        shell.levelEditor().nodeCount() == 5 &&
+        shell.handlePointer(60, 28) &&
+        shell.levelEditor().selectedNode() ==
+            shell.levelEditor().nodeId(4) &&
+        shell.handlePointer(72, 39) &&
+        shell.handlePointer(60, 16) &&
+        shell.levelEditor().selectedNode() ==
+            shell.levelEditor().nodeId(1) &&
+        shell.handlePointer(85, 39) &&
+        shell.handlePointer(60, 28) &&
+        shell.handlePointer(78, -80) &&
+        shell.handlePointer(72, 39) &&
+        shell.handlePointer(60, -8) &&
+        shell.handlePointer(78, -80) &&
+        shell.levelEditor().nodeCount() == 3 &&
+        shell.handlePointer(60, 16) &&
+        shell.levelEditor().selectedNode() ==
+            shell.levelEditor().nodeId(1),
+        "hierarchy paging must expose and select nodes beyond the first page")
+    assert(shell.handleAction(gameShellActionDown()) &&
+        shell.levelEditor().selectedNode() == shell.levelEditor().nodeId(2) &&
+        shell.handleAction(gameShellActionUp()) &&
+        shell.levelEditor().selectedNode() == shell.levelEditor().nodeId(1) &&
+        shell.handleAction(gameShellActionActivate()),
+        "focused hierarchy must support bounded keyboard selection")
+    var inspectorNode = shell.levelEditor().document().nodeIndex(
+        shell.levelEditor().selectedNode())
+    assert(shell.handlePointer(85, -32) &&
+        shell.levelEditor().document().nodeYValue(inspectorNode) == 100 &&
+        shell.handlePointer(55, -32) &&
+        shell.levelEditor().document().nodeYValue(inspectorNode) == 0 &&
+        shell.handlePointer(55, -42) &&
+        shell.handlePointer(75, -52) &&
+        shell.handlePointer(69, -52) &&
+        shell.levelEditor().document().nodeScaleXValue(inspectorNode) == 1000 &&
+        shell.handlePointer(75, -52) &&
+        shell.levelEditor().document().nodeScaleXValue(inspectorNode) == 1100 &&
+        shell.handlePointer(55, -52) &&
+        shell.editorScaleAxis() == 1 &&
+        shell.handlePointer(75, -52) &&
+        shell.levelEditor().document().nodeScaleYValue(inspectorNode) == 1100 &&
+        shell.handlePointer(55, -52) &&
+        shell.editorScaleAxis() == 2 &&
+        shell.handlePointer(75, -52) &&
+        shell.levelEditor().document().nodeScaleZValue(inspectorNode) == 1100 &&
+        shell.handlePointer(83, -52) &&
+        shell.levelEditor().document().nodeColorValue(inspectorNode) == 16711615,
+        "inspector rotation, scale, and visible color control must mutate selection")
+    assert(shell.handlePointer(78, -63) &&
+        shell.levelEditor().nodeCount() == 4 &&
+        shell.handlePointer(55, -80) &&
+        shell.levelEditor().nodeCount() == 3 &&
+        shell.handlePointer(60, 16) &&
+        shell.handlePointer(78, -80) &&
+        shell.levelEditor().nodeCount() == 2,
+        "group, ungroup and delete inspector actions must persist")
+    var frame = FrameStaging(shell.renderVertexCapacity())
+    assert(shell.stage(frame, 1) && frame.stagedCount() > 0 &&
+        frame.retire(1),
+        "workspace frame must stage its viewport, hierarchy and inspector")
+}
+test "Kutter move tool arms viewport placement for selected nodes" {
+    var shell = GameShell()
+    assert(shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.handleAction(gameShellActionRight()) &&
+        shell.handlePointer(0, -16) &&
+        shell.levelEditor().nodeCount() == 2 &&
+        shell.handlePointer(60, 16) &&
+        shell.levelEditor().selectedNode() == 2 &&
+        shell.handlePointer(-60, -29) &&
+        shell.handlePointer(-10, 0) &&
+        shell.levelEditor().document().nodeXValue(1) == 600 &&
+        shell.levelEditor().document().nodeZValue(1) == 1300,
+        "armed Move must relocate the selected node to a snapped viewport click")
+    assert(shell.levelEditor().selectTool(kutterLevelToolSelect()) &&
+        shell.handlePointer(-60, -29) &&
+        shell.handleAction(gameShellActionBack()) &&
+        shell.screen() == gameShellScreenKutterLevel() &&
+        !shell.handlePointer(0, -16) &&
+        shell.levelEditor().document().nodeXValue(1) == 600 &&
+        shell.levelEditor().document().nodeZValue(1) == 1300,
+        "Escape must cancel armed Move without leaving the editor or moving the node")
+}
+
+test "Kutter overview markers reflect node scale" {
+    var shell = GameShell()
+    assert(shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.screen() == gameShellScreenKutterLevel(),
+        "editor must open before testing overview transform rendering")
+    var initial = FrameStaging(shell.renderVertexCapacity())
+    assert(shell.stage(initial, 1), "initial viewport must stage")
+    var initialMarkerFound = false
+    var initialFacingFound = false
+    var initialFootprintFound = false
+    for (var vertex = 0; vertex < initial.stagedCount(); vertex = vertex + 1) {
+        if (initial.resourceAt(vertex) == kookieUiNativeResourceAccent() &&
+            initial.xAt(vertex) == -36 && initial.yAt(vertex) == -68) {
+            initialMarkerFound = true
+        }
+        if (initial.resourceAt(vertex) == kookieUiNativeResourceForeground() &&
+            initial.xAt(vertex) == -34 && initial.yAt(vertex) == -61) {
+            initialFacingFound = true
+        }
+        if (initial.resourceAt(vertex) == 4 &&
+            initial.primitiveSpanAt(vertex) == 3 &&
+            initial.xAt(vertex) == -36 && initial.yAt(vertex) == -68) {
+            initialFootprintFound = true
+        }
+    }
+    assert(initialMarkerFound && initialFacingFound &&
+        initialFootprintFound && initial.retire(1),
+        "overview must stage selected marker, facing arrow and rotated footprint")
+    assert(shell.levelEditor().adjustSelectedHeight(1),
+        "selected-node height must change")
+    var elevated = FrameStaging(shell.renderVertexCapacity())
+    assert(shell.stage(elevated, 9),
+        "elevated nodes must stage in the viewport")
+    var elevatedFacingFound = false
+    for (var vertex = 0; vertex < elevated.stagedCount(); vertex = vertex + 1) {
+        if (elevated.resourceAt(vertex) ==
+                kookieUiNativeResourceForeground() &&
+            elevated.xAt(vertex) == -34 && elevated.yAt(vertex) == -57) {
+            elevatedFacingFound = true
+        }
+    }
+    assert(elevatedFacingFound && elevated.retire(9) &&
+        shell.levelEditor().adjustSelectedHeight(-1),
+        "viewport facing marker must follow selected-node height")
+    assert(shell.levelEditor().rotateSelected(1),
+        "selected node rotation must change")
+    var scaleChanged = true
+    for (var step = 0; step < 5; step = step + 1) {
+        scaleChanged = scaleChanged &&
+            shell.levelEditor().resizeSelected(0, 1)
+    }
+    var scaled = FrameStaging(shell.renderVertexCapacity())
+    assert(scaleChanged && shell.stage(scaled, 2),
+        "selected node scale changes must stage")
+    var scaledMarkerFound = false
+    var rotatedFacingFound = false
+    var rotatedFootprintFound = false
+    for (var vertex = 0; vertex < scaled.stagedCount(); vertex = vertex + 1) {
+        if (scaled.resourceAt(vertex) == kookieUiNativeResourceAccent() &&
+            scaled.xAt(vertex) == -37 && scaled.yAt(vertex) == -68) {
+            scaledMarkerFound = true
+        }
+        if (scaled.resourceAt(vertex) == kookieUiNativeResourceForeground() &&
+            scaled.xAt(vertex) == -33 && scaled.yAt(vertex) == -62) {
+            rotatedFacingFound = true
+        }
+        if (scaled.resourceAt(vertex) == 4 &&
+            scaled.primitiveSpanAt(vertex) == 3 &&
+            scaled.xAt(vertex) == -37 && scaled.yAt(vertex) == -67) {
+            rotatedFootprintFound = true
+        }
+    }
+    assert(scaledMarkerFound && rotatedFacingFound && rotatedFootprintFound &&
+        scaled.retire(2),
+        "overview footprint, marker size and facing direction must follow transforms")
+    assert(shell.levelEditor().recolorSelected(16711615),
+        "selected-node recoloring must succeed")
+    var magenta = FrameStaging(shell.renderVertexCapacity())
+    assert(shell.stage(magenta, 3), "recolored scene must stage")
+    var magentaMarkerFound = false
+    for (var vertex = 0; vertex < magenta.stagedCount(); vertex = vertex + 1) {
+        if (magenta.resourceAt(vertex) == kookieUiNativeResourceDanger() &&
+            magenta.xAt(vertex) == -34 && magenta.yAt(vertex) == -66) {
+            magentaMarkerFound = true
+        }
+    }
+    assert(magentaMarkerFound && magenta.retire(3),
+        "overview marker fill must reflect the first color preset")
+    assert(shell.levelEditor().recolorSelected(16776960),
+        "second marker color must be assignable")
+    var yellow = FrameStaging(shell.renderVertexCapacity())
+    assert(shell.stage(yellow, 4), "second recolored scene must stage")
+    var yellowMarkerFound = false
+    for (var vertex = 0; vertex < yellow.stagedCount(); vertex = vertex + 1) {
+        if (yellow.resourceAt(vertex) == kookieUiNativeResourceSuccess() &&
+            yellow.xAt(vertex) == -34 && yellow.yAt(vertex) == -66) {
+            yellowMarkerFound = true
+        }
+    }
+    assert(yellowMarkerFound && yellow.retire(4),
+        "overview marker fill must follow the second color preset")
+    assert(shell.levelEditor().setCursor(-1000000, -1000000) &&
+        shell.levelEditor().moveSelectedToCursor(),
+        "selected nodes must support moving beyond overview bounds")
+    var clipped = FrameStaging(shell.renderVertexCapacity())
+    assert(shell.stage(clipped, 5), "offscreen scene must still stage")
+    var offscreenMarkerVisible = false
+    for (var vertex = 0; vertex < clipped.stagedCount(); vertex = vertex + 1) {
+        if (clipped.resourceAt(vertex) == kookieUiNativeResourceAccent() &&
+            clipped.xAt(vertex) >= -39 && clipped.xAt(vertex) <= 44 &&
+            clipped.yAt(vertex) >= -75 && clipped.yAt(vertex) <= 43) {
+            offscreenMarkerVisible = true
+        }
+    }
+    assert(!offscreenMarkerVisible && clipped.retire(5),
+        "offscreen node markers must not leak into dock panels")
+}
+
 
 test "kutter greybox catalog stages texture-ready modular placements" {
     var catalog = BoundedKutterGreyboxCatalog(96)

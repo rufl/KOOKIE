@@ -9,7 +9,11 @@ class BoundedKutterStudio {
     Int[] nodeY
     Int[] nodeZ
     Int[] nodeRotation
-    Int[] nodeScale
+    Int[] nodeScaleX
+    Int[] nodeScaleY
+    Int[] nodeScaleZ
+    Int[] nodeColor
+    Int[] nodeAssetTokens
     Int[] assetIds
     Int[] assetKinds
     Int[] assetStatuses
@@ -46,13 +50,19 @@ class BoundedKutterStudio {
         nodeY = new Int[nodeCapacityValue]
         nodeZ = new Int[nodeCapacityValue]
         nodeRotation = new Int[nodeCapacityValue]
-        nodeScale = new Int[nodeCapacityValue]
+        nodeScaleX = new Int[nodeCapacityValue]
+        nodeScaleY = new Int[nodeCapacityValue]
+        nodeScaleZ = new Int[nodeCapacityValue]
+        nodeColor = new Int[nodeCapacityValue]
+        nodeAssetTokens = new Int[nodeCapacityValue]
         assetIds = new Int[assetCapacityValue]
         assetKinds = new Int[assetCapacityValue]
         assetStatuses = new Int[assetCapacityValue]
         assetChecksums = new Int[assetCapacityValue]
         assetRevisions = new Int[assetCapacityValue]
-        wire = new Int[11 + nodeCapacityValue * 8 + assetCapacityValue * 5]
+        wire = new Int[
+            11 + nodeCapacityValue * kutterStudioNodeWords() +
+            assetCapacityValue * 5]
         clear()
     }
 
@@ -94,7 +104,11 @@ class BoundedKutterStudio {
             result = mix(result, nodeY[index])
             result = mix(result, nodeZ[index])
             result = mix(result, nodeRotation[index])
-            result = mix(result, nodeScale[index])
+            result = mix(result, nodeScaleX[index])
+            result = mix(result, nodeScaleY[index])
+            result = mix(result, nodeScaleZ[index])
+            result = mix(result, nodeColor[index])
+            result = mix(result, nodeAssetTokens[index])
         }
         result = mix(result, assetCountValue)
         for (var index = 0; index < assetCountValue; index = index + 1) {
@@ -171,7 +185,11 @@ class BoundedKutterStudio {
         nodeY[index] = y
         nodeZ[index] = z
         nodeRotation[index] = rotation
-        nodeScale[index] = scale
+        nodeScaleX[index] = scale
+        nodeScaleY[index] = scale
+        nodeScaleZ[index] = scale
+        nodeColor[index] = kutterStudioDefaultColor()
+        nodeAssetTokens[index] = 0
         nodeCountValue = nodeCountValue + 1
         return true
     }
@@ -204,9 +222,19 @@ class BoundedKutterStudio {
             return false
         }
         for (var index = 0; index < nodeCountValue; index = index + 1) {
-            if (nodeIds[index] <= 0 || nodeKinds[index] <= 0 || nodeScale[index] <= 0 ||
+            if (nodeIds[index] <= 0 || nodeKinds[index] <= 0 ||
+                nodeScaleX[index] <= 0 || nodeScaleY[index] <= 0 ||
+                nodeScaleZ[index] <= 0 ||
+                nodeScaleX[index] > 1000000 ||
+                nodeScaleY[index] > 1000000 ||
+                nodeScaleZ[index] > 1000000 ||
+                nodeColor[index] < 0 ||
+                nodeColor[index] > kutterStudioMaximumColor() ||
+                nodeAssetTokens[index] < 0 ||
+                nodeAssetTokens[index] > 1000000 ||
                 nodeParents[index] == nodeIds[index] ||
-                (nodeParents[index] > 0 && nodeIndex(nodeParents[index]) < 0)) {
+                (nodeParents[index] > 0 &&
+                    nodeIndex(nodeParents[index]) < 0)) {
                 return false
             }
             if (index > 0 && nodeIds[index] <= nodeIds[index - 1]) {
@@ -228,7 +256,8 @@ class BoundedKutterStudio {
         if (!sealedValue || !structuralValid() || checksumValue != calculateChecksum()) {
             return false
         }
-        wordCountValue = 11 + nodeCountValue * 8 + assetCountValue * 5
+        wordCountValue = 11 + nodeCountValue * kutterStudioNodeWords() +
+            assetCountValue * 5
         wire[0] = kutterStudioMagic()
         wire[1] = kutterStudioSchemaVersion()
         wire[2] = wordCountValue
@@ -249,8 +278,13 @@ class BoundedKutterStudio {
             wire[cursor + 4] = encodeSigned(nodeY[index])
             wire[cursor + 5] = encodeSigned(nodeZ[index])
             wire[cursor + 6] = encodeSigned(nodeRotation[index])
-            wire[cursor + 7] = nodeScale[index]
-            cursor = cursor + 8
+            wire[cursor + 7] = nodeScaleX[index]
+            wire[cursor + 8] = nodeScaleY[index]
+            wire[cursor + 9] = nodeScaleZ[index]
+            wire[cursor + 10] = nodeColor[index]
+            wire[cursor + 11] = 0
+            wire[cursor + 12] = nodeAssetTokens[index]
+            cursor = cursor + kutterStudioNodeWords()
         }
         for (var index = 0; index < assetCountValue; index = index + 1) {
             wire[cursor] = assetIds[index]
@@ -306,7 +340,11 @@ class BoundedKutterStudio {
             nodeY[cursor] = nodeY[cursor + 1]
             nodeZ[cursor] = nodeZ[cursor + 1]
             nodeRotation[cursor] = nodeRotation[cursor + 1]
-            nodeScale[cursor] = nodeScale[cursor + 1]
+            nodeScaleX[cursor] = nodeScaleX[cursor + 1]
+            nodeScaleY[cursor] = nodeScaleY[cursor + 1]
+            nodeScaleZ[cursor] = nodeScaleZ[cursor + 1]
+            nodeColor[cursor] = nodeColor[cursor + 1]
+            nodeAssetTokens[cursor] = nodeAssetTokens[cursor + 1]
         }
         nodeCountValue = nodeCountValue - 1
         return true
@@ -324,6 +362,75 @@ class BoundedKutterStudio {
         nodeX[index] = x
         nodeY[index] = y
         nodeZ[index] = z
+        return true
+    }
+
+    Bool setNodeAssetToken(Int nodeId, Int assetToken) {
+        if (!configuredValue || sealedValue ||
+            assetToken < 0 || assetToken > 1000000) {
+            return reject(kutterStudioDiagnosticAsset())
+        }
+        var index = nodeIndex(nodeId)
+        if (index < 0) { return reject(kutterStudioDiagnosticBounds()) }
+        nodeAssetTokens[index] = assetToken
+        return true
+    }
+    Bool setNodeRotation(Int nodeId, Int rotation) {
+        if (!configuredValue || sealedValue ||
+            rotation < -360000 || rotation > 360000) {
+            return reject(kutterStudioDiagnosticBounds())
+        }
+        var index = nodeIndex(nodeId)
+        if (index < 0) { return reject(kutterStudioDiagnosticBounds()) }
+        nodeRotation[index] = rotation
+        return true
+    }
+
+    Bool setNodeScale(Int nodeId, Int scaleX, Int scaleY, Int scaleZ) {
+        if (!configuredValue || sealedValue ||
+            scaleX <= 0 || scaleX > 1000000 ||
+            scaleY <= 0 || scaleY > 1000000 ||
+            scaleZ <= 0 || scaleZ > 1000000) {
+            return reject(kutterStudioDiagnosticBounds())
+        }
+        var index = nodeIndex(nodeId)
+        if (index < 0) { return reject(kutterStudioDiagnosticBounds()) }
+        nodeScaleX[index] = scaleX
+        nodeScaleY[index] = scaleY
+        nodeScaleZ[index] = scaleZ
+        return true
+    }
+
+    Bool setNodeColor(Int nodeId, Int color) {
+        if (!configuredValue || sealedValue ||
+            color < 0 || color > kutterStudioMaximumColor()) {
+            return reject(kutterStudioDiagnosticBounds())
+        }
+        var index = nodeIndex(nodeId)
+        if (index < 0) { return reject(kutterStudioDiagnosticBounds()) }
+        nodeColor[index] = color
+        return true
+    }
+
+    Bool setNodeParent(Int nodeId, Int parentId) {
+        if (!configuredValue || sealedValue ||
+            parentId < 0 || parentId == nodeId) {
+            return reject(kutterStudioDiagnosticHierarchy())
+        }
+        var index = nodeIndex(nodeId)
+        if (index < 0 || (parentId > 0 && nodeIndex(parentId) < 0)) {
+            return reject(kutterStudioDiagnosticHierarchy())
+        }
+        var parent = parentId
+        while (parent > 0) {
+            if (parent == nodeId) {
+                return reject(kutterStudioDiagnosticHierarchy())
+            }
+            var parentIndex = nodeIndex(parent)
+            if (parentIndex < 0) { return reject(kutterStudioDiagnosticHierarchy()) }
+            parent = nodeParents[parentIndex]
+        }
+        nodeParents[index] = parentId
         return true
     }
 
@@ -352,7 +459,11 @@ class BoundedKutterStudio {
             nodeY[index] = source.nodeY[index]
             nodeZ[index] = source.nodeZ[index]
             nodeRotation[index] = source.nodeRotation[index]
-            nodeScale[index] = source.nodeScale[index]
+            nodeScaleX[index] = source.nodeScaleX[index]
+            nodeScaleY[index] = source.nodeScaleY[index]
+            nodeScaleZ[index] = source.nodeScaleZ[index]
+            nodeColor[index] = source.nodeColor[index]
+            nodeAssetTokens[index] = source.nodeAssetTokens[index]
         }
         for (var index = 0; index < assetCapacityValue; index = index + 1) {
             assetIds[index] = source.assetIds[index]
@@ -368,31 +479,140 @@ class BoundedKutterStudio {
         return true
     }
 
+    Int legacyV1Checksum(Int[] source) {
+        var result = mix(137, 1)
+        result = mix(result, source[4])
+        result = mix(result, source[5])
+        result = mix(result, source[6])
+        result = mix(result, source[9])
+        result = mix(result, source[7])
+        var cursor = 11
+        for (var index = 0; index < source[7]; index = index + 1) {
+            result = mix(result, source[cursor])
+            result = mix(result, source[cursor + 1])
+            result = mix(result, source[cursor + 2])
+            result = mix(result, decodeSigned(source[cursor + 3]))
+            result = mix(result, decodeSigned(source[cursor + 4]))
+            result = mix(result, decodeSigned(source[cursor + 5]))
+            result = mix(result, decodeSigned(source[cursor + 6]))
+            result = mix(result, source[cursor + 7])
+            cursor = cursor + kutterStudioNodeWordsV1()
+        }
+        result = mix(result, source[8])
+        for (var index = 0; index < source[8]; index = index + 1) {
+            result = mix(result, source[cursor])
+            result = mix(result, source[cursor + 1])
+            result = mix(result, source[cursor + 2])
+            result = mix(result, source[cursor + 3])
+            result = mix(result, source[cursor + 4])
+            cursor = cursor + 5
+        }
+        return if (result <= 0) 1 else result
+    }
+
+    Int legacyV2Checksum(Int[] source) {
+        var result = mix(137, 2)
+        result = mix(result, source[4])
+        result = mix(result, source[5])
+        result = mix(result, source[6])
+        result = mix(result, source[9])
+        result = mix(result, source[7])
+        var cursor = 11
+        for (var index = 0; index < source[7]; index = index + 1) {
+            result = mix(result, source[cursor])
+            result = mix(result, source[cursor + 1])
+            result = mix(result, source[cursor + 2])
+            result = mix(result, decodeSigned(source[cursor + 3]))
+            result = mix(result, decodeSigned(source[cursor + 4]))
+            result = mix(result, decodeSigned(source[cursor + 5]))
+            result = mix(result, decodeSigned(source[cursor + 6]))
+            result = mix(result, source[cursor + 7])
+            result = mix(result, source[cursor + 8])
+            result = mix(result, source[cursor + 9])
+            result = mix(result, source[cursor + 10])
+            if (source[cursor + 11] != 0) { return 0 }
+            cursor = cursor + kutterStudioNodeWordsV2()
+        }
+        result = mix(result, source[8])
+        for (var index = 0; index < source[8]; index = index + 1) {
+            result = mix(result, source[cursor])
+            result = mix(result, source[cursor + 1])
+            result = mix(result, source[cursor + 2])
+            result = mix(result, source[cursor + 3])
+            result = mix(result, source[cursor + 4])
+            cursor = cursor + 5
+        }
+        return if (result <= 0) 1 else result
+    }
+
     Bool decode(Int[] source) {
         if (source.length < 11 || source[0] != kutterStudioMagic() ||
-            source[1] != kutterStudioSchemaVersion() || source[2] < 11 ||
-            source[2] > wire.length || source[3] <= 0 || source[4] <= 0 ||
-            source[5] <= 0 || source[6] <= 0 || source[7] <= 0 ||
+            (source[1] != 1 && source[1] != 2 &&
+                source[1] != kutterStudioSchemaVersion()) ||
+            source[2] < 11 || source[2] > wire.length ||
+            source[3] <= 0 || source[4] <= 0 || source[5] <= 0 ||
+            source[6] <= 0 || source[7] <= 0 ||
             source[7] > nodeCapacityValue || source[8] < 0 ||
-            source[8] > assetCapacityValue || source[9] <= 0 || source[10] != 0 ||
-            source.length != source[2] ||
-            source[2] != 11 + source[7] * 8 + source[8] * 5) {
+            source[8] > assetCapacityValue || source[9] <= 0 ||
+            source[10] != 0 || source.length != source[2]) {
+            return false
+        }
+        var version = source[1]
+        var nodeWords = kutterStudioNodeWords()
+        if (version == 1) { nodeWords = kutterStudioNodeWordsV1() }
+        if (version == 2) { nodeWords = kutterStudioNodeWordsV2() }
+        if (source[2] != 11 + source[7] * nodeWords + source[8] * 5) {
+            return false
+        }
+        if (version == 1 && legacyV1Checksum(source) != source[3]) {
+            return false
+        }
+        if (version == 2 && legacyV2Checksum(source) != source[3]) {
             return false
         }
         var candidate = BoundedKutterStudio(nodeCapacityValue, assetCapacityValue)
-        if (!candidate.configure(source[4], source[5], source[6])) { return false }
+        if (!candidate.configure(source[4], source[5], source[6])) {
+            return false
+        }
         candidate.generationValue = source[9]
         var cursor = 11
         for (var index = 0; index < source[7]; index = index + 1) {
+            var scaleX = source[cursor + 7]
+            var scaleY = scaleX
+            var scaleZ = scaleX
+            var color = kutterStudioDefaultColor()
+            var assetToken = 0
+            if (version >= 2) {
+                scaleY = source[cursor + 8]
+                scaleZ = source[cursor + 9]
+                color = source[cursor + 10]
+                if (source[cursor + 11] != 0) { return false }
+            }
+            if (version >= 3) {
+                assetToken = source[cursor + 12]
+            }
             if (!candidate.addNode(
-                    source[cursor], source[cursor + 1], source[cursor + 2],
+                    source[cursor], 0, source[cursor + 2],
                     decodeSigned(source[cursor + 3]),
                     decodeSigned(source[cursor + 4]),
                     decodeSigned(source[cursor + 5]),
-                    decodeSigned(source[cursor + 6]), source[cursor + 7])) {
+                    decodeSigned(source[cursor + 6]), scaleX) ||
+                !candidate.setNodeScale(
+                    source[cursor], scaleX, scaleY, scaleZ) ||
+                !candidate.setNodeColor(source[cursor], color) ||
+                !candidate.setNodeAssetToken(source[cursor], assetToken)) {
                 return false
             }
-            cursor = cursor + 8
+            cursor = cursor + nodeWords
+        }
+        cursor = 11
+        for (var index = 0; index < source[7]; index = index + 1) {
+            if (source[cursor + 1] > 0 &&
+                !candidate.setNodeParent(
+                    source[cursor], source[cursor + 1])) {
+                return false
+            }
+            cursor = cursor + nodeWords
         }
         for (var index = 0; index < source[8]; index = index + 1) {
             if (!candidate.addAsset(
@@ -402,7 +622,8 @@ class BoundedKutterStudio {
             }
             cursor = cursor + 5
         }
-        if (!candidate.seal() || candidate.checksumValue != source[3]) {
+        if (!candidate.seal()) { return false }
+        if (version == 3 && candidate.checksumValue != source[3]) {
             return false
         }
         return copyFrom(candidate)
@@ -462,7 +683,31 @@ class BoundedKutterStudio {
     }
     Int nodeScaleValue(Int index) {
         if (index < 0 || index >= nodeCountValue) { return 0 }
-        return nodeScale[index]
+        return nodeScaleX[index]
+    }
+    Int nodeScaleXValue(Int index) {
+        if (index < 0 || index >= nodeCountValue) { return 0 }
+        return nodeScaleX[index]
+    }
+    Int nodeScaleYValue(Int index) {
+        if (index < 0 || index >= nodeCountValue) { return 0 }
+        return nodeScaleY[index]
+    }
+    Int nodeScaleZValue(Int index) {
+        if (index < 0 || index >= nodeCountValue) { return 0 }
+        return nodeScaleZ[index]
+    }
+    Int nodeRotationValue(Int index) {
+        if (index < 0 || index >= nodeCountValue) { return 0 }
+        return nodeRotation[index]
+    }
+    Int nodeColorValue(Int index) {
+        if (index < 0 || index >= nodeCountValue) { return 0 }
+        return nodeColor[index]
+    }
+    Int nodeAssetToken(Int index) {
+        if (index < 0 || index >= nodeCountValue) { return 0 }
+        return nodeAssetTokens[index]
     }
     Int assetId(Int index) {
         if (index < 0 || index >= assetCountValue) { return 0 }

@@ -828,8 +828,17 @@ class G1NativePresentation {
     MultiplayerScoreboard scoreboardUi
     DevConsole consoleValue
     FrameStaging consoleFrame
+    Int editorOverlayCapacity
+
+    FrameStaging editorOverlayFrame
+
+    KutterScenePreview editorScenePreview
+    FrameStaging editorWorldFrame
+    Int editorWorldCapacity
+
     MatchScoreboardState scoreboardState
     CameraState camera
+    CameraState editorCamera
     NativeInputState inputStateValue
     WindowStateTracker windowStateValue
     FrameStaging worldFrame
@@ -903,6 +912,7 @@ class G1NativePresentation {
         enemyTuningValue = EnemyTuningConfig()
         windowStateValue = WindowStateTracker(1280, 720)
         camera = CameraState(-450, 450)
+        editorCamera = CameraState(-890, 890)
         interactionSession = LoopbackSession(16, 8)
         playerAimTargets = BoundedRayTargetWorld(3, 64)
         saveOwner = BoundedHostGameplaySaveOwner(interactionSession)
@@ -956,6 +966,14 @@ class G1NativePresentation {
         minimapFrame = FrameStaging(minimap.renderVertexCapacity(), 0)
         scoreboardFrame = FrameStaging(scoreboardUi.renderVertexCapacity())
         consoleFrame = FrameStaging(consoleValue.renderVertexCapacity())
+        editorOverlayCapacity = 2048
+        editorOverlayFrame = FrameStaging(editorOverlayCapacity)
+        editorScenePreview = KutterScenePreview(kutterStudioNodeCapacity())
+        editorWorldCapacity =
+            kutterStudioNodeCapacity() * kutterScenePreviewVerticesPerNode()
+        editorWorldFrame = FrameStaging(editorWorldCapacity)
+
+
         projectileFrame = FrameStaging(
             projectileOverlay.renderVertexCapacity(), 0)
         worldCapacity = worldFrame.vertexCapacity()
@@ -2604,6 +2622,34 @@ class G1NativePresentation {
     Bool drawGameFrame(
         Int frame, NativeGameNetworkState network, GameShell shell
     ) {
+        var editorOverlayVisible =
+            shell.screen() == gameShellScreenKutterLevel()
+        if (editorOverlayVisible &&
+            !editorScenePreview.applyEditorZoom(
+                kookie_consume_mouse_wheel_y())) {
+            println("KOOKIE editor camera zoom failed")
+            return false
+        }
+        var editorOverlayCount = 0
+        if (editorOverlayVisible) {
+            if (!shell.stage(editorOverlayFrame, frame)) {
+                println("KOOKIE editor overlay stage failed")
+                return false
+            }
+            editorOverlayCount = editorOverlayFrame.stagedCount()
+        }
+
+        var editorWorldCount = 0
+        if (editorOverlayVisible) {
+            if (!editorScenePreview.stage(
+                    editorWorldFrame, frame,
+                    shell.levelEditor().document())) {
+                println("KOOKIE editor 3D node preview stage failed")
+                return false
+            }
+            editorWorldCount = editorWorldFrame.stagedCount()
+        }
+
         var scoreboardVisible = scoreboardUi.visible()
         var scoreboardCount = 0
         if (scoreboardVisible) {
@@ -2699,22 +2745,39 @@ class G1NativePresentation {
             (if (attackVfx.active()) attackVfxFrame.stagedCount() else 0) +
             (if (texturedVfx.activeCount() > 0)
                 texturedVfxFrame.stagedCount() else 0) +
-            (if (lootBeamActiveValue) lootBeamFrame.stagedCount() else 0)
+            (if (lootBeamActiveValue) lootBeamFrame.stagedCount() else 0) +
+            editorWorldCount
         if (animalVertexCount <= 0) {
             println("KOOKIE gameplay animal model count failed")
             println(animalVertexCount)
             return false
         }
         var windowState = windowStateValue.snapshot()
-        if (!camera.buildGpuCameraMatrix(
-                windowState.width(), windowState.height()) ||
-            !kookie_gpu_world_camera_stage_begin()) {
+        var cameraMatrixReady = false
+        if (editorOverlayVisible) {
+            if (!editorScenePreview.configureEditorCamera(
+                    editorCamera, shell.levelEditor().document(),
+                    shell.levelEditor().selectedNode())) {
+                println("KOOKIE editor viewport camera setup failed")
+                return false
+            }
+            cameraMatrixReady = editorCamera.buildGpuCameraMatrix(
+                windowState.width(), windowState.height())
+        } else {
+            cameraMatrixReady = camera.buildGpuCameraMatrix(
+                windowState.width(), windowState.height())
+        }
+        if (!cameraMatrixReady || !kookie_gpu_world_camera_stage_begin()) {
             println("KOOKIE gameplay world camera failed")
             return false
         }
         for (var matrixIndex = 0; matrixIndex < 16; matrixIndex = matrixIndex + 1) {
+            var cameraMatrixElement = if (editorOverlayVisible)
+                editorCamera.gpuCameraMatrixElement(matrixIndex)
+            else
+                camera.gpuCameraMatrixElement(matrixIndex)
             if (!kookie_gpu_world_camera_stage_word(
-                    matrixIndex, camera.gpuCameraMatrixElement(matrixIndex))) {
+                    matrixIndex, cameraMatrixElement)) {
                 println("KOOKIE gameplay world camera stage failed")
                 return false
             }
@@ -2755,7 +2818,9 @@ class G1NativePresentation {
             !uploadWorld(floatingObjectFrame) ||
             (powerUpWorldValue.active() &&
                 !uploadWorld(powerUpFrame)) ||
-            !uploadWorld(worldFrame) || !uploadWorld(doorFrame) ||
+            !uploadWorld(worldFrame) ||
+            (editorOverlayVisible && !uploadWorld(editorWorldFrame)) ||
+            !uploadWorld(doorFrame) ||
             !uploadWorld(shadowFrame) ||
             (waterSplashVfxValue.active() &&
                 !uploadWorld(waterSplashFrame)) ||
@@ -2775,7 +2840,7 @@ class G1NativePresentation {
         var vertexCount =
             actorFrame.stagedCount() + hudFrame.stagedCount() +
             minimapFrame.stagedCount() + scoreboardCount + consoleCount +
-            projectileCount
+            projectileCount + editorOverlayCount
         if (!kookie_gpu_scene_begin(vertexCount) ||
             kookie_gpu_scene_capacity() < vertexCount) {
             println("KOOKIE gameplay GPU scene begin failed")
@@ -2787,7 +2852,8 @@ class G1NativePresentation {
             !upload(hudFrame) ||
             !upload(minimapFrame) ||
             (scoreboardVisible && !upload(scoreboardFrame)) ||
-            (consoleVisible && !upload(consoleFrame))) {
+            (consoleVisible && !upload(consoleFrame)) ||
+            (editorOverlayVisible && !upload(editorOverlayFrame))) {
             println("KOOKIE gameplay GPU scene upload failed")
             return false
         }
@@ -2807,6 +2873,7 @@ class G1NativePresentation {
             return false
         }
         if (!worldFrame.retire(frame) ||
+            (editorOverlayVisible && !editorWorldFrame.retire(frame)) ||
             !waterFrame.retire(frame) ||
             !floatingObjectFrame.retire(frame) ||
             (powerUpWorldValue.active() &&
@@ -2825,6 +2892,10 @@ class G1NativePresentation {
             !minimapFrame.retire(frame) ||
             (projectileCount > 0 && !projectileFrame.retire(frame))) {
             println("KOOKIE gameplay frame retire failed")
+            return false
+        }
+        if (editorOverlayVisible && !editorOverlayFrame.retire(frame)) {
+            println("KOOKIE editor overlay frame retire failed")
             return false
         }
         if (scoreboardVisible && !scoreboardFrame.retire(frame)) {
@@ -2877,7 +2948,9 @@ class G1NativePresentation {
             minimapFrame.vertexCapacity() == minimapCapacity &&
             projectileFrame.vertexCapacity() == projectileCapacity &&
             scoreboardFrame.vertexCapacity() == scoreboardCapacity &&
-            consoleFrame.vertexCapacity() == consoleCapacity
+            consoleFrame.vertexCapacity() == consoleCapacity &&
+            editorOverlayFrame.vertexCapacity() == editorOverlayCapacity &&
+            editorWorldFrame.vertexCapacity() == editorWorldCapacity
     }
 
     Bool dequeueCombatFeedbackAudio() {
@@ -3304,6 +3377,12 @@ main() {
             } else if (eventKind == 9) {
                 assert(presentation.applyNativeMouseButton(0),
                     "Kof input policy must admit mouse release")
+                if (shell.screen() == gameShellScreenKutterLevel()) {
+                    shell.endPointerDrag()
+                }
+            } else if (eventKind == 11) {
+                shell.handlePointerMove(
+                    kookie_last_event_a(), kookie_last_event_b())
             } else if (eventKind == 10) {
                 assert(presentation.applyNativeMouseButtonCode(
                         kookie_last_event_a(), kookie_last_event_b()),
@@ -3421,9 +3500,10 @@ main() {
         }
 
         if (running && !shell.quitRequested()) {
-            if (shell.gameplayVisible()) {
+            if (shell.gameplayVisible() ||
+                shell.screen() == gameShellScreenKutterLevel()) {
                 assert(presentation.drawGameFrame(frame, network, shell),
-                    "gameplay scene must draw")
+                    "gameplay and editor viewport scene must draw")
             } else {
                 assert(presentation.drawShellFrame(shell, shellFrame, frame),
                     "menu screen must draw")

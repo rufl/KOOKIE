@@ -1,0 +1,276 @@
+package world
+
+import core
+Int kutterScenePreviewVerticesPerNode() { return 36 }
+Int kutterScenePreviewRotationStep() { return 15000 }
+Int kutterScenePreviewRotationSteps() { return 24 }
+Int kutterScenePreviewScaleUnit() { return 1000 }
+Int kutterScenePreviewDefaultHalfExtent() { return 2 }
+Int kutterScenePreviewMinimumExtent() { return 1 }
+
+class KutterScenePreview {
+    Int nodeCapacityValue
+    Int vertexCapacityValue
+    Int editorCameraDistanceValue
+    Int[] cornerX
+    Int[] cornerY
+    Int[] cornerZ
+    Int[] rotationCos
+    Int[] rotationSin
+
+    public constructor(Int nodeCapacity) {
+        nodeCapacityValue = nodeCapacity
+        if (nodeCapacityValue <= 0) { nodeCapacityValue = 1 }
+        if (nodeCapacityValue > kutterStudioNodeCapacity()) {
+            nodeCapacityValue = kutterStudioNodeCapacity()
+        }
+        vertexCapacityValue =
+            nodeCapacityValue * kutterScenePreviewVerticesPerNode()
+        editorCameraDistanceValue = cameraFollowMaximumDistance()
+        cornerX = new Int[8]
+        cornerY = new Int[8]
+        cornerZ = new Int[8]
+        rotationCos = new Int[kutterScenePreviewRotationSteps()]
+        rotationSin = new Int[kutterScenePreviewRotationSteps()]
+        rotationCos[0] = 1000
+        rotationSin[0] = 0
+        rotationCos[1] = 966
+        rotationSin[1] = 259
+        rotationCos[2] = 866
+        rotationSin[2] = 500
+        rotationCos[3] = 707
+        rotationSin[3] = 707
+        rotationCos[4] = 500
+        rotationSin[4] = 866
+        rotationCos[5] = 259
+        rotationSin[5] = 966
+        rotationCos[6] = 0
+        rotationSin[6] = 1000
+        rotationCos[7] = -259
+        rotationSin[7] = 966
+        rotationCos[8] = -500
+        rotationSin[8] = 866
+        rotationCos[9] = -707
+        rotationSin[9] = 707
+        rotationCos[10] = -866
+        rotationSin[10] = 500
+        rotationCos[11] = -966
+        rotationSin[11] = 259
+        rotationCos[12] = -1000
+        rotationSin[12] = 0
+        rotationCos[13] = -966
+        rotationSin[13] = -259
+        rotationCos[14] = -866
+        rotationSin[14] = -500
+        rotationCos[15] = -707
+        rotationSin[15] = -707
+        rotationCos[16] = -500
+        rotationSin[16] = -866
+        rotationCos[17] = -259
+        rotationSin[17] = -966
+        rotationCos[18] = 0
+        rotationSin[18] = -1000
+        rotationCos[19] = 259
+        rotationSin[19] = -966
+        rotationCos[20] = 500
+        rotationSin[20] = -866
+        rotationCos[21] = 707
+        rotationSin[21] = -707
+        rotationCos[22] = 866
+        rotationSin[22] = -500
+        rotationCos[23] = 966
+        rotationSin[23] = -259
+    }
+
+    Int rotationCosine(Int step) {
+        if (step < 0 || step >= kutterScenePreviewRotationSteps()) {
+            return 0
+        }
+        return rotationCos[step]
+    }
+    Int rotationSine(Int step) {
+        if (step < 0 || step >= kutterScenePreviewRotationSteps()) {
+            return 0
+        }
+        return rotationSin[step]
+    }
+    Bool applyEditorZoom(Int wheel) {
+        if (wheel < -8) { wheel = -8 }
+        if (wheel > 8) { wheel = 8 }
+        editorCameraDistanceValue = editorCameraDistanceValue -
+            wheel * cameraFollowZoomStep()
+        if (editorCameraDistanceValue < cameraFollowMinimumDistance()) {
+            editorCameraDistanceValue = cameraFollowMinimumDistance()
+        }
+        if (editorCameraDistanceValue > cameraFollowMaximumDistance()) {
+            editorCameraDistanceValue = cameraFollowMaximumDistance()
+        }
+        return true
+    }
+    Bool configureEditorCamera(
+        CameraState camera, BoundedKutterStudio document, Int selectedNodeId
+    ) {
+        var targetX = 0
+        var targetY = 0
+        var targetZ = 0
+        var index = document.nodeIndex(selectedNodeId)
+        if (index >= 0) {
+            targetX = document.nodeXValue(index)
+            targetY = document.nodeYValue(index)
+            targetZ = document.nodeZValue(index)
+        }
+        if (targetX < -900) { targetX = -900 }
+        if (targetX > 900) { targetX = 900 }
+        if (targetY < -900) { targetY = -900 }
+        if (targetY > 900) { targetY = 900 }
+        if (targetZ < -900) { targetZ = -900 }
+        if (targetZ > 900) { targetZ = 900 }
+        camera.yaw = 0
+        camera.pitch = -300
+        return camera.setFollowTarget(targetX, targetY, targetZ) &&
+            camera.setFollowViewDistance(editorCameraDistanceValue) &&
+            camera.snapFollowTarget()
+
+    }
+    Int paletteResource(Int color) {
+        var red = (color >>> 16) & 255
+        var green = (color >>> 8) & 255
+        var blue = color & 255
+        var palette = ((red / 32) * 4 + (green / 64) * 2 + blue / 128) % 16
+        return palette + 1
+    }
+
+    Int rotateX(Int centerX, Int localX, Int localZ, Int cosine, Int sine) {
+        return centerX + (localX * cosine + localZ * sine) / 1000
+    }
+
+    Int rotateZ(Int centerZ, Int localX, Int localZ, Int cosine, Int sine) {
+        return centerZ + (-localX * sine + localZ * cosine) / 1000
+    }
+
+    Bool setCorner(Int corner, Int x, Int y, Int z) {
+        cornerX[corner] = x
+        cornerY[corner] = y
+        cornerZ[corner] = z
+        return true
+    }
+
+    Bool buildCorners(BoundedKutterStudio document, Int node) {
+        var halfX = document.nodeScaleXValue(node) /
+            (kutterScenePreviewScaleUnit() / kutterScenePreviewDefaultHalfExtent())
+        var halfZ = document.nodeScaleZValue(node) /
+            (kutterScenePreviewScaleUnit() / kutterScenePreviewDefaultHalfExtent())
+        var height = document.nodeScaleYValue(node) /
+            (kutterScenePreviewScaleUnit() / kutterScenePreviewDefaultHalfExtent())
+        if (halfX < kutterScenePreviewMinimumExtent()) {
+            halfX = kutterScenePreviewMinimumExtent()
+        }
+        if (halfZ < kutterScenePreviewMinimumExtent()) {
+            halfZ = kutterScenePreviewMinimumExtent()
+        }
+        if (height < kutterScenePreviewMinimumExtent()) {
+            height = kutterScenePreviewMinimumExtent()
+        }
+        var rotation = document.nodeRotationValue(node)
+        var steps = (rotation + kutterScenePreviewRotationStep() / 2) /
+            kutterScenePreviewRotationStep()
+        steps = steps % kutterScenePreviewRotationSteps()
+        if (steps < 0) { steps = steps + kutterScenePreviewRotationSteps() }
+        var cosine = rotationCos[steps]
+        var sine = rotationSin[steps]
+        var x = document.nodeXValue(node)
+        var y = document.nodeYValue(node)
+        var z = document.nodeZValue(node)
+        setCorner(0, rotateX(x, -halfX, -halfZ, cosine, sine), y,
+            rotateZ(z, -halfX, -halfZ, cosine, sine))
+        setCorner(1, rotateX(x, halfX, -halfZ, cosine, sine), y,
+            rotateZ(z, halfX, -halfZ, cosine, sine))
+        setCorner(2, rotateX(x, halfX, halfZ, cosine, sine), y,
+            rotateZ(z, halfX, halfZ, cosine, sine))
+        setCorner(3, rotateX(x, -halfX, halfZ, cosine, sine), y,
+            rotateZ(z, -halfX, halfZ, cosine, sine))
+        setCorner(4, cornerX[0], y + height, cornerZ[0])
+        setCorner(5, cornerX[1], y + height, cornerZ[1])
+        setCorner(6, cornerX[2], y + height, cornerZ[2])
+        setCorner(7, cornerX[3], y + height, cornerZ[3])
+        return true
+    }
+
+    Bool pushFace(FrameStaging target, Int resource, Int a, Int b, Int c, Int d) {
+        return target.pushWorldVertex(
+                resource, cornerX[a], cornerY[a], cornerZ[a], 0, 100) &&
+            target.pushWorldVertex(
+                resource, cornerX[b], cornerY[b], cornerZ[b], 100, 100) &&
+            target.pushWorldVertex(
+                resource, cornerX[c], cornerY[c], cornerZ[c], 100, 0) &&
+            target.pushWorldVertex(
+                resource, cornerX[a], cornerY[a], cornerZ[a], 0, 100) &&
+            target.pushWorldVertex(
+                resource, cornerX[c], cornerY[c], cornerZ[c], 100, 0) &&
+            target.pushWorldVertex(
+                resource, cornerX[d], cornerY[d], cornerZ[d], 0, 0)
+    }
+
+    Bool stageNode(FrameStaging target, BoundedKutterStudio document, Int node) {
+        if (!buildCorners(document, node)) { return false }
+        var resource = paletteResource(document.nodeColorValue(node))
+        return pushFace(target, resource, 0, 1, 2, 3) &&
+            pushFace(target, resource, 4, 7, 6, 5) &&
+            pushFace(target, resource, 0, 4, 5, 1) &&
+            pushFace(target, resource, 1, 5, 6, 2) &&
+            pushFace(target, resource, 2, 6, 7, 3) &&
+            pushFace(target, resource, 3, 7, 4, 0)
+    }
+    Int clampOverviewX(Int value, Int left, Int right) {
+        if (value < left) { return left }
+        if (value > right) { return right }
+        return value
+    }
+    Int clampOverviewY(Int value, Int bottom, Int top) {
+        if (value < bottom) { return bottom }
+        if (value > top) { return top }
+        return value
+    }
+    Bool stageOverviewFootprint(
+        FrameStaging target, BoundedKutterStudio document, Int node,
+        Int centerX, Int centerY, Int left, Int bottom, Int right, Int top
+    ) {
+        if (document.nodeKind(node) == kutterLevelNodeGroup() ||
+            !buildCorners(document, node)) { return true }
+        var x = document.nodeXValue(node)
+        var z = document.nodeZValue(node)
+        var x0 = clampOverviewX(centerX + cornerX[0] - x, left, right)
+        var y0 = clampOverviewY(centerY + cornerZ[0] - z, bottom, top)
+        var x1 = clampOverviewX(centerX + cornerX[1] - x, left, right)
+        var y1 = clampOverviewY(centerY + cornerZ[1] - z, bottom, top)
+        var x2 = clampOverviewX(centerX + cornerX[2] - x, left, right)
+        var y2 = clampOverviewY(centerY + cornerZ[2] - z, bottom, top)
+        var x3 = clampOverviewX(centerX + cornerX[3] - x, left, right)
+        var y3 = clampOverviewY(centerY + cornerZ[3] - z, bottom, top)
+        var resource = paletteResource(document.nodeColorValue(node))
+        return target.pushTriangle(
+                resource, x0, y0, x1, y1, x2, y2) &&
+            target.pushTriangle(
+                resource, x0, y0, x2, y2, x3, y3)
+    }
+
+    Bool stage(FrameStaging target, Int frame, BoundedKutterStudio document) {
+        if (frame <= 0 || !document.validate() ||
+            document.nodeCount() > nodeCapacityValue ||
+            target.vertexCapacity() < document.nodeCount() *
+                kutterScenePreviewVerticesPerNode() ||
+            !target.begin(frame)) {
+            return false
+        }
+        for (var node = 0; node < document.nodeCount(); node = node + 1) {
+            if (document.nodeKind(node) != kutterLevelNodeGroup() &&
+                !stageNode(target, document, node)) {
+                target.discard()
+                return false
+            }
+        }
+        return target.publish()
+    }
+
+    Int vertexCapacity() { return vertexCapacityValue }
+}

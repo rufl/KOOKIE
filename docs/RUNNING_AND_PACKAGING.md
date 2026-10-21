@@ -390,6 +390,8 @@ placement tools and validation, plus MudLump-style grid/cursor workflow and
 bounded undo/redo, while persisting through the existing Kof studio wire
 format. It is opt-in so existing runtime packages remain content-free:
 
+
+
 ```bash
 KOOKIE_VERSION=0.1.0-dogfood.prototype \
 KOOKIE_BUILD_ID=prototype-content \
@@ -400,6 +402,48 @@ KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
 scripts/package_kookie.sh --runtime native --target linux-x86_64 \
   --content prototype
 ```
+The current Kutter authoring surface is a fixed-layout native workspace, not a
+separate dockable desktop application. It has a model-backed 2D top-down level
+overview, paginated clickable hierarchy and inspector panels, snapped viewport
+placement, and duplicate/group/ungroup/delete/recolor controls. Four hierarchy
+entries are visible per page; header arrows change pages and show the current
+page/total, while viewport selection or placement switches to the selected
+node's page. Click a hierarchy row to focus it; Up/Down then selects adjacent
+nodes, and Enter/Escape exits hierarchy focus.
+Viewport coordinates map to the displayed grid, and the Select tool picks the
+nearest authored node only inside its scaled footprint; empty clicks preserve
+the current selection. Other tools place at the cursor.
+The ASSET control opens a paginated browser for the 75-entry greybox catalog.
+Rows show entry index and module kind; pointer or keyboard navigation selects
+an entry.
+Selecting Prop then clicking Place creates an asset-linked
+prop; with a Prop selected, Enter assigns the selected catalog token. Schema v3
+persists that reference, migrates v1/v2 documents, and duplicate preserves it.
+The MOVE / ROTATE control arms move mode; the next viewport click moves the
+selected node to the snapped cursor position. Escape cancels armed move mode.
+The 2D overview draws screen-space footprints from each node's transformed box
+corners, so rotation and X/Z scale affect the colored marker shape. Y offsets
+the marker and draws a bounded elevation stem. Markers clip to viewport bounds,
+show the selected node's facing direction, and use muted/red/green fills for
+the default/first/second color presets. These are projected box proxies, not
+rendered catalog meshes.
+Native presentation also stages the authored bounded 3D box proxies into the
+regular GPU world pass, snaps its camera to the selected node, and supports
+bounded wheel zoom. Editor camera state is separate from gameplay camera state.
+UI panels overlay that world pass; the viewport is not a clipped render target.
+Catalog thumbnails, names/search, actual GLB rendering, and arbitrary RGB
+materials are not implemented.
+Clicking HEIGHT decreases/increases selected node Y by one active grid step;
+height, rotation and scale edits participate in undo/redo. Clicking ROT adjusts
+angle; SCALE minus/plus decreases/increases the selected axis in 100-unit
+steps, while clicking its label cycles X/Y/Z. C switches between two preset colors.
+Keyboard controls also
+rotate, scale, move, undo, and redo. The hierarchy/inspector dock can be widened
+by dragging its left divider; panels cannot be rearranged, and the left tools
+panel remains fixed.
+The Windows x64 game package is a portable directory/archive with runtime
+dependencies, not a single-file executable; packaging requires a verified Kof
+distribution archive and matching SHA-256.
 
 To run the native SDL presentation with the prototype goose and cat models,
 build the presentation profile explicitly:
