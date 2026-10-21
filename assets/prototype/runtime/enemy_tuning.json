@@ -1,0 +1,13 @@
+{
+  "configVersion": 1,
+  "perceptionRange": 320,
+  "attackRange": 35,
+  "attackCooldown": 15,
+  "weaponId": 7,
+  "weaponDamage": 10,
+  "weaponRange": 40,
+  "weaponCooldown": 15,
+  "encounterId": 4,
+  "encounterCount": 4,
+  "encounterDelay": 12
+}

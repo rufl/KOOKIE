@@ -737,7 +737,54 @@ Bool sendLocalGameInput(
         state.localInputWords())
     return bundle.length > 0 && sendGamePayload(bundle)
 }
+class EnemyTuningConfig {
+    BoundedLiquidJsonObject jsonValue
+
+    public constructor() {
+        jsonValue = BoundedLiquidJsonObject()
+        jsonValue.addField("configVersion")
+        jsonValue.addField("perceptionRange")
+        jsonValue.addField("attackRange")
+        jsonValue.addField("attackCooldown")
+        jsonValue.addField("weaponId")
+        jsonValue.addField("weaponDamage")
+        jsonValue.addField("weaponRange")
+        jsonValue.addField("weaponCooldown")
+        jsonValue.addField("encounterId")
+        jsonValue.addField("encounterCount")
+        jsonValue.addField("encounterDelay")
+    }
+
+    Bool load(String path) {
+        return jsonValue.loadBytes(File(path).readRange(0, 32769)) &&
+            jsonValue.value("configVersion") == 1 &&
+            jsonValue.value("perceptionRange") >= 1 &&
+            jsonValue.value("perceptionRange") <= 1000 &&
+            jsonValue.value("attackRange") >= 1 &&
+            jsonValue.value("attackRange") <= 1000 &&
+            jsonValue.value("attackCooldown") >= 1 &&
+            jsonValue.value("attackCooldown") <= 1000 &&
+            jsonValue.value("weaponId") >= 1 &&
+            jsonValue.value("weaponId") <= 100 &&
+            jsonValue.value("weaponDamage") >= 1 &&
+            jsonValue.value("weaponDamage") <= 1000 &&
+            jsonValue.value("weaponRange") >= 1 &&
+            jsonValue.value("weaponRange") <= 1000 &&
+            jsonValue.value("weaponCooldown") >= 1 &&
+            jsonValue.value("weaponCooldown") <= 1000 &&
+            jsonValue.value("encounterId") >= 1 &&
+            jsonValue.value("encounterId") <= 100 &&
+            jsonValue.value("encounterCount") >= 1 &&
+            jsonValue.value("encounterCount") <= 100 &&
+            jsonValue.value("encounterDelay") >= 1 &&
+            jsonValue.value("encounterDelay") <= 10000
+    }
+
+    Int value(String name) { return jsonValue.value(name) }
+}
+
 class G1NativePresentation {
+    EnemyTuningConfig enemyTuningValue
     G1Demo scenario
     G4KutterDemo kutterScenario
     G1Arena arena
@@ -853,6 +900,7 @@ class G1NativePresentation {
         scoreboardState = MatchScoreboardState(2)
         projectileOverlay = GooseProjectileOverlay(8)
         inputStateValue = NativeInputState()
+        enemyTuningValue = EnemyTuningConfig()
         windowStateValue = WindowStateTracker(1280, 720)
         camera = CameraState(-450, 450)
         interactionSession = LoopbackSession(16, 8)
@@ -1102,7 +1150,11 @@ class G1NativePresentation {
     }
 
     Bool prepareGooseSession() {
-        if (!prepareLiquidContent()) { return false }
+
+        if (!prepareLiquidContent() ||
+            !enemyTuningValue.load(liquidRuntimeConfigPath("enemy_tuning.json"))) {
+            return false
+        }
         if (!interactionSession.loadAuthoredBroadPhase(
                 arena.authoredCollision()) ||
             !interactionSession.enableFpsMovement(true) ||
@@ -1114,21 +1166,40 @@ class G1NativePresentation {
                 1, localAnimalKindValue) ||
             !interactionSession.configurePlayerAnimal(
                 2, remoteAnimalKindValue) ||
-            !interactionSession.configureEnemyRules(320, 35, 15) ||
-            !interactionSession.defineEnemyWeapon(7, 10, 0, 20, 1) ||
-            !interactionSession.setEnemyWeaponRange(7, 40) ||
-            !interactionSession.setEnemyWeaponCooldown(7, 15) ||
-            !interactionSession.defineEnemyEncounter(4, 4, 12) ||
+            !interactionSession.configureEnemyRules(
+                enemyTuningValue.value("perceptionRange"),
+                enemyTuningValue.value("attackRange"),
+                enemyTuningValue.value("attackCooldown")) ||
+            !interactionSession.defineEnemyWeapon(
+                enemyTuningValue.value("weaponId"),
+                enemyTuningValue.value("weaponDamage"), 0, 20, 1) ||
+            !interactionSession.setEnemyWeaponRange(
+                enemyTuningValue.value("weaponId"),
+                enemyTuningValue.value("weaponRange")) ||
+            !interactionSession.setEnemyWeaponCooldown(
+                enemyTuningValue.value("weaponId"),
+                enemyTuningValue.value("weaponCooldown")) ||
+            !interactionSession.defineEnemyEncounter(
+                enemyTuningValue.value("encounterId"),
+                enemyTuningValue.value("encounterCount"),
+                enemyTuningValue.value("encounterDelay")) ||
             !interactionSession.configureEnemyEncounterZone(
-                4, g1ArenaMaxX() / 2, 1, g1ArenaMaxZ() / 2, 140) ||
+                enemyTuningValue.value("encounterId"),
+                g1ArenaMaxX() / 2, 1, g1ArenaMaxZ() / 2, 140) ||
             !interactionSession.configureEnemySpatialBounds(
                 0, -4, 0, g1ArenaMaxX(), g1ArenaMaxY(), g1ArenaMaxZ()) ||
-            !interactionSession.definePlayerWeapon(7, 10, 0, 20, 1) ||
-            !interactionSession.setPlayerWeaponRange(7, 40) ||
+            !interactionSession.definePlayerWeapon(
+                enemyTuningValue.value("weaponId"),
+                enemyTuningValue.value("weaponDamage"), 0, 20, 1) ||
+            !interactionSession.setPlayerWeaponRange(
+                enemyTuningValue.value("weaponId"),
+                enemyTuningValue.value("weaponRange")) ||
             !interactionSession.addEnemyCombatActor(1, 100, 0) ||
             !interactionSession.addEnemyCombatActor(2, 100, 0) ||
-            !interactionSession.equipEnemyCombatWeapon(1, 7) ||
-            !interactionSession.equipEnemyCombatWeapon(2, 7) ||
+            !interactionSession.equipEnemyCombatWeapon(
+                1, enemyTuningValue.value("weaponId")) ||
+            !interactionSession.equipEnemyCombatWeapon(
+                2, enemyTuningValue.value("weaponId")) ||
             !interactionSession.defineWorldKey(1, 30, 0, 0, 0) ||
             !interactionSession.defineWorldDoor(
                 2, 1, 0, 5, 5, 3, 5, 1, 8) ||

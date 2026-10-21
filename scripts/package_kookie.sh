@@ -607,6 +607,7 @@ bundle_demo_runtime_configs() {
   local relative_path
   local -a paths=(
     liquid_physics.json
+    enemy_tuning.json
     water_bodies/pool.json
     water_bodies/channel.json
     floatables/crate.json

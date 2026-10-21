@@ -12,6 +12,7 @@ main() {
     if (gooseValid) {
         println("model-valid=1")
         println("model-vertices=" + gooseReader.vertexCount())
+        println("model-vertical-extent=" + gooseReader.verticalExtent())
     } else {
         println("model-valid=0")
     }
@@ -20,6 +21,7 @@ main() {
         if (catValid) {
             println("cat-model-valid=1")
             println("cat-model-vertices=" + catReader.vertexCount())
+            println("cat-model-vertical-extent=" + catReader.verticalExtent())
         } else {
             println("cat-model-valid=0")
         }

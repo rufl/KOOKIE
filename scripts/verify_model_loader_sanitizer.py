@@ -81,7 +81,12 @@ def write_fixture(
 
 
 def exercise(
-    kof: str, root: Path, expected: int, cat_expected: int | None = None
+    kof: str,
+    root: Path,
+    expected: int,
+    cat_expected: int | None = None,
+    expected_vertical_extent: int | None = None,
+    expected_cat_vertical_extent: int | None = None,
 ) -> None:
     content_dir = root / "content"
     content_dir.mkdir(exist_ok=True)
@@ -111,6 +116,18 @@ def exercise(
             raise RuntimeError(
                 f"expected {marker}, got {result.stdout.strip() or result.stderr.strip()}"
             )
+    if expected_vertical_extent is not None:
+        marker = f"model-vertical-extent={expected_vertical_extent}"
+        if marker not in lines:
+            raise RuntimeError(
+                f"expected {marker}, got {result.stdout.strip() or result.stderr.strip()}"
+            )
+    if expected_cat_vertical_extent is not None:
+        marker = f"cat-model-vertical-extent={expected_cat_vertical_extent}"
+        if marker not in lines:
+            raise RuntimeError(
+                f"expected {marker}, got {result.stdout.strip() or result.stderr.strip()}"
+            )
 
 
 def main() -> int:
@@ -131,7 +148,7 @@ def main() -> int:
             (ROOT / "assets/prototype/models/cat/cat.glb").read_bytes(),
             "models/cat/cat.glb",
         )
-        exercise(kof, real_root, 1, 1)
+        exercise(kof, real_root, 1, 1, 2, 2)
 
         valid_root = work / "valid"
         write_fixture(valid_root, make_glb())

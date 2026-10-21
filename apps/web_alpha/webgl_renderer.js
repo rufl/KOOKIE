@@ -281,8 +281,8 @@
     const actorId = Number.isInteger(actor.id) ? actor.id : 0;
     const animationTick = Number.isFinite(tick) ? Math.trunc(tick) : 0;
     const phase = ((animationTick + actorId * 2) % 8 + 8) % 8;
-    if (state === 3) return 2;
-    if ((state === 1 || state === 2) && phase >= 4) return 1;
+    if (state === 3) return 0.4;
+    if ((state === 1 || state === 2) && phase >= 4) return 0.2;
     return 0;
   }
 
@@ -1457,7 +1457,7 @@
         const tint = actor.health <= 0 ? COLORS.damaged
           : actor.health < 50 ? COLORS.damaged
           : actor.kind === 2 ? COLORS.actorAlt : COLORS.actor;
-        const scale = actor.kind === 2 ? [2.2, 2.2, 2.2] : [8, 8, 8];
+        const scale = actor.kind === 2 ? [0.38, 0.38, 0.38] : [1.6, 1.6, 1.6];
         const actorYaw = actor.yaw === undefined ? 0 : actor.yaw * Math.PI / 180;
         const actorLift = actorAnimationLift(actor, scene.tick);
         const animationTime = time + (Number.isInteger(actor.id) ? actor.id * 137 : 0);
@@ -1471,7 +1471,7 @@
         scene.playerState === undefined ? 1 : scene.playerState, time,
       );
       draw(playerModel?.meshes || [fallbackMeshes.actor], transform(
-        [scene.playerX, scene.playerY, scene.playerZ], [8, 8, 8], yaw,
+        [scene.playerX, scene.playerY, scene.playerZ], [1.6, 1.6, 1.6], yaw,
       ), COLORS.player, time, viewProjection, [0, 0, 1, 1], playerSkinMatrices);
 
       if (assets.hearts) {

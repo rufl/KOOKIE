@@ -4,10 +4,19 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 
 ## Unreleased
 
+- Added `config/runtime/enemy_tuning.json` for bounded enemy perception, attack,
+  weapon, and encounter settings. Packaged native builds include the file;
+  malformed or missing tuning data prevents the demo session from starting.
+
 - Set initial third-person camera distance to 18 units, the maximum of the
   existing 4–18 unit zoom range. Windows PE presentation packages embed the
   required authored GLBs instead of silently using procedural animal
   silhouettes; the headless package smoke validates both bounded GLB files.
+
+- Scaled imported goose and cat actors to a two-world-unit height in native
+  gameplay; reduced browser-model transforms and root animation lifts to keep
+  actors similarly sized. The GLB loader smoke checks both assets' rendered
+  bounds.
 - Converted the Unity cat and swan FBX animation sets into source-rig GLBs,
   then retargeted seven state clips onto the existing cat and goose skeletons.
   The retargeted clips replace both runtime model animation sets; swan wing

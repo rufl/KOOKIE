@@ -6,6 +6,18 @@ This page keeps build, package and qualification detail out of the project
 homepage. KOOKIE is experimental: these commands exercise bounded evidence
 contracts, not a production support promise.
 
+## Runtime gameplay tuning
+
+Native presentation builds load `config/runtime/enemy_tuning.json` (source:
+`assets/prototype/runtime/enemy_tuning.json`). Values use integer game units
+and are validated before the session starts. Edit the packaged JSON to tune
+enemy perception/attack ranges, cooldowns, weapon damage/range, and encounter
+count/delay without rebuilding. The file must contain all schema-version-1
+fields; missing, malformed, out-of-range, unknown, or duplicate fields prevent
+the demo session from starting. Keep protocol constants, array capacities,
+resource limits, and launcher security limits compiled in; they are invariants,
+not gameplay tuning.
+
 ## Developer/source run
 
 Install [Kof 0.6.5](https://github.com/KofLang/Kof4j) to run the

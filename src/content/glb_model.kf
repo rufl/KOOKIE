@@ -1,6 +1,8 @@
 package content
 
 
+Int glbModelTargetHeightFixed() { return 2000 }
+
 class BoundedExternalGlbModelReader {
     Int[] sourceValue
     Int[] json
@@ -2143,7 +2145,7 @@ class BoundedExternalGlbModelReader {
     Int normalized(Int value, Int center, Int height) {
         var difference: Long = value
         difference = difference - center
-        var result = difference * 6000L / height
+        var result = difference * glbModelTargetHeightFixed() / height
         return result.toInt()
     }
 
@@ -2333,6 +2335,20 @@ class BoundedExternalGlbModelReader {
     Int vertexY(Int index) {
         if (!readValue || index < 0 || index >= vertexCountValue) { return 0 }
         return if (poseValidValue) poseVertexY[index] else vertexYValue[index]
+    }
+    Int verticalExtent() {
+        if (!valid()) { return 0 }
+        var minimum = vertexYValue[0]
+        var maximum = vertexYValue[0]
+        for (var index = 1; index < vertexCountValue; index = index + 1) {
+            if (vertexYValue[index] < minimum) {
+                minimum = vertexYValue[index]
+            }
+            if (vertexYValue[index] > maximum) {
+                maximum = vertexYValue[index]
+            }
+        }
+        return maximum - minimum
     }
     Int vertexZ(Int index) {
         if (!readValue || index < 0 || index >= vertexCountValue) { return 0 }
