@@ -2523,6 +2523,9 @@ class G1NativePresentation {
     Bool nativeAnimalModels() {
         return nativeAnimalModelsValue
     }
+    Bool nativeAnimalModelsRequired() {
+        return modelAssets.required()
+    }
     Int authoredPoseCount() {
         return authoredPoseCountValue
     }
@@ -3033,8 +3036,10 @@ main() {
                 shell, presentation, 13, gameShellActionActivate()) &&
             shell.gameplayVisible() &&
             shell.consumeGameplayEntry() &&
-            presentation.resetGooseSession(),
-            "main Play must arrive through the SDL key event path")
+            presentation.resetGooseSession() &&
+            presentation.nativeAnimalModelsRequired() &&
+            presentation.nativeAnimalModels(),
+            "prototype gameplay must require and load authored GLB animal meshes")
         assert(kookie_push_key_event(119) &&
             kookie_poll_event() == 7 &&
             presentation.applyNativeKey(
@@ -3110,9 +3115,9 @@ main() {
         assert(presentation.drawGameFrame(frame, network, shell),
             "authored arena and authoritative HUD must draw")
         assert(presentation.visibleAnimalActorCount() == 5 &&
-            (!presentation.nativeAnimalModels() ||
-                presentation.authoredPoseCount() > 0),
-            "native GLB actors must use authored sampled pose when models are packaged")
+            presentation.nativeAnimalModels() &&
+            presentation.authoredPoseCount() > 0,
+            "native GLB actors must use authored sampled poses")
         assert(driveSmokeKeyboardAction(
                 shell, presentation, 27, gameShellActionBack()) &&
             !shell.gameplayVisible(),

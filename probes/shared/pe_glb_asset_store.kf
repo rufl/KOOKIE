@@ -1,19 +1,10 @@
 package content
 
-// Native PE first-demo packages use the procedural silhouette fallback. The
-// file-backed prototype asset store stays outside the PE reachable graph.
+// Generated package source embeds the bounded authored prototype GLBs.
+// This fallback is used only when the package builder has no prototype assets.
 class BoundedExternalGlbAssetStore {
-    Int markerValue
-
-    public constructor() {
-        markerValue = 0
-    }
-
+    public constructor() {}
     Bool required() { return false }
-    Bool available(Int model) {
-        return false
-    }
-    Int[] bytes(Int model) {
-        return new Int[0]
-    }
+    Bool available(Int model) { return false }
+    Int[] bytes(Int model) { return new Int[0] }
 }

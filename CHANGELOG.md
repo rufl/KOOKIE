@@ -3,6 +3,11 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+
+- Set initial third-person camera distance to 18 units, the maximum of the
+  existing 4–18 unit zoom range. Windows PE presentation packages embed the
+  required authored GLBs instead of silently using procedural animal
+  silhouettes; the headless package smoke validates both bounded GLB files.
 - Converted the Unity cat and swan FBX animation sets into source-rig GLBs,
   then retargeted seven state clips onto the existing cat and goose skeletons.
   The retargeted clips replace both runtime model animation sets; swan wing

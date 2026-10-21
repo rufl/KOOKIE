@@ -937,16 +937,16 @@ test "third person camera eases animal follow and zoom" {
     assert(camera.applyLook(20, -20) &&
         camera.setFollowTarget(10, 1, 20) &&
         camera.snapFollowTarget() &&
-        camera.currentFollowDistance() == 10 &&
+        camera.currentFollowDistance() == 18 &&
         camera.currentX() < 10 &&
         camera.currentZ() > 10 &&
         camera.currentY() > 1,
         "third person camera must orbit behind and above the followed animal")
-    assert(camera.applyZoom(5) &&
+    assert(camera.applyZoom(6) &&
         camera.desiredFollowDistance() == 4 &&
         camera.stepFollow() &&
         camera.currentFollowDistance() > 4 &&
-        camera.currentFollowDistance() < 10,
+        camera.currentFollowDistance() < 18,
         "scroll zoom must ease toward the bounded close distance")
     for (var tick = 0; tick < 12; tick = tick + 1) {
         assert(camera.stepFollow(),

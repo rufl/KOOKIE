@@ -103,8 +103,8 @@ class CameraState {
         followXValue = 0
         followYValue = 4
         followZValue = -8
-        followDistanceValue = 10
-        desiredFollowDistanceValue = 10
+        followDistanceValue = 18
+        desiredFollowDistanceValue = 18
         followReadyValue = false
         sineValues = new Int[10]
         gpuViewValues = new Int[16]

@@ -1033,7 +1033,8 @@ bundle_windows_kof_sdl() {
     "$presentation_root/core/gpu_scene_batch.kf"
   cp -- "$ROOT_DIR/probes/shared/pe_durable_save_coordinator.kf" \
     "$presentation_root/session/pe_durable_save_coordinator.kf"
-  cp -- "$ROOT_DIR/probes/shared/pe_glb_asset_store.kf" \
+  python3 "$ROOT_DIR/scripts/generate_pe_glb_store.py" \
+    "$ROOT_DIR/assets/prototype" \
     "$presentation_root/content/glb_asset_store.kf"
   cp -- "$ROOT_DIR/probes/shared/pe_content_package_file_store.kf" \
     "$presentation_root/content/package_file.kf"
@@ -1093,8 +1094,13 @@ bundle_windows_kof_sdl() {
     -Wall -Wextra -Werror -O2 -fno-ident \
     -I "$ROOT_DIR/native" \
     -c "$ROOT_DIR/native/kookie_persistence_adapter.c" -o "$persistence_obj"
+  local -a package_profile_defines=()
+  if [[ "$CONTENT_PROFILE" == prototype ]]; then
+    package_profile_defines+=(-DKOOKIE_PACKAGE_PROTOTYPE_CONTENT=1)
+  fi
   zig cc -target x86_64-windows-gnu -s -fno-ident \
     -Wl,/subsystem:console -Wl,/Brepro \
+    "${package_profile_defines[@]}" \
     "$ROOT_DIR/native/kookie_pe_entry.c" \
     "$pe_build/kof-module.obj" "$adapter_obj" "$renderer_obj" "$transport_obj" \
     "$persistence_obj" \

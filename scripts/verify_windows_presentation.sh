@@ -111,7 +111,7 @@ assert manifest["runtime"] == "presentation"
 assert manifest["windows_presentation"] is True
 assert manifest["windows_java_runtime"] is False
 assert manifest["windows_java_version"] == "not-bundled"
-assert manifest["content_profile"] == "none"
+assert manifest["content_profile"] in ("none", "prototype")
 assert manifest["windows_dxc_version"] != "not-bundled"
 if expected_epoch is not None:
     assert manifest["source_date_epoch"] == expected_epoch
@@ -171,11 +171,27 @@ assert provenance["font_default_display"] == "Jared Lite"
 assert provenance["update_launcher"] == "kookie-launcher"
 PY
 PACKAGE_SMOKE_LOG="$WORK_DIR/windows-package-smoke.log"
-set +e
-"$EXTRACTED/$PACKAGE_NAME/kookie.exe" --package-smoke \
-  >"$PACKAGE_SMOKE_LOG" 2>&1
-package_smoke_status=$?
-set -e
+if [[ "${OSTYPE:-}" == msys* || "${OSTYPE:-}" == cygwin* ||
+      "${OSTYPE:-}" == win32* ]]; then
+  set +e
+  "$EXTRACTED/$PACKAGE_NAME/kookie.exe" --package-smoke \
+    >"$PACKAGE_SMOKE_LOG" 2>&1
+  package_smoke_status=$?
+  set -e
+else
+  command -v wine >/dev/null || {
+    echo 'verify_windows_presentation: Linux package smoke requires wine' >&2
+    exit 2
+  }
+  set +e
+  (
+    cd "$EXTRACTED/$PACKAGE_NAME"
+    WINEPREFIX="$WORK_DIR/package-smoke-wine" WINEARCH=win64 \
+      WINEDEBUG=-all timeout 60s wine kookie.exe --package-smoke
+  ) >"$PACKAGE_SMOKE_LOG" 2>&1
+  package_smoke_status=$?
+  set -e
+fi
 cat "$PACKAGE_SMOKE_LOG"
 if [[ "$package_smoke_status" != 0 ]]; then
   echo "verify_windows_presentation: Windows PE package smoke failed with status $package_smoke_status" >&2
