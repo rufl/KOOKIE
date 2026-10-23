@@ -266,23 +266,26 @@
     ];
   }
 
-  function transform(position, scale, rotationY = 0) {
+  function transform(position, scale, rotationY = 0, rotationZ = 0) {
     const c = Math.cos(rotationY);
     const s = Math.sin(rotationY);
+    const rzC = Math.cos(rotationZ);
+    const rzS = Math.sin(rotationZ);
     return [
-      c * scale[0], 0, -s * scale[0], 0,
-      0, scale[1], 0, 0,
+      c * rzC * scale[0], rzS * scale[0], -s * rzC * scale[0], 0,
+      -c * rzS * scale[1], rzC * scale[1], s * rzS * scale[1], 0,
       s * scale[2], 0, c * scale[2], 0,
       position[0], position[1], position[2], 1,
     ];
   }
   function actorAnimationLift(actor, tick) {
-    const state = Number.isInteger(actor.state) ? actor.state : 1;
+    const action = Number.isInteger(actor.animation) ? actor.animation : 0;
     const actorId = Number.isInteger(actor.id) ? actor.id : 0;
     const animationTick = Number.isFinite(tick) ? Math.trunc(tick) : 0;
     const phase = ((animationTick + actorId * 2) % 8 + 8) % 8;
-    if (state === 3) return 0.4;
-    if ((state === 1 || state === 2) && phase >= 4) return 0.2;
+    if (action === 2) return 0.4;
+    if ((action === 1 || action === 6 || action === 8 || action === 9) &&
+        phase >= 4) return action === 8 ? 0.12 : 0.2;
     return 0;
   }
 
@@ -1030,14 +1033,29 @@
       mesh.skinned && mesh.skinNode !== null)
       .map((mesh) => mesh.skinNode).filter((node, index, all) => all.indexOf(node) === index));
     const skinCache = new Map();
-    const sampleSkinForState = (state, timeMs) => {
+    const sampleSkinForAction = (action, timeMs) => {
       if (skinnedNodes.length === 0 || skins.length === 0 || clips.length === 0) return null;
-      const requested = state === 3 ? "attack" : state === 4 ? "death"
-        : state === 2 ? "run" : "idle";
-      const clip = clipsByName.get(requested) || clipsByName.get("walk") || clips[0];
+      const requested = action === 2 ? "attack"
+        : action === 3 ? "death"
+        : action === 4 ? "damage_taken"
+        : action === 5 ? "eat"
+        : action === 1 ? "run"
+        : action === 8 ? "swim"
+        : action === 6 || action === 7 || action === 9 ? "walk" : "idle";
+      const fallback = action === 3 ? ["damage_taken", "idle"]
+        : action === 2 ? ["walk", "idle"]
+        : action === 4 ? ["attack", "idle"]
+        : action === 5 ? ["idle"]
+        : ["walk", "idle"];
+      const clip = clipsByName.get(requested) ||
+        fallback.map((name) => clipsByName.get(name)).find(Boolean) || clips[0];
       const seconds = Math.max(0, Number.isFinite(timeMs) ? timeMs : 0) / 1000;
-      const sampleTime = clip.duration > 0 ? seconds % clip.duration : 0;
-      const cacheKey = clip.fullName + ":" + Math.floor(seconds * 60);
+      const looping = action === 0 || action === 1 || action === 6 ||
+        action === 7 || action === 8 || action === 9;
+      const sampleTime = clip.duration > 0
+        ? looping ? seconds % clip.duration : Math.min(seconds, clip.duration)
+        : 0;
+      const cacheKey = clip.fullName + ":" + Math.floor(sampleTime * 60);
       if (skinCache.has(cacheKey)) return skinCache.get(cacheKey);
       const translations = nodes.map((node) =>
         (node.translation || [0, 0, 0]).slice());
@@ -1080,7 +1098,7 @@
       skinned: skinnedNodes.length > 0,
       animationNames: Object.freeze(clips.map((clip) => clip.name)),
       defaultAnimation: clipsByName.has("idle") ? "idle" : clips[0]?.name || null,
-      sampleSkinForState,
+      sampleSkinForAction,
     });
   }
   async function loadTextureUrl(gl, url) {
@@ -1262,6 +1280,24 @@
 
     let vfxKey = null;
     let vfxStartedAt = 0;
+    const actorAnimationStarts = new Map();
+    const rollDurationMs = 12 * (1000 / 60);
+    function actorAnimationElapsed(actor, time) {
+      const id = Number.isInteger(actor.id) ? actor.id : 0;
+      const action = Number.isInteger(actor.animation) ? actor.animation : 0;
+      let state = actorAnimationStarts.get(id);
+      if (!state || state.action !== action) {
+        state = { action, startedAt: time };
+        actorAnimationStarts.set(id, state);
+      }
+      return Math.max(0, time - state.startedAt);
+    }
+    function actorRollAngle(actor, time) {
+      if (actor.animation !== 7) return 0;
+      const progress = Math.min(1, actorAnimationElapsed(actor, time) / rollDurationMs);
+      const eased = progress * progress * (3 - 2 * progress);
+      return eased * Math.PI * 2;
+    }
     function projectWorld(scene, x, y, z) {
       const camera = scene.camera || {
         x: scene.playerX, y: scene.playerY + 8, z: scene.playerZ - 16,
@@ -1478,23 +1514,32 @@
       for (const actor of actors) {
         const model = modelForActor(actor);
         const tint = actor.health <= 0 ? COLORS.damaged
+          : actor.powerUp > 0 ? COLORS.pickup
           : actor.health < 50 ? COLORS.damaged
           : actor.kind === 2 ? COLORS.actorAlt : COLORS.actor;
         const scale = actor.kind === 2 ? [0.38, 0.38, 0.38] : [1.6, 1.6, 1.6];
         const actorYaw = actor.yaw === undefined ? 0 : actor.yaw * Math.PI / 180;
         const actorLift = actorAnimationLift(actor, scene.tick);
-        const animationTime = time + (Number.isInteger(actor.id) ? actor.id * 137 : 0);
-        const skinMatrices = model?.sampleSkinForState?.(actor.state, animationTime);
+        const actorAnimation = Number.isInteger(actor.animation) ? actor.animation : 0;
+        const actorAnimationTime = actorAnimationElapsed(actor, time);
+        const skinMatrices = model?.sampleSkinForAction?.(
+          actorAnimation, actorAnimationTime,
+        );
         draw(model?.meshes || [fallbackMeshes.actor], transform(
           [actor.x, actor.y + actorLift, actor.z], scale, actorYaw,
+          actorRollAngle(actor, time),
         ), tint, time, viewProjection, [0, 0, 1, 1], skinMatrices);
       }
       const playerModel = assets.goose;
-      const playerSkinMatrices = playerModel?.sampleSkinForState?.(
-        scene.playerState === undefined ? 1 : scene.playerState, time,
+      const playerActor = actors.find((actor) => actor.id === scene.playerId) ||
+        { id: scene.playerId, animation: 0 };
+      const playerAnimationTime = actorAnimationElapsed(playerActor, time);
+      const playerSkinMatrices = playerModel?.sampleSkinForAction?.(
+        playerActor.animation, playerAnimationTime,
       );
       draw(playerModel?.meshes || [fallbackMeshes.actor], transform(
         [scene.playerX, scene.playerY, scene.playerZ], [1.6, 1.6, 1.6], yaw,
+        actorRollAngle(playerActor, time),
       ), COLORS.player, time, viewProjection, [0, 0, 1, 1], playerSkinMatrices);
 
       if (assets.hearts) {

@@ -121,15 +121,52 @@ bash scripts/build_web_server.sh --output "$server_dir"
 scripts/b2teams4.py "$server_dir/kookie-web-server" 8080
 ```
 
-At the `kookie>` prompt, enter `/b2teams4`. It spawns four goose bots on red
-team and four cat bots on blue team, then streams authoritative tick, alive
-count, and movement-snapshot counts to the terminal for up to two minutes. Bots
-chase and periodically fire at opposing-team targets; server combat ignores
-same-team targets. A round returns to the prompt when one team is eliminated or
-the timer expires. Connect the web client to `ws://SERVER_HOST:8080`, select
-**Spectator**, and connect to watch. The console keeps an additional spectator
-connection open for its live state monitor. Enter `/quit` to stop the console
-and server, or press Ctrl+C to stop the battle early.
+In the browser, open **Settings → Open game console**, choose **Spectator**,
+then connect to `ws://SERVER_HOST:8080`. Run `/b2teams4` to spawn the eight bots
+on that same server and spectate their battle in the page; `/stop` disconnects
+them. The battle ends when one team is eliminated or after two minutes. The
+console requires an active spectator join; it does not require a separate CLI
+process.
+
+The CLI mode is also available. At the `kookie>` prompt, `/b2teams4` spawns
+four goose bots on red and four cat bots on blue, then streams authoritative
+tick, alive count, and movement-snapshot counts for up to two minutes. Bots
+chase, fire, jump, roll, dash, glide/fly, melee at close range, and periodically
+use special projectiles or throwables; the server owns damage and collision
+outcomes. Same-team targets are ignored by direct targeting and projectile/
+throwable damage. A round returns to the prompt
+when one team is eliminated or the timer expires. The CLI keeps an additional
+spectator connection open for its live state monitor. Enter `/quit` or press
+Ctrl+C to stop it.
+
+Pass `--log PATH` when launching the CLI to write one `kookie-battle-v1` JSON
+snapshot per newly observed server tick during each battle. Analyze the result:
+
+```bash
+scripts/b2teams4.py "$server_dir/kookie-web-server" 8080 --log battle.ndjson
+scripts/analyze_battle_log.py battle.ndjson --format text
+```
+
+The parser estimates team strength from alive-player count plus remaining
+health, then compares an early baseline with three contiguous late windows. A
+snowball requires the same team's lead in every late window and a configured
+minimum increase over its early lead (`--min-growth`, default `0.1`). The
+result is a heuristic from periodic snapshots, not causal proof; bot-only
+matches do not establish human-match balance.
+
+The web multiplayer server loads the seven shared powerup definitions plus an
+eighth multiplayer coffee pickup from `config/runtime/power_ups/`. Pickups are
+authoritative and one-use; effect expiry is tick-based. Coffee increases
+movement speed, jetpack increases jump impulse, megaphone special produces a
+nearby honk, watermelon special fires a cooldown-limited seed, wool ball boosts
+melee, and flour conceals its carrier from target selection. The client marks
+an actor with an active powerup using the pickup tint.
+
+Scuba reduces the authoritative oxygen drain while its timed effect is active.
+The web simulation currently does not apply oxygen-depletion damage or
+replicate oxygen values to clients, so scuba has no visible HUD effect yet.
+Uncollected powerup objects and exact active powerup names/timers are not
+replicated or rendered.
 
 Run a four-second headless setup/movement/combat smoke check with
 `scripts/b2teams4.py "$server_dir/kookie-web-server" 8080 --smoke`. The bot
@@ -559,11 +596,12 @@ required; KOOKIE retains attribution voluntarily. No SPDX license or
 standalone raw-file redistribution grant is stated, so the cat source and GLB
 remain prototype-only and must not be advertised as CC0 or an independent
 asset pack.
-The native gameplay presentation uses the prototype `goose.glb` and `cat.glb`
-when that profile is present. Their bounded vertex counts, materials,
-positions, facing, animation state and attack/movement state are transferred
-through the checked native model API; no unbounded mesh data enters the Kof
-frame staging buffers.
+The native gameplay presentation uses these prototype GLBs when that profile is
+present. Their bounded vertex counts, materials, positions, facing and authored
+animation clips pass through the checked Kof model API; roll uses the authored
+run pose with a bounded procedural quarter-turn over twelve ticks because the
+source GLBs contain no roll clip. Native roll is driven from the local/remote
+roll input bit. No unbounded mesh data enters frame staging.
 
 The catalog also stages Echo Studios' five-state player-heart sheet at
 `ui.player-hearts`. Its authored copy preserves the supplied 320x64 PNG; the

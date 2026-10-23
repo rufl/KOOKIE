@@ -1777,11 +1777,13 @@ class G1NativePresentation {
         Int animationTick,
         Int moving,
         Int attacking,
-        Bool flashed
+        Bool flashed,
+        Bool rolling
     ) {
         if (!reader.valid() || facing == 0) { return false }
-        var authoredPose = reader.prepareAnimationPose(
-            animationState, animationTick)
+        var poseState = if (rolling) 2 else animationState
+        var poseTick = if (rolling) animationTick % 12 else animationTick
+        var authoredPose = reader.prepareAnimationPose(poseState, poseTick)
         if (authoredPose) { authoredPoseCountValue = authoredPoseCountValue + 1 }
         var idleBob = 0
         if (!authoredPose &&
@@ -1801,6 +1803,21 @@ class G1NativePresentation {
                     index, animationState, animationTick, moving, attacking)
             }
             var localZ = reader.vertexZ(index)
+            if (rolling) {
+                var centeredX = localX
+                var centeredY = localY - 1000
+                var rollPhase = (animationTick % 12) / 3
+                if (rollPhase == 1) {
+                    localX = -centeredY
+                    localY = 1000 + centeredX
+                } else if (rollPhase == 2) {
+                    localX = -centeredX
+                    localY = 1000 - centeredY
+                } else if (rollPhase == 3) {
+                    localX = centeredY
+                    localY = 1000 - centeredX
+                }
+            }
             var worldX = x
             var worldZ = z
             if (facing > 0) {
@@ -1842,13 +1859,30 @@ class G1NativePresentation {
             var reader = gooseModelReader
             var resourceBase = 9
             var animationState = animalMeshes.gooseAnimationState()
-            var animationTick = animalMeshes.gooseAnimationTick()
+            var animationTick = animalMeshes.actorPhaseAt(index)
             if (kind == 2) {
                 model = kookieModelCat()
                 reader = catModelReader
                 resourceBase = 12
                 animationState = animalMeshes.catAnimationState()
                 animationTick = animalMeshes.catAnimationTick()
+            }
+            var actorId = animalMeshes.actorIdAt(index)
+            if (actorId == 1 || actorId == 2) {
+                var actorHealth = interactionSession.enemyCombatHealth(actorId)
+                if (actorHealth <= 0) {
+                    animationState = 4
+                } else if (damageFlashAt(actorId)) {
+                    animationState = 6
+                } else if (animalMeshes.actorAttackingAt(index)) {
+                    animationState = 3
+                } else if (interactionSession.fpsUnderwater(actorId)) {
+                    animationState = 8
+                } else if (animalMeshes.actorMovingAt(index)) {
+                    animationState = 2
+                } else {
+                    animationState = 1
+                }
             }
             if (!uploadModel(
                     reader, model, resourceBase,
@@ -1860,7 +1894,8 @@ class G1NativePresentation {
                     animationState, animationTick,
                     if (animalMeshes.actorMovingAt(index)) 1 else 0,
                     if (animalMeshes.actorAttackingAt(index)) 1 else 0,
-                    damageFlashAt(animalMeshes.actorIdAt(index)))) {
+                    damageFlashAt(animalMeshes.actorIdAt(index)),
+                    animalMeshes.actorRollingAt(index))) {
                 println("KOOKIE gameplay native animal model upload failed")
                 println(animalMeshes.actorIdAt(index))
                 return false
@@ -2130,7 +2165,10 @@ class G1NativePresentation {
         if (!animalMeshes.setActor(
                 localPlayerId, localAnimalKindValue,
                 localPlayerX, localPlayerY, localPlayerZ,
-                localPlayerMoving, localPlayerAttack)) {
+                localPlayerMoving, localPlayerAttack) ||
+            !animalMeshes.setActorRolling(
+                localPlayerId,
+                (actionButtonsForPlayer(localPlayerId) & inputButtonRoll()) != 0)) {
             println("KOOKIE gameplay local player mesh staging failed")
             return false
         }
@@ -2146,14 +2184,13 @@ class G1NativePresentation {
         if (!animalMeshes.setActor(
                 remotePlayerId, remotePlayerKind,
                 remotePlayerX, remotePlayerY, remotePlayerZ,
-                remotePlayerMoving, remotePlayerAttack)) {
+                remotePlayerMoving, remotePlayerAttack) ||
+            !animalMeshes.setActorRolling(
+                remotePlayerId,
+                (actionButtonsForPlayer(remotePlayerId) & inputButtonRoll()) != 0)) {
             println("KOOKIE gameplay remote player mesh staging failed")
             return false
         }
-        for (var bot = 3; bot <= 5; bot = bot + 1) {
-            var botX = interactionSession.enemySpatialPositionX(bot)
-            var botY = interactionSession.enemySpatialPositionY(bot)
-            var botZ = interactionSession.enemySpatialPositionZ(bot)
             if (mirrorRemoteValue &&
                 interactionSession.clientRemoteEnemyIndex(bot) >= 0) {
                 botX = interactionSession.clientRemoteEnemyPositionX(bot)

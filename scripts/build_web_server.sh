@@ -49,5 +49,13 @@ cp -- "$work_dir/build/Default/Main" "$output_dir/kookie-web-server"
 mkdir -p "$output_dir/lib"
 cp -- "$source_dir/lib/libkookie_web_server.so" \
   "$output_dir/lib/libkookie_web_server.so"
+mkdir -p "$output_dir/config/runtime/power_ups"
+cp -- "$root_dir"/assets/prototype/runtime/power_ups/*.json \
+  "$output_dir/config/runtime/power_ups/"
 chmod +x "$output_dir/kookie-web-server"
+mkdir -p "$output_dir/config/runtime/water_bodies"
+cp -- "$root_dir/assets/prototype/runtime/liquid_physics.json" \
+  "$output_dir/config/runtime/liquid_physics.json"
+cp -- "$root_dir"/assets/prototype/runtime/water_bodies/*.json \
+  "$output_dir/config/runtime/water_bodies/"
 printf 'KOOKIE native Kof web server built\noutput: %s\n' "$output_dir"

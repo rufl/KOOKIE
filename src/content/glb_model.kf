@@ -146,9 +146,9 @@ class BoundedExternalGlbModelReader {
         animationChannelInputs = new Int[256]
         animationChannelOutputs = new Int[256]
         animationChannelInterpolations = new Int[256]
-        animationStateStarts = new Int[8]
-        animationStateCounts = new Int[8]
-        animationStateDurations = new Int[8]
+        animationStateStarts = new Int[10]
+        animationStateCounts = new Int[10]
+        animationStateDurations = new Int[10]
         animationSampleValue = new Int[4]
         animationLeftValue = new Int[4]
         animationRightValue = new Int[4]
@@ -952,6 +952,7 @@ class BoundedExternalGlbModelReader {
         if (stringEndsWith(name, end, "walk")) { return 5 }
         if (stringEndsWith(name, end, "damage_taken")) { return 6 }
         if (stringEndsWith(name, end, "eat")) { return 7 }
+        if (stringEndsWith(name, end, "swim")) { return 8 }
         return 0
     }
 
@@ -1816,12 +1817,16 @@ class BoundedExternalGlbModelReader {
         return bounded(value.toInt())
     }
     Int animationClipState(Int animationState) {
-        if (animationState == 1 && animationStateCounts[1] > 0) { return 1 }
-        if (animationState == 2 && animationStateCounts[2] > 0) { return 2 }
-        if (animationState == 3 && animationStateCounts[3] > 0) { return 3 }
-        if (animationState == 4 && animationStateCounts[4] > 0) { return 4 }
-        if (animationStateCounts[5] > 0) { return 5 }
+        if (animationState > 0 && animationState < animationStateCounts.length &&
+            animationStateCounts[animationState] > 0) {
+            return animationState
+        }
+        if (animationState == 6 && animationStateCounts[3] > 0) { return 3 }
+        if (animationState == 7 && animationStateCounts[1] > 0) { return 1 }
+        if (animationState == 8 && animationStateCounts[5] > 0) { return 5 }
+        if (animationState == 9 && animationStateCounts[5] > 0) { return 5 }
         if (animationStateCounts[1] > 0) { return 1 }
+        if (animationStateCounts[5] > 0) { return 5 }
         if (animationStateCounts[2] > 0) { return 2 }
         if (animationStateCounts[3] > 0) { return 3 }
         if (animationStateCounts[4] > 0) { return 4 }

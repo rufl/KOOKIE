@@ -5,6 +5,7 @@ import os
 import queue
 import socket
 import subprocess
+import json
 import sys
 import threading
 import time
@@ -44,8 +45,9 @@ def latest_snapshot(client, expected_spectators=None):
             scene = candidate
 
 
-def run_battle(port, duration=None):
+def run_battle(port, duration=None, log_path=None):
     clients = []
+    battle_log = None
     stop = threading.Event()
     try:
         geese = [Client(port, path="/session/goose") for _ in range(4)]
@@ -69,6 +71,9 @@ def run_battle(port, duration=None):
 
         def drive(client, own_team):
             next_shot = time.monotonic()
+            next_burst = next_shot + 1.8
+            next_melee = next_shot
+            next_special = next_shot + 4.0
             while not stop.is_set():
                 try:
                     scene = latest_snapshot(client)
@@ -91,17 +96,29 @@ def run_battle(port, duration=None):
                         move_x = round(dx * 1000 / distance)
                         move_z = round(dz * 1000 / distance)
                         now = time.monotonic()
-                        fire = 0
+                        held = HELD_FIRE if now >= next_shot else 0
+                        edge = 0
                         if now >= next_shot:
-                            fire = HELD_FIRE
                             next_shot = now + 1.5
+                        if now >= next_burst:
+                            edge = (1, 2, 4)[int(now / 1.8) % 3]
+                            next_burst = now + 1.8
+                        if distance <= 5 and now >= next_melee:
+                            edge |= 64
+                            next_melee = now + 0.6
+                        if now >= next_special:
+                            edge |= 128 if int(now) % 2 == 0 else 256
+                            next_special = now + 4.0
+                        if client.player_id in goose_ids and int(now) % 6 == 0:
+                            held |= 16
+                        elif int(now) % 6 == 0:
+                            held |= 8
                         client.input(move_x=move_x, move_z=move_z,
                                      look_yaw=max(-1800, min(1800, yaw_delta * 10)),
-                                     held=fire)
+                                     held=held, edge=edge)
                     stop.wait(.045)
                 except (OSError, EOFError, TimeoutError):
                     stop.set()
-
         goose_team = set(goose_ids)
         cat_team = set(cat_ids)
         drivers = [threading.Thread(target=drive, args=(client, goose_team),
@@ -115,6 +132,8 @@ def run_battle(port, duration=None):
         print(f"Spectator WebSocket: ws://127.0.0.1:{port}/spectate")
         print("Open the web client, select Spectator, set its server URL, and connect.")
         start = time.monotonic()
+        battle_log = open(log_path, "w", encoding="utf-8") if log_path else None
+        last_logged_tick = -1
         previous_positions = None
         samples = 0
         minimum_alive = BOT_COUNT
@@ -128,6 +147,25 @@ def run_battle(port, duration=None):
             if previous_positions is not None and positions != previous_positions:
                 samples += 1
             previous_positions = positions
+            if battle_log is not None and scene[4] > last_logged_tick:
+                players = []
+                for index in range(scene[17]):
+                    offset = 18 + index * 8
+                    player_id = scene[offset]
+                    players.append({
+                        "id": player_id,
+                        "team": "red" if player_id in goose_ids else "blue",
+                        "health": max(0, scene[offset + 4]),
+                        "x": scene[offset + 1],
+                        "y": scene[offset + 2],
+                        "z": scene[offset + 3],
+                    })
+                battle_log.write(json.dumps({
+                    "schema": "kookie-battle-v1", "type": "snapshot",
+                    "tick": scene[4], "players": players,
+                }, separators=(",", ":")) + "\n")
+                battle_log.flush()
+                last_logged_tick = scene[4]
             alive = sum(scene[22 + index * 8] > 0
                         for index in range(scene[17]))
             minimum_alive = min(minimum_alive, alive)
@@ -161,28 +199,39 @@ def run_battle(port, duration=None):
         stop.set()
     finally:
         stop.set()
+        if battle_log is not None:
+            battle_log.close()
         for client in clients:
             client.close()
 
 
 def main():
-    if len(sys.argv) < 3 or len(sys.argv) > 4 or \
-            (len(sys.argv) == 4 and sys.argv[3] != "--smoke"):
-        raise SystemExit("usage: scripts/b2teams4.py SERVER_BINARY PORT [--smoke]")
+    if len(sys.argv) < 3:
+        raise SystemExit("usage: scripts/b2teams4.py SERVER_BINARY PORT [--smoke] [--log PATH]")
     binary = os.path.abspath(sys.argv[1])
+    if "--log" in sys.argv:
+        log_index = sys.argv.index("--log")
+        if log_index + 1 >= len(sys.argv):
+            raise SystemExit("--log requires a path")
+        log_path = sys.argv[log_index + 1]
+        del sys.argv[log_index:log_index + 2]
+    else:
+        log_path = None
     port = int(sys.argv[2])
     if port == 0:
         with socket.socket() as probe:
             probe.bind(("127.0.0.1", 0))
             port = probe.getsockname()[1]
-    smoke = len(sys.argv) == 4
+    smoke = "--smoke" in sys.argv[3:]
+    if any(option != "--smoke" for option in sys.argv[3:]):
+        raise SystemExit("usage: scripts/b2teams4.py SERVER_BINARY PORT [--smoke] [--log PATH]")
     env = dict(os.environ, KOOKIE_WEB_PORT=str(port))
     process = subprocess.Popen([binary], cwd=os.path.dirname(binary), env=env,
                                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     try:
         wait_healthy(port, process)
         if smoke:
-            run_battle(port, duration=4)
+            run_battle(port, duration=4, log_path=log_path)
             return
         print("KOOKIE server ready. Type /b2teams4 to launch the 4v4 battle; /quit exits.")
         while True:
@@ -194,7 +243,7 @@ def main():
                 break
             if command == "/b2teams4":
                 try:
-                    run_battle(port, duration=120)
+                    run_battle(port, duration=120, log_path=log_path)
                 except KeyboardInterrupt:
                     print("\nBattle stopped.")
             elif command:

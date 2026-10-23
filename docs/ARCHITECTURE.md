@@ -468,28 +468,32 @@ materials; all 16 native-registered particle, flipbook and predrawn VFX sheets
 are staged, with event IDs 5/6/8 currently mapped to melee/fire/special. Native
 and web intentionally share the base-color-only material subset; the renderer
 also applies a deterministic, state-driven procedural lift and bounded
-skeletal animation for idle, moving and attack actor states. Authored goose/cat
-GLBs use `JOINTS_0`/`WEIGHTS_0`, inverse-bind palettes capped at 32 joints, and
-`LINEAR`/`STEP` TRS clips with fallback selection. It follows the authoritative
-camera and resizes for device pixels.
+skeletal animation for idle, moving and attack actor states. Goose/cat GLBs use
+`JOINTS_0`/`WEIGHTS_0`, inverse-bind palettes capped at 32 joints, and
+`LINEAR`/`STEP` TRS clips. Network snapshots pack posture, power-up and action
+animation independently; the browser selects authored clips for idle/run/
+attack/damage/death and uses authored walk motion plus a procedural body roll
+for the roll action. The native SDL actor path also rolls from the input bit,
+using the authored run pose plus a bounded twelve-tick quarter-turn cycle.
+Neither prototype GLB contains a dedicated roll clip; missing clips use an
+explicit fallback. Both renderers consume skinned geometry with 9 goose and 17
+cat joints, under the 32-joint cap.
 Arena solids and ramps also sample the same eight generated world-material
 tiles and resource-to-tile mapping as native `BoundedWorldTextureAsset`; the
 browser arena no longer relies on flat-color-only surfaces.
-This is semantic rendering parity, not a pixel-equivalence claim. Browser
-actors use authored GLB skeletal deformation and sampled `LINEAR`/`STEP`
-animation clips; the native presentation uploads the shared GLB geometry,
-samples named authored clips and applies bounded CPU
-`JOINTS_0`/`WEIGHTS_0`-weighted pose deformation, with the prior procedural lift
-as an explicit fallback when a clip is unavailable. The browser scene-object
-tail renders the authoritative door, floatable, power-up and active loot-beam
-fields. The gateway emits the kind-4 loot beam while the authoritative pickup
-is active and removes it after collection or reset. Four bounded label records
-carry deterministic text IDs and actor positions; the browser projects visible
-records into the canvas overlay. The browser adds the authored five-state heart
-sheet, camera-facing actor shadows and diamond pickup where the snapshot has
-enough authoritative data. The browser visual smoke exercises the WebGL2
-runtime and capture path; visual parity remains uncertified because the target
-is semantic parity rather than pixel equivalence.
+This is semantic rendering parity, not pixel equivalence. The browser actor
+shader deforms authored `JOINTS_0`/`WEIGHTS_0` skinning using the sampled clip;
+the native presentation uses bounded CPU skin-weight pose deformation.
+The browser scene-object tail renders the authoritative door, floatable,
+power-up and active loot-beam fields.
+The gateway emits the kind-4 loot beam while the authoritative pickup is active
+and removes it after collection or reset. Four bounded label records carry
+deterministic text IDs and actor positions; the browser projects visible records
+into the canvas overlay. The browser adds the authored five-state heart sheet,
+camera-facing actor shadows and diamond pickup where the snapshot has enough
+authoritative data. The browser visual smoke exercises the WebGL2 runtime and
+capture path; visual parity remains uncertified because the target is semantic
+parity rather than pixel equivalence.
 The client gates gameplay controls until the full scene arrives, exposes bounded
 automatic reconnect with visible loading/failure states, and persists minimap,
 pointer-lock and reduced-motion preferences locally. The browser requires

@@ -1,6 +1,5 @@
 (() => {
   "use strict";
-
   const MAGIC = [0x4b, 0x57, 0x53, 0x31];
   const FRAME_VERSION = 1;
   const NETCODE_PROTOCOL_VERSION = 2;
@@ -96,6 +95,7 @@
   const GAME_MAXIMUM_VFX = 15;
   const GAME_VFX_LIQUID = 14;
   const GAME_MAXIMUM_ACTORS = 4;
+  const GAME_MAXIMUM_ACTOR_STATE = 1215;
 
   const root = document.getElementById("kof-root") || document.body;
   let statusTimer = null;
@@ -268,6 +268,11 @@
   settingsMenu.appendChild(roleLabel);
   settingsMenu.appendChild(tokenLabel);
   settingsMenu.appendChild(settingsGrid);
+  const gameConsoleButton = document.createElement("button");
+  gameConsoleButton.type = "button";
+  gameConsoleButton.textContent = "OPEN GAME CONSOLE";
+  gameConsoleButton.setAttribute("aria-label", "Open game console");
+  settingsGrid.appendChild(gameConsoleButton);
 
   const controls = document.createElement("div");
   controls.className = "kookie-session-controls";
@@ -410,6 +415,7 @@
   addHudStat("combo", "COMBO", "0");
   addHudStat("actors", "ACTORS", "4");
   addHudStat("projectiles", "PROJECTILES", "0");
+  addHudStat("oxygen", "OXYGEN", "--");
   addHudStat("ping", "PING", "--");
   addHudStat("renderer", "RENDERER", "starting");
   sceneCanvasWrap.appendChild(hud);
@@ -1006,6 +1012,51 @@
   bugfeedDialog.appendChild(bugfeedResult);
   bugfeedDialog.appendChild(bugfeedActions);
   panel.appendChild(bugfeedDialog);
+  const gameConsoleDialog = document.createElement("dialog");
+  gameConsoleDialog.className = "kookie-console-dialog";
+  gameConsoleDialog.setAttribute("aria-labelledby", "kookie-console-heading");
+  const gameConsoleHeading = document.createElement("h2");
+  gameConsoleHeading.id = "kookie-console-heading";
+  gameConsoleHeading.textContent = "Game console";
+  const gameConsoleDescription = document.createElement("p");
+  gameConsoleDescription.textContent =
+    "Spectator commands: /b2teams4 starts four goose bots vs four cat bots; /stop ends the battle.";
+  const gameConsoleOutput = document.createElement("pre");
+  gameConsoleOutput.className = "kookie-console-output";
+  gameConsoleOutput.setAttribute("role", "log");
+  gameConsoleOutput.setAttribute("aria-live", "polite");
+  const gameConsoleForm = document.createElement("form");
+  gameConsoleForm.className = "kookie-console-form";
+  const gameConsoleInput = document.createElement("input");
+  gameConsoleInput.type = "text";
+  gameConsoleInput.maxLength = 64;
+  gameConsoleInput.setAttribute("aria-label", "Game console command");
+  gameConsoleInput.placeholder = "/b2teams4";
+  const gameConsoleSubmit = document.createElement("button");
+  gameConsoleSubmit.type = "submit";
+  gameConsoleSubmit.textContent = "Run";
+  const gameConsoleClose = document.createElement("button");
+  gameConsoleClose.type = "button";
+  gameConsoleClose.textContent = "Close";
+  gameConsoleClose.addEventListener("click", () => gameConsoleDialog.close());
+  gameConsoleForm.appendChild(gameConsoleInput);
+  gameConsoleForm.appendChild(gameConsoleSubmit);
+  gameConsoleForm.appendChild(gameConsoleClose);
+  gameConsoleDialog.appendChild(gameConsoleHeading);
+  gameConsoleDialog.appendChild(gameConsoleDescription);
+  gameConsoleDialog.appendChild(gameConsoleOutput);
+  gameConsoleDialog.appendChild(gameConsoleForm);
+  panel.appendChild(gameConsoleDialog);
+  function logGameConsole(message) {
+    const lines = (gameConsoleOutput.textContent + String(message) + "\n")
+      .split("\n").slice(-80);
+    gameConsoleOutput.textContent = lines.join("\n");
+    gameConsoleOutput.scrollTop = gameConsoleOutput.scrollHeight;
+  }
+  gameConsoleButton.addEventListener("click", () => {
+    gameConsoleDialog.showModal();
+    gameConsoleInput.focus();
+  });
   let bugfeedCopyButton = null;
 
   const bugfeedErrors = [];
@@ -1454,6 +1505,9 @@
     hudValues.actors.textContent = String(
       scene.actors.filter((actor) => actor.health > 0).length
     );
+    const localActor = scene.actors.find((actor) => actor.id === scene.playerId);
+    hudValues.oxygen.textContent = localActor && Number.isInteger(localActor.oxygen)
+      ? String(localActor.oxygen) : "--";
     hudValues.projectiles.textContent = String(scene.projectiles.length);
     remoteState.textContent = "AUTHORITATIVE STATE / tick=" + scene.tick +
       " position=" + scene.playerX + "," + scene.playerZ +
@@ -1647,12 +1701,14 @@
       }
       if (words.length >= 19 && words[3] === GAME_MULTIPLAYER_SNAPSHOT_MARKER) {
         const actorCount = words[17];
+        const trailer = 18 + actorCount * 8;
+        const extendedLength = 23 + actorCount * 8 +
+          words[trailer + 1] * 7 + words[trailer + 2] * 8 +
+          words[trailer + 3] * 8;
         if (!Number.isInteger(actorCount) || actorCount < 0 || actorCount > 8 ||
             (words.length !== 19 + actorCount * 8 &&
-              words.length !== 23 + actorCount * 8 +
-                words[19 + actorCount * 8] * 7 +
-                words[20 + actorCount * 8] * 8 +
-                words[21 + actorCount * 8] * 8)) {
+              words.length !== extendedLength &&
+              words.length !== extendedLength + actorCount)) {
           return false;
         }
         const actorIds = new Set();
@@ -1671,13 +1727,13 @@
               y < GAME_WORLD_MINIMUM_Y || y > GAME_WORLD_MAXIMUM_Y ||
               z < GAME_WORLD_MINIMUM_Z || z > GAME_WORLD_MAXIMUM_Z ||
               health < 0 || health > GAME_MAXIMUM_HEALTH ||
-              state < 0 || state > 7 || actorKind < 1 || actorKind > 2 ||
+              state < 0 || state > GAME_MAXIMUM_ACTOR_STATE ||
+              Math.floor(state / 128) > 9 ||
               actorYaw < 0 || actorYaw > 359) {
             return false;
           }
           actorIds.add(id);
         }
-        const trailer = 18 + actorCount * 8;
         if (words.length !== 19 + actorCount * 8) {
           const projectileCount = words[trailer + 1];
           const throwableCount = words[trailer + 2];
@@ -1733,7 +1789,15 @@
                 words[offset + 6] > GAME_WORLD_MAXIMUM_Z ||
                 words[offset + 7] < 0 || words[offset + 7] > GAME_MAXIMUM_HEALTH) return false;
           }
-          if (offset + 1 !== words.length) return false;
+          const hasOxygen = words.length === offset + actorCount + 1;
+          if (words.length !== offset + 1 && !hasOxygen) return false;
+          if (hasOxygen) {
+            for (let index = 0; index < actorCount; index += 1) {
+              if (!Number.isInteger(words[offset + index]) ||
+                  words[offset + index] < 0 ||
+                  words[offset + index] > 1000000) return false;
+            }
+          }
         }
         const validSnapshot = words[4] >= 0 && words[4] <= GAME_MAXIMUM_TICK &&
           (words[5] === GAME_ROLE_PLAYER || words[5] === GAME_ROLE_SPECTATOR) &&
@@ -1965,6 +2029,243 @@
     return { kind: frameKind, sequence: frameSequence, words };
   }
 
+  const browserBattleBots = [];
+  let browserBattleTimer = null;
+  let browserBattleStartedAt = 0;
+  let browserBattleLastReportAt = 0;
+  function stopBrowserBotBattle(reason = "Battle stopped.") {
+    if (browserBattleTimer !== null) window.clearInterval(browserBattleTimer);
+    browserBattleTimer = null;
+    const bots = browserBattleBots.splice(0);
+    for (const bot of bots) {
+      bot.intentionalClose = true;
+      if (bot.socket && bot.socket.readyState < WebSocket.CLOSING) bot.socket.close();
+    }
+    if (reason) logGameConsole(reason);
+  }
+  function sendBrowserBotFrame(bot, kind, buildWords) {
+    if (!bot.socket || bot.socket.readyState !== WebSocket.OPEN) return false;
+    bot.sequence = bot.sequence >= MAX_SEQUENCE ? 1 : bot.sequence + 1;
+    const words = [NETCODE_PROTOCOL_VERSION, kind, bot.sequence, ...buildWords];
+    words.push(messageChecksum(words));
+    bot.socket.send(encodeFrame(kind, bot.sequence, words));
+    return true;
+  }
+  function connectBrowserBattleBot(animal, team, index) {
+    const bot = {
+      animal, team, index, sequence: 0, joinSequence: 0, playerId: 0,
+      joined: false, scene: null, socket: null, nextShotAt: 0,
+      nextBurstAt: 0, nextMeleeAt: 0, nextSpecialAt: 0,
+      intentionalClose: false,
+    };
+    browserBattleBots.push(bot);
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const finish = (error) => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timeout);
+        if (error) reject(error);
+        else resolve(bot);
+      };
+      const timeout = window.setTimeout(
+        () => finish(new Error("bot admission timed out")), 10000);
+      try {
+        const url = new URL(endpoint.value.trim(), window.location.href);
+        url.pathname = animal === 1 ? "/session/goose" : "/session/cat";
+        const protocols = [WEBSOCKET_SUBPROTOCOL];
+        const token = authToken.value.trim();
+        if (token) protocols.push(AUTH_SUBPROTOCOL_PREFIX + token);
+        bot.socket = new WebSocket(url.href, protocols);
+        bot.socket.binaryType = "arraybuffer";
+      } catch (error) {
+        finish(error);
+        return;
+      }
+      bot.socket.onopen = () => {
+        sendBrowserBotFrame(bot, HELLO, [
+          CLIENT_TARGET_BROWSER, AUTHORITY_REMOTE, GAME_WEBSOCKET,
+          BROWSER_CAPABILITY,
+        ]);
+      };
+      bot.socket.onmessage = async (event) => {
+        try {
+          const data = event.data instanceof ArrayBuffer
+            ? event.data : await event.data.arrayBuffer();
+          const frame = decodeFrame(data);
+          if (frame.kind === ACK && frame.words[3] === 1) {
+            if (!bot.joinSequence) {
+              bot.joinSequence = bot.sequence >= MAX_SEQUENCE ? 1 : bot.sequence + 1;
+              bot.sequence = bot.joinSequence;
+              const words = [NETCODE_PROTOCOL_VERSION, GAME, bot.joinSequence,
+                GAME_JOIN_REQUEST_MARKER, GAME_ROLE_PLAYER];
+              words.push(messageChecksum(words));
+              bot.socket.send(encodeFrame(GAME, bot.joinSequence, words));
+            }
+          } else if (frame.kind === GAME &&
+              frame.words[3] === GAME_JOIN_RESPONSE_MARKER) {
+            if (frame.sequence !== bot.joinSequence || frame.words[4] !== 1 ||
+                frame.words[5] !== GAME_ROLE_PLAYER || frame.words[6] <= 0) {
+              finish(new Error("server rejected a battle bot"));
+              return;
+            }
+            bot.playerId = frame.words[6];
+            bot.joined = true;
+            logGameConsole((animal === 1 ? "Red goose " : "Blue cat ") +
+              index + " joined as player " + bot.playerId + ".");
+            finish();
+          } else if (frame.kind === GAME &&
+              frame.words[3] === GAME_MULTIPLAYER_SNAPSHOT_MARKER) {
+            bot.scene = frame.words;
+          } else if (frame.kind === ERROR) {
+            throw new Error("bot server error " + frame.words[3]);
+          }
+        } catch (error) {
+          finish(error);
+          if (bot.joined) logGameConsole("Bot " + bot.playerId +
+            " protocol error: " + error.message);
+        }
+      };
+      bot.socket.onerror = () => finish(new Error("bot WebSocket connection failed"));
+      bot.socket.onclose = () => {
+        if (!bot.intentionalClose && bot.joined) {
+          logGameConsole("Bot " + bot.playerId + " disconnected.");
+        }
+        finish(new Error("bot connection closed before admission"));
+      };
+    });
+  }
+  function updateBrowserBattleBot(bot, now) {
+    const words = bot.scene;
+    if (!bot.joined || !words || words[3] !== GAME_MULTIPLAYER_SNAPSHOT_MARKER) return;
+    const actors = [];
+    let own = null;
+    let redAlive = 0;
+    let blueAlive = 0;
+    for (let index = 0; index < words[17]; index += 1) {
+      const offset = 18 + index * 8;
+      const actor = words.slice(offset, offset + 8);
+      actors.push(actor);
+      if (actor[6] === 1 && actor[4] > 0) redAlive += 1;
+      if (actor[6] === 2 && actor[4] > 0) blueAlive += 1;
+      if (actor[0] === bot.playerId) own = actor;
+    }
+    if (redAlive === 0 || blueAlive === 0) {
+      stopBrowserBotBattle((redAlive === 0 ? "Blue cats" : "Red geese") +
+        " win; battle bots disconnected.");
+      return;
+    }
+    if (now - browserBattleLastReportAt >= 1000) {
+      logGameConsole("tick " + words[4] + " / alive " + redAlive +
+        " red geese, " + blueAlive + " blue cats");
+      browserBattleLastReportAt = now;
+    }
+    if (!own || own[4] <= 0) return;
+    let target = null;
+    let nearest = Infinity;
+    for (const actor of actors) {
+      if (actor[4] <= 0 || actor[6] === bot.team) continue;
+      const distance = Math.abs(actor[1] - own[1]) +
+        Math.abs(actor[2] - own[2]) + Math.abs(actor[3] - own[3]);
+      if (distance < nearest) {
+        nearest = distance;
+        target = actor;
+      }
+    }
+    if (!target) return;
+    const dx = target[1] - own[1];
+    const dz = target[3] - own[3];
+    const distance = Math.max(1, Math.hypot(dx, dz));
+    const desiredYaw = Math.round(Math.atan2(dx, dz) * 180 / Math.PI);
+    const yawDelta = ((desiredYaw - own[7] + 540) % 360) - 180;
+    const fire = now >= bot.nextShotAt;
+    if (fire) bot.nextShotAt = now + 1500;
+    let held = fire ? ACTION_SHOOT : 0;
+    let edge = 0;
+    if (now >= bot.nextBurstAt) {
+      edge = [ACTION_JUMP, ACTION_ROLL, ACTION_DASH][
+        Math.floor(now / 1800) % 3
+      ];
+      bot.nextBurstAt = now + 1800;
+    }
+    if (nearest <= 5 && now >= bot.nextMeleeAt) {
+      edge |= ACTION_MELEE;
+      bot.nextMeleeAt = now + 600;
+    }
+    if (now >= bot.nextSpecialAt) {
+      edge |= Math.floor(now / 4000) % 2 === 0 ? ACTION_SPECIAL : ACTION_THROWABLE;
+      bot.nextSpecialAt = now + 4000;
+    }
+    if (Math.floor(now / 6000) % 2 === 0) {
+      held |= bot.animal === 1 ? ACTION_FLY : ACTION_GLIDE;
+    }
+    sendBrowserBotFrame(bot, GAME, [
+      GAME_INPUT_MARKER, words[4],
+      Math.round(dx * 1000 / distance),
+      Math.round(dz * 1000 / distance),
+      Math.max(-1800, Math.min(1800, yawDelta * 10)),
+      0, held, edge,
+    ]);
+  }
+  async function startBrowserBotBattle() {
+    if (!connected || joinedRole !== GAME_ROLE_SPECTATOR) {
+      throw new Error("connect to the game as a spectator before starting bots");
+    }
+    if (browserBattleBots.length > 0) {
+      throw new Error("battle bots are already running; use /stop first");
+    }
+    if (authToken.value.trim() && !validAuthToken(authToken.value.trim())) {
+      throw new Error("session token must be 8-128 safe ASCII characters");
+    }
+    browserBattleLastReportAt = 0;
+    logGameConsole("Starting 4v4 battle; connecting bot players...");
+    try {
+      await Promise.all(Array.from({ length: 4 }, (_, index) =>
+        connectBrowserBattleBot(1, 1, index + 1)));
+      await Promise.all(Array.from({ length: 4 }, (_, index) =>
+        connectBrowserBattleBot(2, 2, index + 1)));
+    } catch (error) {
+      stopBrowserBotBattle("Battle setup failed: " + error.message);
+      throw error;
+    }
+    browserBattleStartedAt = Date.now();
+    browserBattleTimer = window.setInterval(() => {
+      const now = Date.now();
+      if (now - browserBattleStartedAt >= 120000) {
+        stopBrowserBotBattle("Battle time limit reached; bots disconnected.");
+        return;
+      }
+      for (const bot of browserBattleBots) updateBrowserBattleBot(bot, now);
+    }, 50);
+    logGameConsole("Battle live: 4 red geese vs 4 blue cats. Spectate from this page.");
+  }
+  async function runGameConsoleCommand(command) {
+    if (command === "/help") {
+      logGameConsole("Commands: /b2teams4, /stop, /help");
+    } else if (command === "/stop") {
+      if (browserBattleBots.length === 0) logGameConsole("No battle bots are running.");
+      else stopBrowserBotBattle("Battle stopped by console command.");
+    } else if (command === "/b2teams4") {
+      try {
+        await startBrowserBotBattle();
+      } catch (error) {
+        logGameConsole("Command failed: " + error.message);
+      }
+    } else {
+      logGameConsole("Unknown command. Try /help.");
+    }
+  }
+  gameConsoleForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const command = gameConsoleInput.value.trim().toLowerCase();
+    if (!command) return;
+    logGameConsole("> " + command);
+    gameConsoleInput.value = "";
+    gameConsoleSubmit.disabled = true;
+    Promise.resolve(runGameConsoleCommand(command))
+      .finally(() => { gameConsoleSubmit.disabled = false; });
+  });
+  window.addEventListener("pagehide", () => stopBrowserBotBattle(""));
   let requestedRole = GAME_ROLE_PLAYER;
   let joinedRole = null;
   let joinSequence = 0;
@@ -1982,13 +2283,16 @@
     const actors = [];
     for (let index = 0; index < words[17]; index += 1) {
       const offset = 18 + index * 8;
+      const rawState = words[offset + 5];
       actors.push({
         id: words[offset],
         x: words[offset + 1],
         y: words[offset + 2],
         z: words[offset + 3],
         health: words[offset + 4],
-        state: words[offset + 5],
+        state: rawState % 8,
+        powerUp: Math.floor(rawState / 8) % 16,
+        animation: Math.floor(rawState / 128),
         kind: words[offset + 6],
         yaw: words[offset + 7],
       });
@@ -2016,6 +2320,11 @@
           sourceId: words[offset + 2], targetId: words[offset + 3],
           x: words[offset + 4], y: words[offset + 5], z: words[offset + 6],
           damage: words[offset + 7] });
+      }
+      if (words.length === offset + words[17] + 1) {
+        for (let index = 0; index < words[17]; index += 1) {
+          actors[index].oxygen = words[offset + index];
+        }
       }
     }
     const playerX = words[7];
@@ -2090,10 +2399,15 @@
         !authoritativeReady || joinedRole === GAME_ROLE_SPECTATOR) return;
     if (Number.isFinite(changes.moveX)) gameplayMoveX = Math.max(-1000, Math.min(1000, changes.moveX));
     if (Number.isFinite(changes.moveZ)) gameplayMoveZ = Math.max(-1000, Math.min(1000, changes.moveZ));
+    const yaw = (sceneState?.yaw || 0) * Math.PI / 180;
+    const cosine = Math.cos(yaw);
+    const sine = Math.sin(yaw);
+    const worldMoveX = Math.round(gameplayMoveX * cosine + gameplayMoveZ * sine);
+    const worldMoveZ = Math.round(-gameplayMoveX * sine + gameplayMoveZ * cosine);
     const inputSequence = nextSequence();
     const words = [NETCODE_PROTOCOL_VERSION, GAME, inputSequence,
       GAME_INPUT_MARKER, Math.max(0, Math.min(GAME_MAXIMUM_TICK, sceneState?.tick || 0)),
-      gameplayMoveX, gameplayMoveZ,
+      worldMoveX, worldMoveZ,
       Math.round((changes.lookYaw || 0) * 10),
       Math.round((changes.lookPitch || 0) * 10),
       changes.heldActions ?? gameplayHeldActions,
@@ -2101,8 +2415,8 @@
     words.push(messageChecksum(words));
     socket.send(encodeFrame(GAME, inputSequence, words));
     pendingInputFrames.set(inputSequence, {
-      moveX: gameplayMoveX,
-      moveZ: gameplayMoveZ,
+      moveX: worldMoveX,
+      moveZ: worldMoveZ,
       sentAt: performance.now(),
     });
     if (pendingInputFrames.size > MAX_PENDING_INPUT_FRAMES) {
@@ -2244,6 +2558,9 @@
   }
 
   function disconnect(explicit = true) {
+    if (browserBattleBots.length > 0) {
+      stopBrowserBotBattle("Spectator disconnected; battle bots stopped.");
+    }
     const activeSocket = socket;
     socket = null;
     connected = false;

@@ -245,6 +245,20 @@ def main():
             scene = spectator.snapshot(expected_players=8, expected_spectators=4)
             assert scene[5] == 2 and scene[6] == 0
             assert scene[17] == 8
+        powerup_tester = players[0]
+        pickup_deadline = time.monotonic() + 5
+        pickup_actor = None
+        while time.monotonic() < pickup_deadline:
+            powerup_tester.input()
+            pickup_scene = spectators[0].snapshot(expected_players=8,
+                                                   expected_spectators=4)
+            pickup_actor = actor_record(pickup_scene, powerup_tester.player_id)
+            if pickup_actor[5] // 8 % 16 == 1:
+                break
+            time.sleep(.04)
+        assert pickup_actor is not None and pickup_actor[5] // 8 % 16 == 1, (
+            "authoritative coffee pickup was not replicated; actor="
+            f"{pickup_actor}")
         shooter = players[0]
         target = players[3]
         target_before = actor_record(target.snapshot(8, 4), target.player_id)[4]
@@ -284,16 +298,17 @@ def main():
         scene, actor = wait_for_actor(
             spectators[0], 8, 4, mover.player_id,
             lambda state, snapshot: state[5] & 1 == 0)
+        assert actor[5] // 128 == 6, f"jump animation missing: {actor}"
         dash_start = actor[1]
         mover.input(move_x=1000, edge=4)
         scene, actor = wait_for_actor(
             spectators[0], 8, 4, mover.player_id,
-            lambda state, snapshot: state[1] > dash_start)
+            lambda state, snapshot: state[1] > dash_start and state[5] // 128 == 1)
         roll_start = actor[1]
         mover.input(move_x=1000, edge=2)
         scene, actor = wait_for_actor(
             spectators[0], 8, 4, mover.player_id,
-            lambda state, snapshot: state[1] > roll_start)
+            lambda state, snapshot: state[1] > roll_start and state[5] // 128 == 7)
         mover.input(held=8)
         scene, actor = wait_for_actor(
             spectators[0], 8, 4, mover.player_id,

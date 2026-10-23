@@ -227,7 +227,10 @@ class FakeWebSocket {
   static CLOSING = 2;
   static CLOSED = 3;
   static active = null;
+  static connections = [];
+  static nextPlayerId = 1;
   constructor(url, protocols) {
+    FakeWebSocket.connections.push(this);
     FakeWebSocket.active = this;
     this.url = url;
     this.protocols = protocols;
@@ -256,7 +259,9 @@ class FakeWebSocket {
     if (kind === 6 && view.getInt32(16 + 3 * 4, false) === 5) {
       const role = view.getInt32(16 + 4 * 4, false);
       this.joined = true;
-      const words = [2, 6, sequence, 6, 1, role, role === 1 ? 1 : 0, 1, 0];
+      const playerId = FakeWebSocket.nextPlayerId++;
+      const words = [2, 6, sequence, 6, 1, role, playerId,
+        Math.min(8, FakeWebSocket.nextPlayerId - 1), 0];
       words.push(messageChecksum(words));
       this.emit(encodeFrame(6, sequence, words));
       return;
@@ -703,6 +708,52 @@ async function main() {
   "unacknowledged local prediction expected 33<x<35, got " +
     renderedScenes.at(-1).playerX);
   moveStickBase.listeners.pointerup({ pointerId: 22 });
+  const turnedSnapshot = extendedMultiplayerWords(18, 18);
+  turnedSnapshot[10] = 90;
+  turnedSnapshot[turnedSnapshot.length - 1] =
+    messageChecksum(turnedSnapshot.slice(0, -1));
+  FakeWebSocket.active.emit(encodeFrame(6, 18, turnedSnapshot));
+  await new Promise((resolve) => setImmediate(resolve));
+  const keydown = document.listeners.keydown;
+  keydown({ code: "KeyW", key: "w", target: null, preventDefault() {} });
+  const forwardInput = sentInputFrames.at(-1);
+  assert.ok(forwardInput.moveX > 990 && Math.abs(forwardInput.moveZ) < 10,
+    `W at 90-degree yaw should move forward along +X; got ${forwardInput.moveX},${forwardInput.moveZ}`);
+  document.listeners.keyup({
+    code: "KeyW", key: "w", target: null, preventDefault() {},
+  });
+  const roleSelect = collectElements(document.body).find((element) =>
+    element.attributes["aria-label"] === "Multiplayer session role");
+  roleSelect.value = "spectator";
+  window.kookieSessionTransport.connect();
+  await waitFor(() => FakeWebSocket.connections.at(-1).joined === true);
+  const consoleButton = collectElements(document.body).find((element) =>
+    element.attributes["aria-label"] === "Open game console");
+  consoleButton.listeners.click();
+  const consoleDialog = collectElements(document.body).find((element) =>
+    element.attributes["aria-labelledby"] === "kookie-console-heading");
+  assert.equal(consoleDialog.open, true);
+  const consoleInput = collectElements(consoleDialog).find((element) =>
+    element.attributes["aria-label"] === "Game console command");
+  const consoleForm = collectElements(consoleDialog).find((element) =>
+    element.tagName === "FORM");
+  consoleInput.value = "/b2teams4";
+  consoleForm.listeners.submit({ preventDefault() {} });
+  await waitFor(() => consoleDialog.children.some((element) =>
+    element.tagName === "PRE" &&
+    (element.textContent.includes("Battle live") ||
+      element.textContent.includes("Battle setup failed") ||
+      element.textContent.includes("Command failed"))));
+  assert.match(consoleDialog.children.find((element) =>
+    element.tagName === "PRE").textContent, /Battle live/);
+  assert.equal(FakeWebSocket.connections.filter((connection) =>
+    new URL(connection.url).pathname === "/session/goose").length, 4);
+  assert.equal(FakeWebSocket.connections.filter((connection) =>
+    new URL(connection.url).pathname === "/session/cat").length, 4);
+  consoleInput.value = "/stop";
+  consoleForm.listeners.submit({ preventDefault() {} });
+  await waitFor(() => consoleDialog.children.some((element) =>
+    element.tagName === "PRE" && element.textContent.includes("Battle stopped by console command.")));
 }
 
 main().catch((error) => {

@@ -4,12 +4,13 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 
 ## Unreleased
 
-- Added the interactive `scripts/b2teams4.py` console command. `/b2teams4`
-  starts four goose bots on the red team and four cat bots on the blue team;
-  server-side team assignment prevents friendly targeting. The terminal reports
-  live spectator ticks, surviving bots, and changing positions; a browser can
-  connect as an additional spectator. Dedicated species routes leave normal
-  `/session` joins unchanged.
+- Added a browser game console: a connected spectator can run `/b2teams4` to
+  spawn four goose bots on red against four cat bots on blue, watch their live
+  battle, and stop it with `/stop`. The terminal `scripts/b2teams4.py` console
+  remains available; ordinary `/session` joins are unchanged.
+- Desktop keyboard and touch-stick movement are camera-relative: W/up follows
+  the viewed direction and A/D strafe relative to it, instead of moving along
+  fixed world axes after mouse-look turns.
 - Native web-server qualification passes on a dedicated local port: eight players
   and four spectators, movement/actions, damage, projectiles, throwable impact,
   collision, and disconnect/re-admission scenarios.

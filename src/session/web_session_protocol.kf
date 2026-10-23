@@ -158,6 +158,18 @@ Int sessionWebGameMaximumAmmo() { return 99 }
 Int sessionWebGameMaximumCombo() { return 1000000 }
 Int sessionWebGameMaximumVfx() { return 15 }
 Int sessionWebGameMaximumPickupKind() { return 6 }
+Int sessionWebActorAnimationIdle() { return 0 }
+Int sessionWebActorAnimationRun() { return 1 }
+Int sessionWebActorAnimationAttack() { return 2 }
+Int sessionWebActorAnimationDeath() { return 3 }
+Int sessionWebActorAnimationDamage() { return 4 }
+Int sessionWebActorAnimationEat() { return 5 }
+Int sessionWebActorAnimationAirborne() { return 6 }
+Int sessionWebActorAnimationRoll() { return 7 }
+Int sessionWebActorAnimationSwim() { return 8 }
+Int sessionWebActorAnimationWalk() { return 9 }
+Int sessionWebActorAnimationShift() { return 7 }
+Int sessionWebGameMaximumActorState() { return 1215 }
 
 
 Int sessionWebChecksumMix(Int state, Int value) {
@@ -461,12 +473,14 @@ Bool validSessionWebGameMultiplayerSnapshot(Int[] words) {
         projectileCount = words[trailer + 1]
         throwableCount = words[trailer + 2]
         impactCount = words[trailer + 3]
+        var extendedBaseLength = trailer + 5 + projectileCount * 7 +
+            throwableCount * 8 + impactCount * 8
         if (words[trailer] < 0 || words[trailer] > 1000000 ||
             projectileCount < 0 || projectileCount > 12 ||
             throwableCount < 0 || throwableCount > 4 ||
             impactCount < 0 || impactCount > 8 ||
-            words.length != trailer + 5 + projectileCount * 7 +
-                throwableCount * 8 + impactCount * 8) { return false }
+            (words.length != extendedBaseLength &&
+                words.length != extendedBaseLength + actorCount)) { return false }
     } else if (words.length != legacyLength) {
         return false
     }
@@ -481,7 +495,8 @@ Bool validSessionWebGameMultiplayerSnapshot(Int[] words) {
             words[offset + 3] > sessionWebGameWorldMaximumZ() ||
             words[offset + 4] < 0 ||
             words[offset + 4] > sessionWebGameMaximumHealth() ||
-            words[offset + 5] < 0 || words[offset + 5] > 7 ||
+            words[offset + 5] < 0 ||
+            words[offset + 5] > sessionWebGameMaximumActorState() ||
             words[offset + 6] < 1 || words[offset + 6] > 2 ||
             words[offset + 7] < 0 || words[offset + 7] > 359) {
             return false
@@ -514,6 +529,12 @@ Bool validSessionWebGameMultiplayerSnapshot(Int[] words) {
                 words[cursor + 5] < 0 || words[cursor + 6] < 0 ||
                 words[cursor + 7] < 0) { return false }
             cursor = cursor + 8
+        }
+        if (words.length == cursor + actorCount + 1) {
+            for (var index = 0; index < actorCount; index = index + 1) {
+                if (words[cursor + index] < 0 ||
+                    words[cursor + index] > 1000000) { return false }
+            }
         }
     }
     return true

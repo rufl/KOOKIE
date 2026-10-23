@@ -1,6 +1,7 @@
 package session
 
 import core
+import content
 import world
 
 Int webMultiplayerPlayerCapacity() { return 8 }
@@ -46,7 +47,7 @@ Bool webMultiplayerSweptPlayerCollision(
 record WebMultiplayerPlayerState(
     Bool active, Int playerId, Int actorId, Int animal,
     Int x, Int y, Int z, Int yaw, Int pitch, Int health, Int ammo, Int state,
-    Bool grounded, Bool gliding
+    Bool grounded, Bool gliding, Int oxygen
 )
 record WebMultiplayerProjectileState(
     Bool active, Int id, Int ownerId, Int targetId,
@@ -65,6 +66,25 @@ class WebMultiplayerSimulation {
     FpsMovementController movement
     AuthoritativeEnemySession combat
     G1Arena arena
+    PowerUpWorld powerUpWorld
+    PowerUpEffectState effect0
+    PowerUpEffectState effect1
+    PowerUpEffectState effect2
+    PowerUpEffectState effect3
+    PowerUpEffectState effect4
+    PowerUpEffectState effect5
+    PowerUpEffectState effect6
+    PowerUpEffectState effect7
+    LiquidPhysicsConfig liquidPhysics
+    BoundedLiquidWorld liquidWorld
+    LiquidOxygenMeter oxygen0
+    LiquidOxygenMeter oxygen1
+    LiquidOxygenMeter oxygen2
+    LiquidOxygenMeter oxygen3
+    LiquidOxygenMeter oxygen4
+    LiquidOxygenMeter oxygen5
+    LiquidOxygenMeter oxygen6
+    LiquidOxygenMeter oxygen7
     Int[] playerIds
     Int[] animals
     Int[] teamValues
@@ -77,6 +97,9 @@ class WebMultiplayerSimulation {
     Int[] projectileIds
     Int[] projectileOwners
     Int[] projectileTargets
+    Bool[] movingValues
+    Int[] animationValues
+    Int[] animationUntilTicks
     Int[] playerInputSequences
     Int[] projectileKinds
     Int[] projectileX
@@ -85,6 +108,7 @@ class WebMultiplayerSimulation {
     Int[] projectileDX
     Int[] projectileDY
     Int[] projectileDZ
+    Int[] projectileDamage
     Int[] projectileAge
     Bool[] projectileActive
     Int[] impactSequence
@@ -111,6 +135,25 @@ class WebMultiplayerSimulation {
         movement = FpsMovementController(webMultiplayerPlayerCapacity())
         combat = AuthoritativeEnemySession(webMultiplayerPlayerCapacity(), 1)
         arena = G1Arena()
+        powerUpWorld = PowerUpWorld(powerUpMaximumDefinitions())
+        effect0 = PowerUpEffectState()
+        effect1 = PowerUpEffectState()
+        effect2 = PowerUpEffectState()
+        effect3 = PowerUpEffectState()
+        effect4 = PowerUpEffectState()
+        effect5 = PowerUpEffectState()
+        effect6 = PowerUpEffectState()
+        liquidPhysics = LiquidPhysicsConfig()
+        liquidWorld = BoundedLiquidWorld(liquidMaximumBodies())
+        oxygen0 = LiquidOxygenMeter(1, 1, 1)
+        oxygen1 = LiquidOxygenMeter(1, 1, 1)
+        oxygen2 = LiquidOxygenMeter(1, 1, 1)
+        oxygen3 = LiquidOxygenMeter(1, 1, 1)
+        oxygen4 = LiquidOxygenMeter(1, 1, 1)
+        oxygen5 = LiquidOxygenMeter(1, 1, 1)
+        oxygen6 = LiquidOxygenMeter(1, 1, 1)
+        oxygen7 = LiquidOxygenMeter(1, 1, 1)
+        effect7 = PowerUpEffectState()
         playerIds = new Int[8]
         animals = new Int[8]
         teamValues = new Int[8]
@@ -120,6 +163,9 @@ class WebMultiplayerSimulation {
         pitchValues = new Int[8]
         activeValues = new Bool[8]
         movementActorInitialized = new Bool[8]
+        movingValues = new Bool[8]
+        animationValues = new Int[8]
+        animationUntilTicks = new Int[8]
         playerInputSequences = new Int[8]
         projectileIds = new Int[16]
         projectileOwners = new Int[16]
@@ -132,6 +178,7 @@ class WebMultiplayerSimulation {
         projectileDY = new Int[16]
         projectileDZ = new Int[16]
         projectileAge = new Int[16]
+        projectileDamage = new Int[16]
         projectileActive = new Bool[16]
         impactSequence = new Int[8]
         impactTick = new Int[8]
@@ -162,6 +209,9 @@ class WebMultiplayerSimulation {
             healthValues[index] = 0
             ammoValues[index] = 0
             yawValues[index] = 0
+            movingValues[index] = false
+            animationValues[index] = sessionWebActorAnimationIdle()
+            animationUntilTicks[index] = 0
             pitchValues[index] = 0
         }
         for (var p = 0; p < 16; p = p + 1) { projectileActive[p] = false }
@@ -173,6 +223,15 @@ class WebMultiplayerSimulation {
         if (!combat.defineWeapon(1, 30, 90, 20, 1) ||
             !combat.setWeaponRange(1, 120) ||
             !combat.setWeaponCooldown(1, 0)) { return false }
+        if (!loadPowerUp("config/runtime/power_ups/coffee_mug.json") ||
+            !loadPowerUp("config/runtime/power_ups/jetpack.json") ||
+            !loadPowerUp("config/runtime/power_ups/megaphone.json") ||
+            !loadPowerUp("config/runtime/power_ups/scuba_kit.json") ||
+            !loadPowerUp("config/runtime/power_ups/watermelon.json") ||
+            !loadPowerUp("config/runtime/power_ups/wool_ball.json") ||
+            !loadPowerUp("config/runtime/power_ups/flour_bag.json") ||
+            !loadPowerUp("config/runtime/power_ups/multiplayer_coffee.json")) { return false }
+        if (!configureLiquidWorld()) { return false }
         configuredValue = true
         return true
     }
@@ -198,6 +257,15 @@ class WebMultiplayerSimulation {
             if (activeValues[index] && playerIds[index] == externalId) { return index }
         }
         return -1
+    }
+    Bool setAnimation(Int slot, Int animation, Int durationTicks) {
+        if (slot < 0 || slot >= animationValues.length ||
+            animation < sessionWebActorAnimationIdle() ||
+            animation > sessionWebActorAnimationWalk() ||
+            durationTicks < 0 || durationTicks > 60) { return false }
+        animationValues[slot] = animation
+        animationUntilTicks[slot] = tickValue + durationTicks
+        return true
     }
     Bool addPlayer(Int externalId, Int animal, Int x, Int y, Int z) {
         if (!configuredValue || externalId <= 0 || externalId > 1000000 ||
@@ -228,6 +296,10 @@ class WebMultiplayerSimulation {
                 return false
             }
         }
+        effectAt(slot).clear()
+        movingValues[slot] = false
+        animationValues[slot] = sessionWebActorAnimationIdle()
+        animationUntilTicks[slot] = tickValue
         playerIds[slot] = externalId
         animals[slot] = animal
         healthValues[slot] = 100
@@ -235,7 +307,86 @@ class WebMultiplayerSimulation {
         playerInputSequences[slot] = 0
         yawValues[slot] = 0
         pitchValues[slot] = 0
+        oxygenAt(slot).reset()
         activeValues[slot] = true
+        return true
+    }
+    Bool loadPowerUp(String path) {
+        var config = PowerUpConfig()
+        var loader = PowerUpConfigFileLoader()
+        return loader.load(config, path) && powerUpWorld.add(config.definition())
+    }
+    Bool configureLiquidWorld() {
+        var loader = LiquidConfigFileLoader()
+        var pool = WaterBodyConfig()
+        var channel = WaterBodyConfig()
+        if (!loader.loadPhysics(liquidPhysics,
+                "config/runtime/liquid_physics.json") ||
+            !loader.loadWaterBody(pool, "config/runtime/water_bodies/pool.json") ||
+            !loader.loadWaterBody(channel, "config/runtime/water_bodies/channel.json") ||
+            !liquidWorld.addBody(pool.definition()) ||
+            !liquidWorld.addBody(channel.definition())) { return false }
+        var capacity = liquidPhysics.oxygenCapacity()
+        var drain = liquidPhysics.oxygenDrainPerTick()
+        var recovery = liquidPhysics.oxygenRecoveryPerTick()
+        return oxygen0.configure(capacity, drain, recovery) &&
+            oxygen1.configure(capacity, drain, recovery) &&
+            oxygen2.configure(capacity, drain, recovery) &&
+            oxygen3.configure(capacity, drain, recovery) &&
+            oxygen4.configure(capacity, drain, recovery) &&
+            oxygen5.configure(capacity, drain, recovery) &&
+            oxygen6.configure(capacity, drain, recovery) &&
+            oxygen7.configure(capacity, drain, recovery)
+    }
+    LiquidOxygenMeter oxygenAt(Int slot) {
+        if (slot == 0) { return oxygen0 }
+        if (slot == 1) { return oxygen1 }
+        if (slot == 2) { return oxygen2 }
+        if (slot == 3) { return oxygen3 }
+        if (slot == 4) { return oxygen4 }
+        if (slot == 5) { return oxygen5 }
+        if (slot == 6) { return oxygen6 }
+        return oxygen7
+    }
+    Bool updateOxygen() {
+        for (var slot = 0; slot < 8; slot = slot + 1) {
+            if (activeValues[slot]) {
+                var underwater = liquidWorld.underwater(
+                    movement.positionX(slot + 1), movement.positionY(slot + 1),
+                    movement.positionZ(slot + 1), liquidPhysics.actorHeight())
+                var drain = liquidPhysics.oxygenDrainPerTick()
+                var reduction = effectAt(slot).scubaDrainReduction()
+                if (reduction >= drain) { drain = 0 }
+                else { drain = drain - reduction }
+                if (!oxygenAt(slot).updateWithRates(
+                        underwater, drain,
+                        liquidPhysics.oxygenRecoveryPerTick())) { return false }
+            }
+        }
+        return true
+    }
+    PowerUpEffectState effectAt(Int slot) {
+        if (slot == 0) { return effect0 }
+        if (slot == 1) { return effect1 }
+        if (slot == 2) { return effect2 }
+        if (slot == 3) { return effect3 }
+        if (slot == 4) { return effect4 }
+        if (slot == 5) { return effect5 }
+        if (slot == 6) { return effect6 }
+        return effect7
+    }
+    Bool collectPowerUps() {
+        for (var slot = 0; slot < 8; slot = slot + 1) {
+            if (activeValues[slot] && healthValues[slot] > 0) {
+                var pickup = powerUpWorld.pickupAtForAnimal(
+                    movement.positionX(slot + 1), movement.positionY(slot + 1),
+                    movement.positionZ(slot + 1), animals[slot])
+                if (pickup.accepted() &&
+                    !effectAt(slot).applyForAnimal(pickup, tickValue, animals[slot])) {
+                    return false
+                }
+            }
+        }
         return true
     }
     Bool setPlayerTeam(Int externalId, Int team) {
@@ -251,6 +402,10 @@ class WebMultiplayerSimulation {
         for (var i = 0; i < 16; i = i + 1) {
             if (projectileActive[i] && projectileOwners[i] == externalId) { projectileActive[i] = false }
         }
+        effectAt(slot).clear()
+        movingValues[slot] = false
+        animationValues[slot] = sessionWebActorAnimationIdle()
+        animationUntilTicks[slot] = tickValue
         activeValues[slot] = false
         playerIds[slot] = 0
         teamValues[slot] = 0
@@ -294,7 +449,11 @@ class WebMultiplayerSimulation {
         var oldX = movement.positionX(actor)
         var oldY = movement.positionY(actor)
         var oldZ = movement.positionZ(actor)
-        if (!movement.setCrouched(actor, roll) || !movement.setGliding(actor, gliding || flying)) { return false }
+        var effect = effectAt(slot)
+        if (!movement.configurePowerUpActor(actor,
+                effect.coffeeSpeedBonus(), effect.jetpackImpulseBonus()) ||
+            !movement.setCrouched(actor, roll) ||
+            !movement.setGliding(actor, gliding || flying)) { return false }
         if (roll && !movement.burst(actor, axisX, axisZ, 6)) { return false }
         if (dash && !movement.burst(actor, axisX, axisZ, 12)) { return false }
         if (!movement.step(actor, axisX, axisZ, jump, jumpHeld || gliding || flying)) { return false }
@@ -331,8 +490,18 @@ class WebMultiplayerSimulation {
             }
         }
         if (melee && nearestTarget(slot, 5) >= 0 && !meleeAtNearest(slot)) { return false }
-        if (special && !spawnPlayerProjectile(slot, 1)) { return false }
+        if (special && !activateSpecial(slot)) { return false }
         if (throwable && !spawnPlayerProjectile(slot, 2)) { return false }
+        movingValues[slot] = axisX != 0 || axisZ != 0
+        if (roll) {
+            if (!setAnimation(slot, sessionWebActorAnimationRoll(), 12)) { return false }
+        } else if (fire || melee || special || throwable) {
+            if (!setAnimation(slot, sessionWebActorAnimationAttack(), 12)) { return false }
+        } else if (jump || jumpHeld || gliding || flying) {
+            if (!setAnimation(slot, sessionWebActorAnimationAirborne(), 12)) { return false }
+        } else if (dash) {
+            if (!setAnimation(slot, sessionWebActorAnimationRun(), 12)) { return false }
+        }
         playerInputSequences[slot] = sequence
         if (sequence > lastInputSequenceValue) { lastInputSequenceValue = sequence }
         return true
@@ -367,6 +536,7 @@ class WebMultiplayerSimulation {
                     movement.positionX(sourceActor), movement.positionY(sourceActor) + 3, movement.positionZ(sourceActor),
                     movement.positionX(index + 1), movement.positionY(index + 1) + 3, movement.positionZ(index + 1))
                 if (distance < bestDistance && dot > 0 && cross * 1000 <= dot * 300 &&
+                    !effectAt(index).flourCloudBlocksSight(distance, tickValue) &&
                     sight.accepted() && !sight.collided()) {
                     bestDistance = distance
                     bestSlot = index
@@ -393,12 +563,40 @@ class WebMultiplayerSimulation {
     Bool meleeAtNearest(Int slot) {
         var target = nearestTarget(slot, 5)
         if (target < 0) { return false }
-        var result = combat.playerMelee(playerIds[slot], playerIds[target], tickValue, 5, 15, 1, 0)
+        var damage = 15
+        if (effectAt(slot).woolMaceActive(tickValue)) {
+            damage = effectAt(slot).woolMaceDamage()
+        }
+        var result = combat.playerMelee(playerIds[slot], playerIds[target], tickValue, 5, damage, 1, 0)
         if (!result.accepted()) { return false }
         meleeCountValue = meleeCountValue + 1
         healthValues[target] = healthValues[target] - result.applied()
         if (healthValues[target] < 0) { healthValues[target] = 0 }
         return pushImpact(2, playerIds[slot], playerIds[target], movement.positionX(target + 1), movement.positionY(target + 1), movement.positionZ(target + 1), result.applied())
+    }
+    Bool activateSpecial(Int slot) {
+        var effect = effectAt(slot)
+        if (effect.megaphoneActive(tickValue)) {
+            var target = nearestTarget(slot, 12)
+            if (target < 0) { return true }
+            var damage = effect.megaphoneHonkDamage()
+            var honk = combat.playerMelee(playerIds[slot], playerIds[target],
+                tickValue, 12, damage, 1, 0)
+            if (!honk.accepted()) { return false }
+            var applied = honk.applied()
+            healthValues[target] = healthValues[target] - applied
+            if (healthValues[target] < 0) { healthValues[target] = 0 }
+            return pushImpact(2, playerIds[slot], playerIds[target],
+                movement.positionX(target + 1), movement.positionY(target + 1),
+                movement.positionZ(target + 1), applied)
+        }
+        if (effect.watermelonActive(tickValue) &&
+            !effect.canFireWatermelonSeed(tickValue)) { return true }
+        if (!spawnPlayerProjectile(slot, 1)) { return false }
+        if (effect.watermelonActive(tickValue)) {
+            return effect.markWatermelonSeedFired(tickValue)
+        }
+        return true
     }
     Bool spawnPlayerProjectile(Int slot, Int kind) {
         var free = -1
@@ -414,6 +612,11 @@ class WebMultiplayerSimulation {
         projectileTargets[free] = 0
         if (aimedSlot >= 0) { projectileTargets[free] = playerIds[aimedSlot] }
         projectileKinds[free] = kind
+        projectileDamage[free] = 15
+        var effect = effectAt(slot)
+        if (kind == 1 && effect.watermelonActive(tickValue)) {
+            projectileDamage[free] = effect.watermelonSeedDamage()
+        }
         projectileX[free] = movement.positionX(slot + 1)
         projectileY[free] = movement.positionY(slot + 1) + 3
         projectileZ[free] = movement.positionZ(slot + 1)
@@ -454,12 +657,31 @@ class WebMultiplayerSimulation {
         impactZ[index] = z
         impactDamage[index] = damage
         impactCountValue = impactCountValue + 1
+        if (kind >= 1 && kind <= 4) {
+            var sourceSlot = playerSlot(source)
+            if (sourceSlot >= 0 &&
+                !setAnimation(sourceSlot, sessionWebActorAnimationAttack(), 12)) {
+                return false
+            }
+            var targetSlot = playerSlot(target)
+            if (targetSlot >= 0 && healthValues[targetSlot] > 0 &&
+                !setAnimation(targetSlot, sessionWebActorAnimationDamage(), 12)) {
+                return false
+            }
+        }
         nextImpactSequence = nextImpactSequence + 1
         return true
     }
     Bool advanceTick() {
         if (!configuredValue || tickValue >= 10000000) { return false }
         tickValue = tickValue + 1
+        if (!collectPowerUps()) { return false }
+        for (var slot = 0; slot < 8; slot = slot + 1) {
+            if (activeValues[slot] && !effectAt(slot).advance(tickValue)) {
+                return false
+            }
+        }
+        if (!updateOxygen()) { return false }
         for (var index = 0; index < 16; index = index + 1) {
             if (projectileActive[index]) {
                 projectileAge[index] = projectileAge[index] + 1
@@ -497,7 +719,11 @@ class WebMultiplayerSimulation {
                 var hit = -1
                 if (projectileKinds[index] == 1 && !wallBlocked) {
                     for (var actor = 0; actor < 8; actor = actor + 1) {
+                        var ownerSlot = playerSlot(projectileOwners[index])
                         if (activeValues[actor] && playerIds[actor] != projectileOwners[index] &&
+                            (ownerSlot < 0 || teamValues[ownerSlot] == 0 ||
+                                teamValues[actor] == 0 ||
+                                teamValues[ownerSlot] != teamValues[actor]) &&
                             healthValues[actor] > 0 &&
                             webMultiplayerAbs(movement.positionX(actor + 1) - projectileX[index]) <= 2 &&
                             webMultiplayerAbs(movement.positionY(actor + 1) - projectileY[index]) <= 2 &&
@@ -505,7 +731,7 @@ class WebMultiplayerSimulation {
                     }
                 }
                 if (hit >= 0) {
-                    var resolution = combat.playerMelee(projectileOwners[index], playerIds[hit], tickValue, 120, 15, 1, 0)
+                    var resolution = combat.playerMelee(projectileOwners[index], playerIds[hit], tickValue, 120, projectileDamage[index], 1, 0)
                     if (!resolution.accepted()) { return false }
                     var applied = resolution.applied()
                     healthValues[hit] = healthValues[hit] - applied
@@ -515,7 +741,11 @@ class WebMultiplayerSimulation {
                     projectileActive[index] = false
                 } else if (throwableDetonated) {
                     for (var actor = 0; actor < 8; actor = actor + 1) {
+                        var ownerSlot = playerSlot(projectileOwners[index])
                         if (activeValues[actor] && playerIds[actor] != projectileOwners[index] &&
+                            (ownerSlot < 0 || teamValues[ownerSlot] == 0 ||
+                                teamValues[actor] == 0 ||
+                                teamValues[ownerSlot] != teamValues[actor]) &&
                             healthValues[actor] > 0) {
                             var distance = webMultiplayerAbs(movement.positionX(actor + 1) - projectileX[index]) +
                                 webMultiplayerAbs(movement.positionY(actor + 1) - projectileY[index]) +
@@ -543,7 +773,7 @@ class WebMultiplayerSimulation {
     }
     WebMultiplayerPlayerState playerState(Int externalId) {
         var slot = playerSlot(externalId)
-        if (slot < 0) { return WebMultiplayerPlayerState(false, externalId, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false, false) }
+        if (slot < 0) { return WebMultiplayerPlayerState(false, externalId, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false, false, 0) }
         var actor = slot + 1
         var grounded = movement.grounded(actor)
         var gliding = movement.gliding(actor)
@@ -551,10 +781,26 @@ class WebMultiplayerSimulation {
         if (grounded) { state = state + 1 }
         if (movement.crouched(actor)) { state = state + 2 }
         if (gliding) { state = state + 4 }
+        var animation = sessionWebActorAnimationIdle()
+        if (healthValues[slot] <= 0) {
+            animation = sessionWebActorAnimationDeath()
+        } else if (tickValue < animationUntilTicks[slot]) {
+            animation = animationValues[slot]
+        } else if (liquidWorld.underwater(
+                movement.positionX(actor), movement.positionY(actor),
+                movement.positionZ(actor), liquidPhysics.actorHeight())) {
+            animation = sessionWebActorAnimationSwim()
+        } else if (gliding) {
+            animation = sessionWebActorAnimationAirborne()
+        } else if (movingValues[slot]) {
+            animation = sessionWebActorAnimationRun()
+        }
+        state = state + effectAt(slot).activeKind() * 8
+        state = state + animation * 128
         return WebMultiplayerPlayerState(true, externalId, actor, animals[slot],
             movement.positionX(actor), movement.positionY(actor), movement.positionZ(actor),
             yawValues[slot], pitchValues[slot], healthValues[slot], ammoValues[slot],
-            state, grounded, gliding)
+            state, grounded, gliding, oxygenAt(slot).current())
     }
     Int playerCount() { return activePlayerCount() }
     Int lastInputSequence() { return lastInputSequenceValue }

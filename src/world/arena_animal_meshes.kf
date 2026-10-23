@@ -22,6 +22,7 @@ class ArenaAnimalMeshes {
     Bool[] actorMoving
     Bool[] actorFlashed
     Bool[] actorAttacking
+    Bool[] actorRolling
     Int actorCountValue
     Bool gooseMovingValue
     Bool gooseAttackingValue
@@ -50,6 +51,7 @@ class ArenaAnimalMeshes {
         actorCurrent = new Bool[actualCapacity]
         actorMoving = new Bool[actualCapacity]
         actorAttacking = new Bool[actualCapacity]
+        actorRolling = new Bool[actualCapacity]
         gooseGraph = BoundedAnimationGraphProduct(3, 6)
         catGraph = BoundedAnimationGraphProduct(3, 6)
         gooseRuntime = BoundedAnimationGraphRuntime(3, 6)
@@ -106,7 +108,7 @@ class ArenaAnimalMeshes {
             actorFlashed[index] = false
             actorCurrent[index] = false
             actorMoving[index] = false
-            actorAttacking[index] = false
+            actorRolling[index] = false
         }
         if (!animationReadyValue ||
             !gooseRuntime.start(gooseGraph, 1) ||
@@ -190,6 +192,12 @@ class ArenaAnimalMeshes {
             catMovingValue = catMovingValue || actorMoving[slot]
             catAttackingValue = catAttackingValue || attacking
         }
+        return true
+    }
+    Bool setActorRolling(Int actorId, Bool rolling) {
+        var slot = slotFor(actorId)
+        if (slot < 0) { return false }
+        actorRolling[slot] = rolling
         return true
     }
     Bool setActorDamageFlash(Int actorId, Bool flashed) {
@@ -290,6 +298,9 @@ class ArenaAnimalMeshes {
     Bool actorAttackingAt(Int index) {
         if (!actorCurrentAt(index)) { return false }
         return actorAttacking[index]
+    }
+    Bool actorRollingAt(Int index) {
+        return actorCurrentAt(index) && actorRolling[index]
     }
 
     Int modelVertexCount(Int gooseVertices, Int catVertices) {

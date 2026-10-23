@@ -376,8 +376,11 @@ Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot) {
     var throwableCount = metrics.simulation.throwableCount()
     var impactCount = metrics.simulation.impactCount()
     var trailer = 18 + actors.length
-    var extended = new Int[base.length + 4 + projectileCount * 7 + throwableCount * 8 + impactCount * 8]
-    for (var i = 0; i < base.length - 1; i = i + 1) { extended[i] = base[i] }
+    var extended = new Int[base.length + 4 + projectileCount * 7 +
+        throwableCount * 8 + impactCount * 8]
+    for (var i = 0; i < base.length; i = i + 1) {
+        extended[i] = base[i]
+    }
     extended[trailer] = metrics.connectionAppliedInputSequence[slot]
     extended[trailer + 1] = projectileCount
     extended[trailer + 2] = throwableCount
