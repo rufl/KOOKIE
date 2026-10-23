@@ -87,7 +87,7 @@ When the archive directory contains `SHA256SUMS` and `SOURCE_COMMIT`, configure
 the current shell before running the full gate:
 
 ```bash
-source scripts/configure_kof_archive.sh /path/to/kof-0.6.5-linux-x86_64.tar.gz
+source scripts/configure_kof_archive.sh /path/to/kof-0.6.6-linux-x86_64.tar.gz
 export KOOKIE_ZIG_VERSION=0.17.0
 export KOOKIE_ZIG_ARCHIVE_SHA256=1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026
 bash scripts/verify.sh

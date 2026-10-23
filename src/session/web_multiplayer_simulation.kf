@@ -1,0 +1,614 @@
+package session
+
+import core
+import world
+
+Int webMultiplayerPlayerCapacity() { return 8 }
+Int webMultiplayerTickMillis() { return 17 }
+Int webMultiplayerTickNanoseconds() { return 16667000 }
+Int webMultiplayerProjectileCapacity() { return 12 }
+Int webMultiplayerThrowableCapacity() { return 4 }
+Int webMultiplayerImpactCapacity() { return 8 }
+Int webMultiplayerProjectileLifetimeTicks() { return 120 }
+Int webMultiplayerThrowableFuseTicks() {
+    return sessionWebGameMaximumThrowableFuseTicks()
+}
+Int webMultiplayerFlag(Int flags, Int bit) {
+    var divisor = 1
+    for (var index = 0; index < bit; index = index + 1) { divisor = divisor * 2 }
+    return (flags / divisor) % 2
+}
+Int webMultiplayerAbs(Int value) { if (value < 0) { return -value }; return value }
+Int webMultiplayerSine(Int angle) {
+    var normalized = angle % 360
+    if (normalized < 0) { normalized = normalized + 360 }
+    var signValue = 1
+    if (normalized > 180) { normalized = 360 - normalized; signValue = -1 }
+    return signValue * normalized * (180 - normalized) * 1000 / 8100
+}
+
+Bool webMultiplayerSweptPlayerCollision(
+    Int startX, Int startY, Int startZ,
+    Int endX, Int endY, Int endZ,
+    Int otherX, Int otherY, Int otherZ
+) {
+    for (var step = 1; step <= 12; step = step + 1) {
+        var x = startX + (endX - startX) * step / 12
+        var y = startY + (endY - startY) * step / 12
+        var z = startZ + (endZ - startZ) * step / 12
+        if (webMultiplayerAbs(x - otherX) < 4 &&
+            webMultiplayerAbs(y - otherY) < 5 &&
+            webMultiplayerAbs(z - otherZ) < 4) { return true }
+    }
+    return false
+}
+
+record WebMultiplayerPlayerState(
+    Bool active, Int playerId, Int actorId, Int animal,
+    Int x, Int y, Int z, Int yaw, Int pitch, Int health, Int ammo, Int state,
+    Bool grounded, Bool gliding
+)
+record WebMultiplayerProjectileState(
+    Bool active, Int id, Int ownerId, Int targetId,
+    Int x, Int y, Int z, Int ttl
+)
+record WebMultiplayerThrowableState(
+    Bool active, Int id, Int ownerId, Int x, Int y, Int z,
+    Int ttl, Int kind, Int fuseTicks
+)
+record WebMultiplayerImpactEvent(
+    Int sequence, Int tick, Int kind, Int sourceId, Int targetId,
+    Int x, Int y, Int z, Int damage
+)
+
+class WebMultiplayerSimulation {
+    FpsMovementController movement
+    AuthoritativeEnemySession combat
+    G1Arena arena
+    Int[] playerIds
+    Int[] animals
+    Int[] teamValues
+    Int[] healthValues
+    Int[] ammoValues
+    Int[] yawValues
+    Int[] pitchValues
+    Bool[] activeValues
+    Bool[] movementActorInitialized
+    Int[] projectileIds
+    Int[] projectileOwners
+    Int[] projectileTargets
+    Int[] playerInputSequences
+    Int[] projectileKinds
+    Int[] projectileX
+    Int[] projectileY
+    Int[] projectileZ
+    Int[] projectileDX
+    Int[] projectileDY
+    Int[] projectileDZ
+    Int[] projectileAge
+    Bool[] projectileActive
+    Int[] impactSequence
+    Int[] impactTick
+    Int[] impactKind
+    Int[] impactSource
+    Int[] impactTarget
+    Int[] impactX
+    Int[] impactY
+    Int[] impactZ
+    Int[] impactDamage
+    Int tickValue
+    Int nextProjectileId
+    Int nextImpactSequence
+    Int impactCountValue
+    Int lastInputSequenceValue
+    Int firedCountValue
+    Int meleeCountValue
+    Int projectileLaunchedValue
+    Int throwableLaunchedValue
+    Bool configuredValue
+
+    public constructor() {
+        movement = FpsMovementController(webMultiplayerPlayerCapacity())
+        combat = AuthoritativeEnemySession(webMultiplayerPlayerCapacity(), 1)
+        arena = G1Arena()
+        playerIds = new Int[8]
+        animals = new Int[8]
+        teamValues = new Int[8]
+        healthValues = new Int[8]
+        ammoValues = new Int[8]
+        yawValues = new Int[8]
+        pitchValues = new Int[8]
+        activeValues = new Bool[8]
+        movementActorInitialized = new Bool[8]
+        playerInputSequences = new Int[8]
+        projectileIds = new Int[16]
+        projectileOwners = new Int[16]
+        projectileTargets = new Int[16]
+        projectileKinds = new Int[16]
+        projectileX = new Int[16]
+        projectileY = new Int[16]
+        projectileZ = new Int[16]
+        projectileDX = new Int[16]
+        projectileDY = new Int[16]
+        projectileDZ = new Int[16]
+        projectileAge = new Int[16]
+        projectileActive = new Bool[16]
+        impactSequence = new Int[8]
+        impactTick = new Int[8]
+        impactKind = new Int[8]
+        impactSource = new Int[8]
+        impactTarget = new Int[8]
+        impactX = new Int[8]
+        impactY = new Int[8]
+        impactZ = new Int[8]
+        impactDamage = new Int[8]
+        tickValue = 0
+        nextProjectileId = 1
+        nextImpactSequence = 1
+        impactCountValue = 0
+        lastInputSequenceValue = 0
+        firedCountValue = 0
+        meleeCountValue = 0
+        projectileLaunchedValue = 0
+        throwableLaunchedValue = 0
+        configuredValue = false
+        for (var index = 0; index < 8; index = index + 1) {
+            activeValues[index] = false
+            movementActorInitialized[index] = false
+            playerInputSequences[index] = 0
+            playerIds[index] = 0
+            animals[index] = 0
+            teamValues[index] = 0
+            healthValues[index] = 0
+            ammoValues[index] = 0
+            yawValues[index] = 0
+            pitchValues[index] = 0
+        }
+        for (var p = 0; p < 16; p = p + 1) { projectileActive[p] = false }
+    }
+
+    Bool configure() {
+        if (configuredValue) { return false }
+        if (!arena.ready() || !movement.configure(arena.authoredCollision())) { return false }
+        if (!combat.defineWeapon(1, 30, 90, 20, 1) ||
+            !combat.setWeaponRange(1, 120) ||
+            !combat.setWeaponCooldown(1, 0)) { return false }
+        configuredValue = true
+        return true
+    }
+
+    Bool start() { return configure() }
+    Bool configured() { return configuredValue }
+    Int tick() { return tickValue }
+    Int tickMillis() { return webMultiplayerTickMillis() }
+    Int tickNanoseconds() { return webMultiplayerTickNanoseconds() }
+    Int maxPlayers() { return webMultiplayerPlayerCapacity() }
+    Int maxSpectators() { return 4 }
+    Int maxProjectiles() { return webMultiplayerProjectileCapacity() }
+    Int maxImpacts() { return webMultiplayerImpactCapacity() }
+    Int activePlayerCount() {
+        var count = 0
+        for (var index = 0; index < 8; index = index + 1) {
+            if (activeValues[index]) { count = count + 1 }
+        }
+        return count
+    }
+    Int playerSlot(Int externalId) {
+        for (var index = 0; index < 8; index = index + 1) {
+            if (activeValues[index] && playerIds[index] == externalId) { return index }
+        }
+        return -1
+    }
+    Bool addPlayer(Int externalId, Int animal, Int x, Int y, Int z) {
+        if (!configuredValue || externalId <= 0 || externalId > 1000000 ||
+            !validAnimalKind(animal) || playerSlot(externalId) >= 0 || activePlayerCount() >= 8) { return false }
+        var slot = -1
+        for (var index = 0; index < 8; index = index + 1) {
+            if (!activeValues[index]) { slot = index; break }
+        }
+        if (slot < 0) { return false }
+        var actor = slot + 1
+        var moved = false
+        if (movementActorInitialized[slot]) { moved = movement.setPosition(actor, x, y, z) }
+        else {
+            moved = movement.addActor(actor, x, y, z)
+            if (moved) { movementActorInitialized[slot] = true }
+        }
+        if (!moved || !movement.configureAnimalActor(actor, animal) ||
+            !combat.addActor(externalId, 100, 0) ||
+            !combat.equipWeapon(externalId, 1) ||
+            !combat.setSpatialPosition(externalId, x, y, z)) { return false }
+        for (var other = 0; other < 8; other = other + 1) {
+            if (activeValues[other] &&
+                webMultiplayerAbs(movement.positionX(other + 1) - x) < 4 &&
+                webMultiplayerAbs(movement.positionY(other + 1) - y) < 5 &&
+                webMultiplayerAbs(movement.positionZ(other + 1) - z) < 4) {
+                combat.combat.removeActor(externalId)
+                combat.spatial.removePosition(externalId)
+                return false
+            }
+        }
+        playerIds[slot] = externalId
+        animals[slot] = animal
+        healthValues[slot] = 100
+        ammoValues[slot] = 30
+        playerInputSequences[slot] = 0
+        yawValues[slot] = 0
+        pitchValues[slot] = 0
+        activeValues[slot] = true
+        return true
+    }
+    Bool setPlayerTeam(Int externalId, Int team) {
+        var slot = playerSlot(externalId)
+        if (slot < 0 || team < 0 || team > 2) { return false }
+        teamValues[slot] = team
+        return true
+    }
+    Bool removePlayer(Int externalId) {
+        var slot = playerSlot(externalId)
+        if (slot < 0 || !combat.combat.removeActor(externalId) ||
+            !combat.spatial.removePosition(externalId)) { return false }
+        for (var i = 0; i < 16; i = i + 1) {
+            if (projectileActive[i] && projectileOwners[i] == externalId) { projectileActive[i] = false }
+        }
+        activeValues[slot] = false
+        playerIds[slot] = 0
+        teamValues[slot] = 0
+        healthValues[slot] = 0
+        ammoValues[slot] = 0
+        return true
+    }
+    Bool applyInputFrame(
+        Int externalId, Int sequence, Int inputTick, Int moveX, Int moveZ,
+        Int lookYaw, Int lookPitch, Int heldMask, Int edgeMask
+    ) {
+        var slot = playerSlot(externalId)
+        if (slot < 0 || sequence <= playerInputSequences[slot] || sequence > 10000000 || inputTick < 0 ||
+            inputTick > 10000000 || moveX < -1000 || moveX > 1000 ||
+            moveZ < -1000 || moveZ > 1000 || lookYaw < -1800 || lookYaw > 1800 ||
+            lookPitch < -1800 || lookPitch > 1800 || heldMask < 0 || heldMask > 511 ||
+            edgeMask < 0 || edgeMask > 511) { return false }
+        var actor = slot + 1
+        var axisX = moveX * 4 / 1000
+        var axisZ = moveZ * 4 / 1000
+        var yaw = yawValues[slot] + lookYaw / 10
+        var pitch = pitchValues[slot] + lookPitch / 10
+        if (yaw > 180) { yaw = yaw - 360 }
+        if (yaw < -180) { yaw = yaw + 360 }
+        if (pitch > 89) { pitch = 89 }
+        if (pitch < -89) { pitch = -89 }
+        var jump = webMultiplayerFlag(edgeMask, 0) == 1
+        var jumpHeld = webMultiplayerFlag(heldMask, 0) == 1
+        var roll = webMultiplayerFlag(edgeMask, 1) == 1
+        var dash = webMultiplayerFlag(edgeMask, 2) == 1
+        var gliding = webMultiplayerFlag(heldMask, 3) == 1
+        var flying = webMultiplayerFlag(heldMask, 4) == 1 &&
+            movement.flappingAllowed(actor)
+        if (flying && movement.grounded(actor)) { jump = true }
+        var fire = webMultiplayerFlag(heldMask, 5) == 1
+        var melee = webMultiplayerFlag(edgeMask, 6) == 1
+        var special = webMultiplayerFlag(edgeMask, 7) == 1 &&
+            projectileCount() < webMultiplayerProjectileCapacity()
+        var throwable = webMultiplayerFlag(edgeMask, 8) == 1 &&
+            throwableCount() < webMultiplayerThrowableCapacity()
+        var oldX = movement.positionX(actor)
+        var oldY = movement.positionY(actor)
+        var oldZ = movement.positionZ(actor)
+        if (!movement.setCrouched(actor, roll) || !movement.setGliding(actor, gliding || flying)) { return false }
+        if (roll && !movement.burst(actor, axisX, axisZ, 6)) { return false }
+        if (dash && !movement.burst(actor, axisX, axisZ, 12)) { return false }
+        if (!movement.step(actor, axisX, axisZ, jump, jumpHeld || gliding || flying)) { return false }
+        var movedY = movement.positionY(actor)
+        if (movedY > sessionWebGameWorldMaximumY() &&
+            !movement.setPosition(actor, movement.positionX(actor),
+                sessionWebGameWorldMaximumY(), movement.positionZ(actor))) {
+            return false
+        }
+        for (var other = 0; other < 8; other = other + 1) {
+            if (activeValues[other] && other != slot &&
+                oldY == movement.positionY(actor) && !jump && !flying &&
+                webMultiplayerSweptPlayerCollision(
+                    oldX, oldY, oldZ,
+                    movement.positionX(actor), movement.positionY(actor),
+                    movement.positionZ(actor),
+                    movement.positionX(other + 1), movement.positionY(other + 1),
+                    movement.positionZ(other + 1))) {
+                movement.setPosition(actor, oldX, oldY, oldZ)
+                combat.setSpatialPosition(externalId, oldX, oldY, oldZ)
+                break
+            }
+        }
+        yawValues[slot] = yaw
+        pitchValues[slot] = pitch
+        if (!combat.setSpatialPosition(externalId,
+                movement.positionX(actor), movement.positionY(actor), movement.positionZ(actor))) { return false }
+        if (fire && ammoValues[slot] > 0) {
+            if (nearestTarget(slot, 120) >= 0) {
+                if (!fireAtNearest(slot)) { return false }
+            } else {
+                ammoValues[slot] = ammoValues[slot] - 1
+                firedCountValue = firedCountValue + 1
+            }
+        }
+        if (melee && nearestTarget(slot, 5) >= 0 && !meleeAtNearest(slot)) { return false }
+        if (special && !spawnPlayerProjectile(slot, 1)) { return false }
+        if (throwable && !spawnPlayerProjectile(slot, 2)) { return false }
+        playerInputSequences[slot] = sequence
+        if (sequence > lastInputSequenceValue) { lastInputSequenceValue = sequence }
+        return true
+    }
+    Int projectileCount() {
+        var count = 0
+        for (var i = 0; i < 16; i = i + 1) { if (projectileActive[i] && projectileKinds[i] == 1) { count = count + 1 } }
+        return count
+    }
+    Int throwableCount() {
+        var count = 0
+        for (var i = 0; i < 16; i = i + 1) { if (projectileActive[i] && projectileKinds[i] == 2) { count = count + 1 } }
+        return count
+    }
+    Int nearestTarget(Int sourceSlot, Int range) {
+        var sourceActor = sourceSlot + 1
+        var bestSlot = -1
+        var bestDistance = range + 1
+        for (var index = 0; index < 8; index = index + 1) {
+            if (activeValues[index] && index != sourceSlot && healthValues[index] > 0 &&
+                (teamValues[sourceSlot] == 0 || teamValues[index] == 0 ||
+                    teamValues[sourceSlot] != teamValues[index])) {
+                var dx = movement.positionX(index + 1) - movement.positionX(sourceActor)
+                var dz = movement.positionZ(index + 1) - movement.positionZ(sourceActor)
+                var dy = movement.positionY(index + 1) - movement.positionY(sourceActor)
+                var distance = webMultiplayerAbs(dx) + webMultiplayerAbs(dy) + webMultiplayerAbs(dz)
+                var forwardX = webMultiplayerSine(yawValues[sourceSlot])
+                var forwardZ = webMultiplayerSine(yawValues[sourceSlot] + 90)
+                var dot = dx * forwardX + dz * forwardZ
+                var cross = webMultiplayerAbs(dx * forwardZ - dz * forwardX)
+                var sight = arena.query(
+                    movement.positionX(sourceActor), movement.positionY(sourceActor) + 3, movement.positionZ(sourceActor),
+                    movement.positionX(index + 1), movement.positionY(index + 1) + 3, movement.positionZ(index + 1))
+                if (distance < bestDistance && dot > 0 && cross * 1000 <= dot * 300 &&
+                    sight.accepted() && !sight.collided()) {
+                    bestDistance = distance
+                    bestSlot = index
+                }
+            }
+        }
+        return bestSlot
+    }
+    Bool fireAtNearest(Int slot) {
+        if (ammoValues[slot] <= 0) { return false }
+        var target = nearestTarget(slot, 120)
+        if (target < 0) { return false }
+        var dx = webMultiplayerAbs(movement.positionX(slot + 1) - movement.positionX(target + 1))
+        var dy = webMultiplayerAbs(movement.positionY(slot + 1) - movement.positionY(target + 1))
+        var dz = webMultiplayerAbs(movement.positionZ(slot + 1) - movement.positionZ(target + 1))
+        var result = combat.playerHitscan(playerIds[slot], playerIds[target], tickValue, dx + dy + dz, 0)
+        if (!result.accepted()) { return false }
+        ammoValues[slot] = ammoValues[slot] - 1
+        firedCountValue = firedCountValue + 1
+        healthValues[target] = healthValues[target] - result.applied()
+        if (healthValues[target] < 0) { healthValues[target] = 0 }
+        return pushImpact(1, playerIds[slot], playerIds[target], movement.positionX(target + 1), movement.positionY(target + 1), movement.positionZ(target + 1), result.applied())
+    }
+    Bool meleeAtNearest(Int slot) {
+        var target = nearestTarget(slot, 5)
+        if (target < 0) { return false }
+        var result = combat.playerMelee(playerIds[slot], playerIds[target], tickValue, 5, 15, 1, 0)
+        if (!result.accepted()) { return false }
+        meleeCountValue = meleeCountValue + 1
+        healthValues[target] = healthValues[target] - result.applied()
+        if (healthValues[target] < 0) { healthValues[target] = 0 }
+        return pushImpact(2, playerIds[slot], playerIds[target], movement.positionX(target + 1), movement.positionY(target + 1), movement.positionZ(target + 1), result.applied())
+    }
+    Bool spawnPlayerProjectile(Int slot, Int kind) {
+        var free = -1
+        for (var index = 0; index < 16; index = index + 1) {
+            if (!projectileActive[index]) { free = index; break }
+        }
+        if (free < 0 || (kind != 1 && kind != 2) ||
+            (kind == 1 && projectileCount() >= webMultiplayerProjectileCapacity()) ||
+            (kind == 2 && throwableCount() >= webMultiplayerThrowableCapacity())) { return false }
+        projectileIds[free] = nextProjectileId
+        projectileOwners[free] = playerIds[slot]
+        var aimedSlot = nearestTarget(slot, 120)
+        projectileTargets[free] = 0
+        if (aimedSlot >= 0) { projectileTargets[free] = playerIds[aimedSlot] }
+        projectileKinds[free] = kind
+        projectileX[free] = movement.positionX(slot + 1)
+        projectileY[free] = movement.positionY(slot + 1) + 3
+        projectileZ[free] = movement.positionZ(slot + 1)
+        projectileDX[free] = webMultiplayerSine(yawValues[slot])
+        projectileDY[free] = -webMultiplayerSine(pitchValues[slot])
+        projectileDZ[free] = webMultiplayerSine(yawValues[slot] + 90)
+        if (kind == 2) { projectileDY[free] = projectileDY[free] + 167 }
+        projectileAge[free] = 0
+        projectileActive[free] = true
+        nextProjectileId = nextProjectileId + 1
+        if (kind == 1) { projectileLaunchedValue = projectileLaunchedValue + 1 }
+        else { throwableLaunchedValue = throwableLaunchedValue + 1 }
+        return true
+    }
+    Bool pushImpact(Int kind, Int source, Int target, Int x, Int y, Int z, Int damage) {
+        if (impactCountValue == 8) {
+            for (var i = 1; i < 8; i = i + 1) {
+                impactSequence[i - 1] = impactSequence[i]
+                impactTick[i - 1] = impactTick[i]
+                impactKind[i - 1] = impactKind[i]
+                impactSource[i - 1] = impactSource[i]
+                impactTarget[i - 1] = impactTarget[i]
+                impactX[i - 1] = impactX[i]
+                impactY[i - 1] = impactY[i]
+                impactZ[i - 1] = impactZ[i]
+                impactDamage[i - 1] = impactDamage[i]
+            }
+            impactCountValue = 7
+        }
+        var index = impactCountValue
+        impactSequence[index] = nextImpactSequence
+        impactTick[index] = tickValue
+        impactKind[index] = kind
+        impactSource[index] = source
+        impactTarget[index] = target
+        impactX[index] = x
+        impactY[index] = y
+        impactZ[index] = z
+        impactDamage[index] = damage
+        impactCountValue = impactCountValue + 1
+        nextImpactSequence = nextImpactSequence + 1
+        return true
+    }
+    Bool advanceTick() {
+        if (!configuredValue || tickValue >= 10000000) { return false }
+        tickValue = tickValue + 1
+        for (var index = 0; index < 16; index = index + 1) {
+            if (projectileActive[index]) {
+                projectileAge[index] = projectileAge[index] + 1
+                var oldX = projectileX[index]
+                var oldY = projectileY[index]
+                var oldZ = projectileZ[index]
+                if (projectileKinds[index] == 2) {
+                    projectileDY[index] = projectileDY[index] - 33
+                }
+                var newX = oldX + projectileDX[index] * 2 / 1000
+                var newY = oldY + projectileDY[index] * 2 / 1000
+                var newZ = oldZ + projectileDZ[index] * 2 / 1000
+                var wall = arena.query(oldX, oldY, oldZ, newX, newY, newZ)
+                if (!wall.accepted()) { return false }
+                var wallBlocked = wall.collided()
+                if (wallBlocked) {
+                    projectileX[index] = oldX
+                    projectileY[index] = oldY
+                    projectileZ[index] = oldZ
+                    if (projectileKinds[index] == 2) {
+                        projectileAge[index] = webMultiplayerThrowableFuseTicks()
+                    }
+                } else {
+                    projectileX[index] = newX
+                    projectileY[index] = newY
+                    projectileZ[index] = newZ
+                }
+                var expired = projectileAge[index] >= webMultiplayerProjectileLifetimeTicks()
+                var throwableDetonated = projectileKinds[index] == 2 &&
+                    projectileAge[index] >= webMultiplayerThrowableFuseTicks()
+                if (wallBlocked && projectileKinds[index] == 1) {
+                    projectileActive[index] = false
+                    if (!pushImpact(5, projectileOwners[index], 0, oldX, oldY, oldZ, 0)) { return false }
+                }
+                var hit = -1
+                if (projectileKinds[index] == 1 && !wallBlocked) {
+                    for (var actor = 0; actor < 8; actor = actor + 1) {
+                        if (activeValues[actor] && playerIds[actor] != projectileOwners[index] &&
+                            healthValues[actor] > 0 &&
+                            webMultiplayerAbs(movement.positionX(actor + 1) - projectileX[index]) <= 2 &&
+                            webMultiplayerAbs(movement.positionY(actor + 1) - projectileY[index]) <= 2 &&
+                            webMultiplayerAbs(movement.positionZ(actor + 1) - projectileZ[index]) <= 2) { hit = actor; break }
+                    }
+                }
+                if (hit >= 0) {
+                    var resolution = combat.playerMelee(projectileOwners[index], playerIds[hit], tickValue, 120, 15, 1, 0)
+                    if (!resolution.accepted()) { return false }
+                    var applied = resolution.applied()
+                    healthValues[hit] = healthValues[hit] - applied
+                    if (healthValues[hit] < 0) { healthValues[hit] = 0 }
+                    if (!pushImpact(3, projectileOwners[index], playerIds[hit],
+                            projectileX[index], projectileY[index], projectileZ[index], applied)) { return false }
+                    projectileActive[index] = false
+                } else if (throwableDetonated) {
+                    for (var actor = 0; actor < 8; actor = actor + 1) {
+                        if (activeValues[actor] && playerIds[actor] != projectileOwners[index] &&
+                            healthValues[actor] > 0) {
+                            var distance = webMultiplayerAbs(movement.positionX(actor + 1) - projectileX[index]) +
+                                webMultiplayerAbs(movement.positionY(actor + 1) - projectileY[index]) +
+                                webMultiplayerAbs(movement.positionZ(actor + 1) - projectileZ[index])
+                            if (distance <= 12) {
+                                var resolution = combat.playerMelee(projectileOwners[index], playerIds[actor], tickValue, 12, 25, 1, 0)
+                                if (!resolution.accepted()) { return false }
+                                var applied = resolution.applied()
+                                healthValues[actor] = healthValues[actor] - applied
+                                if (healthValues[actor] < 0) { healthValues[actor] = 0 }
+                                if (!pushImpact(4, projectileOwners[index], playerIds[actor],
+                                        projectileX[index], projectileY[index], projectileZ[index], applied)) { return false }
+                            }
+                        }
+                    }
+                    projectileActive[index] = false
+                    if (!pushImpact(5, projectileOwners[index], 0, projectileX[index], projectileY[index], projectileZ[index], 0)) { return false }
+                } else if (expired) {
+                    projectileActive[index] = false
+                    if (!pushImpact(5, projectileOwners[index], 0, projectileX[index], projectileY[index], projectileZ[index], 0)) { return false }
+                }
+            }
+        }
+        return true
+    }
+    WebMultiplayerPlayerState playerState(Int externalId) {
+        var slot = playerSlot(externalId)
+        if (slot < 0) { return WebMultiplayerPlayerState(false, externalId, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false, false) }
+        var actor = slot + 1
+        var grounded = movement.grounded(actor)
+        var gliding = movement.gliding(actor)
+        var state = 0
+        if (grounded) { state = state + 1 }
+        if (movement.crouched(actor)) { state = state + 2 }
+        if (gliding) { state = state + 4 }
+        return WebMultiplayerPlayerState(true, externalId, actor, animals[slot],
+            movement.positionX(actor), movement.positionY(actor), movement.positionZ(actor),
+            yawValues[slot], pitchValues[slot], healthValues[slot], ammoValues[slot],
+            state, grounded, gliding)
+    }
+    Int playerCount() { return activePlayerCount() }
+    Int lastInputSequence() { return lastInputSequenceValue }
+    Int lastInputSequenceFor(Int externalId) {
+        var slot = playerSlot(externalId)
+        if (slot < 0) { return -1 }
+        return playerInputSequences[slot]
+    }
+    Int firedCount() { return firedCountValue }
+    Int meleeCount() { return meleeCountValue }
+    Int projectileLaunchCount() { return projectileLaunchedValue }
+    Int throwableLaunchCount() { return throwableLaunchedValue }
+    WebMultiplayerProjectileState projectileAt(Int index) {
+        if (index < 0 || index >= webMultiplayerProjectileCapacity()) { return WebMultiplayerProjectileState(false, 0, 0, 0, 0, 0, 0, 0) }
+        var seen = 0
+        for (var slot = 0; slot < 16; slot = slot + 1) {
+            if (projectileActive[slot] && projectileKinds[slot] == 1) {
+                if (seen == index) {
+                    return WebMultiplayerProjectileState(true, projectileIds[slot],
+                        projectileOwners[slot], projectileTargets[slot],
+                        projectileX[slot], projectileY[slot], projectileZ[slot],
+                        webMultiplayerProjectileLifetimeTicks() - projectileAge[slot])
+                }
+                seen = seen + 1
+            }
+        }
+        return WebMultiplayerProjectileState(false, 0, 0, 0, 0, 0, 0, 0)
+    }
+    WebMultiplayerThrowableState throwableAt(Int index) {
+        if (index < 0 || index >= webMultiplayerThrowableCapacity()) { return WebMultiplayerThrowableState(false, 0, 0, 0, 0, 0, 0, 0, 0) }
+        var seen = 0
+        for (var slot = 0; slot < 16; slot = slot + 1) {
+            if (projectileActive[slot] && projectileKinds[slot] == 2) {
+                if (seen == index) {
+                    var fuse = webMultiplayerThrowableFuseTicks() - projectileAge[slot]
+                    if (fuse < 0) { fuse = 0 }
+                    return WebMultiplayerThrowableState(true, projectileIds[slot],
+                        projectileOwners[slot], projectileX[slot], projectileY[slot],
+                        projectileZ[slot],
+                        webMultiplayerProjectileLifetimeTicks() - projectileAge[slot], 2, fuse)
+                }
+                seen = seen + 1
+            }
+        }
+        return WebMultiplayerThrowableState(false, 0, 0, 0, 0, 0, 0, 0, 0)
+    }
+    Int impactCount() { return impactCountValue }
+    WebMultiplayerImpactEvent impactAt(Int index) {
+        if (index < 0 || index >= impactCountValue) { return WebMultiplayerImpactEvent(0, 0, 0, 0, 0, 0, 0, 0, 0) }
+        return WebMultiplayerImpactEvent(impactSequence[index], impactTick[index], impactKind[index], impactSource[index], impactTarget[index], impactX[index], impactY[index], impactZ[index], impactDamage[index])
+    }
+    Bool clearImpacts() {
+        impactCountValue = 0
+        return true
+    }
+
+}

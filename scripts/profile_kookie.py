@@ -30,6 +30,17 @@ def fail(message: str) -> NoReturn:
     raise SystemExit(2)
 
 
+def pinned_kof_identity() -> tuple[str, str]:
+    text = KOF_PIN.read_text(encoding="utf-8")
+    version = re.search(r"^KOF_PIN_VERSION='([^']+)'$", text, re.MULTILINE)
+    commit = re.search(
+        r"^KOF_PIN_SOURCE_COMMIT='([0-9a-f]{40})'$", text, re.MULTILINE
+    )
+    if version is None or commit is None:
+        fail(f"cannot read Kof identity from {KOF_PIN}")
+    return version.group(1), commit.group(1)
+
+
 def run(command: list[str], *, cwd: Path, env: dict[str, str], stdout: Path,
         stderr: Path | None = None) -> tuple[int, float]:
     start = time.monotonic()
@@ -404,10 +415,12 @@ def main() -> int:
                 verify(result, args)
             results.append(result)
 
+    pinned_kof_version, pinned_kof_commit = pinned_kof_identity()
+
     report = {
         "schema": "kookie.performance-profile/v1",
-        "kof_version": "0.6.5",
-        "kof_source_commit": "8e59b24acc978eb2546509b5cfca867a06e7283a",
+        "kof_version": pinned_kof_version,
+        "kof_source_commit": pinned_kof_commit,
         "source_commit": subprocess.run(
             ["git", "-C", str(ROOT), "rev-parse", "HEAD"],
             capture_output=True,

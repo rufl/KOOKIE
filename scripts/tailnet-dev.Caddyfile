@@ -1,0 +1,20 @@
+{
+  admin off
+  auto_https off
+}
+
+http://:{$KOOKIE_TAILNET_PORT} {
+  bind {$KOOKIE_TAILNET_IP}
+  @kutter_ws path /kutter/session
+  handle @kutter_ws {
+    rewrite * /session
+    reverse_proxy 127.0.0.1:{$KOOKIE_KUTTER_PORT}
+  }
+  @bugfeed path /bugfeed /bugfeed/*
+  reverse_proxy @bugfeed 127.0.0.1:{$KOOKIE_BUGFEED_PORT}
+  @kof_backend path /session /healthz /metrics
+  reverse_proxy @kof_backend 127.0.0.1:{$KOOKIE_WEB_PORT}
+
+  root * {$KOOKIE_WEB_ALPHA_ROOT}
+  file_server
+}

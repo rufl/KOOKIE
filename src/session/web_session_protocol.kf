@@ -7,6 +7,7 @@ Int sessionWebMaximumWords() { return 272 }
 Int sessionWebMaximumFrameBytes() {
     return 16 + sessionWebMaximumWords() * 4
 }
+Int sessionWebGameMaximumThrowableFuseTicks() { return 36 }
 
 Int sessionWebGameSceneObjectEntryWidth() { return 9 }
 Int sessionWebSceneLabelEntryWidth() { return 6 }
@@ -45,6 +46,12 @@ Int sessionWebGameCommandMarker() { return 1 }
 Int sessionWebGameSnapshotMarker() { return 2 }
 Int sessionWebGameSceneSnapshotMarker() { return 3 }
 Int sessionWebGameFullSceneSnapshotMarker() { return 4 }
+
+Int sessionWebGameJoinRequestMarker() { return 5 }
+Int sessionWebGameJoinResponseMarker() { return 6 }
+Int sessionWebGameMultiplayerSnapshotMarker() { return 7 }
+Int sessionWebRolePlayer() { return 1 }
+Int sessionWebRoleSpectator() { return 2 }
 Int sessionWebGameMoveLeftCommand() { return 1 }
 Int sessionWebGameMoveRightCommand() { return 2 }
 Int sessionWebGameMeleeCommand() { return 3 }
@@ -60,14 +67,88 @@ Int sessionWebGameLookLeftCommand() { return 12 }
 Int sessionWebGameLookRightCommand() { return 13 }
 Int sessionWebGameFireCommand() { return 14 }
 Int sessionWebGameJumpCommand() { return 15 }
-Int sessionWebGameMinimumPosition() { return -100 }
+Int sessionWebGameLookUpCommand() { return 16 }
+Int sessionWebGameLookDownCommand() { return 17 }
+Int sessionWebGameInputMarker() { return 8 }
+Int sessionWebGameRollAction() { return 1 }
+Int sessionWebGameDashAction() { return 2 }
+Int sessionWebGameGlideAction() { return 3 }
+Int sessionWebGameFlyAction() { return 4 }
+Int sessionWebGameMeleeAction() { return 6 }
+Int sessionWebGameSpecialAction() { return 7 }
+Int sessionWebGameThrowableAction() { return 8 }
+Int sessionWebGameMaximumInputAxis() { return 1000 }
+Int sessionWebGameMaximumLookDelta() { return 1800 }
+
+Int[] newSessionWebGameInput(
+    Int sequence, Int tick, Int moveX, Int moveZ,
+    Int lookYaw, Int lookPitch, Int heldActions, Int edgeActions
+) {
+    if (sequence <= 0 || sequence > 1000000 ||
+        tick < 0 || tick > sessionWebGameMaximumTick() ||
+        moveX < -sessionWebGameMaximumInputAxis() ||
+        moveX > sessionWebGameMaximumInputAxis() ||
+        moveZ < -sessionWebGameMaximumInputAxis() ||
+        moveZ > sessionWebGameMaximumInputAxis() ||
+        lookYaw < -sessionWebGameMaximumLookDelta() ||
+        lookYaw > sessionWebGameMaximumLookDelta() ||
+        lookPitch < -sessionWebGameMaximumLookDelta() ||
+        lookPitch > sessionWebGameMaximumLookDelta() ||
+        heldActions < 0 || heldActions > 511 ||
+        edgeActions < 0 || edgeActions > 511) {
+        return new Int[0]
+    }
+    var words = new Int[12]
+    words[0] = sessionWebGameProtocolVersion()
+    words[1] = sessionWebGameKind()
+    words[2] = sequence
+    words[3] = sessionWebGameInputMarker()
+    words[4] = tick
+    words[5] = moveX
+    words[6] = moveZ
+    words[7] = lookYaw
+    words[8] = lookPitch
+    words[9] = heldActions
+    words[10] = edgeActions
+    words[11] = sessionWebMessageChecksum(words, 11)
+    return words
+}
+
+Bool validSessionWebGameInput(Int[] words) {
+    return words.length == 12 &&
+        words[0] == sessionWebGameProtocolVersion() &&
+        words[1] == sessionWebGameKind() &&
+        words[2] > 0 && words[2] <= 1000000 &&
+        words[3] == sessionWebGameInputMarker() &&
+        words[4] >= 0 && words[4] <= sessionWebGameMaximumTick() &&
+        words[5] >= -sessionWebGameMaximumInputAxis() &&
+        words[5] <= sessionWebGameMaximumInputAxis() &&
+        words[6] >= -sessionWebGameMaximumInputAxis() &&
+        words[6] <= sessionWebGameMaximumInputAxis() &&
+        words[7] >= -sessionWebGameMaximumLookDelta() &&
+        words[7] <= sessionWebGameMaximumLookDelta() &&
+        words[8] >= -sessionWebGameMaximumLookDelta() &&
+        words[8] <= sessionWebGameMaximumLookDelta() &&
+        words[9] >= 0 && words[9] <= 511 &&
+        words[10] >= 0 && words[10] <= 511 &&
+        words[11] == sessionWebMessageChecksum(words, 11)
+}
+
+Int sessionWebGameRollCommand() { return 18 }
+Int sessionWebGameDashCommand() { return 19 }
+Int sessionWebGameGlideCommand() { return 20 }
+Int sessionWebGameFlyCommand() { return 21 }
+Int sessionWebGameThrowableCommand() { return 22 }
+
+
 Int sessionWebGameMaximumPosition() { return 100 }
+Int sessionWebGameMinimumPosition() { return -100 }
 Int sessionWebGameMinimumDepth() { return -60 }
 Int sessionWebGameMaximumDepth() { return 60 }
 Int sessionWebGameWorldMinimumX() { return 4 }
 Int sessionWebGameWorldMaximumX() { return 316 }
-Int sessionWebGameWorldMinimumY() { return 1 }
-Int sessionWebGameWorldMaximumY() { return 20 }
+Int sessionWebGameWorldMinimumY() { return 0 }
+Int sessionWebGameWorldMaximumY() { return 100 }
 Int sessionWebGameWorldMinimumZ() { return 4 }
 Int sessionWebGameWorldMaximumZ() { return 276 }
 Int sessionWebGameMaximumTick() { return 10000000 }
@@ -174,8 +255,7 @@ Bool validSessionWebPing(Int[] words, Int kind) {
 Int[] newSessionWebGameCommand(Int sequence, Int command) {
     if (sequence <= 0 || sequence > 1000000 ||
         (command < sessionWebGameMoveLeftCommand() ||
-            command > sessionWebGameJumpCommand())) {
-        return new Int[0]
+            command > sessionWebGameLookDownCommand())) {
     }
     var words = new Int[7]
     words[0] = sessionWebGameProtocolVersion()
@@ -194,8 +274,11 @@ Int[] newSessionWebGameCommand(Int sequence, Int command) {
         words[5] = 8
     } else if (command == sessionWebGameLookLeftCommand()) {
         words[5] = -15
-    } else if (command == sessionWebGameLookRightCommand()) {
+    } else if (command == sessionWebGameLookRightCommand() ||
+        command == sessionWebGameLookUpCommand()) {
         words[5] = 15
+    } else if (command == sessionWebGameLookDownCommand()) {
+        words[5] = -15
     }
     words[6] = sessionWebMessageChecksum(words, 6)
     return words
@@ -209,6 +292,231 @@ Int[] newSessionWebGameFullSceneProbe(Int sequence) {
     return newSessionWebGameCommand(
         sequence, sessionWebGameFullSceneProbeCommand()
     )
+}
+
+Int[] newSessionWebGameJoinRequest(Int sequence, Int role) {
+    if (sequence <= 0 || sequence > 1000000 ||
+        (role != sessionWebRolePlayer() &&
+            role != sessionWebRoleSpectator())) {
+        return new Int[0]
+    }
+    var words = new Int[6]
+    words[0] = sessionWebGameProtocolVersion()
+    words[1] = sessionWebGameKind()
+    words[2] = sequence
+    words[3] = sessionWebGameJoinRequestMarker()
+    words[4] = role
+    words[5] = sessionWebMessageChecksum(words, 5)
+    return words
+}
+
+Bool validSessionWebGameJoinRequest(Int[] words) {
+    return words.length == 6 &&
+        words[0] == sessionWebGameProtocolVersion() &&
+        words[1] == sessionWebGameKind() &&
+        words[2] > 0 && words[2] <= 1000000 &&
+        words[3] == sessionWebGameJoinRequestMarker() &&
+        (words[4] == sessionWebRolePlayer() ||
+            words[4] == sessionWebRoleSpectator()) &&
+        words[5] == sessionWebMessageChecksum(words, 5)
+}
+
+Int[] newSessionWebGameJoinResponse(
+    Int sequence, Bool accepted, Int role, Int playerId,
+    Int playerCount, Int spectatorCount
+) {
+    if (sequence <= 0 || sequence > 1000000 ||
+        (role != sessionWebRolePlayer() &&
+            role != sessionWebRoleSpectator()) ||
+        playerId < 0 || playerId > 1000000 ||
+        playerCount < 0 || playerCount > 8 ||
+        spectatorCount < 0 || spectatorCount > 4 ||
+        (accepted && playerId == 0)) {
+        return new Int[0]
+    }
+    var words = new Int[10]
+    words[0] = sessionWebGameProtocolVersion()
+    words[1] = sessionWebGameKind()
+    words[2] = sequence
+    words[3] = sessionWebGameJoinResponseMarker()
+    words[4] = if (accepted) 1 else 0
+    words[5] = role
+    words[6] = playerId
+    words[7] = playerCount
+    words[8] = spectatorCount
+    words[9] = sessionWebMessageChecksum(words, 9)
+    return words
+}
+
+Bool validSessionWebGameJoinResponse(Int[] words) {
+    return words.length == 10 &&
+        words[0] == sessionWebGameProtocolVersion() &&
+        words[1] == sessionWebGameKind() &&
+        words[2] > 0 && words[2] <= 1000000 &&
+        words[3] == sessionWebGameJoinResponseMarker() &&
+        (words[4] == 0 || words[4] == 1) &&
+        (words[5] == sessionWebRolePlayer() ||
+            words[5] == sessionWebRoleSpectator()) &&
+        words[6] >= 0 && words[6] <= 1000000 &&
+        words[7] >= 0 && words[7] <= 8 &&
+        words[8] >= 0 && words[8] <= 4 &&
+        (words[4] == 0 || words[6] > 0) &&
+        words[9] == sessionWebMessageChecksum(words, 9)
+}
+
+Int[] newSessionWebGameMultiplayerSnapshot(
+    Int sequence, Int tick, Int role, Int playerId,
+    Int playerX, Int playerY, Int playerZ, Int yaw, Int pitch,
+    Int playerCount, Int spectatorCount, Int[] actors
+) {
+    if (sequence <= 0 || sequence > 1000000 ||
+        tick < 0 || tick > sessionWebGameMaximumTick() ||
+        (role != sessionWebRolePlayer() &&
+            role != sessionWebRoleSpectator()) ||
+        playerId < 0 || playerId > 1000000 ||
+        (role == sessionWebRolePlayer() && playerId <= 0) ||
+        (role == sessionWebRoleSpectator() && playerId != 0) ||
+        playerX < sessionWebGameWorldMinimumX() ||
+        playerX > sessionWebGameWorldMaximumX() ||
+        playerY < sessionWebGameWorldMinimumY() ||
+        playerY > sessionWebGameWorldMaximumY() ||
+        playerZ < sessionWebGameWorldMinimumZ() ||
+        playerZ > sessionWebGameWorldMaximumZ() ||
+        yaw < 0 || yaw > 359 || pitch < -90 || pitch > 90 ||
+        playerCount < 0 || playerCount > 8 ||
+        spectatorCount < 0 || spectatorCount > 4 ||
+        actors.length % 8 != 0 || actors.length > 64) {
+        return new Int[0]
+    }
+    var count = actors.length / 8
+    var words = new Int[19 + actors.length]
+    words[0] = sessionWebGameProtocolVersion()
+    words[1] = sessionWebGameKind()
+    words[2] = sequence
+    words[3] = sessionWebGameMultiplayerSnapshotMarker()
+    words[4] = tick
+    words[5] = role
+    words[6] = playerId
+    words[7] = playerX
+    words[8] = playerY
+    words[9] = playerZ
+    words[10] = yaw
+    words[11] = pitch
+    words[12] = sessionWebGameMaximumHealth()
+    words[13] = sessionWebGameMaximumStamina()
+    words[14] = sessionWebGameMaximumAmmo()
+    words[15] = playerCount
+    words[16] = spectatorCount
+    words[17] = count
+    for (var index = 0; index < actors.length; index = index + 1) {
+        words[18 + index] = actors[index]
+    }
+    words[words.length - 1] =
+        sessionWebMessageChecksum(words, words.length - 1)
+    if (!validSessionWebGameMultiplayerSnapshot(words)) {
+        return new Int[0]
+    }
+    return words
+}
+
+Bool validSessionWebGameMultiplayerSnapshot(Int[] words) {
+    if (words.length < 19 || words.length > sessionWebMaximumWords() ||
+        words[0] != sessionWebGameProtocolVersion() ||
+        words[1] != sessionWebGameKind() ||
+        words[2] <= 0 || words[2] > 1000000 ||
+        words[3] != sessionWebGameMultiplayerSnapshotMarker() ||
+        words[4] < 0 || words[4] > sessionWebGameMaximumTick() ||
+        (words[5] != sessionWebRolePlayer() &&
+            words[5] != sessionWebRoleSpectator()) ||
+        words[6] < 0 || words[6] > 1000000 ||
+        (words[5] == sessionWebRolePlayer() && words[6] <= 0) ||
+        (words[5] == sessionWebRoleSpectator() && words[6] != 0) ||
+        words[7] < sessionWebGameWorldMinimumX() ||
+        words[7] > sessionWebGameWorldMaximumX() ||
+        words[8] < sessionWebGameWorldMinimumY() ||
+        words[8] > sessionWebGameWorldMaximumY() ||
+        words[9] < sessionWebGameWorldMinimumZ() ||
+        words[9] > sessionWebGameWorldMaximumZ() ||
+        words[10] < 0 || words[10] > 359 ||
+        words[11] < -90 || words[11] > 90 ||
+        words[12] < 0 || words[12] > sessionWebGameMaximumHealth() ||
+        words[13] < 0 || words[13] > sessionWebGameMaximumStamina() ||
+        words[14] < 0 || words[14] > sessionWebGameMaximumAmmo() ||
+        words[15] < 0 || words[15] > 8 ||
+        words[16] < 0 || words[16] > 4 ||
+        words[17] < 0 || words[17] > words[15] ||
+        words[words.length - 1] !=
+            sessionWebMessageChecksum(words, words.length - 1)) {
+        return false
+    }
+    var actorCount = words[17]
+    var trailer = 18 + actorCount * 8
+    var legacyLength = 19 + actorCount * 8
+    var extended = words.length != legacyLength
+    var projectileCount = 0
+    var throwableCount = 0
+    var impactCount = 0
+    if (extended) {
+        if (words.length < trailer + 5) { return false }
+        projectileCount = words[trailer + 1]
+        throwableCount = words[trailer + 2]
+        impactCount = words[trailer + 3]
+        if (words[trailer] < 0 || words[trailer] > 1000000 ||
+            projectileCount < 0 || projectileCount > 12 ||
+            throwableCount < 0 || throwableCount > 4 ||
+            impactCount < 0 || impactCount > 8 ||
+            words.length != trailer + 5 + projectileCount * 7 +
+                throwableCount * 8 + impactCount * 8) { return false }
+    } else if (words.length != legacyLength) {
+        return false
+    }
+    for (var index = 0; index < actorCount; index = index + 1) {
+        var offset = 18 + index * 8
+        if (words[offset] <= 0 || words[offset] > 1000000 ||
+            words[offset + 1] < sessionWebGameWorldMinimumX() ||
+            words[offset + 1] > sessionWebGameWorldMaximumX() ||
+            words[offset + 2] < sessionWebGameWorldMinimumY() ||
+            words[offset + 2] > sessionWebGameWorldMaximumY() ||
+            words[offset + 3] < sessionWebGameWorldMinimumZ() ||
+            words[offset + 3] > sessionWebGameWorldMaximumZ() ||
+            words[offset + 4] < 0 ||
+            words[offset + 4] > sessionWebGameMaximumHealth() ||
+            words[offset + 5] < 0 || words[offset + 5] > 7 ||
+            words[offset + 6] < 1 || words[offset + 6] > 2 ||
+            words[offset + 7] < 0 || words[offset + 7] > 359) {
+            return false
+        }
+    }
+    var cursor = trailer + 4
+    if (extended) {
+        for (var index = 0; index < projectileCount; index = index + 1) {
+            if (words[cursor] <= 0 || words[cursor + 1] <= 0 ||
+                words[cursor + 2] < 0 || words[cursor + 3] < 0 ||
+                words[cursor + 4] < 0 || words[cursor + 5] < 0 ||
+                words[cursor + 6] < 0 ||
+                words[cursor + 6] > sessionWebGameMaximumTick()) { return false }
+            cursor = cursor + 7
+        }
+        for (var index = 0; index < throwableCount; index = index + 1) {
+            if (words[cursor] <= 0 || words[cursor + 1] <= 0 ||
+                words[cursor + 2] < 0 || words[cursor + 3] < 0 ||
+                words[cursor + 4] < 0 || words[cursor + 5] < 0 ||
+                words[cursor + 6] != 2 ||
+                words[cursor + 7] < 0 ||
+                words[cursor + 7] >
+                    sessionWebGameMaximumThrowableFuseTicks()) { return false }
+            cursor = cursor + 8
+        }
+        for (var index = 0; index < impactCount; index = index + 1) {
+            if (words[cursor] <= 0 || words[cursor + 1] < 1 ||
+                words[cursor + 1] > 5 || words[cursor + 2] <= 0 ||
+                words[cursor + 3] < 0 || words[cursor + 4] < 0 ||
+                words[cursor + 5] < 0 || words[cursor + 6] < 0 ||
+                words[cursor + 7] < 0) { return false }
+            cursor = cursor + 8
+        }
+    }
+    return true
 }
 
 Bool validSessionWebGameCommand(Int[] words) {
@@ -231,6 +539,10 @@ Bool validSessionWebGameCommand(Int[] words) {
                 words[5] == -15) ||
             (words[4] == sessionWebGameLookRightCommand() &&
                 words[5] == 15) ||
+            (words[4] == sessionWebGameLookUpCommand() &&
+                words[5] == 15) ||
+            (words[4] == sessionWebGameLookDownCommand() &&
+                words[5] == -15) ||
             (words[4] >= sessionWebGameMeleeCommand() &&
                 words[4] <= sessionWebGameJumpCommand() &&
                 words[5] == 0)) &&

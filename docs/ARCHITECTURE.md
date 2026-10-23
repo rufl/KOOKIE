@@ -86,8 +86,9 @@ only generated mechanical shader metadata and GPU handles. Kof continues to own
 camera/projection semantics, bounded staging, material/pass selection and render
 ordering; it never parses or composes SPIR-V at runtime.
 
-The active Kof4j `0.6.5` pin is the Kof `lab` source commit
-`8e59b24acc978eb2546509b5cfca867a06e7283a`. The existing
+The active Kof4j `0.6.6` pin is the official `kof-0.6.6-linux-x86_64`
+release tag at source commit
+`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`. The existing
 `scripts/verify_simd_dispatch.sh` qualifies the bounded synchronous
 `Buffer(U8)` producer/copy-back path on JVM and native x86-64, and provides
 freestanding syntax proofs for AArch64 Linux, RISC-V Linux and x86-64/AArch64
@@ -435,6 +436,14 @@ it owns no session or gameplay policy. `scripts/build_web_server.sh` packages
 the native Kof executable with that adapter, and
 `scripts/verify_kof_web_server.sh` qualifies health, metrics, upgrade,
 handshake, full-scene movement and malformed-request rejection.
+
+The current `apps/web_server/main.kf` runs an authoritative fixed-tick server
+with eight-player/four-spectator admission. `scripts/verify_kof_web_server.sh`
+passed end-to-end qualification, covering concurrent admission, movement,
+actions, damage, projectiles, throwable impact, collision, and disconnect/
+re-admission. The separate loopback benchmark measures snapshot cadence and
+input-to-ACK latency; neither check establishes WAN/tailnet quality or every
+possible combat edge case.
 
 This local server is TCP-only and is qualified with `ws://`. It does not claim
 hosted identity, bearer admission or TLS termination. The runtime target matrix

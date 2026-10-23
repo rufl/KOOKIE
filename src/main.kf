@@ -353,6 +353,57 @@ test "lobby identity binds unique nicknames to trusted player IDs" {
         "nickname ownership must survive lobby restarts and remain bound to its stable identity")
 }
 
+test "dedicated lobby admits bounded read-only spectators beside eight players" {
+    var lobby = DedicatedLobbyServer()
+    assert(lobby.start(93, "Host", "account:room-host"),
+        "lobby must admit an owner before participants")
+    for (var index = 1; index < lobbyServerMaximumPlayers(); index = index + 1) {
+        assert(lobby.joinPlayer(
+                "account:player-" + index, "Player" + index) > 0,
+            "all eight player slots must admit distinct players")
+    }
+    assert(lobby.playerCount() == 8 &&
+        lobby.joinPlayer("account:player-overflow", "Overflow") == 0,
+        "the ninth player must be rejected without reducing player capacity")
+
+    for (var index = 0; index < lobbyServerMaximumSpectators(); index = index + 1) {
+        assert(lobby.joinSpectator(
+                "account:spectator-" + index, "Watcher" + index) > 0,
+            "four separate spectator slots must admit read-only users")
+    }
+    assert(lobby.spectatorCount() == 4 &&
+        lobby.joinSpectator("account:spectator-overflow", "OverflowWatch") == 0,
+        "the fifth spectator must be rejected independently of player slots")
+
+    var spectator = lobby.spectatorIdAt(0)
+    assert(spectator > 0 &&
+        lobby.spectatorNameAt(0) == "Watcher0" &&
+        lobby.spectatorIdentityAt(0) == "account:spectator-0" &&
+        !lobby.spectatorIdActive(0) &&
+        !lobby.movePlayer(spectator, 1, 0) &&
+        !lobby.sendChat(spectator, "spectator chat") &&
+        !lobby.performMinigameAction(spectator, lobby.ownerId()) &&
+        lobby.executeAdminCommand(spectator, "addbot Intruder") ==
+            lobbyServerCommandPermissionDenied() &&
+        lobby.leavePlayer(spectator) == false &&
+        lobby.playerCount() == 8 && lobby.spectatorCount() == 4,
+        "spectator IDs must never gain player or admin mutation authority")
+
+    assert(lobby.joinSpectator("account:other", "pLaYeR1") == 0 &&
+        lobby.joinSpectator("account:player-1", "AnotherWatch") == 0 &&
+        lobby.joinPlayer("account:other-player", "watcher0") == 0 &&
+        lobby.joinPlayer("account:spectator-0", "AnotherPlayer") == 0,
+        "identity and case-insensitive nickname uniqueness must cross roles")
+
+    assert(lobby.leaveSpectator(spectator) &&
+        lobby.spectatorCount() == 3 &&
+        lobby.joinSpectator("account:replacement-watch", "Replacement") > 0 &&
+        lobby.spectatorCount() == 4 &&
+        lobby.stop() && lobby.spectatorCount() == 0 &&
+        lobby.spectatorIdAt(0) == 0 && lobby.spectatorNameAt(0) == "",
+        "disconnect must free spectator capacity and stop must clear its roster")
+}
+
 test "lobby options select cat with nickname and color" {
     var shell = GameShell()
     assert(shell.handleAction(gameShellActionDown()) &&
@@ -3455,6 +3506,15 @@ test "browser WebSocket handshake and heartbeat words are bounded" {
     assert(validSessionWebGameCommand(move) &&
         move[5] == -8,
         "browser game commands must carry bounded authoritative input")
+    var lookUp = newSessionWebGameCommand(
+        4, sessionWebGameLookUpCommand())
+    var lookDown = newSessionWebGameCommand(
+        5, sessionWebGameLookDownCommand())
+    assert(validSessionWebGameCommand(lookUp) &&
+        lookUp[5] == 15 &&
+        validSessionWebGameCommand(lookDown) &&
+        lookDown[5] == -15,
+        "touch camera look commands must preserve bounded pitch direction")
     var snapshot = newSessionWebGameSnapshot(3, 1, -8, 100, 90, 1, 1)
     assert(validSessionWebGameSnapshot(snapshot) &&
         snapshot[5] == -8 && snapshot[7] == 90,

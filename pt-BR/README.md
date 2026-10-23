@@ -7,7 +7,7 @@
   <a href="https://github.com/rufl/KOOKIE/releases"><img alt="Release dogfood mais recente do KOOKIE" src="https://img.shields.io/github/v/release/rufl/KOOKIE?include_prereleases&amp;sort=semver&amp;label=dogfood&amp;color=38bdf8"></a>
   <img alt="Estado do projeto: experimental" src="https://img.shields.io/badge/estado-experimental-f59e0b">
   <a href="../LICENSE"><img alt="Licença MIT" src="https://img.shields.io/github/license/rufl/KOOKIE?color=22c55e"></a>
-  <img alt="Kof 0.6.5" src="https://img.shields.io/badge/Kof-0.6.5-64748b">
+  <img alt="Kof 0.6.6" src="https://img.shields.io/badge/Kof-0.6.6-64748b">
 </p>
 
 <p align="center">
@@ -90,11 +90,11 @@ com artefatos Linux e Windows x86-64; o updater seleciona o asset do alvo.
 
 ### Executar a qualificação a partir da fonte
 
-Instale [Kof 0.6.5](https://github.com/KofLang/Kof4j) para o entrypoint
+Instale [Kof 0.6.6](https://github.com/KofLang/Kof4j) para o entrypoint
 de fonte:
 
 Use a distribuição construída a partir da branch `lab` do Kof no commit
-`8e59b24acc978eb2546509b5cfca867a06e7283a`. `scripts/prepare_kof_source.sh`
+`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`. `scripts/prepare_kof_source.sh`
 verifica que a guarda de ciclos do GC native upstream está presente e depois
 normaliza os metadados do compilador antes do empacotamento Maven.
 
@@ -263,7 +263,7 @@ manifesto de assets publicados. O adaptador de sound cues mantém metadados
 registrados no SDL_mixer. Os 14 OGG JDSherbert fornecidos
 continuam bloqueados para redistribuição até a procedência/licença ser
 confirmada. [`docs/KOF4J_UI_MIGRATION.md`](docs/KOF4J_UI_MIGRATION.md) registra
-a fronteira atual de UI/FFI do Kof4j `0.6.5`. A qualificação síncrona de
+a fronteira atual de UI/FFI do Kof4j `0.6.6`. A qualificação síncrona de
 `Buffer(U8)` passa na JVM e no native x86-64 com o pin ativo; o suporte cross
 continua não qualificado e `Buffer(U8)` não é uma ABI portátil
 tipada/assíncrona de upload.

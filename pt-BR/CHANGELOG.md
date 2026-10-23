@@ -3,6 +3,27 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Adicionamos um editor de layout touch para mover o analógico de movimento e o
+  grupo de ações arrastando ou usando controles de posição acessíveis pelo
+  teclado. Layouts nomeados são salvos localmente e podem ser carregados ou
+  redefinidos. A amostragem das animações do ganso agora limita o tempo aos
+  quadros-chave existentes, sem extrapolação antes do primeiro quadro.
+- Adicionamos Bugfeed ao jogo no navegador: um botão captura a cena WebGL,
+  aceita anotações e envia diagnósticos limitados a um serviço acessível apenas
+  pela tailnet. Cada relatório recebe um UUID e é salvo persistentemente com
+  permissões privadas; se a captura falhar, ainda é possível enviar somente os
+  diagnósticos. Incluímos rotas de consulta, verificações de inicialização,
+  documentação de operação/privacidade e smoke de navegador/servidor.
+- Substituímos o analógico direito de câmera por controles móveis no estilo
+  Minecraft: analógico esquerdo para movimento, gesto de arrastar na cena para
+  olhar e botões persistentes de ação/salto, com pitch vertical limitado.
+- Adicionamos previsão local do movimento e reconciliação autoritativa por
+  sequência. Snapshots atrasados não sobrescrevem estado mais novo nem removem
+  movimentos ainda não confirmados. O HUD exibe automaticamente o RTT
+  cliente/servidor.
+- Simplificamos o HUD e sobrepusemos os controles ao viewport em telefones:
+  retrato mantém movimento à esquerda e ações à direita; paisagem usa uma fileira
+  compacta de quatro botões e libera mais espaço para a cena.
 - Adicionamos o servidor native de qualificação HTTP/WebSocket sob posse do Kof
   em `apps/web_server/main.kf`. Ele possui as rotas HTTP limitadas, upgrade RFC
   6455, framing Kof, handshake, movimento autoritativo da cena completa e

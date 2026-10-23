@@ -125,7 +125,7 @@ não equivalência pixel a pixel.
 - Sonda do adaptador nativo aplicando eventos reais do adaptador ao estado Kof e executando o primeiro caminho de upload/draw de textura SPIR-V.
 - Contrato limitado de staging de frame Kof medido em 15 escritas escalares para um triângulo texturizado de três vértices, com verificações de ownership de publish/discard.
 - Sonda de lifetime de exceções nativas e controles negativos registrados no
-  gate de verificação; o Kof `0.6.5` agora rejeita a asserção deliberadamente
+  gate de verificação; o Kof `0.6.6` agora rejeita a asserção deliberadamente
   falha na JVM e no native.
 - Adaptador nativo expõe timing decorrido de draw GPU após retirement com GPU ocioso.
 - Relógio de fixed-step G1, comandos de input limitados com transições de borda fire/jump, sincronização de snapshot servidor/cliente em loopback e storage limitado de componentes inteiros.
@@ -202,7 +202,7 @@ não equivalência pixel a pixel.
 - A perda de foco agora limpa comandos de jogador pendentes, emite bordas de liberação dos botões mantidos, bloqueia novos inputs enquanto desfocado e rearma corretamente ao recuperar o foco; a cobertura JVM/nativa impede disparos obsoletos.
 - A pausa agora redefine a dívida de tempo do fixed-step, desarma comandos de jogador pendentes, bloqueia simulação/input enquanto pausado e retoma sem picos de catch-up; a cobertura JVM/nativa fixa o contrato documentado de pausa.
 - `InputReplayRecorder` agora registra comandos de tick resultantes validados (não eventos crus da plataforma) em um FIFO limitado, preserva ordem determinística, rejeita comandos obsoletos/duplicados/inválidos e reproduz ou redefine sem crescimento ilimitado; `LoopbackSession` captura comandos consumidos somente quando explicitamente habilitado e redefine a captura limitada ao desabilitar.
-- DXPERF-051 agora possui um mecanismo nativo de despacho seguro para produção: seleção de AVX2/SSE2 em tempo de execução no x86, cobertura de origem NEON no AArch64, fallback escalar verificado, inicialização segura para threads, prova de execução no host/escalar e prova sintática com alvo cruzado AArch64. A menção original à “fronteira de arrays/buffers FFI001” pertence à baseline histórica; a pinagem ativa de fonte `0.6.5` possui uma fixture limitada e síncrona de `Buffer(U8)`. A integração em massa tipada/assíncrona de GPU continua não qualificada e nenhum speedup é presumido sem um perfil representativo.
+- DXPERF-051 agora possui um mecanismo nativo de despacho seguro para produção: seleção de AVX2/SSE2 em tempo de execução no x86, cobertura de origem NEON no AArch64, fallback escalar verificado, inicialização segura para threads, prova de execução no host/escalar e prova sintática com alvo cruzado AArch64. A menção original à “fronteira de arrays/buffers FFI001” pertence à baseline histórica; a pinagem ativa de fonte `0.6.6` possui uma fixture limitada e síncrona de `Buffer(U8)`. A integração em massa tipada/assíncrona de GPU continua não qualificada e nenhum speedup é presumido sem um perfil representativo.
 - `BoundedRayTargetWorld` agora fornece seleção limitada de alvos por raio e pellets de shotgun com inteiros, ordenação pelo impacto mais próximo, desempate por ID estável, offsets de dispersão, exclusão da fonte por `SpatialAimContract`, remoção de alvos e rejeição de entradas inválidas; a cobertura JVM/native prova impactos central e deslocado.
 - `CombatWorld.resolveShotgunPelletTargets` e os wrappers de sessão do jogador/inimigo agora aceitam exatamente um alvo validado por pellet, preservam IDs repetidos quando vários pellets atingem o mesmo ator, permitem erros de pontaria limitados e publicam eventos de combate ordenados; a cobertura JVM/native prova a ordem dos alvos e rejeita seleções com tamanho incorreto.
 - `LoopbackSession.resolvePlayerSpatialShotgun` agora constrói um `SpatialAimContract` compartilhado, deriva offsets de pellet do estado autoritativo de combate, seleciona alvos espaciais e resolve os IDs selecionados pelo caminho autoritativo por pellet; a cobertura JVM/native prova dano por dispersão, exclusão da fonte, remoção de alvo e vida dos alvos.
@@ -324,8 +324,8 @@ O bundle e os logs operacionais não devem ser commitados.
 
 O G0 está encerrado; trabalho posterior exige um novo milestone. Os contratos concluídos continuam registrados aqui.
 
-- A qualificação de release agora usa Kof `0.6.5` construído a partir da
-  fonte no commit `8e59b24acc978eb2546509b5cfca867a06e7283a`; a identidade do
+- A qualificação de release agora usa Kof `0.6.6` construído a partir da
+  fonte no commit `7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`; a identidade do
   JAR do compilador é registrada em `MEMORY.md`, e a CI calcula o digest da
   distribuição por build porque os metadados tar variam. A preparação verifica
   a guarda upstream de ciclos do GC native; nenhum patch local de GC é aplicado.

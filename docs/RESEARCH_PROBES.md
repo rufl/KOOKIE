@@ -3,8 +3,9 @@
 Date: 2026-09-22. These are narrow CLI experiments, not engine tests or graphics certification.
 
 These results intentionally preserve the historical Kof `0.4.9-beta` artifact.
-The active KOOKIE source/CI gate now uses Kof `0.6.5` from `lab` at
-`8e59b24acc978eb2546509b5cfca867a06e7283a`; do not use this page's jar identity
+The active KOOKIE source/CI gate now uses Kof `0.6.6` from the official
+`kof-0.6.6-linux-x86_64` release tag at commit
+`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`; do not use this page's jar identity
 as the current build input. Current bounded `Buffer(U8)` evidence is maintained
 by [`scripts/verify_simd_dispatch.sh`](../scripts/verify_simd_dispatch.sh) and
 the ABI decision in [`KOF_LANGUAGE`](KOF_LANGUAGE.md).

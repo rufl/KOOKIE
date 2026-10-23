@@ -1,6 +1,7 @@
 package session
 
 Int lobbyServerMaximumPlayers() { return 8 }
+Int lobbyServerMaximumSpectators() { return 4 }
 Int lobbyServerMaximumChatMessages() { return 32 }
 Int lobbyServerMaximumPlayerNameLength() { return 16 }
 Int lobbyServerMaximumChatLength() { return 80 }
@@ -28,6 +29,7 @@ class DedicatedLobbyServer {
     Int chatSequenceValue
     Int lastCommandResultValue
     Int[] playerIds
+    Int[] spectatorIds
     String[] playerNames
     Int[] playerTeams
     Int[] playerScores
@@ -37,12 +39,14 @@ class DedicatedLobbyServer {
     Int[] playerActionTicks
     Bool[] playerBots
     String[] playerIdentities
+    String[] spectatorNames
+    String[] spectatorIdentities
     String[] registeredIdentities
     String[] registeredNicknames
+    Int spectatorCountValue
     Int[] chatSenders
     Int[] chatTicks
     String[] chatMessages
-
     public constructor() {
         runningValue = false
         roomValue = 0
@@ -54,7 +58,9 @@ class DedicatedLobbyServer {
         chatSequenceValue = 0
         lastCommandResultValue = lobbyServerCommandOk()
         playerIds = new Int[lobbyServerMaximumPlayers()]
+        spectatorIds = new Int[lobbyServerMaximumSpectators()]
         playerNames = new String[lobbyServerMaximumPlayers()]
+        spectatorNames = new String[lobbyServerMaximumSpectators()]
         playerTeams = new Int[lobbyServerMaximumPlayers()]
         playerScores = new Int[lobbyServerMaximumPlayers()]
         playerXs = new Int[lobbyServerMaximumPlayers()]
@@ -63,13 +69,20 @@ class DedicatedLobbyServer {
         playerActionTicks = new Int[lobbyServerMaximumPlayers()]
         playerBots = new Bool[lobbyServerMaximumPlayers()]
         playerIdentities = new String[lobbyServerMaximumPlayers()]
+        spectatorIdentities = new String[lobbyServerMaximumSpectators()]
         registeredIdentities = new String[256]
         registeredNicknames = new String[256]
         chatSenders = new Int[lobbyServerMaximumChatMessages()]
         chatTicks = new Int[lobbyServerMaximumChatMessages()]
         chatMessages = new String[lobbyServerMaximumChatMessages()]
+        spectatorCountValue = 0
         for (var index = 0; index < lobbyServerMaximumPlayers(); index = index + 1) {
             clearSlot(index)
+        }
+        for (var index = 0; index < lobbyServerMaximumSpectators(); index = index + 1) {
+            spectatorIds[index] = 0
+            spectatorNames[index] = ""
+            spectatorIdentities[index] = ""
         }
         for (var index = 0; index < lobbyServerMaximumChatMessages(); index = index + 1) {
             chatSenders[index] = 0
@@ -132,6 +145,11 @@ class DedicatedLobbyServer {
                 return true
             }
         }
+        for (var slot = 0; slot < spectatorIdentities.length; slot = slot + 1) {
+            if (spectatorIds[slot] > 0 && spectatorIdentities[slot] == identity) {
+                return true
+            }
+        }
         return false
     }
 
@@ -140,9 +158,12 @@ class DedicatedLobbyServer {
             if (playerIds[slot] > 0 &&
                 sameNickname(playerNames[slot], name)) { return true }
         }
+        for (var slot = 0; slot < spectatorNames.length; slot = slot + 1) {
+            if (spectatorIds[slot] > 0 &&
+                sameNickname(spectatorNames[slot], name)) { return true }
+        }
         return false
     }
-
     Bool sameNickname(String left, String right) {
         if (left.length() != right.length()) { return false }
         for (var index = 0; index < left.length(); index = index + 1) {
@@ -193,6 +214,13 @@ class DedicatedLobbyServer {
         return -1
     }
 
+    Int findSpectator(Int spectatorId) {
+        for (var slot = 0; slot < spectatorIds.length; slot = slot + 1) {
+            if (spectatorIds[slot] == spectatorId && spectatorId > 0) { return slot }
+        }
+        return -1
+    }
+
     Int freeSlot() {
         for (var slot = 0; slot < playerIds.length; slot = slot + 1) {
             if (playerIds[slot] == 0) { return slot }
@@ -200,6 +228,12 @@ class DedicatedLobbyServer {
         return -1
     }
 
+    Int freeSpectatorSlot() {
+        for (var slot = 0; slot < spectatorIds.length; slot = slot + 1) {
+            if (spectatorIds[slot] == 0) { return slot }
+        }
+        return -1
+    }
     Int addParticipant(String name, Int team, Bool bot, String identity) {
         if (!runningValue || !validName(name) || team < 0 || team > 4 ||
             nextPlayerIdValue > 1000000 || nameInUse(name) ||
@@ -272,6 +306,12 @@ class DedicatedLobbyServer {
         for (var slot = 0; slot < playerIds.length; slot = slot + 1) {
             clearSlot(slot)
         }
+        for (var slot = 0; slot < spectatorIds.length; slot = slot + 1) {
+            spectatorIds[slot] = 0
+            spectatorNames[slot] = ""
+            spectatorIdentities[slot] = ""
+        }
+        spectatorCountValue = 0
         for (var index = 0; index < chatSenders.length; index = index + 1) {
             chatSenders[index] = 0
             chatTicks[index] = 0
@@ -285,6 +325,35 @@ class DedicatedLobbyServer {
         return addParticipant(name, 0, false, identity)
     }
 
+    Int joinSpectator(String identity, String name) {
+        if (!runningValue || !validPlayerIdentity(identity) ||
+            !validName(name) || nextPlayerIdValue > 1000000 ||
+            spectatorCountValue >= spectatorIds.length || nameInUse(name) ||
+            identityInUse(identity) ||
+            !identityClaimAllowed(identity, name)) {
+            return 0
+        }
+        var slot = freeSpectatorSlot()
+        if (slot < 0) { return 0 }
+        registerIdentity(identity, name)
+        var spectatorId = nextPlayerIdValue
+        nextPlayerIdValue = nextPlayerIdValue + 1
+        spectatorIds[slot] = spectatorId
+        spectatorNames[slot] = name
+        spectatorIdentities[slot] = identity
+        spectatorCountValue = spectatorCountValue + 1
+        return spectatorId
+    }
+
+    Bool leaveSpectator(Int spectatorId) {
+        var slot = findSpectator(spectatorId)
+        if (!runningValue || slot < 0) { return false }
+        spectatorIds[slot] = 0
+        spectatorNames[slot] = ""
+        spectatorIdentities[slot] = ""
+        spectatorCountValue = spectatorCountValue - 1
+        return true
+    }
     Bool leavePlayer(Int playerId) {
         var slot = findPlayer(playerId)
         if (!runningValue || slot < 0 || playerBots[slot]) { return false }
@@ -607,6 +676,24 @@ class DedicatedLobbyServer {
         return chatMessages[slot]
     }
 
+    Int spectatorIdAt(Int slot) {
+        if (slot < 0 || slot >= spectatorIds.length) { return 0 }
+        return spectatorIds[slot]
+    }
+
+    String spectatorNameAt(Int slot) {
+        if (slot < 0 || slot >= spectatorNames.length) { return "" }
+        return spectatorNames[slot]
+    }
+
+    String spectatorIdentityAt(Int slot) {
+        if (slot < 0 || slot >= spectatorIdentities.length) { return "" }
+        return spectatorIdentities[slot]
+    }
+
+    Bool spectatorIdActive(Int spectatorId) {
+        return findSpectator(spectatorId) >= 0
+    }
     Int playerIdAt(Int slot) {
         if (slot < 0 || slot >= playerIds.length) { return 0 }
         return playerIds[slot]
@@ -660,5 +747,7 @@ class DedicatedLobbyServer {
     }
     Int gameMode() { return gameModeValue }
     Int tick() { return tickValue }
+    Int spectatorCount() { return spectatorCountValue }
+    Int maximumSpectators() { return lobbyServerMaximumSpectators() }
     Int lastCommandResult() { return lastCommandResultValue }
 }

@@ -21,7 +21,7 @@ is required.
 Options:
   --repo OWNER/REPO       GitHub repository (default: rufl/KOOKIE)
   --signing-key PATH      owner-controlled Ed25519 private key
-  --kof-archive PATH      supplied Kof 0.6.5 distribution archive
+  --kof-archive PATH      supplied Kof 0.6.6 distribution archive
   --skip-github           only validate local release inputs
   --set-github-secrets    upload the validated inputs to GitHub Actions
   --help                  show this help

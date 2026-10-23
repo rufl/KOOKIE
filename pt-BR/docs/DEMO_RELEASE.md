@@ -37,9 +37,9 @@ dois registros de evidência de apresentação com sucesso e a aprovação do
 ambiente `kookie-demo-release`.
 
 
-Novos candidatos usam o Kof `0.6.5` construído a partir da branch `lab`, no
-commit `8e59b24acc978eb2546509b5cfca867a06e7283a`; o workflow constrói a
-distribuição a partir da fonte porque o pin não usa archive público do 0.6.5.
+Novos candidatos usam o Kof `0.6.6` construído a partir da branch `lab`, no
+commit `7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`; o workflow constrói a
+distribuição a partir da fonte porque o pin não usa archive público do 0.6.6.
 O digest do patch de release é
 `4898952c8f4130d1b5a9e8effb56b0dd7a58d228596b50f69427639c15843664`.
 
@@ -145,7 +145,7 @@ A árvore de fontes atual possui estes caminhos aptos a release:
 - Um cross-build atual, limpo e em worktree destacado no host Linux produziu
   `0.1.0-d1-win-cross.1` a partir do commit de fonte
   `2b0ef88fff8f284939691a4cac1c535a2ecfb607`, com o commit de fonte Kof
-  `8e59b24acc978eb2546509b5cfca867a06e7283a`. O SHA-256 do arquivo é
+  `7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`. O SHA-256 do arquivo é
   `c1dc8b215ab0602bf8ce6b4b927769cff82215afaedebdade323ba5ab8af32e6`;
   o SHA-256 do manifesto é
   `d28eac7d12930917cdf4e0133191085f13075689d399f61a787e10e2b87927c0`.
@@ -340,7 +340,7 @@ informativos, não autoridade de release.
   `scripts/build_demo_release.sh --target linux-x86_64` com a versão
   `0.1.0-d1-fix.1`, commit de fonte
   `5201286aa67c718b6d10460bff203ebf0118aada`, commit de fonte Kof
-  `8e59b24acc978eb2546509b5cfca867a06e7283a` e SHA-256 do arquivo
+  `7c237861a9035d84b1f7ec4cfddd89daef4c6ddd` e SHA-256 do arquivo
   `f292e7a975c9563de7409eb3bfa06c13249cdb7d4de834ef181f487107916cc5`.
   Builds duplicados, assinaturas/checksums, extração segura e smoke do pacote
   passaram.

@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101b16">
+  <title>GatoGanso — Play</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #101b16; color: #f5f4e8; }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; min-width: 0; height: 100%; margin: 0; overflow: hidden; }
+    body { background: radial-gradient(ellipse at 50% 30%, #26382a 0, #101b16 72%); }
+    button, input, select { font: inherit; }
+    button { min-width: 48px; min-height: 48px; border: 1px solid #71806a; border-radius: 16px; color: #f5f4e8; background: #25362b; font-weight: 700; touch-action: none; user-select: none; -webkit-user-select: none; cursor: pointer; transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease; }
+    button:hover:not(:disabled) { background: #344a38; border-color: #d1d99b; }
+    button:active:not(:disabled) { transform: scale(.96); background: #476047; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid #f3d06b; outline-offset: 3px; }
+    #kof-root { width: 100%; height: 100%; }
+    .kookie-session-panel { width: 100%; height: 100%; min-width: 0; display: grid; grid-template-rows: auto minmax(0,1fr) auto; gap: 10px; padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
+    .kookie-session-header { display: flex; align-items: center; gap: 14px; min-width: 0; min-height: 48px; }
+    .kookie-session-brand { display: flex; align-items: baseline; gap: 10px; min-width: 0; flex: 0 0 auto; }
+    .kookie-session-brand strong { color: #f4d26d; font-size: clamp(18px, 2.5vw, 24px); letter-spacing: .07em; white-space: nowrap; }
+    .kookie-session-brand span { color: #bac5a7; font-size: 13px; }
+    .kookie-session-header .kookie-session-controls { margin-left: auto; min-width: 0; }
+    .kookie-session-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .kookie-session-controls button { padding: 0 18px; }
+    .kookie-session-fullscreen { display: grid; place-items: center; width: 48px; min-width: 48px; height: 48px; padding: 0; }
+    .kookie-session-fullscreen svg { width: 20px; height: 20px; }
+    .kookie-session-panel:fullscreen, .kookie-session-panel:-webkit-full-screen { width: 100vw; height: 100dvh; }
+    .kookie-session-editor-link { display: inline-flex; align-items: center; min-height: 48px; padding: 0 14px; border: 1px solid #71806a; border-radius: 16px; color: #f5f4e8; background: #25362b; font-size: 13px; font-weight: 700; text-decoration: none; }
+    .kookie-session-editor-link:hover, .kookie-session-editor-link:focus-visible { border-color: #d1d99b; background: #344a38; }
+    .kookie-session-controls .kookie-primary { color: #172116; border-color: #f4d26d; background: #f4d26d; }
+    .kookie-session-controls .kookie-primary:hover:not(:disabled) { background: #ffe89b; }
+    .kookie-session-stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; border: 1px solid #56664d; border-radius: 22px; background: #0a1210; box-shadow: 0 22px 70px #0008; }
+    .kookie-session-canvas-wrap { position: absolute; inset: 0; }
+    .kookie-session-panel canvas#kookie-authoritative-scene { display: block; width: 100%; height: 100%; min-height: 0; aspect-ratio: auto; border: 0; border-radius: inherit; background: #07100d; touch-action: none; }
+    .kookie-session-hud { position: absolute; z-index: 2; top: 14px; left: 14px; display: flex; gap: 8px; pointer-events: none; }
+    .kookie-session-stat { min-width: 92px; padding: 8px 12px; border: 1px solid #ffffff27; border-radius: 12px; background: #111c18dc; backdrop-filter: blur(8px); }
+    .kookie-session-stat-label { display: block; color: #bdc9ae; font-size: 10px; letter-spacing: .09em; }
+    .kookie-session-stat-value { display: block; margin-top: 2px; color: #fffbe9; font: 700 17px/1.2 ui-monospace, monospace; }
+    .kookie-session-stat[data-stat="tick"], .kookie-session-stat[data-stat="position"], .kookie-session-stat[data-stat="combo"], .kookie-session-stat[data-stat="actors"], .kookie-session-stat[data-stat="projectiles"], .kookie-session-stat[data-stat="ping"], .kookie-session-stat[data-stat="renderer"] { display: none; }
+    .kookie-session-stat[data-stat="ping"] { display: block; min-width: 54px; margin-left: auto; }
+    .kookie-session-minimap { position: absolute; top: 14px; right: 14px; width: clamp(100px, 17vw, 164px); height: auto; min-height: 0; aspect-ratio: 3/2; border: 1px solid #ffffff35; border-radius: 14px; background: #07100de8; }
+    .kookie-session-minimap[hidden] { display: none; }
+    .kookie-session-labels { position: absolute; inset: 0; pointer-events: none; }
+    .kookie-scene-label { padding: 3px 6px; border: 1px solid #ffffff26; border-radius: 7px; background: #101b16d9; color: #fffbe9; font: 700 10px/1.2 system-ui, sans-serif; }
+    .kookie-session-runtime { position: absolute; z-index: 3; left: 14px; bottom: 14px; padding: 7px 10px; border: 1px solid #ffffff26; border-radius: 10px; background: #111c18dc; color: #dce8cc; font-size: 12px; }
+    .kookie-session-status { position: absolute; z-index: 4; left: 50%; top: 50%; transform: translate(-50%,-50%); max-width: min(80%, 440px); padding: 12px 18px; border: 1px solid #f4d26d88; border-radius: 14px; background: #111c18eb; color: #fffbe9; text-align: center; font-weight: 700; }
+    .kookie-session-status:empty { display: none; }
+    .kookie-session-help { position: absolute; right: 14px; bottom: 14px; color: #e5e9d8; font-size: 12px; text-shadow: 0 1px 5px #000; }
+    .kookie-session-touch-look { position: absolute; right: 16px; bottom: 16px; z-index: 2; padding: 7px 10px; border: 1px solid #ffffff38; border-radius: 999px; background: #111c18b8; color: #f5f4e8; font: 700 10px/1 system-ui, sans-serif; letter-spacing: .08em; pointer-events: none; opacity: .8; transition: opacity 250ms ease; }
+    .kookie-session-canvas-wrap[data-touch-look-started="true"] .kookie-session-touch-look { opacity: 0; }
+    .kookie-session-footer { display: flex; align-items: center; min-height: 124px; }
+    .kookie-session-game-controls { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px; }
+    .kookie-session-stick { display: grid; justify-items: center; gap: 3px; touch-action: none; user-select: none; -webkit-user-select: none; }
+    .kookie-stick-base { position: relative; display: grid; place-items: center; width: 112px; height: 112px; border: 2px solid #aeb99c88; border-radius: 50%; background: radial-gradient(circle, #27362cdd 0 24%, #111b16cc 26% 64%, #ffffff1a 66% 68%, #101813cc 70%); box-shadow: inset 0 2px 10px #0009, 0 3px 9px #0008; touch-action: none; }
+    .kookie-stick-knob { width: 42px; height: 42px; border: 2px solid #d7e2c2; border-radius: 50%; background: #82966ccc; box-shadow: 0 2px 8px #0009; pointer-events: none; }
+    .kookie-stick-label { color: #dce8cc; font: 700 10px/1 system-ui, sans-serif; letter-spacing: .12em; }
+    .kookie-session-stick.is-active .kookie-stick-knob { border-color: #f4d26d; background: #a98945e8; }
+    .kookie-session-stick[aria-disabled="true"] { opacity: .52; }
+    .kookie-session-actions { display: grid; grid-template-columns: repeat(2, 58px); grid-template-rows: repeat(2, 50px); align-items: center; justify-items: center; gap: 5px; }
+    .kookie-session-actions button { min-width: 48px; min-height: 48px; border-radius: 16px; padding: 6px; font-size: 11px; }
+    .kookie-session-actions [data-action="fire"] { border-color: #f4d26d; background: #74511c; }
+    .kookie-session-actions [data-action="jump"] { border-color: #9ebf79; background: #304a31; }
+    .kookie-touch-layout-editor { position: absolute; z-index: 8; left: 50%; top: 50%; transform: translate(-50%, -50%); display: grid; grid-template-columns: repeat(2, minmax(120px, 1fr)); gap: 8px; width: min(440px, calc(100% - 24px)); max-height: 80%; overflow: auto; padding: 14px; border: 1px solid #d1d99b; border-radius: 14px; background: #111c18f2; box-shadow: 0 12px 36px #000b; }
+    .kookie-touch-layout-editor[hidden] { display: none; }
+    .kookie-touch-layout-editor strong { grid-column: 1 / -1; color: #f4d26d; }
+    .kookie-touch-layout-editor input, .kookie-touch-layout-editor select { min-width: 0; min-height: 44px; padding: 6px 8px; border: 1px solid #63735b; border-radius: 8px; background: #0b1410; color: #fff; }
+    .kookie-touch-layout-editor input[type="range"] { padding: 0; touch-action: manipulation; }
+    .kookie-touch-layout-editor button { min-height: 44px; padding: 5px 8px; border-radius: 10px; font-size: 12px; }
+    .kookie-session-panel[data-layout-editing="true"] .kookie-session-stick, .kookie-session-panel[data-layout-editing="true"] .kookie-session-actions { outline: 2px dashed #f4d26d; outline-offset: 5px; cursor: move; }
+    .kookie-session-settings { position: relative; }
+    .kookie-session-settings summary { min-height: 44px; display: flex; align-items: center; padding: 0 10px; color: #d3ddc5; cursor: pointer; font-size: 13px; }
+    .kookie-session-settings-grid { position: absolute; z-index: 10; top: 52px; right: 0; bottom: auto; display: grid; grid-template-columns: 1fr; gap: 10px; width: min(320px, calc(100vw - 32px)); max-height: min(72dvh, 620px); overflow-y: auto; overscroll-behavior: contain; padding: 14px; border: 1px solid #68765c; border-radius: 14px; background: #17241def; box-shadow: 0 14px 38px #0008; }
+    .kookie-session-settings label { display: flex; gap: 8px; align-items: center; color: #e5e9d8; font-size: 13px; }
+    .kookie-session-settings input[type="url"], .kookie-session-settings input[type="password"], .kookie-session-settings select { width: 100%; min-height: 44px; padding: 8px 10px; border: 1px solid #63735b; border-radius: 8px; background: #0b1410; color: #fff; }
+    .kookie-session-settings input[type="checkbox"] { width: 20px; height: 20px; accent-color: #f4d26d; }
+    .kookie-session-settings .kookie-session-range { display: grid; grid-template-columns: minmax(0, 1fr) 48px; gap: 6px 8px; align-items: center; }
+    .kookie-session-settings .kookie-session-range span { grid-column: 1 / -1; }
+    .kookie-session-settings .kookie-session-range input[type="range"] { grid-column: 1; width: 100%; min-height: 44px; accent-color: #f4d26d; touch-action: manipulation; }
+    .kookie-session-settings .kookie-session-range output { grid-column: 2; color: #f4d26d; font: 700 12px/1 system-ui, sans-serif; text-align: right; }
+    .kookie-session-settings .kookie-session-advanced button { min-height: 44px; padding: 0 10px; border-radius: 10px; font-size: 12px; }
+    .kookie-session-status-text { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    .kookie-bugfeed-dialog { width: min(520px, calc(100vw - 24px)); max-height: 90dvh; overflow: auto; padding: 20px; border: 1px solid #87966d; border-radius: 16px; background: #17241f; color: #f5f4e8; box-shadow: 0 18px 60px #000b; }
+    .kookie-bugfeed-dialog::backdrop { background: #000b; }
+    .kookie-bugfeed-dialog h2 { margin: 0 0 10px; color: #f4d26d; font-size: 20px; }
+    .kookie-bugfeed-dialog p { overflow-wrap: anywhere; line-height: 1.5; }
+    .kookie-bugfeed-dialog label { display: grid; gap: 8px; color: #dce8cc; }
+    .kookie-bugfeed-dialog textarea { width: 100%; min-height: 110px; padding: 10px; border: 1px solid #63735b; border-radius: 8px; background: #0b1410; color: #fff; resize: vertical; }
+    .kookie-bugfeed-actions { display: flex; justify-content: end; gap: 8px; margin-top: 12px; }
+    .kookie-session-controls .kookie-primary { position: relative; min-width: 100px; }
+    .kookie-primary[data-async-state="pending"]::after,
+    .kookie-bugfeed-actions button[data-async-state="pending"]::after {
+      content: ""; width: 12px; height: 12px; margin-left: 8px;
+      border: 2px solid currentColor; border-right-color: transparent;
+      border-radius: 50%; animation: kookie-spin .75s linear infinite;
+    }
+    .kookie-primary[data-async-state="pending"],
+    .kookie-bugfeed-actions button[data-async-state="pending"] {
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .kookie-primary[data-async-state="success"],
+    .kookie-bugfeed-actions button[data-async-state="success"] { border-color: #9ebf79; }
+    .kookie-primary[data-async-state="error"],
+    .kookie-bugfeed-actions button[data-async-state="error"] { border-color: #f87171; }
+    .kookie-session-stat-value[data-trend="up"] { color: #9ee6ad; }
+    .kookie-session-stat-value[data-trend="down"] { color: #ff9b8f; }
+    .kookie-session-stat-value[data-flashing="true"] {
+      animation: kookie-value-flash 450ms ease-out;
+    }
+    @keyframes kookie-spin { to { transform: rotate(360deg); } }
+    @keyframes kookie-value-flash {
+      50% { transform: scale(1.08); filter: brightness(1.35); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .kookie-primary[data-async-state="pending"]::after,
+      .kookie-bugfeed-actions button[data-async-state="pending"]::after { animation: none; }
+      .kookie-session-stat-value[data-flashing="true"] { animation: none; }
+    }
+    @media (min-width: 1100px) { .kookie-session-panel { padding-inline: max(24px, calc((100vw - 1500px)/2)); } }
+    @media (max-width: 700px) {
+      .kookie-session-panel { position: relative; gap: 5px; padding: max(5px, env(safe-area-inset-top)) max(6px, env(safe-area-inset-right)) max(5px, env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left)); grid-template-rows: auto minmax(0,1fr); }
+      .kookie-session-header { width: 100%; min-height: 44px; gap: 2px; }
+      .kookie-session-brand { flex: 0 0 auto; }
+      .kookie-session-brand strong { font-size: 12px; }
+      .kookie-session-brand span { display: none; }
+      .kookie-session-header .kookie-session-controls { flex: 1 1 0; justify-content: flex-end; gap: 1px; flex-wrap: nowrap; }
+      .kookie-session-header .kookie-session-controls button { min-width: 44px; min-height: 44px; padding: 0 4px; font-size: 9px; }
+      .kookie-session-header .kookie-session-bugfeed { width: 44px; padding: 0; font-size: 0; }
+      .kookie-session-header .kookie-session-bugfeed::after { content: "BUG"; font-size: 9px; }
+      .kookie-session-header .kookie-session-fullscreen { width: 44px; min-width: 44px; padding: 0; }
+      .kookie-session-header .kookie-session-editor-link { width: 44px; min-width: 44px; min-height: 44px; padding: 0; justify-content: center; font-size: 0; }
+      .kookie-session-header .kookie-session-editor-link::after { content: "EDIT"; font-size: 8px; }
+      .kookie-session-settings { flex: 0 0 44px; min-width: 44px; }
+      .kookie-session-settings summary { width: 44px; min-width: 44px; max-width: 44px; min-height: 44px; padding: 0 3px; overflow: hidden; white-space: nowrap; font-size: 8px; }
+      .kookie-session-stage { border-radius: 12px; }
+      .kookie-session-hud { top: 6px; left: 6px; right: 6px; gap: 4px; }
+      .kookie-session-stat { min-width: 52px; padding: 4px 6px; border-radius: 8px; }
+      .kookie-session-stat-label { font-size: 8px; }
+      .kookie-session-stat-value { margin-top: 1px; font-size: 12px; }
+      .kookie-session-minimap { top: 44px; right: 6px; width: 66px; border-radius: 8px; }
+      .kookie-session-footer { position: absolute; z-index: 5; left: max(6px, env(safe-area-inset-left)); right: max(6px, env(safe-area-inset-right)); bottom: max(5px, env(safe-area-inset-bottom)); min-height: 0; pointer-events: none; }
+      .kookie-session-game-controls { pointer-events: none; align-items: end; }
+      .kookie-session-stick, .kookie-session-actions { pointer-events: auto; }
+      .kookie-stick-base { width: 82px; height: 82px; }
+      .kookie-stick-label { display: none; }
+      .kookie-stick-knob { width: 34px; height: 34px; }
+      .kookie-session-actions { grid-template-columns: repeat(2, 46px); grid-template-rows: repeat(2, 46px); gap: 3px; }
+      .kookie-session-actions button { min-width: 44px; min-height: 44px; border-radius: 14px; padding: 3px; font-size: 10px; }
+      .kookie-session-help { display: none; }
+      .kookie-session-touch-look { right: 10px; bottom: 116px; }
+      .kookie-session-runtime { left: 6px; top: 48px; bottom: auto; max-width: 45%; font-size: 9px; }
+      .kookie-session-status { top: 44%; max-width: 82%; padding: 8px 12px; font-size: 12px; }
+    }
+    @media (max-width: 380px) and (orientation: portrait) {
+      .kookie-session-brand strong { font-size: 11px; }
+      .kookie-session-footer { bottom: max(4px, env(safe-area-inset-bottom)); }
+      .kookie-session-stick, .kookie-session-actions { pointer-events: auto; }
+      .kookie-stick-knob { width: 32px; height: 32px; }
+      .kookie-session-actions { grid-template-columns: repeat(2, 44px); grid-template-rows: repeat(2, 44px); }
+      .kookie-session-actions button { min-width: 44px; min-height: 44px; font-size: 9px; }
+    }
+    @media (orientation: landscape) and (max-width: 900px) {
+      .kookie-session-panel { grid-template-rows: auto minmax(0,1fr); gap: 3px; }
+      .kookie-session-header { min-height: 44px; }
+      .kookie-session-header .kookie-session-controls button { min-height: 44px; }
+      .kookie-session-footer { position: absolute; z-index: 5; left: max(8px, env(safe-area-inset-left)); right: max(8px, env(safe-area-inset-right)); bottom: max(4px, env(safe-area-inset-bottom)); min-height: 0; pointer-events: none; }
+      .kookie-session-brand span { display: none; }
+      .kookie-session-minimap { top: 6px; right: 6px; width: 80px; }
+      .kookie-session-game-controls { pointer-events: none; align-items: end; }
+      .kookie-session-stick, .kookie-session-actions { pointer-events: auto; }
+      .kookie-stick-label { display: none; }
+      .kookie-session-help { display: none; }
+      .kookie-session-touch-look { right: 50%; bottom: 78px; transform: translateX(50%); }
+      .kookie-session-runtime { left: 8px; top: 72px; bottom: auto; }
+    }
+    @media (min-width: 701px) {
+      .kookie-session-footer { min-height: 124px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <main id="kof-root" aria-label="GatoGanso game"></main>
+  <script src="kookie-webgl-renderer.js"></script>
+  <script src="kookie-session.js"></script>
+</body>
+</html>

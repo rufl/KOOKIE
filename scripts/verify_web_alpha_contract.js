@@ -20,8 +20,8 @@ class FakeElement {
     this.attributes = {};
     this.listeners = {};
     this.style = {};
-    this.className = "";
-    this.classList = { toggle: () => {} };
+    this.dataset = {};
+    this.classList = { toggle: () => {}, add: () => {}, remove: () => {} };
     this.textContent = "";
     this.value = "";
     this.checked = false;
@@ -31,10 +31,29 @@ class FakeElement {
     this.width = 0;
     this.height = 0;
   }
+  showModal() { this.open = true; }
+  close() { this.open = false; }
+  focus() {}
+  toBlob(callback, type) {
+    callback(new Blob([Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10])], { type }));
+  }
 
   appendChild(child) {
     child.parentNode = this;
     this.children.push(child);
+    return child;
+  }
+  removeChild(child) {
+    const index = this.children.indexOf(child);
+    if (index >= 0) this.children.splice(index, 1);
+    child.parentNode = null;
+    return child;
+  }
+  insertBefore(child, before) {
+    const index = this.children.indexOf(before);
+    if (index < 0) return this.appendChild(child);
+    child.parentNode = this;
+    this.children.splice(index, 0, child);
     return child;
   }
 
@@ -48,14 +67,15 @@ class FakeElement {
   }
 
   getBoundingClientRect() {
-    return { width: this.width || 960, height: this.height || 480 };
+    return { left: 0, top: 0, width: this.width || 960, height: this.height || 480 };
   }
 
   getContext(type) {
-    if (type !== "2d") return null;
     return {
       clearRect() {}, fillRect() {}, strokeRect() {}, beginPath() {},
       arc() {}, fill() {},
+      createImageData(width, height) { return { data: new Uint8ClampedArray(width * height * 4) }; },
+      putImageData() {},
     };
   }
 
@@ -74,12 +94,18 @@ class FakeDocument {
   }
 
   createElement(tagName) { return new FakeElement(tagName); }
+  createElementNS(_namespace, tagName) { return new FakeElement(tagName); }
   createTextNode(text) {
     const node = new FakeElement("#text");
     node.textContent = String(text);
     return node;
   }
-  addEventListener(name, handler) { this.listeners[name] = handler; }
+  addEventListener(name, handler) {
+    const previous = this.listeners[name];
+    this.listeners[name] = previous
+      ? (event) => { previous(event); handler(event); }
+      : handler;
+  }
 
   getElementById(id) {
     const visit = (node) => {
@@ -155,15 +181,54 @@ function fullSceneWords(sequence) {
   assert.equal(words.length, 185);
   return words;
 }
+function fullSceneAt(sequence, tick, actorX) {
+  const words = fullSceneWords(sequence);
+  words[4] = tick;
+  words[22] = actorX;
+  words[words.length - 1] = messageChecksum(words.slice(0, -1));
+  return words;
+}
+function extendedMultiplayerWords(sequence, tick, localX = 32, lastInputSequence = 7) {
+  const words = [
+    2, 6, sequence, 7, tick,
+    1, 1, 32, 32, 52, 0, 0, 100, 100, 30, 2, 0, 2,
+    1, localX, 1, 52, 100, 1, 1, 0,
+    2, 40, 1, 52, 80, 1, 2, 90,
+    lastInputSequence, 1, 1, 1,
+    11, 1, 2, 36, 4, 52, 20,
+    12, 1, 36, 5, 52, 2, 2, 36,
+    1, 3, 1, 2, 40, 4, 52, 20,
+  ];
+  words.push(messageChecksum(words));
+  return words;
+}
+function multiplayerPositionWords(sequence, tick, localX) {
+  const words = extendedMultiplayerWords(5, 15);
+  words[2] = sequence;
+  words[4] = tick;
+  words[19] = localX;
+  words.length = 34;
+  words.push(messageChecksum(words));
+  return words;
+}
+
+
 let fullSceneSent = false;
+const sentGameCommands = [];
+const sentInputFrames = [];
+
+function collectElements(root) {
+  return [root, ...root.children.flatMap(collectElements)];
+}
 
 class FakeWebSocket {
   static CONNECTING = 0;
   static OPEN = 1;
   static CLOSING = 2;
   static CLOSED = 3;
-
+  static active = null;
   constructor(url, protocols) {
+    FakeWebSocket.active = this;
     this.url = url;
     this.protocols = protocols;
     this.readyState = FakeWebSocket.CONNECTING;
@@ -188,11 +253,54 @@ class FakeWebSocket {
       this.emit(encodeFrame(2, sequence, words));
       return;
     }
-    if (kind === 6 && view.getInt32(16 + 3 * 4, false) === 1 &&
-        view.getInt32(16 + 4 * 4, false) === 7) {
+    if (kind === 6 && view.getInt32(16 + 3 * 4, false) === 5) {
+      const role = view.getInt32(16 + 4 * 4, false);
+      this.joined = true;
+      const words = [2, 6, sequence, 6, 1, role, role === 1 ? 1 : 0, 1, 0];
+      words.push(messageChecksum(words));
+      this.emit(encodeFrame(6, sequence, words));
+      return;
+    }
+    if (kind === 6 && view.getInt32(16 + 3 * 4, false) === 7127) {
       fullSceneSent = true;
       this.emit(encodeFrame(6, sequence, fullSceneWords(sequence)));
+      return;
     }
+    if (kind === 6 && view.getInt32(16 + 3 * 4, false) === 8) {
+      sentInputFrames.push({
+        sequence,
+        moveX: view.getInt32(16 + 5 * 4, false),
+        moveZ: view.getInt32(16 + 6 * 4, false),
+        lookYaw: view.getInt32(16 + 7 * 4, false),
+        lookPitch: view.getInt32(16 + 8 * 4, false),
+        held: view.getInt32(16 + 9 * 4, false),
+        edge: view.getInt32(16 + 10 * 4, false),
+      });
+      return;
+    }
+    if (kind === 6 && view.getInt32(16 + 3 * 4, false) === 1) {
+      const command = view.getInt32(16 + 4 * 4, false);
+      if (command === 7) {
+        fullSceneSent = true;
+        this.emit(encodeFrame(6, sequence, fullSceneWords(sequence)));
+      } else {
+        sentGameCommands.push({
+          command,
+          value: view.getInt32(16 + 5 * 4, false),
+        });
+      }
+    }
+    if (kind === 3) {
+      const words = [2, 4, sequence];
+      words.push(messageChecksum(words));
+      this.emit(encodeFrame(4, sequence, words));
+      return;
+    }
+  }
+
+
+  emitScene(sequence, tick, actorX) {
+    this.emit(encodeFrame(6, sequence, fullSceneAt(sequence, tick, actorX)));
   }
 
   emit(data) {
@@ -218,34 +326,67 @@ async function waitFor(predicate) {
 async function main() {
   const document = new FakeDocument();
   const renderedScenes = [];
+  const renderedActorXs = [];
   const frameCallbacks = [];
   const renderer = {
     supported: true,
     reason: "contract renderer",
-    render(scene) { renderedScenes.push(scene); },
+    render(scene) {
+      renderedScenes.push(scene);
+      renderedActorXs.push(scene.actors[0].x);
+    },
     getStatus() { return "contract renderer"; },
-    projectWorld() { return { x: 0.5, y: 0.25, depth: 0.5 }; },
+    projectWorld() { return { x: 0.5, y: 0.5, depth: 0.5 }; },
     captureScreenshot() {
-      return { format: "P6", width: 1, height: 1, nonBlackPixels: 1, checksum: 1 };
+      return {
+        format: "P6", width: 1, height: 1, nonBlackPixels: 1, checksum: 1,
+        pixels: new Uint8Array([255, 0, 0, 255]), flipY: false,
+      };
     },
     destroy() {},
   };
+  const savedSettings = [];
+  let monotonicNow = 0;
+  let bugfeedUploadCount = 0;
+  let bugfeedEnvelope;
+  const bugfeedId = "123e4567-e89b-42d3-a456-426614174000";
   const window = {
     document,
-    location: { href: "http://127.0.0.1:4178/index.html", search: "" },
-    localStorage: { getItem: () => null, setItem: () => {} },
-    matchMedia: () => ({ matches: false }),
+    location: {
+      href: "https://game.internal/index.html?secret=must-not-upload",
+      origin: "https://game.internal",
+      pathname: "/index.html",
+      search: "?secret=must-not-upload",
+    },
+    innerWidth: 800,
+    innerHeight: 600,
+    devicePixelRatio: 2,
+    localStorage: {
+      getItem: () => null,
+      setItem: (key, value) => savedSettings.push({ key, value: JSON.parse(value) }),
+    },
+    matchMedia: () => ({ matches: false, addEventListener() {} }),
     KookieWebRenderer: { create: () => renderer },
     requestAnimationFrame: (callback) => { frameCallbacks.push(callback); return frameCallbacks.length; },
     cancelAnimationFrame: () => {},
     setTimeout,
     clearTimeout,
+    setInterval: () => 1,
+    clearInterval: () => {},
     addEventListener: () => {},
   };
   const context = {
     window, document, WebSocket: FakeWebSocket, URL, URLSearchParams,
-    ArrayBuffer, DataView, Uint8Array, TextEncoder, TextDecoder, Math, Number,
-    Object, JSON, Promise, Error, TypeError, console, performance: { now: () => 0 },
+    ArrayBuffer, DataView, Uint8Array, Uint8ClampedArray, TextEncoder, TextDecoder,
+    Math, Number, Object, JSON, Promise, Error, TypeError, console,
+    performance: { now: () => monotonicNow },
+    navigator: { userAgent: "Bugfeed browser smoke", clipboard: { writeText: async () => {} } },
+    fetch: async (url, options) => {
+      assert.equal(url, "/bugfeed");
+      bugfeedEnvelope = options.body;
+      bugfeedUploadCount += 1;
+      return { ok: true, status: 201, json: async () => ({ id: bugfeedId }) };
+    },
     queueMicrotask, setTimeout, clearTimeout, setImmediate, btoa: () => "",
   };
   vm.runInNewContext(rendererSource, context, { filename: rendererPath });
@@ -260,10 +401,192 @@ async function main() {
   assert.ok(document.getElementById("kookie-authoritative-scene"));
 
   window.kookieSessionTransport.connect();
+  await waitFor(() => FakeWebSocket.active.joined === true);
+  window.kookieSessionTransport.gameProbe();
   await waitFor(() => fullSceneSent);
+  await waitFor(() => document.getElementById("kookie-authoritative-scene")
+    .attributes["aria-label"].includes("tick 12"));
   if (frameCallbacks.length > 0) frameCallbacks.shift()(0);
   await waitFor(() => renderedScenes.some((scene) => scene.sceneObjects?.length === 10));
+  monotonicNow = 200;
+  FakeWebSocket.active.emitScene(3, 13, 100);
+  await waitFor(() => document.getElementById("kookie-authoritative-scene")
+    .attributes["aria-label"].includes("tick 13"));
+  monotonicNow = 270;
+  FakeWebSocket.active.emitScene(4, 14, 140);
+  await waitFor(() => document.getElementById("kookie-authoritative-scene")
+    .attributes["aria-label"].includes("tick 14"));
+  monotonicNow = 325;
+  if (frameCallbacks.length > 0) frameCallbacks.shift()(325);
+  const jitterSample = renderedActorXs.at(-1);
+  assert.ok(jitterSample > 100 && jitterSample < 140 + 40 * 100 / 70,
+    "adaptive render delay keeps jittered remote samples within the bounded interpolation/extrapolation range");
+  FakeWebSocket.active.emitScene(3, 13, 300);
+  monotonicNow = 326;
+  if (frameCallbacks.length > 0) frameCallbacks.shift()(326);
+  assert.ok(renderedActorXs.at(-1) >= jitterSample,
+    "stale snapshots cannot roll remote rendering backward");
+  monotonicNow = 700;
+  if (frameCallbacks.length > 0) frameCallbacks.shift()(700);
+  const cappedExtrapolation = 140 + 40 * 100 / 70;
+  assert.ok(Math.abs(renderedActorXs.at(-1) - cappedExtrapolation) < 1e-6,
+    "remote extrapolation stops at its configured 100 ms horizon");
+  monotonicNow = 1000;
+  if (frameCallbacks.length > 0) frameCallbacks.shift()(1000);
+  assert.equal(renderedActorXs.at(-1), cappedExtrapolation,
+    "long snapshot gaps do not extend the extrapolation horizon");
 
+  monotonicNow = 325;
+  const pageElements = collectElements(document.body);
+  const playButton = pageElements.find((element) => element.textContent === "LEAVE");
+  assert.equal(playButton.dataset.asyncState, "success");
+  assert.equal(playButton.attributes["aria-busy"], "false");
+  window.kookieSessionTransport.ping();
+  await waitFor(() => pageElements.some((element) =>
+    element.attributes["data-stat"] === "ping" &&
+    element.children[1]?.textContent === "0 ms"));
+  const pingValue = pageElements.find((element) =>
+    element.attributes["data-stat"] === "ping").children[1];
+  assert.equal(pingValue.dataset.flashing, "true");
+  const gameHeading = pageElements.filter((element) =>
+    element.id === "kookie-session-heading");
+  assert.equal(gameHeading.length, 1);
+  assert.equal(gameHeading[0].textContent, "GATOGANSO");
+  const sticks = pageElements.filter((element) =>
+    element.attributes["data-analog-stick"]);
+  assert.deepEqual(sticks.map((element) =>
+    element.attributes["data-analog-stick"]), ["move"]);
+  const shootButton = pageElements.find((element) =>
+    element.attributes["data-action"] === "shoot");
+  assert.ok(shootButton);
+  assert.equal(shootButton.disabled, false);
+  for (const [action, bit, held, edge] of [
+    ["jump", 1, 1, 1], ["roll", 2, 0, 2], ["dash", 4, 0, 4],
+    ["glide", 8, 8, 0], ["fly", 16, 16, 0], ["shoot", 32, 32, 0],
+    ["melee", 64, 0, 64], ["special", 128, 0, 128],
+    ["throwable", 256, 0, 256],
+  ]) {
+    const button = pageElements.find((element) =>
+      element.attributes["data-action"] === action);
+    assert.ok(button && !button.disabled, action + " control is enabled");
+    button.listeners.pointerdown({ preventDefault() {} });
+    assert.equal(sentInputFrames.at(-1).held & bit, held,
+      action + " held bit is encoded in the input frame");
+    assert.equal(sentInputFrames.at(-1).edge, edge,
+      action + " edge bit is encoded in the input frame");
+    button.listeners.pointerup();
+    if (held) assert.equal(sentInputFrames.at(-1).held & bit, 0,
+      action + " release clears its held bit");
+  }
+  const movementSpeed = pageElements.find((element) =>
+    element.attributes["aria-label"] === "Movement speed");
+  const mouseSensitivity = pageElements.find((element) =>
+    element.attributes["aria-label"] === "Mouse camera sensitivity");
+  assert.equal(movementSpeed.value, "50");
+  assert.equal(movementSpeed.min, "25");
+  assert.equal(movementSpeed.max, "100");
+  assert.equal(mouseSensitivity.value, "50");
+  assert.equal(mouseSensitivity.min, "25");
+  assert.equal(mouseSensitivity.max, "150");
+  const moveStickBase = sticks[0].children[0];
+  moveStickBase.width = 100;
+  moveStickBase.height = 100;
+  moveStickBase.listeners.pointerdown({
+    pointerId: 4, clientX: 88, clientY: 50, preventDefault() {},
+  });
+  assert.ok(sentInputFrames.at(-1).moveX >= 900);
+  assert.equal(sentInputFrames.at(-1).moveZ, 0);
+  assert.equal(sentInputFrames.at(-1).held, 0);
+  assert.equal(sentInputFrames.at(-1).edge, 0);
+  assert.ok(sentInputFrames.at(-1).moveX >= 900 &&
+    sentInputFrames.at(-1).moveZ === 0,
+    "touch input sends a normalized continuous movement axis");
+  const movementCountAtDefault = sentInputFrames.length;
+  moveStickBase.listeners.pointermove({
+    pointerId: 4, clientX: 99, clientY: 50,
+  });
+  assert.equal(sentInputFrames.length, movementCountAtDefault + 1);
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  assert.equal(sentInputFrames.length, movementCountAtDefault + 1);
+  moveStickBase.listeners.pointerup({ pointerId: 4 });
+  movementSpeed.value = "100";
+  movementSpeed.listeners.input();
+  assert.equal(savedSettings.at(-1).value.movementSpeedPercent, 100);
+  moveStickBase.listeners.pointerdown({
+    pointerId: 6, clientX: 70, clientY: 50, preventDefault() {},
+  });
+  const partialDeflectionCount = sentInputFrames.length;
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  assert.equal(sentInputFrames.length, partialDeflectionCount);
+  moveStickBase.listeners.pointerup({ pointerId: 6 });
+  moveStickBase.listeners.pointerdown({
+    pointerId: 10, clientX: 88, clientY: 50, preventDefault() {},
+  });
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  assert.ok(sentInputFrames.length > partialDeflectionCount);
+  moveStickBase.listeners.pointerup({ pointerId: 10 });
+  const fastMovementCount = sentInputFrames.length;
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  assert.equal(sentInputFrames.length, fastMovementCount);
+  moveStickBase.listeners.pointerdown({
+    pointerId: 7, clientX: 53, clientY: 50, preventDefault() {},
+  });
+  assert.equal(sentInputFrames.length, fastMovementCount);
+  moveStickBase.listeners.pointerup({ pointerId: 7 });
+  const sceneCanvas = document.getElementById("kookie-authoritative-scene");
+  const beforeMouseLook = sentGameCommands.length;
+  sceneCanvas.listeners.pointerdown({
+    pointerId: 8, pointerType: "touch", clientX: 50, clientY: 50, preventDefault() {},
+  });
+  sceneCanvas.listeners.pointermove({ pointerId: 8, pointerType: "touch", clientX: 73, clientY: 50 });
+  assert.equal(sentGameCommands.length, beforeMouseLook);
+  assert.equal(sentInputFrames.at(-1).lookYaw, 144);
+  assert.equal(sentInputFrames.at(-1).lookPitch, 0);
+  sceneCanvas.listeners.pointermove({ pointerId: 8, pointerType: "touch", clientX: 74, clientY: 26 });
+  assert.equal(sentGameCommands.length, beforeMouseLook);
+  assert.equal(sentInputFrames.at(-1).lookYaw, 6);
+  assert.equal(sentInputFrames.at(-1).lookPitch, 150);
+  sceneCanvas.listeners.pointerup({ pointerId: 8 });
+  mouseSensitivity.value = "100";
+  mouseSensitivity.listeners.input();
+  assert.equal(savedSettings.at(-1).value.mouseCameraSensitivityPercent, 100);
+  sceneCanvas.listeners.pointerdown({
+    pointerId: 9, pointerType: "touch", clientX: 50, clientY: 50, preventDefault() {},
+  });
+  sceneCanvas.listeners.pointermove({ pointerId: 9, pointerType: "touch", clientX: 62, clientY: 62 });
+  assert.equal(sentInputFrames.at(-1).lookYaw, 150);
+  assert.equal(sentInputFrames.at(-1).lookPitch, -150);
+  sceneCanvas.listeners.pointerup({ pointerId: 9 });
+  assert.equal(savedSettings.at(-1).key, "kookie.browser.settings.v1");
+  document.listeners.keydown({
+    key: "w", code: "KeyW", repeat: false, preventDefault() {},
+  });
+  assert.equal(sentInputFrames.at(-1).moveZ, 1000);
+  const keyboardFrameCount = sentInputFrames.length;
+  document.listeners.keydown({
+    key: "w", code: "KeyW", repeat: true, preventDefault() {},
+  });
+  assert.equal(sentInputFrames.length, keyboardFrameCount,
+    "key repeat does not create redundant movement frames");
+  document.listeners.keydown({
+    key: "d", code: "KeyD", repeat: false, preventDefault() {},
+  });
+  assert.ok(Math.abs(sentInputFrames.at(-1).moveX - 707) <= 1);
+  assert.ok(Math.abs(sentInputFrames.at(-1).moveZ - 707) <= 1,
+    "diagonal keyboard movement is normalized");
+  document.listeners.keyup({ key: "d", code: "KeyD", preventDefault() {} });
+  assert.equal(sentInputFrames.at(-1).moveX, 0);
+  assert.equal(sentInputFrames.at(-1).moveZ, 1000);
+  document.listeners.keyup({ key: "w", code: "KeyW", preventDefault() {} });
+  assert.equal(sentInputFrames.at(-1).moveX, 0);
+  assert.equal(sentInputFrames.at(-1).moveZ, 0);
+  const beforeLockedLook = sentInputFrames.length;
+  document.pointerLockElement = sceneCanvas;
+  sceneCanvas.listeners.pointermove({ movementX: 12 });
+  assert.equal(sentInputFrames.at(-1).lookYaw, 150);
+  assert.equal(sentInputFrames.at(-1).lookPitch, 0);
+  assert.equal(sentInputFrames.length, beforeLockedLook + 1);
+  document.pointerLockElement = null;
   const authoritative = renderedScenes.find((scene) => scene.sceneObjects?.length === 10);
   assert.equal(authoritative.sceneObjects[0].kind, 1);
   assert.equal(authoritative.sceneObjects[0].id, 2);
@@ -280,9 +603,106 @@ async function main() {
   assert.equal(authoritative.labels[1].textId, 2);
   assert.equal(authoritative.labels[1].visible, true);
   assert.equal(document.getElementById("kookie-scene-labels").children.length, 4);
-  assert.equal(document.getElementById("kookie-session-status").textContent,
-    "AUTHORITATIVE 3D SCENE RECEIVED sequence=2");
+  const bugfeedButton = pageElements.find((element) =>
+    element.attributes["aria-label"] === "Report a bug with screenshot and diagnostics");
+  assert.ok(bugfeedButton);
+  bugfeedButton.listeners.click();
+  const bugfeedDialog = pageElements.find((element) => element.tagName === "DIALOG");
+  assert.equal(bugfeedDialog.open, true);
+  const notes = pageElements.find((element) => element.attributes["aria-label"] === "Bug report notes");
+  notes.value = "The goose camera clips through the model";
+  const saveBugfeed = pageElements.find((element) => element.textContent === "Save report");
+  await saveBugfeed.listeners.click();
+  assert.equal(saveBugfeed.dataset.asyncState, "success");
+  assert.equal(saveBugfeed.attributes["aria-busy"], "false");
+  assert.match(bugfeedDialog.children.find((element) =>
+    element.attributes["aria-live"] === "polite").textContent, new RegExp(bugfeedId));
+  const reportView = new DataView(bugfeedEnvelope.buffer, bugfeedEnvelope.byteOffset, bugfeedEnvelope.byteLength);
+  assert.equal(new TextDecoder().decode(bugfeedEnvelope.subarray(0, 4)), "KBF1");
+  const metadataLength = reportView.getUint32(5);
+  const screenshotLength = reportView.getUint32(9);
+  assert.ok(screenshotLength > 0);
+  const report = JSON.parse(new TextDecoder().decode(
+    bugfeedEnvelope.subarray(13, 13 + metadataLength)));
+  assert.equal(report.notes, notes.value);
+  assert.equal(report.screenshotAvailable, true);
+  assert.equal(report.page, "https://game.internal/index.html");
+  assert.equal(report.page.includes("secret"), false);
+  assert.deepEqual(Array.from(bugfeedEnvelope.subarray(13 + metadataLength, 21 + metadataLength)),
+    [137, 80, 78, 71, 13, 10, 26, 10]);
+  bugfeedButton.listeners.click();
+  assert.equal(saveBugfeed.disabled, false);
+  notes.value = "A second report works after the first submission";
+  await saveBugfeed.listeners.click();
+  assert.equal(bugfeedUploadCount, 2);
   console.log(`KOOKIE browser contract smoke passed: dom=${document.body.children.length} objects=${authoritative.sceneObjects.length} labels=${authoritative.labels.length} frameBytes=${window.kookieSessionTransport.maxFrameBytes}`);
+  const customizeTouch = pageElements.find((element) =>
+    element.textContent === "Customize touch controls");
+  assert.ok(customizeTouch);
+  customizeTouch.listeners.click();
+  const panel = document.getElementById("kookie-session-panel");
+  assert.equal(panel.dataset.layoutEditing, "true");
+  const controlsEditor = pageElements.find((element) =>
+    element.attributes["aria-label"] === "Touch control layout editor");
+  assert.ok(controlsEditor);
+  const presetName = pageElements.find((element) =>
+    element.attributes["aria-label"] === "Touch layout preset name");
+  presetName.value = "Portrait";
+  const horizontalPosition = pageElements.find((element) =>
+    element.attributes["aria-label"] === "Selected control horizontal position");
+  horizontalPosition.value = "22";
+  horizontalPosition.listeners.input();
+  const saveTouchPreset = pageElements.find((element) =>
+    element.textContent === "Save preset");
+  saveTouchPreset.listeners.click();
+  const storedLayout = savedSettings.findLast((entry) =>
+    entry.key === "kookie.browser.touch-layouts.v1");
+  assert.equal(storedLayout.value.activeName, "Portrait");
+  assert.equal(storedLayout.value.activeLayout.move.x, 22);
+  horizontalPosition.value = "38";
+  horizontalPosition.listeners.input();
+  const presetPicker = pageElements.find((element) =>
+    element.attributes["aria-label"] === "Saved touch layout presets");
+  presetPicker.value = "Portrait";
+  pageElements.find((element) => element.textContent === "Load preset").listeners.click();
+  assert.equal(pageElements.find((element) =>
+    element.attributes["data-analog-stick"] === "move").style.left, "22vw");
+  pageElements.find((element) => element.textContent === "Done").listeners.click();
+  assert.equal(panel.dataset.layoutEditing, "false");
+  monotonicNow = 1001;
+  FakeWebSocket.active.emit(encodeFrame(
+    6, 5, extendedMultiplayerWords(5, 15)));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.ok(document.getElementById("kookie-authoritative-scene")
+    .attributes["aria-label"].includes("tick 15"),
+    document.getElementById("kookie-session-status").textContent);
+  if (frameCallbacks.length > 0) frameCallbacks.shift()(1001);
+  const replicatedCombatScene = renderedScenes.find((scene) =>
+    scene.tick === 15 && scene.projectiles?.length === 1);
+  assert.ok(replicatedCombatScene);
+  assert.equal(replicatedCombatScene.throwables.length, 1);
+  assert.equal(replicatedCombatScene.throwables[0].fuseTicks, 36);
+  assert.equal(replicatedCombatScene.impacts.length, 1);
+  assert.equal(replicatedCombatScene.impacts[0].damage, 20);
+  moveStickBase.listeners.pointerdown({
+    pointerId: 22, clientX: 88, clientY: 50, preventDefault() {},
+  });
+  const unacknowledgedInput = sentInputFrames.at(-1);
+  assert.ok(unacknowledgedInput.moveX > 0);
+  monotonicNow = 1018;
+  FakeWebSocket.active.emit(encodeFrame(
+    6, 17, multiplayerPositionWords(17, 17, 33)));
+  await new Promise((resolve) => setImmediate(resolve));
+  monotonicNow = 1035;
+  if (frameCallbacks.length > 0) frameCallbacks.shift()(1035);
+  assert.ok(document.getElementById("kookie-authoritative-scene")
+    .attributes["aria-label"].includes("tick 17"),
+    "tick 17 snapshot rejected: " + document.getElementById("kookie-session-status").textContent);
+  assert.ok(renderedScenes.at(-1).playerX > 33 &&
+    renderedScenes.at(-1).playerX < 35,
+  "unacknowledged local prediction expected 33<x<35, got " +
+    renderedScenes.at(-1).playerX);
+  moveStickBase.listeners.pointerup({ pointerId: 22 });
 }
 
 main().catch((error) => {

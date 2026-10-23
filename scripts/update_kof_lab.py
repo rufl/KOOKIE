@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Resolve and apply the current Kof4j lab source pin.
+"""Resolve and apply an immutable Kof4j source pin.
 
-The repository keeps builds reproducible by pinning an immutable commit. This
-command checks that pin against the mutable upstream ``lab`` branch and, when
-asked to apply, validates every active text target, then updates the source/CI
-documentation.
-It never changes historical changelogs or evidence snapshots.
+The default ref tracks upstream ``lab``; ``KOOKIE_KOF_REF`` can select an
+immutable release tag. Applying a pin validates active text targets, then
+updates the source/CI documentation. Historical changelogs and evidence
+snapshots are not changed.
 """
 
 from __future__ import annotations
@@ -22,7 +21,7 @@ ROOT = Path(__file__).resolve().parent.parent
 KOF_REPOSITORY = os.environ.get(
     "KOOKIE_KOF_REPOSITORY", "https://github.com/KofLang/Kof4j.git"
 )
-KOF_REF = "refs/heads/lab"
+KOF_REF = os.environ.get("KOOKIE_KOF_REF", "refs/heads/lab")
 COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 VERSION_PATTERN = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$")
 PIN_FILE = ROOT / "scripts/kof_pin.sh"
@@ -68,7 +67,7 @@ def resolve_lab_commit() -> str:
         raise RuntimeError(result.stderr.strip() or "git ls-remote failed")
     fields = result.stdout.split()
     if not fields or COMMIT_PATTERN.fullmatch(fields[0]) is None:
-        raise RuntimeError("upstream lab ref did not return a commit SHA")
+        raise RuntimeError(f"upstream ref {KOF_REF} did not return a commit SHA")
     return fields[0]
 
 
@@ -141,7 +140,7 @@ def main() -> int:
     parser.add_argument(
         "--check",
         action="store_true",
-        help="only compare the repository pin with refs/heads/lab",
+        help="only compare the repository pin with KOOKIE_KOF_REF",
     )
     parser.add_argument(
         "--apply",
@@ -150,7 +149,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--expected-commit",
-        help="require refs/heads/lab to still resolve to this commit before applying",
+        help="require KOOKIE_KOF_REF to resolve to this commit before applying",
     )
     parser.add_argument(
         "--expected-version",
@@ -179,17 +178,17 @@ def main() -> int:
         )
     if args.expected_version and latest_version != args.expected_version:
         return fail(
-            "lab VERSION changed before the pinned update: "
+            f"{KOF_REF} VERSION changed before the pinned update: "
             f"expected {args.expected_version}, found {latest_version}"
         )
 
-    print(f"Kof lab current: {current_version} {current_commit}")
-    print(f"Kof lab latest:  {latest_version} {latest_commit}")
+    print(f"Kof ref current ({KOF_REF}): {current_version} {current_commit}")
+    print(f"Kof ref latest  ({KOF_REF}): {latest_version} {latest_commit}")
     if current_commit == latest_commit and current_version == latest_version:
-        print("Kof lab pin is current")
+        print(f"Kof ref pin is current ({KOF_REF})")
         return 0
     if args.check:
-        print("Kof lab pin is stale", file=sys.stderr)
+        print(f"Kof ref pin is stale ({KOF_REF})", file=sys.stderr)
         return 1
 
     try:

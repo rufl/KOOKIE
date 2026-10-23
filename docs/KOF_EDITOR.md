@@ -4,11 +4,11 @@ Research and installation date: 2026-09-22. The original source audit below prec
 
 Pinned source: [`KofLang/Kof-Editor@bed6ae7d567b090497a447583a10b8522acaf66a`](https://github.com/KofLang/Kof-Editor/tree/bed6ae7d567b090497a447583a10b8522acaf66a), `VERSION` = `0.1.4-beta`. Compiler cross-reference: [Kof4j 22a186b9](https://github.com/KofLang/Kof4j/tree/22a186b9bf9df37c03809ba6ef4af85085386f63), 0.4.9-beta. Upstream packaging may select older compilers. The locally installed pairing is verified only for the workflows listed below, not every upstream feature.
 
-The active KOOKIE source/CI gate now uses Kof `0.6.5` at source commit
-`8e59b24acc978eb2546509b5cfca867a06e7283a`; editor/compiler findings tied to
+The active KOOKIE source/CI gate now uses Kof `0.6.6` at source commit
+`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`; editor/compiler findings tied to
 the older `0.4.9-beta` pairing below remain historical. The local editor
 verification on this page used the older compiler pairing and is not a Kof
-`0.6.5` qualification.
+`0.6.6` qualification.
 
 ## Actual architecture
 
@@ -150,8 +150,8 @@ background editor service or global IDE settings change was made.
 
 | Component | Installed location / version |
 |---|---|
-| Kof CLI | Source-built qualification distribution: Kof `0.6.5` from the repository pin; the upstream native-GC cycle guard is verified |
-| Compiler source | Source-built Kof `0.6.5` at commit `8e59b24acc978eb2546509b5cfca867a06e7283a`; no local GC patch; the editor-specific 0.4.9 research checkout remains historical |
+| Kof CLI | Source-built qualification distribution: Kof `0.6.6` from the repository pin; the upstream native-GC cycle guard is verified |
+| Compiler source | Source-built Kof `0.6.6` at commit `7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`; no local GC patch; the editor-specific 0.4.9 research checkout remains historical |
 | Compiler JAR | SHA-256 `ec0727d7d3d0f8c7ca22cf4295a3cd5c849df6de669deb1746f326d8ecb24436` |
 | Maven | `~/.local/bin/mvn`, Apache Maven 3.9.16; retained for historical source/tooling work |
 | Java | Host Arch Linux Java 27 reported by `kof info --json`; no embedded JDK |
@@ -256,7 +256,7 @@ externally bounded exit/output gates.
 For maintenance, retain the historical 0.4.9 installation JSON, original
 upstream JAR and `artifacts/tooling-fixes.patch` under
 `~/.local/share/kof4j/0.4.9-beta/`; they are not the active compiler.
-The active packaged toolchain is now the source-built Kof `0.6.5` distribution
+The active packaged toolchain is now the source-built Kof `0.6.6` distribution
 selected by the repository pin. The editor verification above used the
 historical 0.4.9 pairing; repeat editor-specific CLI/LSP/DAP probes after any
 compiler change.

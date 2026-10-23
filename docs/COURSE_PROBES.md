@@ -4,9 +4,9 @@ Research date: 2026-09-22. Companion to [KOF_COURSE](KOF_COURSE.md).
 
 These probes intentionally preserve the historical artifact identity from
 [`RESEARCH_PROBES`](RESEARCH_PROBES.md). The active KOOKIE qualification gate
-now uses Kof `0.6.5` from the `lab` branch at
-`8e59b24acc978eb2546509b5cfca867a06e7283a`; these outputs were recorded
-against the older `0.5.0-beta` artifact and are not current engine-gate results.
+now uses the official Kof `0.6.6` release tag
+`kof-0.6.6-linux-x86_64` at commit
+`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`; these outputs were recorded
 
 ## Scope and reproduction
 

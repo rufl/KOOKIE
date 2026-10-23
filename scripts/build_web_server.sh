@@ -20,14 +20,18 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 source_dir="$work_dir/source"
-mkdir -p "$source_dir"/{core,content,session,lib}
+mkdir -p "$source_dir"/{core,content,session,ui,world,lib}
 cp -- "$root_dir/apps/web_server/main.kf" "$source_dir/main.kf"
-for module in core content session; do
+ln -s -- "$root_dir/src/ui/kutter_studio.kf" "$source_dir/ui/kutter_studio.kf"
+ln -s -- "$root_dir/src/ui/kutter_level_editor.kf" "$source_dir/ui/kutter_level_editor.kf"
+ln -s -- "$root_dir/src/ui/kutter.kf" "$source_dir/ui/kutter.kf"
+ln -s -- "$root_dir/src/ui/kutter_workspace.kf" "$source_dir/ui/kutter_workspace.kf"
+for module in core content session world; do
   for source_file in "$root_dir/src/$module/"*.kf; do
     ln -s -- "$source_file" "$source_dir/$module/$(basename "$source_file")"
   done
 done
-cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared \
+cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -pthread -shared \
   "$root_dir/native/kookie_web_server.c" \
   -o "$source_dir/lib/libkookie_web_server.so"
 (

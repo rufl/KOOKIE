@@ -83,7 +83,7 @@
     cover: [0.25, 0.35, 0.28, 1],
     player: [0.20, 0.70, 1.0, 1],
     actor: [0.92, 0.22, 0.34, 1],
-    actorAlt: [0.95, 0.62, 0.16, 1],
+    actorAlt: [0.20, 0.42, 1.0, 1],
     damaged: [0.28, 0.32, 0.38, 1],
     projectile: [1.0, 0.88, 0.20, 1],
     pickup: [0.30, 1.0, 0.58, 1],
@@ -763,7 +763,11 @@
     const times = channel.times;
     const values = channel.values;
     const components = channel.components;
-    if (times.length === 0) return values.slice(0, components);
+    if (time <= times[0]) return values.slice(0, components);
+    if (time >= times[times.length - 1]) {
+      const lastOffset = (times.length - 1) * components;
+      return values.slice(lastOffset, lastOffset + components);
+    }
     let index = times.length - 1;
     for (let candidate = 0; candidate < times.length - 1; candidate += 1) {
       if (time < times[candidate + 1]) {
@@ -1086,10 +1090,6 @@
   }
 
   function encodeScreenshot(width, height, rgba, flipY, glError = 0) {
-    const header = new TextEncoder().encode(`P6\n${width} ${height}\n255\n`);
-    const ppm = new Uint8Array(header.length + width * height * 3);
-    ppm.set(header);
-    let offset = header.length;
     let checksum = 2166136261;
     let nonBlackPixels = 0;
     for (let y = 0; y < height; y += 1) {
@@ -1100,28 +1100,22 @@
         const green = rgba[source + 1];
         const blue = rgba[source + 2];
         if (red || green || blue) nonBlackPixels += 1;
-        ppm[offset++] = red;
-        ppm[offset++] = green;
-        ppm[offset++] = blue;
         checksum = Math.imul(checksum ^ red, 16777619) >>> 0;
         checksum = Math.imul(checksum ^ green, 16777619) >>> 0;
         checksum = Math.imul(checksum ^ blue, 16777619) >>> 0;
-      }
     }
-    let binary = "";
-    for (let start = 0; start < ppm.length; start += 0x8000) {
-      binary += String.fromCharCode(...ppm.subarray(start, start + 0x8000));
     }
     return Object.freeze({
-      format: "P6",
-      mimeType: "image/x-portable-pixmap",
+      format: "RGBA8",
+      mimeType: "application/octet-stream",
       width,
       height,
-      byteLength: ppm.length,
+      byteLength: rgba.byteLength,
       nonBlackPixels,
       checksum,
       glError,
-      base64: btoa(binary),
+      pixels: rgba,
+      flipY,
     });
   }
 
@@ -1344,6 +1338,35 @@
         Number.isFinite(scene.tick) ? Math.max(0, scene.tick) / 60 : time * 0.001,
       );
 
+      if (scene.kutterEditor === true) {
+        draw(
+          [fallbackMeshes.solid],
+          transform([0, -0.5, 0], [24, 1, 24]),
+          [1, 1, 1, 1], time, viewProjection, worldMaterialUv(1),
+        );
+        for (const node of scene.kutterNodes || []) {
+          if (node.kind === 9) continue;
+          const height = node.scaleY / 250;
+          const red = ((node.color >>> 16) & 255) / 255;
+          const green = ((node.color >>> 8) & 255) / 255;
+          const blue = (node.color & 255) / 255;
+          const tint = node.id === scene.kutterSelected
+            ? [Math.min(1, red * 0.65 + 0.35),
+              Math.min(1, green * 0.65 + 0.35),
+              Math.min(1, blue * 0.65 + 0.35), 1]
+            : [red, green, blue, 1];
+          draw(
+            [fallbackMeshes.solid],
+            transform(
+              [node.x / 100, (node.y + height / 2) / 100, node.z / 100],
+              [node.scaleX / 250, height, node.scaleZ / 250],
+              node.rotation / 1000 * Math.PI / 180,
+            ),
+            tint, time, viewProjection, worldMaterialUv(node.kind),
+          );
+        }
+        return;
+      }
       draw(
         [fallbackMeshes.solid],
         transform([160, -0.5, 140], [320, 1, 280]),
@@ -1510,6 +1533,18 @@
         draw([fallbackMeshes.projectile], transform(
           [projectile.x, projectile.y, projectile.z], [1, 1, 1], time * 0.003,
         ), COLORS.projectile, time, viewProjection);
+      }
+      for (const throwable of scene.throwables || []) {
+        draw([fallbackMeshes.projectile], transform(
+          [throwable.x, throwable.y, throwable.z], [1.5, 1.5, 1.5],
+          time * 0.004,
+        ), COLORS.pickup, time, viewProjection);
+      }
+      for (const impact of scene.impacts || []) {
+        const size = impact.kind === 4 ? 5 : 2;
+        draw([fallbackMeshes.projectile], transform(
+          [impact.x, impact.y, impact.z], [size, size, size], time * 0.002,
+        ), impact.kind === 4 ? COLORS.vfx : COLORS.damaged, time, viewProjection);
       }
       const event = scene.vfxEvent || (scene.vfx > 0
         ? { style: scene.vfx, x: scene.playerX, y: scene.playerY + 2, z: scene.playerZ, tick: scene.tick }

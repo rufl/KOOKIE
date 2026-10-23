@@ -2,8 +2,9 @@
 
 Research date: 2026-09-22. This extends [KOF_LANGUAGE](KOF_LANGUAGE.md), not an engine implementation. Complete executed sources/results are in [COURSE_PROBES](COURSE_PROBES.md).
 
-The active KOOKIE qualification gate uses Kof `0.6.5` from the `lab` branch at
-`8e59b24acc978eb2546509b5cfca867a06e7283a`; the `0.4.9-beta` artifact identity
+The active KOOKIE qualification gate uses the official Kof `0.6.6` release tag
+`kof-0.6.6-linux-x86_64` at commit
+`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`; the `0.4.9-beta` artifact identity
 below is intentionally retained as historical course evidence, not as the
 current engine build input.
 
@@ -76,7 +77,7 @@ For `"a|b|c"`, `split("\\|")` yielded length 3 on JVM and 1 on native; `split("|
 Source cause matches the observation: [StatementLowerer.java](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-compiler/src/main/java/dev/kof/compiler/StatementLowerer.java#L388-L477) jumps to `finallyLabel` at line 406; the no-finally branch places `KofTryEnd` immediately **before** that label at lines 474–475. Normal flow skips handler removal. [NativeMethodEmitter.java](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-compiler/src/main/java/dev/kof/compiler/nat/NativeMethodEmitter.java#L284-L309) installs/restores the TLS exception chain at try-start/end; [RuntimeGc.java](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-compiler/src/main/java/dev/kof/compiler/runtime/RuntimeGc.java#L370-L390) follows that chain on a throw.
 
 A helper returning from both branches produced expected values in a control probe, but **is not a safe general workaround**: returning does not itself establish that the TLS chain was unlinked; a later throw may encounter an expired frame. No compiler patch was made in this research. **Decision:** repair/revalidate this before relying on native exception cleanup or exception-based test results. Keep negative controls and compare observed outputs/exit codes externally.
-The active source-built Kof `0.6.5` gate reruns the minimal probe through
+The active source-built Kof `0.6.6` gate reruns the minimal probe through
 `scripts/verify_exception.sh`; JVM and native both exit 1 with the expected
 diagnostics, so this historical false pass is not current engine-gate behavior.
 

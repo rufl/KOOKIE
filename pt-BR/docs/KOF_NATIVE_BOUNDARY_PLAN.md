@@ -7,8 +7,8 @@ Status: **PROPOSTO**. Este plano é o documento de execução da decisão
 
 Fronteira normativa e ABI batch: [Fronteira nativa Kof e ABI batch síncrona](KOF_NATIVE_BOUNDARY_SPEC.md).
 
-Pin de fonte atual: Kof `0.6.5` no commit
-`8e59b24acc978eb2546509b5cfca867a06e7283a`. A qualificação deste pin está em
+Pin de fonte atual: Kof `0.6.6` no commit
+`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`. A qualificação deste pin está em
 andamento; a prova local anterior era do commit
 `f42ed91dfbceae09880b7d0619d98f67490149d1` e não se transfere
 automaticamente.
@@ -48,8 +48,8 @@ A composição medida por `scripts/report_code_mix.py` na working tree atual é:
 
 Isso é composição física de fonte, não uma afirmação de performance.
 
-Com a fonte Kof `0.6.5` pinada no commit
-`8e59b24acc978eb2546509b5cfca867a06e7283a`, o instalador registrou o SHA-256
+Com a fonte Kof `0.6.6` pinada no commit
+`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`, o instalador registrou o SHA-256
 do archive
 `300e4200386b53d8e64796e110946340a6fe74ea9b2145af9aac8ade4caa86ef`
 e terminou em 173,76 segundos. Os gates abaixo passaram:
@@ -64,7 +64,7 @@ limite local de 600 segundos. A tentativa anterior no `f42` também excedeu
 900 segundos e não qualifica esta fonte.
 
 **Resultado local atual:** P0 passou para a árvore atual e o archive exato
-`0.6.5`. O limite de qualificação restante é evidência específica de alvo e
+`0.6.6`. O limite de qualificação restante é evidência específica de alvo e
 hardware, não o gate local Linux de fonte/empacotamento.
 
 ## 3. Escopo
@@ -102,8 +102,8 @@ referências ativas de CI/documentação.
 1. Rodar `python3 scripts/update_kof_lab.py --check` imediatamente antes da
    mudança.
 2. Se o candidato for adotado, aplicar com
-   `--expected-commit 8e59b24acc978eb2546509b5cfca867a06e7283a` e
-   `--expected-version 0.6.5`; nunca atualizar uma referência `lab` móvel de
+   `--expected-commit 7c237861a9035d84b1f7ec4cfddd89daef4c6ddd` e
+   `--expected-version 0.6.6`; nunca atualizar uma referência `lab` móvel de
    forma implícita.
 3. Construir o archive exato e registrar commit de origem e hash do archive.
 4. Rodar novamente os gates static/JVM, SIMD e native/package com a fonte exata.
@@ -111,7 +111,7 @@ referências ativas de CI/documentação.
    de seus limites estarem registrados de forma explícita.
 
 **Gate de saída:** todas as referências ativas nomeiam
-`8e59b24acc978eb2546509b5cfca867a06e7283a` e os resultados exatos da
+`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd` e os resultados exatos da
 qualificação, incluindo o limite restante do native/package, estão registrados.
 Nenhuma migração chama a fonte de “latest” antes desse gate.
 
@@ -138,7 +138,7 @@ zero/máximo e paridade escalar. Comentário de fonte ou afirmação upstream n�
 suficiente.
 
 **Status atual:** o gate focado `scripts/verify_simd_dispatch.sh` passou com o
-arquivo Kof `0.6.5` exato e fixado em JVM e native x86-64. O fixture reportou
+arquivo Kof `0.6.6` exato e fixado em JVM e native x86-64. O fixture reportou
 `buffer-fixture-sum=809`, `buffer-inout-sum=1231`, totais scalar/SIMD iguais,
 rota SIMD selecionada e a prova de sintaxe AArch64. Isso qualifica somente a
 fronteira síncrona limitada de producer/copy-back; ownership assíncrono ou de

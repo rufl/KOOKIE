@@ -205,6 +205,16 @@ class BoundedKutterLevelEditor {
         return true
     }
 
+    Bool setGridSize(Int size) {
+        if (size != kutterLevelGridSmall() &&
+            size != kutterLevelGridMedium() &&
+            size != kutterLevelGridLarge()) { return false }
+        gridSizeValue = size
+        cursorXValue = snapValue(cursorXValue)
+        cursorZValue = snapValue(cursorZValue)
+        return true
+    }
+
     Bool moveCursor(Int axis, Int direction) {
         if ((axis != 0 && axis != 1) ||
             (direction != -1 && direction != 1)) { return false }
@@ -323,6 +333,23 @@ class BoundedKutterLevelEditor {
         var index = documentValue.nodeIndex(selectedNodeValue)
         var accepted = index >= 0 && documentValue.moveNode(
             selectedNodeValue, cursorXValue, documentValue.nodeYValue(index), cursorZValue)
+        return finishMutation(accepted)
+    }
+
+    Bool updateSelectedNode(
+        Int x, Int y, Int z, Int rotation,
+        Int scaleX, Int scaleY, Int scaleZ, Int color, Int assetToken
+    ) {
+        if (selectedNodeValue <= 0 || !beginMutation()) { return false }
+        var index = documentValue.nodeIndex(selectedNodeValue)
+        var accepted = index >= 0 &&
+            documentValue.nodeKind(index) != kutterLevelNodeGroup() &&
+            documentValue.moveNode(selectedNodeValue, x, y, z) &&
+            documentValue.setNodeRotation(selectedNodeValue, rotation) &&
+            documentValue.setNodeScale(
+                selectedNodeValue, scaleX, scaleY, scaleZ) &&
+            documentValue.setNodeColor(selectedNodeValue, color) &&
+            documentValue.setNodeAssetToken(selectedNodeValue, assetToken)
         return finishMutation(accepted)
     }
     Bool adjustSelectedHeight(Int direction) {
@@ -523,6 +550,22 @@ class BoundedKutterLevelEditor {
     Bool selectNode(Int nodeId) {
         if (documentValue.nodeIndex(nodeId) < 0) { return false }
         selectedNodeValue = nodeId
+        return true
+    }
+
+    Bool importDocument(Int[] words) {
+        if (!documentValue.decode(words)) { return false }
+        undoCountValue = 0
+        redoCountValue = 0
+        selectedNodeValue = 0
+        cursorXValue = 0
+        cursorZValue = 0
+        if (documentValue.nodeCount() > 0) {
+            selectedNodeValue = documentValue.nodeId(0)
+            cursorXValue = documentValue.nodeXValue(0)
+            cursorZValue = documentValue.nodeZValue(0)
+        }
+        toolValue = kutterLevelToolSelect()
         return true
     }
 

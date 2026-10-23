@@ -1,0 +1,38 @@
+package session
+
+Int sessionWebKutterRequestMarker() { return 1987145331 }
+Int sessionWebKutterResponseMarker() { return 1987145332 }
+Int sessionWebKutterTransferWords() { return 256 }
+
+Int sessionWebKutterGet() { return 1 }
+Int sessionWebKutterTool() { return 2 }
+Int sessionWebKutterCursor() { return 3 }
+Int sessionWebKutterApplyTool() { return 4 }
+Int sessionWebKutterSelect() { return 5 }
+Int sessionWebKutterMove() { return 6 }
+Int sessionWebKutterRotate() { return 7 }
+Int sessionWebKutterResize() { return 8 }
+Int sessionWebKutterRecolor() { return 9 }
+Int sessionWebKutterDuplicate() { return 10 }
+Int sessionWebKutterRemove() { return 11 }
+Int sessionWebKutterGroup() { return 12 }
+Int sessionWebKutterUngroup() { return 13 }
+Int sessionWebKutterUndo() { return 14 }
+Int sessionWebKutterRedo() { return 15 }
+Int sessionWebKutterImportChunk() { return 16 }
+Int sessionWebKutterGrid() { return 17 }
+Int sessionWebKutterUpdate() { return 18 }
+
+Bool validSessionWebKutterRequest(Int[] words) {
+    if (words.length < 6 ||
+        words[0] != sessionWebGameProtocolVersion() ||
+        words[1] != sessionWebGameKind() || words[2] <= 0 ||
+        words[2] > 1000000 || words[3] != sessionWebKutterRequestMarker() ||
+        words[4] < sessionWebKutterGet() ||
+        words[4] > sessionWebKutterUpdate() ||
+        words[words.length - 1] !=
+            sessionWebMessageChecksum(words, words.length - 1)) {
+        return false
+    }
+    return true
+}

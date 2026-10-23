@@ -20,13 +20,16 @@ not gameplay tuning.
 
 ## Developer/source run
 
-Install [Kof 0.6.5](https://github.com/KofLang/Kof4j) to run the
-authoritative source entrypoint from the repository root:
+Install the official Kof 0.6.6 Linux release distribution, matching source tag
+`kof-0.6.6-linux-x86_64` and commit
+`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`. Its published archive SHA-256 is
+`96dd0d804c02e1e0f066dc0b53a4b1c385595d32820d97aeb77bb5dc772296f6`.
+The release workflow builds the pinned source commit for its reproducible
+toolchain artifact; it does not consume that upstream archive.
 
-Use the source-built distribution from the Kof `lab` commit
-`8e59b24acc978eb2546509b5cfca867a06e7283a`. The release build runs
-`scripts/prepare_kof_source.sh` before Maven packaging; it verifies the
-upstream native GC cycle guard, then normalizes compiler metadata.
+`scripts/install_kof_lab.sh` is a separate rolling-upgrade workflow. It follows
+the moving `lab` branch and updates the repository pin; do not use it when you
+need the fixed 0.6.6 release baseline.
 
 To refresh this environment from the current Kof lab head, run
 `bash scripts/install_kof_lab.sh`. It builds the current lab commit, checks that
@@ -52,30 +55,31 @@ interactive packaged game. `kof run` itself does not require Python 3; Python
 is currently used by repository lint, package/provenance validation, evidence
 validation and rendezvous tooling.
 
-## Browser alpha (KofJS, not WASM)
+## Browser game client (not WASM)
 
-Kof 0.6.5 exposes `jvm`, `native`, and `js` targets; it has no WASM target.
-The full `src` entrypoint also depends on native SDL/GPU and filesystem APIs
-that the JS target does not provide. The repository therefore publishes a
-bounded browser alpha from `apps/web_alpha/main.kf`, not a native-game or WASM
-build:
+Kof 0.6.6 has `jvm`, `native`, and `js` targets; it has no WASM target. The
+full `src` entrypoint depends on native SDL/GPU and filesystem APIs unavailable
+to the JS target. `apps/web_alpha` therefore packages a standalone responsive
+HTML/WebGL2 client, not a native-game or WASM build:
 
 ```bash
 bash scripts/build_web_alpha.sh
 ```
 
 The default output is the sibling LichForge static site at
-`../../LICHFORGEWEB/assets/kookie-alpha`. Use `--output DIR` to stage the
-generated KofJS bundle elsewhere. Serve the site over HTTP, then open
-`/#kookie-alpha`; the page reports a load failure instead of presenting the
-preview as native or WASM parity.
+`../../LICHFORGEWEB/assets/kookie-alpha`. Use `--output DIR` to stage it
+elsewhere. Serve the files over HTTP/HTTPS and open the page. It contains one
+play surface: the live 3D scene, compact HUD, a movement stick, drag-to-look,
+and touch actions for jump, roll, dash, glide, fly, shoot, melee, special
+projectile and throwable; keyboard and mouse remain available. Movement repeats
+according to stick deflection and the movement-speed setting. Settings retain
+movement speed and camera sensitivity alongside server and reconnect options.
 
-The alpha exercises the current Kof UI handles and a browser client slice:
-binary WebSocket hello/ack/heartbeat, protocol echo, authoritative scene
-probe, keyboard/button actions, bounded scene snapshots, and a direct WebGL2
-renderer. The renderer draws the authoritative player, three bounded actors,
-health bars, VFX and projectiles without a Three.js dependency. WebGL2 is
-required for the browser's 3D scene; the client fails closed when unavailable.
+`apps/web_server/main.kf` runs an authoritative fixed-tick WebSocket server
+with eight-player/four-spectator admission. `scripts/verify_kof_web_server.sh`
+qualifies admission and the tested movement, action, damage, projectile,
+throwable, collision, and disconnect/re-admission scenarios. This is local
+qualification, not proof of WAN/tailnet latency or every gameplay edge case.
 
 Run the canonical local full-scene qualification path through the native Kof
 server. Build it once:
@@ -84,6 +88,53 @@ server. Build it once:
 server_dir="$(mktemp -d -t kookie-web-server-XXXXXX)"
 bash scripts/build_web_server.sh --output "$server_dir"
 ```
+
+Measure loopback snapshot cadence and input-to-authoritative-ACK latency:
+
+```bash
+scripts/bench_web_multiplayer.py "$server_dir/kookie-web-server" 0 8
+```
+
+Port `0` selects a free local port. Results include eight connected players and
+four spectators; they measure WebSocket/TCP on loopback and exclude browser
+rendering, packet loss, and tailnet/WAN latency. Use a separate browser and
+tailnet test for end-to-end latency.
+
+The server's per-client snapshot trailer acknowledges input only after an
+authoritative tick applies it. The browser retains a bounded 64-frame history,
+uses recent authoritative displacement to predict local horizontal movement for
+at most 50 ms while inputs remain unacknowledged, then returns to server state.
+This does not replicate KOOKIE's collision or jump simulation on the client.
+Remote actors use a jitter-adaptive 50–150 ms interpolation delay; the server
+continues to own collision, combat, and action outcomes.
+The browser contract checks a missing intermediate snapshot and confirms that
+an unacknowledged horizontal input still produces bounded presentation movement.
+It does not simulate network packet loss or prove convergence under WAN jitter.
+
+## Live 4v4 battle console
+
+Build the web server, then launch the interactive battle console:
+
+```bash
+server_dir="$(mktemp -d -t kookie-web-server-XXXXXX)"
+bash scripts/build_web_server.sh --output "$server_dir"
+scripts/b2teams4.py "$server_dir/kookie-web-server" 8080
+```
+
+At the `kookie>` prompt, enter `/b2teams4`. It spawns four goose bots on red
+team and four cat bots on blue team, then streams authoritative tick, alive
+count, and movement-snapshot counts to the terminal for up to two minutes. Bots
+chase and periodically fire at opposing-team targets; server combat ignores
+same-team targets. A round returns to the prompt when one team is eliminated or
+the timer expires. Connect the web client to `ws://SERVER_HOST:8080`, select
+**Spectator**, and connect to watch. The console keeps an additional spectator
+connection open for its live state monitor. Enter `/quit` to stop the console
+and server, or press Ctrl+C to stop the battle early.
+
+Run a four-second headless setup/movement/combat smoke check with
+`scripts/b2teams4.py "$server_dir/kookie-web-server" 8080 --smoke`. The bot
+routes (`/session/goose` and `/session/cat`) are benchmark-only spawn selectors;
+regular `/session` joins keep the default goose/free-for-all behavior.
 
 Start the server in a separate terminal from its package directory; the
 executable loads `lib/libkookie_web_server.so` relative to its current
@@ -120,6 +171,28 @@ transport, protocol, bearer-admission mode and active sessions. `GET /metrics`
 exposes bounded counters for upgrades, rejections, frames, commands and health
 requests. The Kof server is TCP-only and supports local `ws://` qualification;
 it does not provide hosted identity, bearer admission or TLS termination.
+
+For the same browser client and native backend over the Chopper tailnet,
+install Kof 0.6.6, ensure `tailscale serve status` already routes `/` to
+`http://<Chopper-tailnet-IPv4>:8504`, then run from this checkout:
+
+```bash
+scripts/run_tailnet_web_preview.sh
+```
+
+The script rebuilds the browser client and both native Kof backends, prints the
+HTTPS URL, and remains running until interrupted; it stops both backends and the
+gateway on exit. Open the printed URL from Chopper, DDJARIN, or another device
+on the same tailnet. Caddy binds only Chopper's Tailscale IPv4 address; the
+game backend listens on `KOOKIE_WEB_PORT` (default `8766`) and Kutter on
+`KOOKIE_KUTTER_PORT` (default `8768`), both loopback-only. `/session`,
+`/healthz`, and `/metrics` route to gameplay; `/kutter/session` routes to the
+separate editor process, so editing does not occupy the gameplay connection.
+The editor currently keeps its document in the session and imports/exports
+canonical `.kutter` files; it does not persist changes on the server or load
+them into gameplay. The Kof protocol has no authentication, so Tailscale ACLs
+are the access boundary. Tailscale Serve terminates TLS; both Kof servers remain
+TCP-only.
 
 Run the Kof server end-to-end gate:
 
@@ -335,9 +408,9 @@ verified Kof distribution digest and an owner-private Ed25519 key:
 
 ```bash
 KOOKIE_VERSION=0.1.0-dogfood.N \
-KOOKIE_KOF_SOURCE_COMMIT=8e59b24acc978eb2546509b5cfca867a06e7283a \
+KOOKIE_KOF_SOURCE_COMMIT=7c237861a9035d84b1f7ec4cfddd89daef4c6ddd \
 KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
-KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.5-linux-x86_64.tar.gz \
+KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.6-linux-x86_64.tar.gz \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
 scripts/package_kookie.sh --runtime native --target linux-x86_64
 ```
@@ -395,9 +468,9 @@ format. It is opt-in so existing runtime packages remain content-free:
 ```bash
 KOOKIE_VERSION=0.1.0-dogfood.prototype \
 KOOKIE_BUILD_ID=prototype-content \
-KOOKIE_KOF_SOURCE_COMMIT=8e59b24acc978eb2546509b5cfca867a06e7283a \
+KOOKIE_KOF_SOURCE_COMMIT=7c237861a9035d84b1f7ec4cfddd89daef4c6ddd \
 KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
-KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.5-linux-x86_64.tar.gz \
+KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.6-linux-x86_64.tar.gz \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
 scripts/package_kookie.sh --runtime native --target linux-x86_64 \
   --content prototype
@@ -449,9 +522,9 @@ To run the native SDL presentation with the prototype goose and cat models,
 build the presentation profile explicitly:
 
 ```bash
-KOOKIE_KOF_SOURCE_COMMIT=8e59b24acc978eb2546509b5cfca867a06e7283a \
+KOOKIE_KOF_SOURCE_COMMIT=7c237861a9035d84b1f7ec4cfddd89daef4c6ddd \
 KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
-KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.5-linux-x86_64.tar.gz \
+KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.6-linux-x86_64.tar.gz \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
 scripts/package_kookie.sh --runtime presentation --target linux-x86_64 \
   --content prototype
@@ -594,9 +667,9 @@ qualification and signed dogfood releases:
 ```bash
 KOOKIE_RUNTIME=presentation \
 KOOKIE_VERSION=0.1.0-dogfood.N \
-KOOKIE_KOF_SOURCE_COMMIT=8e59b24acc978eb2546509b5cfca867a06e7283a \
+KOOKIE_KOF_SOURCE_COMMIT=7c237861a9035d84b1f7ec4cfddd89daef4c6ddd \
 KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
-KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.5-linux-x86_64.tar.gz \
+KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.6-linux-x86_64.tar.gz \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
 scripts/package_kookie.sh --runtime presentation --target linux-x86_64
 ```
@@ -605,8 +678,8 @@ For a clean-tree package extraction and signature smoke, use:
 
 ```bash
 KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
-KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.5-linux-x86_64.tar.gz \
-KOOKIE_KOF_SOURCE_COMMIT=8e59b24acc978eb2546509b5cfca867a06e7283a \
+KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.6-linux-x86_64.tar.gz \
+KOOKIE_KOF_SOURCE_COMMIT=7c237861a9035d84b1f7ec4cfddd89daef4c6ddd \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
 scripts/verify_linux_presentation_package.sh
 ```
@@ -617,8 +690,8 @@ verified artifact set to an empty output directory:
 ```bash
 KOOKIE_VERSION=0.1.0-demo.N \
 KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
-KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.5-linux-x86_64.tar.gz \
-KOOKIE_KOF_SOURCE_COMMIT=8e59b24acc978eb2546509b5cfca867a06e7283a \
+KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.6-linux-x86_64.tar.gz \
+KOOKIE_KOF_SOURCE_COMMIT=7c237861a9035d84b1f7ec4cfddd89daef4c6ddd \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
 scripts/build_demo_release.sh \
   --target linux-x86_64 \
@@ -850,9 +923,9 @@ KOOKIE_WINDOWS_SDL_PREFIX=/path/to/SDL3/x86_64-w64-mingw32 \
 KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/path/to/SDL3_mixer/x86_64-w64-mingw32 \
 KOOKIE_WINDOWS_FREETYPE_PREFIX=/path/to/freetype/x86_64-w64-mingw32 \
 KOOKIE_WINDOWS_HARFBUZZ_PREFIX=/path/to/harfbuzz/x86_64-w64-mingw32 \
-KOOKIE_KOF_SOURCE_COMMIT=8e59b24acc978eb2546509b5cfca867a06e7283a \
+KOOKIE_KOF_SOURCE_COMMIT=7c237861a9035d84b1f7ec4cfddd89daef4c6ddd \
 KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
-KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.5-linux-x86_64.tar.gz \
+KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.6-linux-x86_64.tar.gz \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
 scripts/package_kookie.sh --runtime native --target windows-x86_64
 ```
@@ -882,9 +955,9 @@ x64 OpenJDK runtime:
 ```bash
 KOOKIE_WINDOWS_JAVA_ARCHIVE=/path/to/OpenJDK27U-jre_x64_windows_hotspot_27_35.zip \
 KOOKIE_WINDOWS_JAVA_ARCHIVE_SHA256=e9cf542d5ffe2a894637b18c27a7802853976deaa3abe3e04dfbb8a307a145dd \
-KOOKIE_KOF_SOURCE_COMMIT=8e59b24acc978eb2546509b5cfca867a06e7283a \
+KOOKIE_KOF_SOURCE_COMMIT=7c237861a9035d84b1f7ec4cfddd89daef4c6ddd \
 KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
-KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.5-linux-x86_64.tar.gz \
+KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.6-linux-x86_64.tar.gz \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
 SOURCE_DATE_EPOCH=<unix-timestamp> \
 scripts/package_kookie.sh --runtime jvm --target windows-x86_64
@@ -908,9 +981,9 @@ KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/path/to/SDL3_mixer/x86_64-w64-mingw32 \
 KOOKIE_WINDOWS_FREETYPE_PREFIX=/path/to/freetype/x86_64-w64-mingw32 \
 KOOKIE_WINDOWS_HARFBUZZ_PREFIX=/path/to/harfbuzz/x86_64-w64-mingw32 \
 KOOKIE_DXC=/path/to/dxc \
-KOOKIE_KOF_SOURCE_COMMIT=8e59b24acc978eb2546509b5cfca867a06e7283a \
+KOOKIE_KOF_SOURCE_COMMIT=7c237861a9035d84b1f7ec4cfddd89daef4c6ddd \
 KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
-KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.5-linux-x86_64.tar.gz \
+KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.6-linux-x86_64.tar.gz \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
 SOURCE_DATE_EPOCH=<unix-timestamp> \
 scripts/package_kookie.sh --runtime presentation --target windows-x86_64
@@ -933,9 +1006,9 @@ For the publishable Windows artifact, use the clean-tree deterministic builder:
 KOOKIE_WINDOWS_SDL_PREFIX=/path/to/SDL3/x86_64-w64-mingw32 \
 KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/path/to/SDL3_mixer-3.2.4/x86_64-w64-mingw32 \
 KOOKIE_DXC=/path/to/dxc \
-KOOKIE_KOF_SOURCE_COMMIT=8e59b24acc978eb2546509b5cfca867a06e7283a \
+KOOKIE_KOF_SOURCE_COMMIT=7c237861a9035d84b1f7ec4cfddd89daef4c6ddd \
 KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
-KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.5-linux-x86_64.tar.gz \
+KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.6-linux-x86_64.tar.gz \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
 scripts/build_demo_release.sh \
   --target windows-x86_64 \
@@ -970,7 +1043,7 @@ environment approves the publish job.
 
 The workflow requires self-hosted runners with labels
 `kookie-demo-release`, `linux`/`windows` and `x64`. The hosted `toolchain` job
-builds Kof `0.6.5` from the pinned source commit, uploads the archive with
+builds Kof `0.6.6` from the pinned source commit, uploads the archive with
 `SHA256SUMS` and `SOURCE_COMMIT`, and each self-hosted target job verifies and
 uses that exact artifact. The runners do not need a preinstalled Kof archive,
 Zig or a static Kof digest secret.

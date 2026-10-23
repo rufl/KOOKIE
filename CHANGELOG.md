@@ -4,6 +4,103 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 
 ## Unreleased
 
+- Added the interactive `scripts/b2teams4.py` console command. `/b2teams4`
+  starts four goose bots on the red team and four cat bots on the blue team;
+  server-side team assignment prevents friendly targeting. The terminal reports
+  live spectator ticks, surviving bots, and changing positions; a browser can
+  connect as an additional spectator. Dedicated species routes leave normal
+  `/session` joins unchanged.
+- Native web-server qualification passes on a dedicated local port: eight players
+  and four spectators, movement/actions, damage, projectiles, throwable impact,
+  collision, and disconnect/re-admission scenarios.
+- Fixed a server-side snapshot validation cap that rejected the authoritative
+  36-tick throwable fuse (validator allowed only 12 ticks), which caused the
+  server to drop connected clients as soon as throwable state replicated. The
+  browser contract now accepts the full fuse range.
+- Server snapshots now acknowledge the highest input sequence actually applied
+  by an authoritative tick, not merely received. The browser retains at most 64
+  unacknowledged input frames, predicts local horizontal movement from recent
+  authoritative displacement for at most 50 ms, and reconciles from the next
+  authoritative snapshot. This is bounded presentation prediction, not a client
+  copy of KOOKIE's collision/jump physics; those remain server-authoritative.
+  Remote actors use a 16-snapshot buffer with a 50–150 ms arrival-jitter-adaptive
+  delay, stale-snapshot rejection, shortest-path yaw interpolation, and
+  extrapolation capped at 100 ms.
+  The browser contract also skips an intermediate snapshot and checks bounded
+  movement prediction while local input remains unacknowledged; it does not
+  emulate packet loss or WAN conditions.
+- Added `scripts/bench_web_multiplayer.py` for repeatable 8-player/4-spectator
+  loopback measurements of snapshot cadence, tick gaps, and input-to-server-ACK
+  latency. Latest 4-second run: snapshot inter-arrival p50/p95/max
+  15.96/21.91/23.24 ms; input-to-ACK p50/p95/max 15.85/22.04/23.24 ms;
+  tick-gap p50/p95/max 1. Loopback only.
+- Adapted the browser game's PLAY and Bugfeed actions to Interior.dev's
+  asynchronous action feedback pattern: pending/success/failure feedback,
+  stable PLAY button width, duplicate-submit prevention, and reduced-motion
+  handling. Ping changes now flash directionally while retaining the numeric
+  latency as the primary readable signal. These are small vanilla-JS ports of
+  MIT-licensed React component behavior, not runtime React dependencies; the
+  web client remains a self-contained Kof-generated page.
+- Enabled TCP_NODELAY for accepted game sockets to avoid Nagle delays on small
+  real-time packets. The socket adapter now buffers incoming bytes in 4 KiB
+  chunks while preserving the Kof byte-reader contract, reducing per-byte
+  receive syscalls without changing WebSocket framing.
+
+- Made Kutter responsive for phone/tablet portrait and landscape, with a
+  compact touch toolbar, scrollable tool strip, visible hierarchy/inspector,
+  safe-area spacing, and 44px minimum touch targets. Added fullscreen controls
+  to Kutter and the browser game; the game header condenses into touch-sized
+  actions on narrow screens without forcing horizontal page overflow.
+
+- Added a tailnet-ready web Kutter page at `/kutter.html`. It uses the canonical
+  Kutter binary document and the native Kof server session for selection,
+  placement, transforms, recolor, asset tokens, duplicate/delete, grouping,
+  undo/redo and document import/export. The editor viewport renders the current
+  document with WebGL; documents remain browser-file import/export, not
+  persistent server storage, and edits do not yet publish into a live gameplay
+  session.
+- Kept Kutter editor WebSocket sessions alive using the existing Kof ping/pong
+  protocol; backend contracts cover heartbeat and editing operations.
+- Added player/bot target labels above model heads. They appear only for a live
+  actor within 180 world units whose head is in view and near screen center;
+  off-target, distant, dead, or off-screen labels stay hidden.
+- Added a touch-layout editor for moving the movement stick and action cluster by
+  dragging or keyboard-accessible position sliders. Named layouts persist locally
+  and can be saved, recalled, or reset. Goose animation sampling now clamps to
+  authored keyframe bounds, preventing extrapolation before the first frame.
+- Added Bugfeed to the browser game: one button captures the WebGL scene, accepts
+  notes, and uploads bounded client diagnostics to a tailnet-only service. Each
+  report receives a UUID and is stored persistently with private filesystem
+  permissions; screenshot capture failure still allows a diagnostic-only report.
+  Added retrieval routes, startup health checks, operating/privacy documentation,
+  and a browser/server smoke path.
+
+
+
+- Updated the repository Kof pin from 0.6.5 to the official 0.6.6 Linux
+  release source commit `7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`; its
+  upstream archive SHA-256 is `96dd0d804c02e1e0f066dc0b53a4b1c385595d32820d97aeb77bb5dc772296f6`.
+  The release updater now accepts an explicit immutable ref while retaining
+  `lab` as its default.
+- Replaced the right look stick with Minecraft-style mobile controls: left
+  movement stick, drag-to-look across the scene, and persistent jump/action
+  buttons. Touch and pointer-lock look now support bounded vertical pitch.
+- Added client-side movement prediction with sequence-aware authoritative
+  reconciliation. Late snapshots no longer overwrite newer state or discard
+  unacknowledged movement. Added automatic client/server RTT display in the HUD.
+- Simplified phone HUD and overlaid touch controls on the game viewport; portrait
+  keeps a left movement zone and right action cluster, while landscape uses a
+  compact four-button row and reserves more area for the scene. Keyboard/mouse
+  controls remain available on desktop.
+- Repositioned the Settings panel below its header and bounded its height so
+  both sensitivity controls remain reachable on short screens.
+- Added `scripts/run_tailnet_web_preview.sh`: rebuilds the browser game client
+  and native Kof WebSocket backend from the current checkout, then serves them
+  through Chopper's existing Tailscale Serve route. Caddy binds only the
+  Tailscale IPv4 address; the Kof backend binds loopback. Backend protocol
+  authentication is disabled, so access relies on tailnet ACLs.
+
+
 - Added `config/runtime/enemy_tuning.json` for bounded enemy perception, attack,
   weapon, and encounter settings. Packaged native builds include the file;
   malformed or missing tuning data prevents the demo session from starting.

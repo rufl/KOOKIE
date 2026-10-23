@@ -119,7 +119,7 @@ package host that keeps the CSS under `assets/ui` and the bundled fonts under
 ```
 
 `KookieUiText` applies the family, line-height, size, weight and color to the
-same Label handle. The current Kof `0.6.5` source retains the metadata-only
+same Label handle. The current Kof `0.6.6` source retains the metadata-only
 `Font` handle behavior; the focused Buffer/exception gates pass against the
 active pin, while UI-specific font probes remain separate.
 
