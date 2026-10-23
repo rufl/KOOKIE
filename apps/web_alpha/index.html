@@ -183,7 +183,8 @@
       .kookie-session-runtime { left: 8px; top: 72px; bottom: auto; }
     }
     @media (min-width: 701px) {
-      .kookie-session-footer { min-height: 124px; }
+      .kookie-session-panel { grid-template-rows: auto minmax(0,1fr); }
+      .kookie-session-footer, .kookie-session-help, .kookie-session-touch-look { display: none; }
     }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
   </style>
@@ -191,6 +192,6 @@
 <body>
   <main id="kof-root" aria-label="GatoGanso game"></main>
   <script src="kookie-webgl-renderer.js"></script>
-  <script src="kookie-session.js"></script>
+  <script src="kookie-session.js?v=20261023-spectator-controls"></script>
 </body>
 </html>

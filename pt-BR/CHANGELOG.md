@@ -3,6 +3,12 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Adicionamos um adaptador limitado de varredura de cápsula Box3D com os
+  fontes 0.1.0 fixados do DINX; passam os testes isolados de aterrissagem,
+  geometria inválida e malha de rampa. A sondagem diferencial real da rampa G1
+  falha no tick 15: Kof resolve `(30,4,68)` e Box3D `(30,0,68)`. O movimento de
+  produção permanece no Kof para não quebrar a travessia; o adaptador ainda não
+  pode substituí-lo.
 - Adicionamos um editor de layout touch para mover o analógico de movimento e o
   grupo de ações arrastando ou usando controles de posição acessíveis pelo
   teclado. Layouts nomeados são salvos localmente e podem ser carregados ou

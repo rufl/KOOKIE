@@ -75,6 +75,7 @@ class G1Arena {
     }
 
 
+
     Bool buildArena() {
         var maxX = g1ArenaMaxX()
         var maxY = g1ArenaMaxY()
@@ -93,7 +94,6 @@ class G1Arena {
             return false
         }
 
-        // A dark perimeter frames the arena while preserving an open roof.
         if (!appendBox(
                 0, 0, 0, thickness, maxY, maxZ, 8) ||
             !appendBox(

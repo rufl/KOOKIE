@@ -431,16 +431,37 @@ The protocol is transport-independent:
 
 ### Kof-owned local web server
 
-The local full-scene qualification path can run entirely from Kof:
 `apps/web_server/main.kf` owns HTTP routing, the WebSocket upgrade, bounded
 frame decode/encode, the Kof handshake, authoritative session state and the
-health/metrics responses. `native/kookie_web_server.c/.h` is a narrow C
-mechanism boundary for TCP sockets, bounded I/O, socket timeouts, the
-WebSocket SHA-1 accept digest and environment-provided port/connection limits;
-it owns no session or gameplay policy. `scripts/build_web_server.sh` packages
-the native Kof executable with that adapter, and
+health/metrics responses. `native/kookie_web_server.zig` implements the narrow
+transport mechanism behind the stable `native/kookie_web_server.h` C ABI:
+TCP sockets, bounded I/O, socket timeouts, WebSocket framing and the SHA-1
+accept digest. It owns no session or gameplay policy. `scripts/build_web_server.sh`
+builds the adapter with Zig and packages it with the native Kof executable;
 `scripts/verify_kof_web_server.sh` qualifies health, metrics, upgrade,
 handshake, full-scene movement and malformed-request rejection.
+
+- `native/kookie_box3d.zig` builds against DINX's pinned Box3D 0.1.0 sources.
+  In the authoritative web server it resolves static-arena player capsule
+  sweeps, static and actor ray visibility, projectile/throwable wall impacts,
+  static blast occlusion, and registered player-capsule overlaps. Kof remains
+  the gameplay authority: it owns input and movement integration,
+  grounding/step policy, actor contacts, weapon/fuse state, teams, damage,
+  power-up effects, bot decisions and replication. Registered Box3D kinematic
+  sensor capsules are synchronized from Kof; the adapter's actor ray/overlap
+  checks are bounded Zig geometry queries, not Box3D's dynamic solver.
+- Startup gates differentially compare Kof and Box3D movement through floor,
+  ramp/raised-lane and jump/landing routes. G1's four perimeter walls are
+  excluded from Box3D triangle meshes because long mesh faces generated distant
+  false contacts; the Zig adapter sweeps these axis-aligned boundaries directly
+  without per-tick allocation. Focused tests cover distant travel, wall blocking,
+  actor overlap, nearest actor ray, source-actor exclusion and wall occlusion.
+- Online SDL and web renderers consume the same authoritative server snapshots;
+  they do not run independent Box3D simulations. This makes online gameplay
+  state consistent by authority, not by duplicating physics in presentation.
+  The 8-player/4-spectator web-server qualification and the 12-second 4v4 bot
+  smoke cover exercised movement, combat and session routes. SDL local-authority
+  simulation and exhaustive dynamic-collision/mechanic parity are not certified.
 
 Bugfeed is deliberately outside this adapter’s 8 KiB HTTP request path:
 `apps/web_server/bugfeed.zig` is a loopback-only Zig sidecar for bounded

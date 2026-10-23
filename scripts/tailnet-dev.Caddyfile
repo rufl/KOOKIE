@@ -13,7 +13,7 @@ http://:{$KOOKIE_TAILNET_PORT} {
   handle /bugfeed* {
     reverse_proxy 127.0.0.1:{$KOOKIE_BUGFEED_PORT}
   }
-  @kof_backend path /session /healthz /metrics
+  @kof_backend path /session /session/goose /session/cat /spectate /healthz /metrics
   reverse_proxy @kof_backend 127.0.0.1:{$KOOKIE_WEB_PORT}
 
   root * {$KOOKIE_WEB_ALPHA_ROOT}

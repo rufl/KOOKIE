@@ -3,6 +3,109 @@ package session
 import core
 import content
 import world
+extern "./lib/libkookie_box3d.so" kookie_box3d_begin_arena(Int triangleCount): Bool
+extern "./lib/libkookie_box3d.so" kookie_box3d_add_arena_triangle(
+    Int ax, Int ay, Int az, Int bx, Int by, Int bz, Int cx, Int cy, Int cz
+): Bool
+extern "./lib/libkookie_box3d.so" kookie_box3d_add_arena_visual_triangle(
+    Int ax, Int ay, Int az, Int bx, Int by, Int bz, Int cx, Int cy, Int cz
+): Bool
+extern "./lib/libkookie_box3d.so" kookie_box3d_add_arena_box(
+    Int minX, Int minY, Int minZ, Int maxX, Int maxY, Int maxZ
+): Bool
+extern "./lib/libkookie_box3d.so" kookie_box3d_finish_arena(): Bool
+extern "./lib/libkookie_box3d.so" kookie_box3d_destroy_arena()
+extern "./lib/libkookie_box3d.so" kookie_box3d_cast_ray_fixed(
+    Int startX, Int startY, Int startZ, Int endX, Int endY, Int endZ
+): Int
+extern "./lib/libkookie_box3d.so" kookie_box3d_set_actor_capsule(
+    Int slot, Int x, Int y, Int z, Int radiusFixed, Int heightFixed
+): Int
+extern "./lib/libkookie_box3d.so" kookie_box3d_clear_actor(Int slot)
+extern "./lib/libkookie_box3d.so" kookie_box3d_cast_ray_actors_fixed(
+    Int ignoredActorSlot,
+    Int startX, Int startY, Int startZ, Int endX, Int endY, Int endZ
+): Int
+extern "./lib/libkookie_box3d.so" kookie_box3d_result_actor_slot(): Int
+extern "./lib/libkookie_box3d.so" kookie_box3d_overlap_actor_capsule_fixed(
+    Int slot, Int x, Int y, Int z, Int radiusFixed, Int heightFixed
+): Bool
+extern "./lib/libkookie_box3d.so" kookie_box3d_move_fixed(
+    Int startX, Int startY, Int startZ, Int endX, Int endY, Int endZ,
+    Int radiusFixed, Int heightFixed, Bool wasGrounded
+): Int
+extern "./lib/libkookie_box3d.so" kookie_box3d_result_x_fixed(): Int
+extern "./lib/libkookie_box3d.so" kookie_box3d_result_y_fixed(): Int
+extern "./lib/libkookie_box3d.so" kookie_box3d_result_z_fixed(): Int
+extern "./lib/libkookie_box3d.so" kookie_box3d_result_grounded(): Bool
+extern "./lib/libkookie_box3d.so" kookie_box3d_result_contacts(): Int
+extern "./lib/libkookie_box3d.so" kookie_box3d_result_normal_x_milli(): Int
+extern "./lib/libkookie_box3d.so" kookie_box3d_result_normal_y_milli(): Int
+extern "./lib/libkookie_box3d.so" kookie_box3d_result_normal_z_milli(): Int
+extern "./lib/libkookie_box3d.so" kookie_box3d_result_plane_offset_milli(): Int
+extern "./lib/libkookie_box3d.so" kookie_box3d_result_shape_index(): Int
+Bool webMultiplayerBox3DParityCase(
+    G1Arena arena, Int startX, Int startY, Int startZ,
+    Int moveX, Int moveZ, Int ticks, Bool jumpAtStart
+) {
+    var reference = FpsMovementController(1)
+    var candidate = FpsMovementController(1)
+    var authored = arena.authoredCollision()
+    if (!reference.configure(authored) || !candidate.configure(authored) ||
+        !candidate.setExternalCollisionMode(true) ||
+        !reference.addActor(1, startX, startY, startZ) ||
+        !candidate.addActor(1, startX, startY, startZ)) { return false }
+    for (var tick = 0; tick < ticks; tick = tick + 1) {
+        var jump = jumpAtStart && tick == 0
+        var wasGrounded = candidate.grounded(1)
+        var startFixedX = candidate.positionXFixed(1)
+        var startFixedY = candidate.positionYFixed(1)
+        var startFixedZ = candidate.positionZFixed(1)
+        if (!reference.step(1, moveX, moveZ, jump, false) ||
+            !candidate.step(1, moveX, moveZ, jump, false)) { return false }
+        var desiredX = candidate.positionXFixed(1)
+        var desiredY = candidate.positionYFixed(1)
+        var desiredZ = candidate.positionZFixed(1)
+        if (kookie_box3d_move_fixed(
+                startFixedX, startFixedY, startFixedZ,
+                desiredX, desiredY, desiredZ, fpsMovementCapsuleRadius(),
+                fpsMovementCapsuleHeight(), wasGrounded) != 0 ||
+            !candidate.applyExternalCollision(
+                1, kookie_box3d_result_x_fixed(),
+                kookie_box3d_result_y_fixed(), kookie_box3d_result_z_fixed(),
+                kookie_box3d_result_grounded(), wasGrounded, false)) {
+            return false
+        }
+        if (webMultiplayerAbs(
+                candidate.positionXFixed(1) - reference.positionXFixed(1)) > 12 ||
+            webMultiplayerAbs(
+                candidate.positionYFixed(1) - reference.positionYFixed(1)) > 12 ||
+            webMultiplayerAbs(
+                candidate.positionZFixed(1) - reference.positionZFixed(1)) > 12 ||
+            candidate.grounded(1) != reference.grounded(1)) {
+            println("Box3D arena parity mismatch start=" + startX + "," +
+                startY + "," + startZ + " tick=" + tick + " kof=" +
+                reference.positionXFixed(1) + "," +
+                reference.positionYFixed(1) + "," +
+                reference.positionZFixed(1) + " sweep-start=" +
+                startFixedX + "," + startFixedY + "," + startFixedZ +
+                " requested=" + desiredX + "," + desiredY + "," +
+                desiredZ + " box3d=" + candidate.positionXFixed(1) + "," +
+                candidate.positionYFixed(1) + "," +
+                candidate.positionZFixed(1) + " velocity=" +
+                reference.velocityX(1) + "/" + candidate.velocityX(1) +
+                " contacts=" + kookie_box3d_result_contacts() +
+                " normal=" + kookie_box3d_result_normal_x_milli() + "," +
+                kookie_box3d_result_normal_y_milli() + "," +
+                kookie_box3d_result_normal_z_milli() + " plane-offset=" +
+                kookie_box3d_result_plane_offset_milli() + " shape=" +
+                kookie_box3d_result_shape_index() + " grounded=" +
+                reference.grounded(1) + "/" + candidate.grounded(1))
+            return false
+        }
+    }
+    return true
+}
 
 Int webMultiplayerPlayerCapacity() { return 8 }
 Int webMultiplayerTickMillis() { return 17 }
@@ -20,6 +123,26 @@ Int webMultiplayerFlag(Int flags, Int bit) {
     return (flags / divisor) % 2
 }
 Int webMultiplayerAbs(Int value) { if (value < 0) { return -value }; return value }
+Int webMultiplayerExplosionRadius() { return 12 }
+Int webMultiplayerBox3DRay(
+    Int startX, Int startY, Int startZ,
+    Int endX, Int endY, Int endZ
+) {
+    var scale = fpsMovementCoordinateScale()
+    return kookie_box3d_cast_ray_fixed(
+        startX * scale, startY * scale, startZ * scale,
+        endX * scale, endY * scale, endZ * scale)
+}
+Int webMultiplayerBox3DActorRay(
+    Int ignoredActorSlot,
+    Int startX, Int startY, Int startZ, Int endX, Int endY, Int endZ
+) {
+    var scale = fpsMovementCoordinateScale()
+    return kookie_box3d_cast_ray_actors_fixed(
+        ignoredActorSlot,
+        startX * scale, startY * scale, startZ * scale,
+        endX * scale, endY * scale, endZ * scale)
+}
 Int webMultiplayerSine(Int angle) {
     var normalized = angle % 360
     if (normalized < 0) { normalized = normalized + 360 }
@@ -217,9 +340,99 @@ class WebMultiplayerSimulation {
         for (var p = 0; p < 16; p = p + 1) { projectileActive[p] = false }
     }
 
+    Bool configureBox3DArena() {
+        var authored = arena.authoredCollision()
+        if (!kookie_box3d_begin_arena(authored.triangleCount())) { return false }
+        for (var triangle = 0; triangle < authored.triangleCount(); triangle = triangle + 1) {
+            var first = authored.triangleVertex(triangle, 0)
+            var second = authored.triangleVertex(triangle, 1)
+            var third = authored.triangleVertex(triangle, 2)
+            var added = false
+            if (first < 0 || second < 0 || third < 0) { return false }
+            if (authored.triangleSurface(triangle) == 8) {
+                added = kookie_box3d_add_arena_visual_triangle(
+                    authored.vertexCoordinate(first, 0) * fpsMovementCoordinateScale(),
+                    authored.vertexCoordinate(first, 1) * fpsMovementCoordinateScale(),
+                    authored.vertexCoordinate(first, 2) * fpsMovementCoordinateScale(),
+                    authored.vertexCoordinate(second, 0) * fpsMovementCoordinateScale(),
+                    authored.vertexCoordinate(second, 1) * fpsMovementCoordinateScale(),
+                    authored.vertexCoordinate(second, 2) * fpsMovementCoordinateScale(),
+                    authored.vertexCoordinate(third, 0) * fpsMovementCoordinateScale(),
+                    authored.vertexCoordinate(third, 1) * fpsMovementCoordinateScale(),
+                    authored.vertexCoordinate(third, 2) * fpsMovementCoordinateScale())
+            } else {
+                added = kookie_box3d_add_arena_triangle(
+                    authored.vertexCoordinate(first, 0) * fpsMovementCoordinateScale(),
+                    authored.vertexCoordinate(first, 1) * fpsMovementCoordinateScale(),
+                    authored.vertexCoordinate(first, 2) * fpsMovementCoordinateScale(),
+                    authored.vertexCoordinate(second, 0) * fpsMovementCoordinateScale(),
+                    authored.vertexCoordinate(second, 1) * fpsMovementCoordinateScale(),
+                    authored.vertexCoordinate(second, 2) * fpsMovementCoordinateScale(),
+                    authored.vertexCoordinate(third, 0) * fpsMovementCoordinateScale(),
+                    authored.vertexCoordinate(third, 1) * fpsMovementCoordinateScale(),
+                    authored.vertexCoordinate(third, 2) * fpsMovementCoordinateScale())
+            }
+            if (!added) {
+                return false
+            }
+        }
+        var scale = fpsMovementCoordinateScale()
+        var maxX = g1ArenaMaxX() * scale
+        var maxY = g1ArenaMaxY() * scale
+        var maxZ = g1ArenaMaxZ() * scale
+        var wall = g1ArenaWallThickness() * scale
+        if (!kookie_box3d_add_arena_box(0, 0, 0, wall, maxY, maxZ) ||
+            !kookie_box3d_add_arena_box(maxX - wall, 0, 0, maxX, maxY, maxZ) ||
+            !kookie_box3d_add_arena_box(wall, 0, 0, maxX - wall, maxY, wall) ||
+            !kookie_box3d_add_arena_box(
+                wall, 0, maxZ - wall, maxX - wall, maxY, maxZ)) {
+            return false
+        }
+        return kookie_box3d_finish_arena()
+    }
+
+    Bool resolveBox3DMove(
+        Int actor, Int startX, Int startY, Int startZ,
+        Bool wasGrounded, Bool jumpHeld
+    ) {
+        if (kookie_box3d_move_fixed(
+                startX, startY, startZ,
+                movement.positionXFixed(actor), movement.positionYFixed(actor),
+                movement.positionZFixed(actor), fpsMovementCapsuleRadius(),
+                fpsMovementCapsuleHeight(), wasGrounded) != 0) {
+            return false
+        }
+        return movement.applyExternalCollision(
+            actor, kookie_box3d_result_x_fixed(),
+            kookie_box3d_result_y_fixed(), kookie_box3d_result_z_fixed(),
+            kookie_box3d_result_grounded(), wasGrounded, jumpHeld)
+    }
+
+    void destroyBox3DArena() { kookie_box3d_destroy_arena() }
+    Bool burstWithBox3D(
+        Int actor, Int axisX, Int axisZ, Int distance, Bool jumpHeld
+    ) {
+        var startX = movement.positionXFixed(actor)
+        var startY = movement.positionYFixed(actor)
+        var startZ = movement.positionZFixed(actor)
+        var wasGrounded = movement.grounded(actor)
+        return movement.burst(actor, axisX, axisZ, distance) &&
+            resolveBox3DMove(
+                actor, startX, startY, startZ, wasGrounded, jumpHeld)
+    }
+
     Bool configure() {
-        if (configuredValue) { return false }
-        if (!arena.ready() || !movement.configure(arena.authoredCollision())) { return false }
+        if (!arena.ready() ||
+            !movement.configure(arena.authoredCollision())) { return false }
+        if (!configureBox3DArena() ||
+            !webMultiplayerBox3DParityCase(arena, 6, 1, 6, 0, 0, 12, false) ||
+            !webMultiplayerBox3DParityCase(arena, 16, 1, 68, 4, 0, 24, false) ||
+            !webMultiplayerBox3DParityCase(arena, 12, 1, 12, 0, 0, 32, true) ||
+            !movement.setExternalCollisionMode(true)) {
+            kookie_box3d_destroy_arena()
+            return false
+        }
+ 
         if (!combat.defineWeapon(1, 30, 90, 20, 1) ||
             !combat.setWeaponRange(1, 120) ||
             !combat.setWeaponCooldown(1, 0)) { return false }
@@ -295,6 +508,14 @@ class WebMultiplayerSimulation {
                 combat.spatial.removePosition(externalId)
                 return false
             }
+        }
+        if (kookie_box3d_set_actor_capsule(
+                slot, movement.positionXFixed(actor),
+                movement.positionYFixed(actor), movement.positionZFixed(actor),
+                fpsMovementCapsuleRadius(), fpsMovementCapsuleHeight()) != 0) {
+            combat.combat.removeActor(externalId)
+            combat.spatial.removePosition(externalId)
+            return false
         }
         effectAt(slot).clear()
         movingValues[slot] = false
@@ -397,7 +618,9 @@ class WebMultiplayerSimulation {
     }
     Bool removePlayer(Int externalId) {
         var slot = playerSlot(externalId)
-        if (slot < 0 || !combat.combat.removeActor(externalId) ||
+        if (slot < 0) { return false }
+        kookie_box3d_clear_actor(slot)
+        if (!combat.combat.removeActor(externalId) ||
             !combat.spatial.removePosition(externalId)) { return false }
         for (var i = 0; i < 16; i = i + 1) {
             if (projectileActive[i] && projectileOwners[i] == externalId) { projectileActive[i] = false }
@@ -454,9 +677,17 @@ class WebMultiplayerSimulation {
                 effect.coffeeSpeedBonus(), effect.jetpackImpulseBonus()) ||
             !movement.setCrouched(actor, roll) ||
             !movement.setGliding(actor, gliding || flying)) { return false }
-        if (roll && !movement.burst(actor, axisX, axisZ, 6)) { return false }
-        if (dash && !movement.burst(actor, axisX, axisZ, 12)) { return false }
-        if (!movement.step(actor, axisX, axisZ, jump, jumpHeld || gliding || flying)) { return false }
+        if (roll && !burstWithBox3D(actor, axisX, axisZ, 6, jumpHeld)) { return false }
+        if (dash && !burstWithBox3D(actor, axisX, axisZ, 12, jumpHeld)) { return false }
+        var jumpHeldMovement = jumpHeld || gliding || flying
+        var stepStartX = movement.positionXFixed(actor)
+        var stepStartY = movement.positionYFixed(actor)
+        var stepStartZ = movement.positionZFixed(actor)
+        var stepWasGrounded = movement.grounded(actor)
+        if (!movement.step(actor, axisX, axisZ, jump, jumpHeldMovement) ||
+            !resolveBox3DMove(
+                actor, stepStartX, stepStartY, stepStartZ,
+                stepWasGrounded, jumpHeldMovement)) { return false }
         var movedY = movement.positionY(actor)
         if (movedY > sessionWebGameWorldMaximumY() &&
             !movement.setPosition(actor, movement.positionX(actor),
@@ -466,16 +697,37 @@ class WebMultiplayerSimulation {
         for (var other = 0; other < 8; other = other + 1) {
             if (activeValues[other] && other != slot &&
                 oldY == movement.positionY(actor) && !jump && !flying &&
-                webMultiplayerSweptPlayerCollision(
+                (webMultiplayerSweptPlayerCollision(
                     oldX, oldY, oldZ,
                     movement.positionX(actor), movement.positionY(actor),
                     movement.positionZ(actor),
                     movement.positionX(other + 1), movement.positionY(other + 1),
-                    movement.positionZ(other + 1))) {
-                movement.setPosition(actor, oldX, oldY, oldZ)
-                combat.setSpatialPosition(externalId, oldX, oldY, oldZ)
-                break
+                    movement.positionZ(other + 1)) ||
+                kookie_box3d_overlap_actor_capsule_fixed(
+                    slot, movement.positionXFixed(actor),
+                    movement.positionYFixed(actor), movement.positionZFixed(actor),
+                    fpsMovementCapsuleRadius(), fpsMovementCapsuleHeight()))) {
+                var contactX = oldX
+                var contactZ = oldZ
+                if (webMultiplayerAbs(
+                        movement.positionX(actor) - oldX) >=
+                    webMultiplayerAbs(
+                        movement.positionZ(actor) - oldZ)) {
+                    contactX = movement.positionX(other + 1) +
+                        if (oldX >= movement.positionX(other + 1)) { 4 } else { -4 }
+                } else {
+                    contactZ = movement.positionZ(other + 1) +
+                        if (oldZ >= movement.positionZ(other + 1)) { 4 } else { -4 }
+                }
+                movement.setPosition(actor, contactX, oldY, contactZ)
+                combat.setSpatialPosition(externalId, contactX, oldY, contactZ)
             }
+        }
+        if (kookie_box3d_set_actor_capsule(
+                slot, movement.positionXFixed(actor),
+                movement.positionYFixed(actor), movement.positionZFixed(actor),
+                fpsMovementCapsuleRadius(), fpsMovementCapsuleHeight()) != 0) {
+            return false
         }
         yawValues[slot] = yaw
         pitchValues[slot] = pitch
@@ -532,12 +784,21 @@ class WebMultiplayerSimulation {
                 var forwardZ = webMultiplayerSine(yawValues[sourceSlot] + 90)
                 var dot = dx * forwardX + dz * forwardZ
                 var cross = webMultiplayerAbs(dx * forwardZ - dz * forwardX)
-                var sight = arena.query(
-                    movement.positionX(sourceActor), movement.positionY(sourceActor) + 3, movement.positionZ(sourceActor),
-                    movement.positionX(index + 1), movement.positionY(index + 1) + 3, movement.positionZ(index + 1))
+                var sight = webMultiplayerBox3DActorRay(
+                    sourceSlot,
+                    movement.positionX(sourceActor),
+                    movement.positionY(sourceActor) + 3,
+                    movement.positionZ(sourceActor),
+                    movement.positionX(index + 1),
+                    movement.positionY(index + 1) + 3,
+                    movement.positionZ(index + 1))
+                var visible = sight == 0
+                if (sight == 2) {
+                    visible = kookie_box3d_result_actor_slot() == index
+                }
                 if (distance < bestDistance && dot > 0 && cross * 1000 <= dot * 300 &&
                     !effectAt(index).flourCloudBlocksSight(distance, tickValue) &&
-                    sight.accepted() && !sight.collided()) {
+                    visible) {
                     bestDistance = distance
                     bestSlot = index
                 }
@@ -697,13 +958,22 @@ class WebMultiplayerSimulation {
                 var newX = oldX + projectileDX[index] * 2 / 1000
                 var newY = oldY + projectileDY[index] * 2 / 1000
                 var newZ = oldZ + projectileDZ[index] * 2 / 1000
-                var wall = arena.query(oldX, oldY, oldZ, newX, newY, newZ)
-                if (!wall.accepted()) {
-                    projectileActive[index] = false
-                    continue
+                var wallStatus = webMultiplayerBox3DActorRay(
+                    ownerSlot,
+                    oldX, oldY, oldZ, newX, newY, newZ)
+                if (wallStatus < 0) { return false }
+                var actorHit = -1
+                if (wallStatus == 2) {
+                    actorHit = kookie_box3d_result_actor_slot()
                 }
-                var wallBlocked = wall.collided()
-                if (wallBlocked) {
+                var outsideArena = newX < sessionWebGameWorldMinimumX() ||
+                    newX > sessionWebGameWorldMaximumX() ||
+                    newY < sessionWebGameWorldMinimumY() ||
+                    newY > sessionWebGameWorldMaximumY() ||
+                    newZ < sessionWebGameWorldMinimumZ() ||
+                    newZ > sessionWebGameWorldMaximumZ()
+                var collisionBlocked = wallStatus == 1 || outsideArena
+                if (collisionBlocked) {
                     projectileX[index] = oldX
                     projectileY[index] = oldY
                     projectileZ[index] = oldZ
@@ -718,32 +988,40 @@ class WebMultiplayerSimulation {
                 var expired = projectileAge[index] >= webMultiplayerProjectileLifetimeTicks()
                 var throwableDetonated = projectileKinds[index] == 2 &&
                     projectileAge[index] >= webMultiplayerThrowableFuseTicks()
-                if (wallBlocked && projectileKinds[index] == 1) {
+                if (collisionBlocked && projectileKinds[index] == 1) {
                     projectileActive[index] = false
                     if (!pushImpact(5, projectileOwners[index], 0, oldX, oldY, oldZ, 0)) { return false }
                 }
                 var hit = -1
-                if (projectileKinds[index] == 1 && !wallBlocked) {
-                    for (var actor = 0; actor < 8; actor = actor + 1) {
-                        if (activeValues[actor] && playerIds[actor] != projectileOwners[index] &&
-                            (teamValues[ownerSlot] == 0 ||
-                                teamValues[actor] == 0 ||
-                                teamValues[ownerSlot] != teamValues[actor]) &&
-                            healthValues[actor] > 0 &&
-                            webMultiplayerAbs(movement.positionX(actor + 1) - projectileX[index]) <= 2 &&
-                            webMultiplayerAbs(movement.positionY(actor + 1) - projectileY[index]) <= 2 &&
-                            webMultiplayerAbs(movement.positionZ(actor + 1) - projectileZ[index]) <= 2) { hit = actor; break }
-                    }
+                if (projectileKinds[index] == 1 && actorHit >= 0 &&
+                    actorHit < 8 && activeValues[actorHit] &&
+                    playerIds[actorHit] != projectileOwners[index] &&
+                    (teamValues[ownerSlot] == 0 ||
+                        teamValues[actorHit] == 0 ||
+                        teamValues[ownerSlot] != teamValues[actorHit]) &&
+                    healthValues[actorHit] > 0) {
+                    hit = actorHit
                 }
                 if (hit >= 0) {
-                    var resolution = combat.playerMelee(projectileOwners[index], playerIds[hit], tickValue, 120, projectileDamage[index], 1, 0)
+                    var hitTargets = new Int[1]
+                    hitTargets[0] = playerIds[hit]
+                    var resolution = combat.playerAreaDamage(
+                        projectileOwners[index], hitTargets,
+                        projectileDamage[index], 1, 0, tickValue)
                     if (!resolution.accepted()) { return false }
                     var applied = resolution.applied()
                     healthValues[hit] = healthValues[hit] - applied
                     if (healthValues[hit] < 0) { healthValues[hit] = 0 }
                     if (!pushImpact(3, projectileOwners[index], playerIds[hit],
-                            projectileX[index], projectileY[index], projectileZ[index], applied)) { return false }
+                            projectileX[index], projectileY[index],
+                            projectileZ[index], applied)) { return false }
                     projectileActive[index] = false
+                } else if (actorHit >= 0 && projectileKinds[index] == 1) {
+                    projectileActive[index] = false
+                    if (!pushImpact(
+                            5, projectileOwners[index], 0,
+                            projectileX[index], projectileY[index],
+                            projectileZ[index], 0)) { return false }
                 } else if (throwableDetonated) {
                     for (var actor = 0; actor < 8; actor = actor + 1) {
                         if (activeValues[actor] && playerIds[actor] != projectileOwners[index] &&
@@ -751,18 +1029,32 @@ class WebMultiplayerSimulation {
                                 teamValues[actor] == 0 ||
                                 teamValues[ownerSlot] != teamValues[actor]) &&
                             healthValues[actor] > 0) {
-                            var distance = webMultiplayerAbs(movement.positionX(actor + 1) - projectileX[index]) +
-                                webMultiplayerAbs(movement.positionY(actor + 1) - projectileY[index]) +
-                                webMultiplayerAbs(movement.positionZ(actor + 1) - projectileZ[index])
-                            if (distance <= 12) {
-                                var resolution = combat.playerMelee(projectileOwners[index], playerIds[actor], tickValue, 12, 25, 1, 0)
-                                if (!resolution.accepted()) { return false }
-                                var applied = resolution.applied()
+                            var dx = movement.positionX(actor + 1) - projectileX[index]
+                            var dy = movement.positionY(actor + 1) - projectileY[index]
+                            var dz = movement.positionZ(actor + 1) - projectileZ[index]
+                            var blastRadius = webMultiplayerExplosionRadius()
+                            if (dx * dx + dy * dy + dz * dz <=
+                                blastRadius * blastRadius) {
+                                var visibility = webMultiplayerBox3DRay(
+                                    projectileX[index], projectileY[index],
+                                    projectileZ[index], movement.positionX(actor + 1),
+                                    movement.positionY(actor + 1),
+                                    movement.positionZ(actor + 1))
+                                if (visibility < 0) { return false }
+                                if (visibility == 0) {
+                                    var blastTargets = new Int[1]
+                                    blastTargets[0] = playerIds[actor]
+                                    var resolution = combat.playerAreaDamage(
+                                        projectileOwners[index], blastTargets,
+                                        25, 1, 0, tickValue)
+                                    if (!resolution.accepted()) { return false }
+                                    var applied = resolution.applied()
                                 healthValues[actor] = healthValues[actor] - applied
                                 if (healthValues[actor] < 0) { healthValues[actor] = 0 }
                                 if (!pushImpact(4, projectileOwners[index], playerIds[actor],
                                         projectileX[index], projectileY[index], projectileZ[index], applied)) { return false }
                             }
+                                }
                         }
                     }
                     projectileActive[index] = false

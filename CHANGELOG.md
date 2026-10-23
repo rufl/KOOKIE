@@ -3,6 +3,35 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Fixed tailnet Caddy routing for the spectator WebSocket and both browser bot
+  endpoints; `/spectate`, `/session/goose` and `/session/cat` now reach the
+  Kof multiplayer server. Added an index cache-buster for session-role updates.
+- Spectator look updates local camera yaw/pitch without sending player input
+  to the authoritative server. The spectator camera starts above arena center
+  and faces the bot spawn area instead of deriving its position from the
+  out-of-bounds placeholder player origin. Hide touch controls and hints at the
+  701px desktop breakpoint.
+- Tailnet preview supervises the Kof multiplayer process, records unexpected
+  exit status and restarts it after one second; startup health checks still
+  require the backend itself to answer. The Kof transport-poll fatal path now
+  emits a distinct diagnostic before shutdown.
+- Replaced the multiplayer TCP/WebSocket mechanism implementation with Zig
+  while retaining the `kookie_web_server.h` ABI and Kof ownership of routing,
+  admission, protocol policy and gameplay simulation. Limits and framing
+  behavior are preserved; `scripts/verify_kof_web_server.sh` passes the
+  8-player/4-spectator end-to-end qualification.
+- Extended Box3D web-server integration to registered player capsule overlaps,
+  actor-aware line-of-sight/hitscan/projectile rays, and static wall/blast
+  occlusion. Rays exclude their source capsule. Projectiles now terminate at
+  arena/floor bounds; projectile and blast damage use the authoritative area
+  damage service after Kof validates actor collision, team and visibility,
+  avoiding stale spatial-range rejection that previously stopped the server.
+  Kof owns movement integration, actor-contact policy, weapon/fuse state,
+  teams, damage, power-ups, bots and replication. The adapter uses Box3D for
+  static sweeps and registered sensor bodies; actor query math remains bounded
+  Zig, not Box3D's dynamic solver. Adapter tests, server qualification and the
+  12-second 4v4 bot smoke pass. SDL local-authority physics and exhaustive
+  dynamic-collision/mechanic parity remain unqualified.
 
 - Replaced the Node.js Bugfeed runtime with a dedicated Zig sidecar. Caddy
   routes `/bugfeed*` directly to its loopback listener; report uploads retain
@@ -18,9 +47,14 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   unacknowledged look input is included in local camera prediction.
 - Corrected browser local-cat rendering to reuse its replicated cat actor and
   cat skin instead of drawing a duplicate goose. The authoritative web server
-  now keeps the airborne animation state while an actor is off the ground after
-  the jump action window ends. `/b2teams4 --smoke` records replicated bot
-  animation states and requires walk, run, attack, death, airborne and roll.
+  retains airborne animation while actors are off the ground after the jump
+  action window ends.
+- `scripts/b2teams4.py --smoke` runs for 12 seconds and verifies moving snapshots,
+  authoritative damage, a power-up pickup, per-bot jump/roll/dash/shoot/special/
+  throwable and animal-specific flight/glide inputs, plus observed attack,
+  airborne and roll animation states. Walk/run transition coverage is
+  deterministic in `scripts/verify_kof_web_server.sh`, which exercises ordinary
+  multiplayer inputs.
 - Extended actor animation state selection across the web server, browser and
   native renderer: idle, walk, run, attack, damage, death, eat, airborne, roll
   and swim. Swimming is derived from authoritative underwater state; ordinary

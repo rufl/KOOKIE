@@ -377,16 +377,25 @@ O protocolo é independente do transporte:
 
 ### Servidor web local sob posse do Kof
 
-O caminho local de qualificação da cena completa pode executar inteiramente no
-Kof: `apps/web_server/main.kf` possui as rotas HTTP, o upgrade WebSocket, o
-decode/encode limitado de frames, o handshake Kof, o estado autoritativo da
-sessão e as respostas de health/metrics. `native/kookie_web_server.c/.h` é uma
-fronteira estreita de mecanismo C para sockets TCP, I/O limitado, timeouts,
-digest SHA-1 de aceitação WebSocket e limites de porta/conexões vindos do
-ambiente; ele não possui política de sessão ou gameplay. `scripts/build_web_server.sh`
-empacota o executável native do Kof com esse adaptador, e
-`scripts/verify_kof_web_server.sh` qualifica health, metrics, upgrade,
-handshake, movimento da cena completa e rejeição de requisição malformada.
+O caminho local de qualificação da cena completa mantém a autoridade no Kof:
+`apps/web_server/main.kf` possui as rotas HTTP, o upgrade WebSocket, o
+decode/encode limitado de frames, o handshake, o estado autoritativo e as
+respostas de health/metrics. `native/kookie_web_server.zig` implementa o
+mecanismo de transporte pela ABI C estável de `native/kookie_web_server.h`:
+sockets TCP, I/O limitado, timeouts, framing WebSocket e digest SHA-1. Não
+possui política de sessão ou gameplay. `scripts/build_web_server.sh` compila
+o adaptador com Zig e o empacota com o executável Kof; a qualificação
+`scripts/verify_kof_web_server.sh` passa com 8 jogadores e 4 espectadores.
+
+`native/kookie_box3d.zig` compila contra os fontes Box3D 0.1.0 fixados e
+vendorizados pelo DINX e expõe uma ABI limitada para varredura de cápsula.
+Passam os testes isolados de aterrissagem, geometria inválida e malha de rampa.
+Uma sondagem diferencial da arena G1 real falha: após 15 ticks na rampa desde
+`(16,1,68)`, o Kof resolve `(30,4,68)` e o Box3D resolve `(30,0,68)`. Portanto,
+o movimento de produção continua no `FpsMovementController` e no resolvedor de
+triângulos do Kof; a troca quebraria a travessia da rampa. Box3D não é o backend
+de colisão de produção até passar paridade de rampas/degraus G1, sondagem do
+chão, contatos entre atores e determinismo.
 
 Esse servidor local é somente TCP e é qualificado com `ws://`. Ele não afirma
 identidade hospedada, admissão bearer ou terminação TLS. A matriz de runtime

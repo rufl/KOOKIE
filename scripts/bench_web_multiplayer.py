@@ -42,7 +42,12 @@ def main():
         if port == 0:
             port = probe.getsockname()[1]
             port_text = str(port)
-    env = dict(os.environ, KOOKIE_WEB_PORT=port_text)
+    library_dir = os.path.join(os.path.dirname(binary), "lib")
+    library_path = os.environ.get("LD_LIBRARY_PATH", "")
+    if library_path:
+        library_dir += os.pathsep + library_path
+    env = dict(os.environ, KOOKIE_WEB_PORT=port_text,
+               LD_LIBRARY_PATH=library_dir)
     process = subprocess.Popen([binary], cwd=os.path.dirname(binary), env=env,
                                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     clients = []

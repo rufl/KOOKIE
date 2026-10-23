@@ -1,0 +1,17 @@
+.{
+    .name = .kookie,
+    .version = "0.1.0",
+    .fingerprint = 0x66b3380b770befb2,
+    .minimum_zig_version = "0.17.0",
+    .dependencies = .{
+        .translate_c = .{
+            .url = "git+https://codeberg.org/ziglang/translate-c?ref=2.0.1#4f5ad374e50d1a98d3da79fa5d3bda9949103bf7",
+            .hash = "translate_c-2.0.1-Q_BUWmpOBwCIhy--up1q6cl3OlIQE86iJU8R-bZ01aPj",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "native",
+    },
+}

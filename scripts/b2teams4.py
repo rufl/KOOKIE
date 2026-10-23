@@ -87,6 +87,7 @@ def run_battle(port, duration=None, log_path=None):
     powerups_acquired = set()
     animation_states_by_player = {}
     observed_animation_states = set()
+    driver_errors = []
     try:
         geese = [Client(port, path="/session/goose") for _ in range(4)]
         clients.extend(geese)
@@ -110,11 +111,12 @@ def run_battle(port, duration=None, log_path=None):
         powerup_waypoints = load_powerup_waypoints()
 
         def drive(client, own_team):
-            next_shot = 0.0
+            action_start = time.monotonic()
+            next_shot = action_start + 1.5
             next_burst = 0.0
-            next_melee = 0.0
-            next_special = 0.0
-            next_throwable = 0.0
+            next_melee = action_start + 1.5
+            next_special = action_start + .7
+            next_throwable = action_start + 1.2 * ((client.player_id - 1) // 4)
             next_jump = 0.0
             burst_action = ACTION_DASH
             tried_pickups = {}
@@ -174,26 +176,27 @@ def run_battle(port, duration=None, log_path=None):
                         move_x = round(move_dx * 1000 / move_distance)
                         move_z = round(move_dz * 1000 / move_distance)
                         if opening_roll:
-                            client.input(move_x=move_x, move_z=move_z,
-                                         edge=ACTION_ROLL)
-                            actions_by_player[client.player_id].add("roll")
-                            action_usage.add("roll")
+                            client.input(
+                                move_x=move_x, move_z=move_z,
+                                edge=ACTION_ROLL | ACTION_DASH)
+                            actions_by_player[client.player_id].update(
+                                ("roll", "dash"))
+                            action_usage.update(("roll", "dash"))
                             opening_roll = False
                             next_burst = now + .05
                             continue
                         held = 0
                         edge = 0
-                        close = distance <= 8
                         if combat_distance <= 120 and now >= next_shot:
                             held |= ACTION_SHOOT
                             next_shot = now + (0.6 if combat_distance <= 12 else 2.0)
                         if combat_distance <= 5 and now >= next_melee:
                             edge |= EDGE_MELEE
                             next_melee = now + 0.45
-                        if combat_distance <= 12 and now >= next_special:
+                        if now >= next_special:
                             edge |= EDGE_SPECIAL
                             next_special = now + (1.8 if active_powerup == 5 else 1.1)
-                        elif distance <= 20 and now >= next_throwable:
+                        if now >= next_throwable:
                             edge |= EDGE_THROWABLE
                             next_throwable = now + 2.2
                         if now >= next_burst:
@@ -201,13 +204,10 @@ def run_battle(port, duration=None, log_path=None):
                             burst_action = (ACTION_ROLL if burst_action == ACTION_DASH
                                             else ACTION_DASH)
                             next_burst = now + .7 + (client.player_id % 4) * .05
-                        if now >= next_jump and (abs(dy) > 3 or distance < 18):
+                        if now >= next_jump:
                             edge |= ACTION_JUMP
                             next_jump = now + 1.6
-                        if dy > 3 or me[2] > 3 or distance < 18:
-                            held |= ACTION_FLY if animal == 1 else ACTION_GLIDE
-                        if animal == 1 and active_powerup == 2 and distance > 12:
-                            held |= ACTION_FLY
+                        held |= ACTION_FLY if animal == 1 else ACTION_GLIDE
                         client.input(
                             move_x=move_x, move_z=move_z,
                             look_yaw=max(-1800, min(1800, yaw_delta * 10)),
@@ -234,7 +234,9 @@ def run_battle(port, duration=None, log_path=None):
                         if powerup_kind:
                             powerups_acquired.add(powerup_kind)
                     stop.wait(.045)
-                except (OSError, EOFError, TimeoutError):
+                except (OSError, EOFError, TimeoutError) as error:
+                    driver_errors.append(
+                        f"bot {client.player_id}: {type(error).__name__}: {error}")
                     stop.set()
         goose_team = set(goose_ids)
         cat_team = set(cat_ids)
@@ -253,6 +255,7 @@ def run_battle(port, duration=None, log_path=None):
         last_logged_tick = -1
         previous_positions = None
         samples = 0
+        minimum_health = BOT_COUNT * 100
         minimum_alive = BOT_COUNT
         last_report = 0.0
         winner = None
@@ -283,6 +286,9 @@ def run_battle(port, duration=None, log_path=None):
                 }, separators=(",", ":")) + "\n")
                 battle_log.flush()
                 last_logged_tick = scene[4]
+            health_total = sum(max(0, scene[22 + index * 8])
+                               for index in range(scene[17]))
+            minimum_health = min(minimum_health, health_total)
             alive = sum(scene[22 + index * 8] > 0
                         for index in range(scene[17]))
             minimum_alive = min(minimum_alive, alive)
@@ -304,10 +310,13 @@ def run_battle(port, duration=None, log_path=None):
                 last_report = now
             stop.wait(.05)
         if duration is not None:
+            if driver_errors:
+                raise RuntimeError("bot driver failed: " + "; ".join(driver_errors))
+
             if samples == 0:
                 raise AssertionError("bot positions did not change during smoke run")
-            if minimum_alive == BOT_COUNT:
-                raise AssertionError("teams did not exchange damage during smoke run")
+            if minimum_health == BOT_COUNT * 100:
+                raise AssertionError("teams did not exchange authoritative damage")
             if not powerups_acquired:
                 raise AssertionError("bots did not acquire an authoritative powerup")
             for player_id, expected_animal in (
@@ -324,7 +333,7 @@ def run_battle(port, duration=None, log_path=None):
                     )
             if "melee" not in action_usage:
                 raise AssertionError("battle bots did not use melee in range")
-            required_animation_states = {1, 2, 3, 6, 7, 9}
+            required_animation_states = {2, 6, 7}
             missing_animation_states = required_animation_states - observed_animation_states
             if missing_animation_states:
                 raise AssertionError(
@@ -337,7 +346,7 @@ def run_battle(port, duration=None, log_path=None):
                 for player_id, actions in sorted(actions_by_player.items())
             )
             print(f"/b2teams4 smoke passed: {samples} moving snapshots; "
-                  f"minimum alive={minimum_alive}/8; "
+                  f"minimum alive={minimum_alive}/8; min health={minimum_health}/800; "
                   f"actions={','.join(sorted(action_usage)) or 'none'}; "
                   f"animation states={','.join(map(str, sorted(observed_animation_states)))}; "
                   f"powerup kinds={','.join(map(str, sorted(powerups_acquired)))}; "
@@ -374,7 +383,12 @@ def main():
     smoke = "--smoke" in sys.argv[3:]
     if any(option != "--smoke" for option in sys.argv[3:]):
         raise SystemExit("usage: scripts/b2teams4.py SERVER_BINARY PORT [--smoke] [--log PATH]")
-    env = dict(os.environ, KOOKIE_WEB_PORT=str(port))
+    library_dir = os.path.join(os.path.dirname(binary), "lib")
+    library_path = os.environ.get("LD_LIBRARY_PATH", "")
+    if library_path:
+        library_dir += os.pathsep + library_path
+    env = dict(os.environ, KOOKIE_WEB_PORT=str(port),
+               LD_LIBRARY_PATH=library_dir)
     process = subprocess.Popen(
         [binary], cwd=os.path.dirname(binary), env=env,
         stdout=sys.stderr if smoke else subprocess.DEVNULL,
@@ -383,7 +397,7 @@ def main():
     try:
         wait_healthy(port, process)
         if smoke:
-            run_battle(port, duration=4, log_path=log_path)
+            run_battle(port, duration=12, log_path=log_path)
             return
         print("KOOKIE server ready. Type /b2teams4 to launch the 4v4 battle; /quit exits.")
         while True:

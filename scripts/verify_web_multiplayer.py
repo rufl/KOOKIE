@@ -359,11 +359,12 @@ def main():
             raise AssertionError("throwable detonation impact was not replicated")
         collision_mover = players[1]
         collision_target = players[5]
-        collision_mover.input(move_z=-1000)
         deadline = time.monotonic() + 2
         minimum_gap = 1000000
         while time.monotonic() < deadline:
-            collision_scene = spectators[0].snapshot(8, 4)
+            input_sequence = collision_mover.input(move_z=-1000)
+            collision_scene = wait_for_input_ack(
+                collision_mover, input_sequence)
             collision_state = actor_record(collision_scene, collision_mover.player_id)
             collision_target_state = actor_record(collision_scene, collision_target.player_id)
             gap = abs(collision_state[3] - collision_target_state[3])
@@ -372,7 +373,9 @@ def main():
                 break
         collision_mover.input()
         assert 4 <= minimum_gap <= 5, (
-            "swept player contact did not stop movement at capsule separation")
+            "swept player contact did not stop movement at capsule separation; "
+            f"minimum_gap={minimum_gap}, mover={collision_state}, "
+            f"target={collision_target_state}")
         target_health = actor_record(collision_scene, collision_target.player_id)[4]
         collision_mover.input(look_yaw=1800, edge=64)
         _, melee_target = wait_for_actor(

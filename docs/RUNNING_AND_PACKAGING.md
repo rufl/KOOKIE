@@ -173,12 +173,16 @@ replicate oxygen values to clients, so scuba has no visible HUD effect yet.
 Uncollected powerup objects and exact active powerup names/timers are not
 replicated or rendered.
 
-Run the four-second headless `/b2teams4` setup/movement/combat smoke check with
+Run the 12-second headless `/b2teams4` smoke check with
 `scripts/b2teams4.py "$server_dir/kookie-web-server" 8080 --smoke`. It verifies
-movement, combat, power-up pickup, bot action coverage, and replicated walk,
-run, attack, death, airborne and roll animation states. The bot routes
-(`/session/goose` and `/session/cat`) are benchmark-only spawn selectors;
-regular `/session` joins keep the default goose/free-for-all behavior.
+moving snapshots, actual damage, a power-up pickup, each bot's movement/action
+inputs, and observed attack, airborne and roll animation states. Floor/arena
+projectile collision prevents out-of-bounds snapshots; projectile and blast
+damage use Kof's authoritative area-damage service after collision and team
+checks. Walk/run transition coverage is deterministic in
+`scripts/verify_kof_web_server.sh`. The bot routes (`/session/goose` and
+`/session/cat`) remain benchmark-only spawn selectors; regular `/session` joins
+keep default goose/free-for-all behavior.
 
 Start the server in a separate terminal from its package directory; the
 executable loads `lib/libkookie_web_server.so` relative to its current

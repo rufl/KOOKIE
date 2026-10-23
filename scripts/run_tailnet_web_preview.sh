@@ -120,11 +120,34 @@ done
   echo 'run_tailnet_web_preview: Bugfeed health check timed out' >&2
   exit 1
 }
-(
-  cd "$work_dir/server"
-  KOOKIE_WEB_PORT="$web_port" KOOKIE_WEB_MAX_CONNECTIONS=0 \
-    ./kookie-web-server
-) >"$work_dir/server.log" 2>&1 &
+server_supervisor() {
+  local child_pid="" exit_status=0
+  stop_server_supervisor() {
+    trap - INT TERM
+    if [[ -n "$child_pid" ]]; then
+      kill "$child_pid" 2>/dev/null || true
+      wait "$child_pid" 2>/dev/null || true
+    fi
+    exit 0
+  }
+  trap stop_server_supervisor INT TERM
+  while true; do
+    (
+      cd "$work_dir/server"
+      exec env \
+        LD_LIBRARY_PATH="$work_dir/server/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+        KOOKIE_WEB_PORT="$web_port" KOOKIE_WEB_MAX_CONNECTIONS=0 \
+        ./kookie-web-server
+    ) &
+    child_pid=$!
+    if wait "$child_pid"; then exit_status=0; else exit_status=$?; fi
+    child_pid=""
+    printf 'run_tailnet_web_preview: multiplayer backend exited status=%s; restarting in 1s\n' \
+      "$exit_status" >&2
+    sleep 1
+  done
+}
+server_supervisor >"$work_dir/server.log" 2>&1 &
 server_pid=$!
 for attempt in $(seq 1 100); do
   if curl --fail --silent "http://127.0.0.1:$web_port/healthz" \
@@ -145,7 +168,8 @@ done
 }
 (
   cd "$work_dir/server"
-  KOOKIE_WEB_PORT="$kutter_port" KOOKIE_WEB_MAX_CONNECTIONS=0 \
+  LD_LIBRARY_PATH="$work_dir/server/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+    KOOKIE_WEB_PORT="$kutter_port" KOOKIE_WEB_MAX_CONNECTIONS=0 \
     ./kookie-web-server
 ) >"$work_dir/kutter-server.log" 2>&1 &
 kutter_pid=$!

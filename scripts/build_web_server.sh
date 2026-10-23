@@ -31,9 +31,22 @@ for module in core content session world; do
     ln -s -- "$source_file" "$source_dir/$module/$(basename "$source_file")"
   done
 done
-cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -pthread -shared \
-  "$root_dir/native/kookie_web_server.c" \
-  -o "$source_dir/lib/libkookie_web_server.so"
+zig_bin="${ZIG:-zig}"
+zig_version="$("$zig_bin" version)"
+[[ "$zig_version" == "0.17.0" ]] || {
+  echo "build_web_server: expected Zig 0.17.0, found $zig_version" >&2
+  exit 1
+}
+(
+  cd "$root_dir"
+  "$zig_bin" build check-web-transport
+  "$zig_bin" build check-box3d-adapter
+  "$zig_bin" build -Drelease=true --prefix "$work_dir/zig-prefix"
+)
+cp -- "$work_dir/zig-prefix/lib/libkookie_web_server.so" \
+  "$source_dir/lib/libkookie_web_server.so"
+cp -- "$work_dir/zig-prefix/lib/libkookie_box3d.so" \
+  "$source_dir/lib/libkookie_box3d.so"
 (
   cd "$source_dir"
   kookie_kof_observed web-server kof build main.kf \
@@ -49,6 +62,8 @@ cp -- "$work_dir/build/Default/Main" "$output_dir/kookie-web-server"
 mkdir -p "$output_dir/lib"
 cp -- "$source_dir/lib/libkookie_web_server.so" \
   "$output_dir/lib/libkookie_web_server.so"
+cp -- "$source_dir/lib/libkookie_box3d.so" \
+  "$output_dir/lib/libkookie_box3d.so"
 mkdir -p "$output_dir/config/runtime/power_ups"
 cp -- "$root_dir"/assets/prototype/runtime/power_ups/*.json \
   "$output_dir/config/runtime/power_ups/"

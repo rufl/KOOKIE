@@ -54,6 +54,9 @@ Int fpsMovementCollisionMaximumX() { return 256 }
 Int fpsMovementCollisionMaximumY() { return 128 }
 Int fpsMovementCollisionMaximumZ() { return 224 }
 Int fpsMovementCapsuleRadius() { return 2 }
+// Kof's movement contact controller samples five horizontal traces at the
+// actor origin; it does not collide the rendered full-height body.
+Int fpsMovementCapsuleHeight() { return fpsMovementCapsuleRadius() * 2 }
 Int fpsMovementCapsuleMaxDistance() { return 256 }
 Int fpsMovementSlopeLimit() { return 60 }
 Int fpsMovementStepHeight() { return 4 }
@@ -64,6 +67,7 @@ class FpsMovementController {
     BoundedTriangleCollection collisionValue
     BoundedTriangleContactController capsuleValue
     Bool configuredValue
+    Bool externalCollisionValue
     Int scaleValue
     Int[] positionXValues
     Int[] positionYValues
@@ -161,8 +165,7 @@ class FpsMovementController {
         powerUpJumpBonuses = new Int[actualCapacityValue]
         animalKinds = new Int[actualCapacityValue]
         clearActors()
-        configuredValue = false
-        lastActorValue = 0
+        externalCollisionValue = false
         lastAcceptedValue = false
         lastCollidedValue = false
         lastGroundedValue = false
@@ -375,6 +378,80 @@ class FpsMovementController {
     Bool configured() {
         return configuredValue
     }
+    Bool setExternalCollisionMode(Bool enabled) {
+        if (!configuredValue) { return false }
+        for (var slot = 0; slot < actualCapacityValue; slot = slot + 1) {
+            if (activeValues[slot]) { return false }
+        }
+        externalCollisionValue = enabled
+        return true
+    }
+    Int positionXFixed(Int actorId) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || !activeValues[slot]) { return 0 }
+        return positionXValues[slot]
+    }
+    Int positionYFixed(Int actorId) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || !activeValues[slot]) { return 0 }
+        return positionYValues[slot]
+    }
+    Int positionZFixed(Int actorId) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || !activeValues[slot]) { return 0 }
+        return positionZValues[slot]
+    }
+    Bool applyExternalCollision(
+        Int actorId, Int resolvedX, Int resolvedY, Int resolvedZ,
+        Bool grounded, Bool wasGrounded, Bool jumpHeld
+    ) {
+        var slot = slotFor(actorId)
+        if (!externalCollisionValue || slot < 0 || !activeValues[slot] ||
+            resolvedX < collisionValue.minimumX() ||
+            resolvedX > collisionValue.maximumX() ||
+            resolvedY < collisionValue.minimumY() ||
+            resolvedY > collisionValue.maximumY() ||
+            resolvedZ < collisionValue.minimumZ() ||
+            resolvedZ > collisionValue.maximumZ()) { return false }
+        var collided = positionXValues[slot] != resolvedX ||
+            positionYValues[slot] != resolvedY ||
+            positionZValues[slot] != resolvedZ
+        positionXValues[slot] = resolvedX
+        positionYValues[slot] = resolvedY
+        positionZValues[slot] = resolvedZ
+        var landed = !wasGrounded && grounded
+        var bunnyHop = false
+        if (grounded) {
+            coyoteTicksValues[slot] = fpsMovementCoyoteTicks()
+            if (velocityYValues[slot] < 0) { velocityYValues[slot] = 0 }
+            if (landed && (jumpHeld || jumpBufferTicksValues[slot] > 0)) {
+                grounded = false
+                bunnyHop = jumpHeld
+                jumpBufferTicksValues[slot] = 0
+                airJumpValues[slot] = 0
+                velocityYValues[slot] = fpsMovementJumpVelocity()
+                jumpCutArmedValues[slot] = true
+                flapCooldownValues[slot] = fpsMovementFlapIntervalTicks()
+                coyoteTicksValues[slot] = 0
+            } else {
+                groundedValues[slot] = true
+                airJumpValues[slot] = 0
+                flapCooldownValues[slot] = 0
+                jumpCutArmedValues[slot] = false
+            }
+        } else {
+            groundedValues[slot] = false
+        }
+        lastActorValue = actorId
+        lastAcceptedValue = true
+        lastCollidedValue = collided
+        lastGroundedValue = groundedValues[slot]
+        lastLandedValue = landed
+        lastBunnyHopValue = bunnyHop
+        if (bunnyHop) { lastJumpedValue = true }
+        return true
+    }
+
 
     Bool addActor(Int actorId, Int x, Int y, Int z) {
         var slot = slotFor(actorId)
@@ -523,6 +600,16 @@ class FpsMovementController {
         directionZ = sign(clampAxis(directionZ))
         if (directionX == 0 && directionZ == 0) {
             directionZ = 1
+        }
+        if (externalCollisionValue) {
+            positionXValues[slot] = positionXValues[slot] +
+                scaled(directionX * distance)
+            positionZValues[slot] = positionZValues[slot] +
+                scaled(directionZ * distance)
+            velocityXValues[slot] = 0
+            velocityYValues[slot] = 0
+            velocityZValues[slot] = 0
+            return true
         }
         var movement = capsuleValue.move(
             positionXValues[slot], positionYValues[slot],
@@ -695,6 +782,24 @@ class FpsMovementController {
             velocityYValues[slot] = 0
         }
 
+        if (externalCollisionValue) {
+            positionXValues[slot] = positionXValues[slot] +
+                velocityXValues[slot]
+            positionYValues[slot] = positionYValues[slot] +
+                velocityYValues[slot]
+            positionZValues[slot] = positionZValues[slot] +
+                velocityZValues[slot]
+            groundedValues[slot] = false
+            lastActorValue = actorId
+            lastAcceptedValue = true
+            lastCollidedValue = false
+            lastGroundedValue = false
+            lastJumpedValue = jumped
+            lastCoyoteJumpValue = coyoteJump
+            lastBunnyHopValue = false
+            lastLandedValue = false
+            return true
+        }
         var movement = capsuleValue.move(
             positionXValues[slot], positionYValues[slot], positionZValues[slot],
             positionXValues[slot] + velocityXValues[slot],

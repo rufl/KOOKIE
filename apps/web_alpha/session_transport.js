@@ -917,6 +917,15 @@
   }
 
   let sceneState = previewScene();
+  let spectatorLookYawOffset = 0;
+  let spectatorLookPitchOffset = 0;
+  const spectatorCameraHome = {
+    x: (GAME_WORLD_MINIMUM_X + GAME_WORLD_MAXIMUM_X) / 2,
+    y: GAME_WORLD_MAXIMUM_Y * 0.8,
+    z: (GAME_WORLD_MINIMUM_Z + GAME_WORLD_MAXIMUM_Z) / 2,
+    yaw: 225,
+    pitch: -27,
+  };
   let sceneRenderer = null;
   let renderFrameHandle = 0;
   let renderSceneState = null;
@@ -1624,6 +1633,15 @@
     const position = currentLocalRenderPosition(now);
     renderSceneState.playerX = position.x;
     renderSceneState.playerZ = position.z;
+    if (joinedRole === GAME_ROLE_SPECTATOR) {
+      renderSceneState.camera.x = spectatorCameraHome.x;
+      renderSceneState.camera.y = spectatorCameraHome.y;
+      renderSceneState.camera.z = spectatorCameraHome.z;
+      renderSceneState.camera.yaw =
+        (spectatorCameraHome.yaw + spectatorLookYawOffset + 360) % 360;
+      renderSceneState.camera.pitch = Math.max(-80, Math.min(80,
+        spectatorCameraHome.pitch + spectatorLookPitchOffset));
+    }
     renderSceneState.camera.x += position.x - sceneState.playerX;
     renderSceneState.camera.z += position.z - sceneState.playerZ;
     updateRemoteRenderActors(now);
@@ -1641,8 +1659,10 @@
     } catch (error) {
       failRenderer(error.message || "WebGL render failure");
     } finally {
-      renderSceneState.camera.x = sceneState.camera.x;
-      renderSceneState.camera.z = sceneState.camera.z;
+      if (joinedRole !== GAME_ROLE_SPECTATOR) {
+        renderSceneState.camera.x = sceneState.camera.x;
+        renderSceneState.camera.z = sceneState.camera.z;
+      }
     }
     if (sceneRenderer) renderFrameHandle = window.requestAnimationFrame(renderFrame);
   }
@@ -2553,7 +2573,15 @@
 
   function sendGameplayInput(changes = {}) {
     if (!sceneRenderer || !socket || socket.readyState !== WebSocket.OPEN ||
-        !authoritativeReady || joinedRole === GAME_ROLE_SPECTATOR) return;
+        !authoritativeReady) return;
+    if (joinedRole === GAME_ROLE_SPECTATOR) {
+      const lookYaw = Number.isFinite(changes.lookYaw) ? changes.lookYaw : 0;
+      const lookPitch = Number.isFinite(changes.lookPitch) ? changes.lookPitch : 0;
+      spectatorLookYawOffset = (spectatorLookYawOffset + lookYaw + 360) % 360;
+      spectatorLookPitchOffset = Math.max(-80, Math.min(80,
+        spectatorLookPitchOffset + lookPitch));
+      return;
+    }
     if (Number.isFinite(changes.moveX)) gameplayMoveX = Math.max(-1000, Math.min(1000, changes.moveX));
     if (Number.isFinite(changes.moveZ)) gameplayMoveZ = Math.max(-1000, Math.min(1000, changes.moveZ));
     const lookYaw = Math.round((changes.lookYaw || 0) * 10) / 10;
@@ -2802,6 +2830,10 @@
       }
       requestedRole = roleSelect.value === "spectator"
         ? GAME_ROLE_SPECTATOR : GAME_ROLE_PLAYER;
+      if (!isReconnect) {
+        spectatorLookYawOffset = 0;
+        spectatorLookPitchOffset = 0;
+      }
       const expectedPath = requestedRole === GAME_ROLE_SPECTATOR
         ? "/spectate" : "/session";
       url.pathname = expectedPath;
@@ -2992,16 +3024,17 @@
     sendGameplayInput({ moveX: Math.round(x * scale), moveZ: Math.round(z * scale) });
   }
   document.addEventListener("keydown", (event) => {
-    if (!authoritativeReady || joinedRole === GAME_ROLE_SPECTATOR ||
-        event.ctrlKey || event.metaKey || event.altKey) return;
+    if (!authoritativeReady || event.ctrlKey || event.metaKey || event.altKey) return;
     const target = event.target;
     if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
     const axis = movementKeys.get(event.code);
     if (axis) {
-      event.preventDefault();
-      if (!heldMovementKeys.has(event.code)) {
-        heldMovementKeys.add(event.code);
-        updateKeyboardMovement();
+      if (joinedRole !== GAME_ROLE_SPECTATOR) {
+        event.preventDefault();
+        if (!heldMovementKeys.has(event.code)) {
+          heldMovementKeys.add(event.code);
+          updateKeyboardMovement();
+        }
       }
       return;
     }
@@ -3011,7 +3044,8 @@
     } else if (event.key === "e" || event.key === "E") {
       event.preventDefault();
       sendGameplayInput({ lookYaw: 15 });
-    } else if (event.key === "r" || event.key === "R") {
+    } else if ((event.key === "r" || event.key === "R") &&
+        joinedRole !== GAME_ROLE_SPECTATOR) {
       event.preventDefault();
       sendGameCommand(GAME_RESET, 0);
     }

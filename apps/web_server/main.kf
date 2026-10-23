@@ -410,7 +410,9 @@ Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot) {
         cursor = cursor + 8
     }
     extended[extended.length - 1] = sessionWebMessageChecksum(extended, extended.length - 1)
-    if (!validSessionWebGameMultiplayerSnapshot(extended)) { return new Int[0] }
+    if (!validSessionWebGameMultiplayerSnapshot(extended)) {
+        return new Int[0]
+    }
     return extended
 }
 Bool webBroadcastSnapshots(WebServerMetrics metrics) {
@@ -418,12 +420,21 @@ Bool webBroadcastSnapshots(WebServerMetrics metrics) {
         if (metrics.connectionUsed[slot] && metrics.connectionJoined[slot]) {
             var snapshot = webMultiplayerSnapshot(metrics, slot)
             var sequence = metrics.connectionOutputSequence[slot] - 1
-            if (snapshot.length <= 0 ||
-                !webSendSessionWords(metrics.connectionIds[slot],
+            if (snapshot.length <= 0) {
+                println("KOOKIE snapshot validation failed connection=" +
+                    metrics.connectionIds[slot] + " player=" +
+                    metrics.connectionPlayerIds[slot] + " tick=" +
+                    metrics.simulation.tick())
+                kookie_web_server_close_client(metrics.connectionIds[slot])
+                metrics.release(metrics.connectionIds[slot])
+            } else if (!webSendSessionWords(metrics.connectionIds[slot],
                     sessionWebGameKind(), sequence, snapshot)) {
-                var id = metrics.connectionIds[slot]
-                kookie_web_server_close_client(id)
-                metrics.release(id)
+                println("KOOKIE snapshot send failed connection=" +
+                    metrics.connectionIds[slot] + " player=" +
+                    metrics.connectionPlayerIds[slot] + " tick=" +
+                    metrics.simulation.tick())
+                kookie_web_server_close_client(metrics.connectionIds[slot])
+                metrics.release(metrics.connectionIds[slot])
             }
         }
     }
@@ -612,7 +623,12 @@ main() {
     var port = kookie_web_server_port()
     if (!kookie_web_server_open(port)) { println("KOOKIE Kof web server bind rejected"); process.exit(1) }
     var metrics = WebServerMetrics()
-    if (!metrics.simulation.configure()) { println("KOOKIE multiplayer simulation setup failed"); kookie_web_server_close(); process.exit(1) }
+    if (!metrics.simulation.configure()) {
+        println("KOOKIE multiplayer simulation setup failed")
+        metrics.simulation.destroyBox3DArena()
+        kookie_web_server_close()
+        process.exit(1)
+    }
     metrics.nextTickNanosecondsValue = kookie_web_server_monotonic_nanoseconds() + 16667000L
     println("KOOKIE authoritative web multiplayer listening port=" + port)
     while (true) {
@@ -623,7 +639,12 @@ main() {
             if (timeout > 50) { timeout = 50 }
         }
         var event = kookie_web_server_poll_event(timeout)
-        if (event < 0) { kookie_web_server_close(); process.exit(1) }
+        if (event < 0) {
+            println("KOOKIE web transport poll returned fatal status")
+            metrics.simulation.destroyBox3DArena()
+            kookie_web_server_close()
+            process.exit(1)
+        }
         var connectionId = kookie_web_server_event_connection_id()
         if (event == 1) {
             if (metrics.reserve(connectionId) < 0) { kookie_web_server_close_client(connectionId) }
