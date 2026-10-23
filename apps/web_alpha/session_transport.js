@@ -246,7 +246,7 @@
     settingsGrid.appendChild(label);
   }
   addSettingRange("movementSpeedPercent", "Movement speed", 25, 100);
-  addSettingRange("mouseCameraSensitivityPercent", "Mouse camera sensitivity", 25, 150);
+  addSettingRange("mouseCameraSensitivityPercent", "Camera sensitivity", 25, 150);
   const reconnectDelayLabel = document.createElement("label");
   reconnectDelayLabel.textContent = "Reconnect delay";
   const reconnectDelay = document.createElement("select");
@@ -441,12 +441,12 @@
   sceneCanvasWrap.appendChild(status);
   const help = document.createElement("span");
   help.className = "kookie-session-help";
-  help.textContent = "Move with the left stick · drag the game view to look · WASD / mouse also supported";
+  help.textContent = "Left stick: move · right stick: look · WASD / mouse also supported";
   sceneCanvasWrap.appendChild(help);
   const touchLookHint = document.createElement("span");
   touchLookHint.className = "kookie-session-touch-look";
   touchLookHint.setAttribute("aria-hidden", "true");
-  touchLookHint.textContent = "DRAG TO LOOK";
+  touchLookHint.textContent = "RIGHT STICK TO LOOK";
   sceneCanvasWrap.appendChild(touchLookHint);
   sceneGrid.appendChild(sceneCanvasWrap);
   panel.appendChild(sceneGrid);
@@ -463,6 +463,11 @@
   movementControls.setAttribute("role", "group");
   movementControls.setAttribute("aria-label", "Movement analog stick. WASD is the keyboard alternative.");
   movementControls.setAttribute("data-analog-stick", "move");
+  const lookControls = document.createElement("div");
+  lookControls.className = "kookie-session-stick";
+  lookControls.setAttribute("role", "group");
+  lookControls.setAttribute("aria-label", "Camera look analog stick. Mouse or touch-drag is also supported.");
+  lookControls.setAttribute("data-analog-stick", "look");
   const actionControls = document.createElement("div");
   actionControls.className = "kookie-session-actions";
   const gameActionButtons = [];
@@ -481,42 +486,49 @@
     destination.appendChild(caption);
     let enabled = false;
     let pointerId = null;
-    let timer = null;
+    let frameHandle = 0;
+    let lastFrameAt = 0;
     let vector = { x: 0, y: 0 };
+    const wantsFrames = () =>
+      pointerId !== null || Boolean(options.continueWhile?.());
+    const schedule = () => {
+      if (frameHandle !== 0 || !enabled || !wantsFrames()) return;
+      frameHandle = window.requestAnimationFrame((timestamp) => {
+        frameHandle = 0;
+        if (!enabled) return;
+        const deltaSeconds = lastFrameAt === 0 ? 1 / 60
+          : Math.min(0.05, Math.max(0, (timestamp - lastFrameAt) / 1000));
+        lastFrameAt = timestamp;
+        onVector(vector, deltaSeconds);
+        if (wantsFrames()) schedule();
+        else lastFrameAt = 0;
+      });
+    };
     const reset = () => {
-      if (pointerId !== null) onVector({ x: 0, y: 0 });
-      if (timer !== null) window.clearTimeout(timer);
-      timer = null;
+      if (pointerId !== null) onVector({ x: 0, y: 0 }, 0);
       pointerId = null;
       vector = { x: 0, y: 0 };
       knob.style.transform = "translate(0px, 0px)";
       destination.classList.remove("is-active");
-    };
-    const schedule = () => {
-      if (timer !== null || pointerId === null || !enabled) return;
-      timer = window.setTimeout(() => {
-        timer = null;
-        if (pointerId === null || !enabled) return;
-        onVector(vector);
-        schedule();
-      }, options.repeatDelay ? options.repeatDelay(vector) :
-        Math.round((300 - Math.max(Math.abs(vector.x), Math.abs(vector.y)) * 190) *
-          100 / clientSettings.movementSpeedPercent));
+      schedule();
     };
     const update = (event) => {
       const rect = base.getBoundingClientRect();
       const radius = Math.max(1, Math.min(rect.width, rect.height) * 0.38);
       let x = (event.clientX - (rect.left + rect.width / 2)) / radius;
       let y = (event.clientY - (rect.top + rect.height / 2)) / radius;
-      const length = Math.hypot(x, y);
-      if (length > 1) { x /= length; y /= length; }
-      const magnitude = Math.hypot(x, y);
-      if (magnitude < 0.18) { x = 0; y = 0; }
-      vector = { x, y };
-      knob.style.transform = "translate(" + (x * radius) + "px, " + (y * radius) + "px)";
-      if (options.immediate !== false && (x || y)) onVector(vector);
-      if (x || y) schedule();
-      else if (timer !== null) { window.clearTimeout(timer); timer = null; }
+      const rawLength = Math.hypot(x, y);
+      if (rawLength > 1) { x /= rawLength; y /= rawLength; }
+      const length = Math.min(1, Math.hypot(x, y));
+      const deadzone = 0.12;
+      const outputLength = length <= deadzone ? 0
+        : (length - deadzone) / (1 - deadzone);
+      vector = length > 0
+        ? { x: x / length * outputLength, y: y / length * outputLength }
+        : { x: 0, y: 0 };
+      knob.style.transform = "translate(" + (x * radius) + "px, " +
+        (y * radius) + "px)";
+      schedule();
     };
     base.addEventListener("pointerdown", (event) => {
       if (!enabled) return;
@@ -525,7 +537,7 @@
       destination.classList.add("is-active");
       if (typeof base.setPointerCapture === "function") base.setPointerCapture(pointerId);
       update(event);
-      if (options.initialPulse && (vector.x || vector.y)) onVector(vector);
+      if (options.initialPulse) onVector(vector, 1 / 60);
     });
     base.addEventListener("pointermove", (event) => {
       if (event.pointerId === pointerId) update(event);
@@ -541,15 +553,39 @@
       if (!value) reset();
     } });
   }
-  const movementRepeatDelay = (vector) =>
-    Math.round((300 - Math.max(Math.abs(vector.x), Math.abs(vector.y)) * 190) *
-      100 / clientSettings.movementSpeedPercent);
+  const movementSpeedScale = () => clientSettings.movementSpeedPercent / 100;
   addAnalogStick("MOVE", movementControls, (vector) => {
+    const speed = movementSpeedScale();
     sendGameplayInput({
-      moveX: Math.round(vector.x * GAME_MAXIMUM_INPUT_AXIS),
-      moveZ: Math.round(-vector.y * GAME_MAXIMUM_INPUT_AXIS),
+      moveX: Math.round(vector.x * GAME_MAXIMUM_INPUT_AXIS * speed),
+      moveZ: Math.round(-vector.y * GAME_MAXIMUM_INPUT_AXIS * speed),
     });
-  }, { immediate: true, initialPulse: true });
+  }, { initialPulse: true });
+  let lookStickVelocityX = 0;
+  let lookStickVelocityY = 0;
+  const lookStickSettling = () =>
+    Math.abs(lookStickVelocityX) > 0.002 || Math.abs(lookStickVelocityY) > 0.002;
+  addAnalogStick("LOOK", lookControls, (vector, deltaSeconds) => {
+    const seconds = Math.max(1 / 240, Math.min(0.05, deltaSeconds || 1 / 60));
+    const targetMagnitude = Math.hypot(vector.x, vector.y);
+    const speedMagnitude = Math.hypot(lookStickVelocityX, lookStickVelocityY);
+    const timeConstant = targetMagnitude > speedMagnitude ? 0.075 : 0.14;
+    const blend = 1 - Math.exp(-seconds / timeConstant);
+    lookStickVelocityX += (vector.x - lookStickVelocityX) * blend;
+    lookStickVelocityY += (vector.y - lookStickVelocityY) * blend;
+    if (targetMagnitude === 0 &&
+        Math.abs(lookStickVelocityX) < 0.002 &&
+        Math.abs(lookStickVelocityY) < 0.002) {
+      lookStickVelocityX = 0;
+      lookStickVelocityY = 0;
+    }
+    const sensitivity = clientSettings.mouseCameraSensitivityPercent / 100;
+    const degreesPerSecond = 120 * sensitivity;
+    sendGameplayInput({
+      lookYaw: lookStickVelocityX * degreesPerSecond * seconds,
+      lookPitch: -lookStickVelocityY * degreesPerSecond * seconds,
+    });
+  }, { continueWhile: lookStickSettling });
   function addGameAction(label, command, value, destination, options = {}) {
     const button = document.createElement("button");
     button.type = "button";
@@ -594,6 +630,7 @@
   addGameAction("SPECIAL", GAME_SPECIAL, 0, actionControls, { action: "special", bit: ACTION_SPECIAL, edge: true });
   addGameAction("THROW", 0, 0, actionControls, { action: "throwable", bit: ACTION_THROWABLE, edge: true });
   gameControls.appendChild(movementControls);
+  gameControls.appendChild(lookControls);
   gameControls.appendChild(actionControls);
   footer.appendChild(gameControls);
   panel.appendChild(footer);
@@ -612,11 +649,13 @@
   });
   const touchLayoutState = readTouchLayouts();
   const defaultTouchLayout = {
-    move: { x: 12, y: 78 },
-    actions: { x: 88, y: 78 },
+    move: { x: 12, y: 80 },
+    look: { x: 78, y: 80 },
+    actions: { x: 89, y: 57 },
   };
   const validTouchLayout = (layout) => ({
     move: clampLayoutPoint(layout?.move, defaultTouchLayout.move),
+    look: clampLayoutPoint(layout?.look, defaultTouchLayout.look),
     actions: clampLayoutPoint(layout?.actions, defaultTouchLayout.actions),
   });
   const touchPresets = touchLayoutState.presets &&
@@ -626,7 +665,9 @@
     ? validTouchLayout(touchPresets[touchLayoutState.activeName])
     : touchLayoutState.activeLayout ? validTouchLayout(touchLayoutState.activeLayout) : null;
   let touchLayoutEditing = false;
-  const controlGroups = { move: movementControls, actions: actionControls };
+  const controlGroups = {
+    move: movementControls, look: lookControls, actions: actionControls,
+  };
   const applyTouchLayout = (layout) => {
     for (const [name, element] of Object.entries(controlGroups)) {
       const point = layout?.[name];
@@ -664,7 +705,10 @@
   layoutEditor.appendChild(layoutTitle);
   const layoutMode = document.createElement("select");
   layoutMode.setAttribute("aria-label", "Control to reposition");
-  for (const [value, label] of [["move", "Movement stick"], ["actions", "Action buttons"]]) {
+  for (const [value, label] of [
+    ["move", "Movement stick"], ["look", "Camera look stick"],
+    ["actions", "Action buttons"],
+  ]) {
     const option = document.createElement("option");
     option.value = value;
     option.textContent = label;
@@ -1551,6 +1595,22 @@
       displayed.camera.x += deltaX;
       displayed.camera.z += deltaZ;
     }
+    let predictedYaw = scene.yaw;
+    let predictedPitch = scene.pitch;
+    for (const input of pendingInputFrames.values()) {
+      predictedYaw += input.lookYaw || 0;
+      predictedPitch += input.lookPitch || 0;
+    }
+    displayed.yaw = ((predictedYaw % 360) + 360) % 360;
+    displayed.pitch = Math.max(-90, Math.min(90, predictedPitch));
+    const cameraYaw = displayed.yaw * Math.PI / 180;
+    displayed.camera = {
+      x: displayed.playerX - Math.sin(cameraYaw) * 16,
+      y: displayed.playerY + 8,
+      z: displayed.playerZ - Math.cos(cameraYaw) * 16,
+      yaw: displayed.yaw,
+      pitch: displayed.pitch,
+    };
     if (Math.abs(displayed.playerX - sceneState.playerX) > 0.01 ||
         Math.abs(displayed.playerZ - sceneState.playerZ) > 0.01) {
       beginLocalMovementBlend(displayed.playerX, displayed.playerZ, 90, now);
@@ -2030,6 +2090,75 @@
   }
 
   const browserBattleBots = [];
+  const BOT_POWERUP_CONFIGS = [
+    "coffee_mug", "jetpack", "megaphone", "scuba_kit", "watermelon",
+    "wool_ball", "flour_bag", "multiplayer_coffee",
+  ];
+  let botPowerupWaypoints = null;
+  async function loadBotPowerupWaypoints() {
+    if (botPowerupWaypoints) return botPowerupWaypoints;
+    const definitions = await Promise.all(BOT_POWERUP_CONFIGS.map(async (name) => {
+      const url = "assets/prototype/runtime/power_ups/" + name + ".json";
+      const response = await fetch(url, { cache: "force-cache" });
+      if (!response.ok) throw new Error("powerup config HTTP " + response.status + " / " + url);
+      const config = await response.json();
+      if (!Number.isInteger(config.kind) ||
+          !Number.isInteger(config.x) || !Number.isInteger(config.y) ||
+          !Number.isInteger(config.z)) {
+        throw new Error("invalid bot powerup config: " + name);
+      }
+      return { kind: config.kind, x: config.x, y: config.y, z: config.z };
+    }));
+    botPowerupWaypoints = definitions;
+    return definitions;
+  }
+  function botCanUsePowerup(animal, kind) {
+    return (kind !== 3 && kind !== 5 || animal === 1) &&
+      (kind !== 6 || animal === 2);
+  }
+  function nearestBotPowerup(bot, own, now) {
+    if (Math.floor(own[5] / 8) % 16 !== 0) return null;
+    let nearest = null;
+    let nearestDistance = Infinity;
+    for (let index = 0; index < (botPowerupWaypoints?.length || 0); index += 1) {
+      const pickup = botPowerupWaypoints[index];
+      if (!botCanUsePowerup(bot.animal, pickup.kind) ||
+          (bot.triedPickups.has(index) && now < bot.triedPickups.get(index))) {
+        continue;
+      }
+      const distance = Math.abs(pickup.x - own[1]) +
+        Math.abs(pickup.y - own[2]) + Math.abs(pickup.z - own[3]);
+      if (distance < nearestDistance) {
+        nearest = { ...pickup, index };
+        nearestDistance = distance;
+      }
+    }
+    return nearest;
+  }
+  function botMoveToward(dx, dz, distance) {
+    if (distance <= 1) return { x: 0, z: 0 };
+    return { x: Math.round(dx * 1000 / distance), z: Math.round(dz * 1000 / distance) };
+  }
+  function botPickupMovement(bot, own, now) {
+    const pickup = nearestBotPowerup(bot, own, now);
+    if (!pickup) return null;
+    const dx = pickup.x - own[1];
+    const dz = pickup.z - own[3];
+    const distance = Math.hypot(dx, dz);
+    if (distance <= 4 && Math.abs(pickup.y - own[2]) <= 5) {
+      bot.triedPickups.set(pickup.index, now + 30000);
+      return null;
+    }
+    return { ...botMoveToward(dx, dz, distance), distance, pickup };
+  }
+  function botShouldJump(bot, own, target, distance, now) {
+    if (now < bot.nextJumpAt) return false;
+    if (Math.abs(target[2] - own[2]) > 3 || distance < 18) {
+      bot.nextJumpAt = now + 1600 + bot.index * 70;
+      return true;
+    }
+    return false;
+  }
   let browserBattleTimer = null;
   let browserBattleStartedAt = 0;
   let browserBattleLastReportAt = 0;
@@ -2055,8 +2184,10 @@
     const bot = {
       animal, team, index, sequence: 0, joinSequence: 0, playerId: 0,
       joined: false, scene: null, socket: null, nextShotAt: 0,
-      nextBurstAt: 0, nextMeleeAt: 0, nextSpecialAt: 0,
-      intentionalClose: false,
+      nextBurstAt: Date.now() + 300, nextMeleeAt: 0, nextSpecialAt: 0,
+      nextThrowableAt: 0, nextJumpAt: 0, burstAction: ACTION_DASH,
+      openingRollSent: false,
+      triedPickups: new Map(), intentionalClose: false,
     };
     browserBattleBots.push(bot);
     return new Promise((resolve, reject) => {
@@ -2173,38 +2304,65 @@
       }
     }
     if (!target) return;
-    const dx = target[1] - own[1];
-    const dz = target[3] - own[3];
-    const distance = Math.max(1, Math.hypot(dx, dz));
-    const desiredYaw = Math.round(Math.atan2(dx, dz) * 180 / Math.PI);
+    const enemyDx = target[1] - own[1];
+    const enemyDy = target[2] - own[2];
+    const enemyDz = target[3] - own[3];
+    const enemyDistance = Math.max(1, Math.hypot(enemyDx, enemyDz));
+    const desiredYaw = Math.round(Math.atan2(enemyDx, enemyDz) * 180 / Math.PI);
     const yawDelta = ((desiredYaw - own[7] + 540) % 360) - 180;
-    const fire = now >= bot.nextShotAt;
-    if (fire) bot.nextShotAt = now + 1500;
-    let held = fire ? ACTION_SHOOT : 0;
+    const pickupMovement = botPickupMovement(bot, own, now);
+    const movement = pickupMovement && pickupMovement.distance < enemyDistance * 1.4
+      ? pickupMovement : botMoveToward(enemyDx, enemyDz, enemyDistance);
+    if (!bot.openingRollSent) {
+      if (sendBrowserBotFrame(bot, GAME, [
+        GAME_INPUT_MARKER, words[4], movement.x, movement.z,
+        Math.max(-1800, Math.min(1800, yawDelta * 10)),
+        Math.max(-1800, Math.min(1800, -enemyDy * 10)), 0, ACTION_ROLL,
+      ])) {
+        bot.openingRollSent = true;
+        bot.nextBurstAt = now + 150;
+      }
+      return;
+    }
+    const close = enemyDistance <= 8;
+    const combatDistance = Math.abs(enemyDx) + Math.abs(enemyDy) + Math.abs(enemyDz);
+    const activePowerup = Math.floor(own[5] / 8) % 16;
+    let held = 0;
     let edge = 0;
-    if (now >= bot.nextBurstAt) {
-      edge = [ACTION_JUMP, ACTION_ROLL, ACTION_DASH][
-        Math.floor(now / 1800) % 3
-      ];
-      bot.nextBurstAt = now + 1800;
+    if (now >= bot.nextShotAt && combatDistance <= 120) {
+      held |= ACTION_SHOOT;
+      bot.nextShotAt = now + (combatDistance <= 12 ? 600 : 2000);
     }
-    if (nearest <= 5 && now >= bot.nextMeleeAt) {
+    if (combatDistance <= 5 && now >= bot.nextMeleeAt) {
       edge |= ACTION_MELEE;
-      bot.nextMeleeAt = now + 600;
+      bot.nextMeleeAt = now + 450;
     }
-    if (now >= bot.nextSpecialAt) {
-      edge |= Math.floor(now / 4000) % 2 === 0 ? ACTION_SPECIAL : ACTION_THROWABLE;
-      bot.nextSpecialAt = now + 4000;
+    if (combatDistance <= 12 && now >= bot.nextSpecialAt) {
+      edge |= ACTION_SPECIAL;
+      bot.nextSpecialAt = now + (activePowerup === 5 ? 1800 : 1100);
+    } else if (enemyDistance <= 20 && now >= bot.nextThrowableAt) {
+      edge |= ACTION_THROWABLE;
+      bot.nextThrowableAt = now + 2200;
     }
-    if (Math.floor(now / 6000) % 2 === 0) {
+    if (now >= bot.nextBurstAt) {
+      edge |= bot.burstAction;
+      bot.burstAction = bot.burstAction === ACTION_DASH ? ACTION_ROLL : ACTION_DASH;
+      bot.nextBurstAt = now + 700 + bot.index * 50;
+    }
+    if (botShouldJump(bot, own, target, enemyDistance, now)) {
+      edge |= ACTION_JUMP;
+    }
+    if (enemyDy > 3 || own[2] > 3 || enemyDistance < 18) {
       held |= bot.animal === 1 ? ACTION_FLY : ACTION_GLIDE;
+    }
+    if (bot.animal === 1 && activePowerup === 2 && enemyDistance > 12) {
+      held |= ACTION_FLY;
     }
     sendBrowserBotFrame(bot, GAME, [
       GAME_INPUT_MARKER, words[4],
-      Math.round(dx * 1000 / distance),
-      Math.round(dz * 1000 / distance),
+      movement.x, movement.z,
       Math.max(-1800, Math.min(1800, yawDelta * 10)),
-      0, held, edge,
+      Math.max(-1800, Math.min(1800, -enemyDy * 10)), held, edge,
     ]);
   }
   async function startBrowserBotBattle() {
@@ -2220,6 +2378,7 @@
     browserBattleLastReportAt = 0;
     logGameConsole("Starting 4v4 battle; connecting bot players...");
     try {
+      await loadBotPowerupWaypoints();
       await Promise.all(Array.from({ length: 4 }, (_, index) =>
         connectBrowserBattleBot(1, 1, index + 1)));
       await Promise.all(Array.from({ length: 4 }, (_, index) =>
@@ -2330,6 +2489,9 @@
     const playerX = words[7];
     const playerY = words[8];
     const playerZ = words[9];
+    const yaw = words[10];
+    const pitch = words[11];
+    const cameraYaw = yaw * Math.PI / 180;
     return {
       tick: words[4],
       lastInputSequence,
@@ -2338,19 +2500,14 @@
       playerX,
       playerY,
       playerZ,
-      yaw: words[10],
-      pitch: words[11],
-      health: words[12],
-      stamina: words[13],
-      ammo: words[14],
-      combo: 0,
-      vfx: 0,
+      yaw,
+      pitch,
       camera: {
-        x: playerX,
+        x: playerX - Math.sin(cameraYaw) * 16,
         y: playerY + 8,
-        z: playerZ - 16,
-        yaw: words[10],
-        pitch: words[11],
+        z: playerZ - Math.cos(cameraYaw) * 16,
+        yaw,
+        pitch,
       },
       actors,
       projectiles,
@@ -2399,7 +2556,9 @@
         !authoritativeReady || joinedRole === GAME_ROLE_SPECTATOR) return;
     if (Number.isFinite(changes.moveX)) gameplayMoveX = Math.max(-1000, Math.min(1000, changes.moveX));
     if (Number.isFinite(changes.moveZ)) gameplayMoveZ = Math.max(-1000, Math.min(1000, changes.moveZ));
-    const yaw = (sceneState?.yaw || 0) * Math.PI / 180;
+    const lookYaw = Math.round((changes.lookYaw || 0) * 10) / 10;
+    const lookPitch = Math.round((changes.lookPitch || 0) * 10) / 10;
+    const yaw = ((sceneState?.yaw || 0) + lookYaw) * Math.PI / 180;
     const cosine = Math.cos(yaw);
     const sine = Math.sin(yaw);
     const worldMoveX = Math.round(gameplayMoveX * cosine + gameplayMoveZ * sine);
@@ -2408,8 +2567,8 @@
     const words = [NETCODE_PROTOCOL_VERSION, GAME, inputSequence,
       GAME_INPUT_MARKER, Math.max(0, Math.min(GAME_MAXIMUM_TICK, sceneState?.tick || 0)),
       worldMoveX, worldMoveZ,
-      Math.round((changes.lookYaw || 0) * 10),
-      Math.round((changes.lookPitch || 0) * 10),
+      Math.round(lookYaw * 10),
+      Math.round(lookPitch * 10),
       changes.heldActions ?? gameplayHeldActions,
       changes.edgeActions || 0];
     words.push(messageChecksum(words));
@@ -2417,6 +2576,8 @@
     pendingInputFrames.set(inputSequence, {
       moveX: worldMoveX,
       moveZ: worldMoveZ,
+      lookYaw,
+      lookPitch,
       sentAt: performance.now(),
     });
     if (pendingInputFrames.size > MAX_PENDING_INPUT_FRAMES) {

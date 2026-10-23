@@ -6,9 +6,22 @@ The browser game has a **BUGFEED** button in the top bar. Press it to capture th
 
 Reports include the user-entered notes (up to 4,000 characters), PNG screenshot when available, page origin/path (query parameters are excluded), browser user agent, viewport and pixel ratio, client runtime/status, current authoritative scene summary, ping, renderer name, and up to 40 recent uncaught browser errors/rejected promises. Session tokens, URL query parameters, cookies, and local storage are not included. Avoid putting secrets or personal data in notes. Submission is explicit; opening the dialog captures locally but does not upload until **Save report** is pressed.
 
-Reports are sent over the same-origin HTTPS tailnet proxy to the loopback-only Node service. The service accepts bounded binary reports, assigns a UUID, and writes private per-report directories (`0700`) and files (`0600`) under `$KOOKIE_BUGFEED_DIR`, defaulting to `~/.local/state/kookie/bugfeed`. `report.json` contains metadata and `screenshot.png` is present only when capture succeeded. Reports persist across preview restarts. Access is limited by tailnet membership/ACL; anyone with the report UUID and access to the service can read the report, so treat the ID as private.
+Reports are sent over the same-origin HTTPS tailnet proxy to a loopback-only
+Zig sidecar. It accepts bounded binary reports, assigns a UUID, and writes
+private per-report directories (`0700`) and files (`0600`) under
+`$KOOKIE_BUGFEED_DIR`, defaulting to
+`~/.local/state/kookie/bugfeed`. `report.json` contains metadata and
+`screenshot.png` is present only when capture succeeded. Reports persist across
+preview restarts. Access is limited by tailnet membership/ACL; anyone with the
+report UUID and access to the service can read the report, so treat the ID as
+private.
 
-For a report ID `<UUID>`, the service provides `GET /bugfeed/<UUID>` (JSON) and, when present, `GET /bugfeed/<UUID>/screenshot.png`. These routes are intended for internal troubleshooting, not public internet exposure. The Node service binds only to `127.0.0.1`; Caddy exposes its routes only through the configured Tailscale Serve path. The tailnet preview requires Node.js.
+For a report ID `<UUID>`, the service provides `GET /bugfeed/<UUID>` (JSON)
+and, when present, `GET /bugfeed/<UUID>/screenshot.png`. These routes are
+intended for internal troubleshooting, not public internet exposure. The Zig
+service binds only to `127.0.0.1`; Caddy streams Bugfeed requests to its
+dedicated listener rather than passing them through the gameplay adapter. The
+tailnet preview requires Zig 0.17.0; Node.js remains test tooling only.
 
 Start/restart the preview using `scripts/run_tailnet_web_preview.sh`. Optional settings: `KOOKIE_BUGFEED_PORT` (default `8767`) and `KOOKIE_BUGFEED_DIR` (persistent report root). The preview startup validates both the local service and the tailnet proxy health route.
 

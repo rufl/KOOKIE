@@ -124,20 +124,25 @@ scripts/b2teams4.py "$server_dir/kookie-web-server" 8080
 In the browser, open **Settings → Open game console**, choose **Spectator**,
 then connect to `ws://SERVER_HOST:8080`. Run `/b2teams4` to spawn the eight bots
 on that same server and spectate their battle in the page; `/stop` disconnects
-them. The battle ends when one team is eliminated or after two minutes. The
-console requires an active spectator join; it does not require a separate CLI
-process.
+them. Browser bots load eligible pickup positions from the shipped runtime
+powerup JSON when they have no active effect, then return to combat. They use
+jump, roll, dash, glide/fly, melee, ranged fire, special attacks, and throwables
+based on range and vertical separation. The battle ends when one team is
+eliminated or after two minutes. The console requires an active spectator join;
+it does not require a separate CLI process.
 
 The CLI mode is also available. At the `kookie>` prompt, `/b2teams4` spawns
 four goose bots on red and four cat bots on blue, then streams authoritative
-tick, alive count, and movement-snapshot counts for up to two minutes. Bots
-chase, fire, jump, roll, dash, glide/fly, melee at close range, and periodically
-use special projectiles or throwables; the server owns damage and collision
-outcomes. Same-team targets are ignored by direct targeting and projectile/
-throwable damage. A round returns to the prompt
-when one team is eliminated or the timer expires. The CLI keeps an additional
-spectator connection open for its live state monitor. Enter `/quit` or press
-Ctrl+C to stop it.
+tick, alive count, and movement-snapshot counts for up to two minutes. CLI and
+browser bots seek eligible powerups when they have no active effect, then use
+jump, roll, dash, glide/fly, melee, ranged fire, special attacks, and throwables
+based on target range and vertical separation. The CLI reads the authored
+waypoints from `assets/prototype/runtime/power_ups/*.json`; the server remains
+authoritative for pickups, damage, and collisions. Same-team targets are ignored
+by direct targeting and projectile/throwable damage. A round returns to the
+prompt when one team is eliminated or the timer expires. The CLI keeps an
+additional spectator connection open for its live state monitor. Enter `/quit`
+or press Ctrl+C to stop it.
 
 Pass `--log PATH` when launching the CLI to write one `kookie-battle-v1` JSON
 snapshot per newly observed server tick during each battle. Analyze the result:
@@ -168,9 +173,11 @@ replicate oxygen values to clients, so scuba has no visible HUD effect yet.
 Uncollected powerup objects and exact active powerup names/timers are not
 replicated or rendered.
 
-Run a four-second headless setup/movement/combat smoke check with
-`scripts/b2teams4.py "$server_dir/kookie-web-server" 8080 --smoke`. The bot
-routes (`/session/goose` and `/session/cat`) are benchmark-only spawn selectors;
+Run the four-second headless `/b2teams4` setup/movement/combat smoke check with
+`scripts/b2teams4.py "$server_dir/kookie-web-server" 8080 --smoke`. It verifies
+movement, combat, power-up pickup, bot action coverage, and replicated walk,
+run, attack, death, airborne and roll animation states. The bot routes
+(`/session/goose` and `/session/cat`) are benchmark-only spawn selectors;
 regular `/session` joins keep the default goose/free-for-all behavior.
 
 Start the server in a separate terminal from its package directory; the
@@ -217,19 +224,22 @@ install Kof 0.6.6, ensure `tailscale serve status` already routes `/` to
 scripts/run_tailnet_web_preview.sh
 ```
 
-The script rebuilds the browser client and both native Kof backends, prints the
-HTTPS URL, and remains running until interrupted; it stops both backends and the
-gateway on exit. Open the printed URL from Chopper, DDJARIN, or another device
-on the same tailnet. Caddy binds only Chopper's Tailscale IPv4 address; the
-game backend listens on `KOOKIE_WEB_PORT` (default `8766`) and Kutter on
-`KOOKIE_KUTTER_PORT` (default `8768`), both loopback-only. `/session`,
-`/healthz`, and `/metrics` route to gameplay; `/kutter/session` routes to the
-separate editor process, so editing does not occupy the gameplay connection.
-The editor currently keeps its document in the session and imports/exports
-canonical `.kutter` files; it does not persist changes on the server or load
-them into gameplay. The Kof protocol has no authentication, so Tailscale ACLs
-are the access boundary. Tailscale Serve terminates TLS; both Kof servers remain
-TCP-only.
+The script rebuilds the browser client, Zig Bugfeed sidecar and both native Kof
+backends, prints the HTTPS URL, and remains running until interrupted; it stops
+the services and gateway on exit. Open the printed URL from Chopper, DDJARIN, or
+another device on the same tailnet. Caddy binds only Chopper's Tailscale IPv4
+address; the game backend listens on `KOOKIE_WEB_PORT` (default `8766`) and
+Kutter on `KOOKIE_KUTTER_PORT` (default `8768`), both loopback-only.
+`/session`, `/healthz`, and `/metrics` route to gameplay; `/bugfeed*` routes to
+its dedicated Zig process, so uploads up to the 8 MiB screenshot limit bypass
+the gameplay adapter’s 8 KiB HTTP request buffer. `/kutter/session` routes to
+the separate editor process, so editing does not occupy the gameplay
+connection. The editor currently keeps its document in the session and
+imports/exports canonical `.kutter` files; it does not persist changes on the
+server or load them into gameplay. The Kof protocol has no authentication, so
+Tailscale ACLs are the access boundary. Tailscale Serve terminates TLS; both Kof
+servers remain TCP-only. The preview requires Zig 0.17.0; Node.js is not a
+backend runtime dependency.
 
 Run the Kof server end-to-end gate:
 

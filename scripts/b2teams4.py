@@ -10,12 +10,45 @@ import sys
 import threading
 import time
 import urllib.error
+from pathlib import Path
 
 from verify_web_multiplayer import Client, actor_record, health
 
 
-HELD_FIRE = 32
+ACTION_JUMP = 1
+ACTION_ROLL = 2
+ACTION_DASH = 4
+ACTION_GLIDE = 8
+ACTION_FLY = 16
+ACTION_SHOOT = 32
+EDGE_MELEE = 64
+EDGE_SPECIAL = 128
+EDGE_THROWABLE = 256
 BOT_COUNT = 8
+POWERUP_CONFIG_DIR = (
+    Path(__file__).resolve().parents[1] /
+    "assets" / "prototype" / "runtime" / "power_ups"
+)
+
+
+def load_powerup_waypoints():
+    waypoints = []
+    for config_path in sorted(POWERUP_CONFIG_DIR.glob("*.json")):
+        with config_path.open(encoding="utf-8") as config_file:
+            config = json.load(config_file)
+        if not all(isinstance(config.get(key), int)
+                   for key in ("kind", "x", "y", "z")):
+            raise ValueError(f"invalid bot pickup config: {config_path}")
+        waypoints.append({key: config[key] for key in ("kind", "x", "y", "z")})
+    if not waypoints:
+        raise RuntimeError(f"no bot pickup definitions in {POWERUP_CONFIG_DIR}")
+    return waypoints
+
+
+def bot_can_use_powerup(animal, kind):
+    return (kind not in (3, 5) or animal == 1) and (kind != 6 or animal == 2)
+
+
 
 
 def wait_healthy(port, process):
@@ -49,6 +82,11 @@ def run_battle(port, duration=None, log_path=None):
     clients = []
     battle_log = None
     stop = threading.Event()
+    action_usage = set()
+    actions_by_player = {}
+    powerups_acquired = set()
+    animation_states_by_player = {}
+    observed_animation_states = set()
     try:
         geese = [Client(port, path="/session/goose") for _ in range(4)]
         clients.extend(geese)
@@ -69,15 +107,28 @@ def run_battle(port, duration=None, log_path=None):
         if any(kinds.get(player_id) != 2 for player_id in cat_ids):
             raise AssertionError("cat bot route did not spawn cat actors")
 
+        powerup_waypoints = load_powerup_waypoints()
+
         def drive(client, own_team):
-            next_shot = time.monotonic()
-            next_burst = next_shot + 1.8
-            next_melee = next_shot
-            next_special = next_shot + 4.0
+            next_shot = 0.0
+            next_burst = 0.0
+            next_melee = 0.0
+            next_special = 0.0
+            next_throwable = 0.0
+            next_jump = 0.0
+            burst_action = ACTION_DASH
+            tried_pickups = {}
+            animal = 1 if client.player_id in goose_ids else 2
+            actions_by_player[client.player_id] = set()
+            animation_states_by_player[client.player_id] = set()
+            opening_roll = True
             while not stop.is_set():
                 try:
                     scene = latest_snapshot(client)
                     me = actor_record(scene, client.player_id)
+                    animation_state = me[5] // 128
+                    animation_states_by_player[client.player_id].add(animation_state)
+                    observed_animation_states.add(animation_state)
                     enemies = [scene[18 + index * 8:26 + index * 8]
                                for index in range(scene[17])
                                if scene[18 + index * 8] not in own_team and
@@ -89,33 +140,99 @@ def run_battle(port, duration=None, log_path=None):
                                      abs(actor[1] - me[1]) +
                                      abs(actor[2] - me[2]) +
                                      abs(actor[3] - me[3]))
-                        dx, dz = target[1] - me[1], target[3] - me[3]
+                        dx, dy, dz = (target[1] - me[1],
+                                      target[2] - me[2],
+                                      target[3] - me[3])
                         distance = max(1, math.hypot(dx, dz))
+                        combat_distance = abs(dx) + abs(dy) + abs(dz)
                         desired_yaw = round(math.degrees(math.atan2(dx, dz)))
                         yaw_delta = (desired_yaw - me[7] + 180) % 360 - 180
-                        move_x = round(dx * 1000 / distance)
-                        move_z = round(dz * 1000 / distance)
                         now = time.monotonic()
-                        held = HELD_FIRE if now >= next_shot else 0
+                        active_powerup = (me[5] // 8) % 16
+                        move_dx, move_dz = dx, dz
+                        if active_powerup == 0:
+                            pickup = min(
+                                ((abs(item["x"] - me[1]) +
+                                  abs(item["y"] - me[2]) +
+                                  abs(item["z"] - me[3]), index, item)
+                                 for index, item in enumerate(powerup_waypoints)
+                                 if bot_can_use_powerup(animal, item["kind"]) and
+                                 now >= tried_pickups.get(index, 0)),
+                                default=None,
+                            )
+                            if pickup is not None:
+                                _, pickup_index, item = pickup
+                                pickup_dx = item["x"] - me[1]
+                                pickup_dz = item["z"] - me[3]
+                                pickup_distance = math.hypot(pickup_dx, pickup_dz)
+                                if (pickup_distance <= 4 and
+                                        abs(item["y"] - me[2]) <= 5):
+                                    tried_pickups[pickup_index] = now + 30
+                                elif pickup_distance < distance * 1.4:
+                                    move_dx, move_dz = pickup_dx, pickup_dz
+                        move_distance = max(1, math.hypot(move_dx, move_dz))
+                        move_x = round(move_dx * 1000 / move_distance)
+                        move_z = round(move_dz * 1000 / move_distance)
+                        if opening_roll:
+                            client.input(move_x=move_x, move_z=move_z,
+                                         edge=ACTION_ROLL)
+                            actions_by_player[client.player_id].add("roll")
+                            action_usage.add("roll")
+                            opening_roll = False
+                            next_burst = now + .05
+                            continue
+                        held = 0
                         edge = 0
-                        if now >= next_shot:
-                            next_shot = now + 1.5
+                        close = distance <= 8
+                        if combat_distance <= 120 and now >= next_shot:
+                            held |= ACTION_SHOOT
+                            next_shot = now + (0.6 if combat_distance <= 12 else 2.0)
+                        if combat_distance <= 5 and now >= next_melee:
+                            edge |= EDGE_MELEE
+                            next_melee = now + 0.45
+                        if combat_distance <= 12 and now >= next_special:
+                            edge |= EDGE_SPECIAL
+                            next_special = now + (1.8 if active_powerup == 5 else 1.1)
+                        elif distance <= 20 and now >= next_throwable:
+                            edge |= EDGE_THROWABLE
+                            next_throwable = now + 2.2
                         if now >= next_burst:
-                            edge = (1, 2, 4)[int(now / 1.8) % 3]
-                            next_burst = now + 1.8
-                        if distance <= 5 and now >= next_melee:
-                            edge |= 64
-                            next_melee = now + 0.6
-                        if now >= next_special:
-                            edge |= 128 if int(now) % 2 == 0 else 256
-                            next_special = now + 4.0
-                        if client.player_id in goose_ids and int(now) % 6 == 0:
-                            held |= 16
-                        elif int(now) % 6 == 0:
-                            held |= 8
-                        client.input(move_x=move_x, move_z=move_z,
-                                     look_yaw=max(-1800, min(1800, yaw_delta * 10)),
-                                     held=held, edge=edge)
+                            edge |= burst_action
+                            burst_action = (ACTION_ROLL if burst_action == ACTION_DASH
+                                            else ACTION_DASH)
+                            next_burst = now + .7 + (client.player_id % 4) * .05
+                        if now >= next_jump and (abs(dy) > 3 or distance < 18):
+                            edge |= ACTION_JUMP
+                            next_jump = now + 1.6
+                        if dy > 3 or me[2] > 3 or distance < 18:
+                            held |= ACTION_FLY if animal == 1 else ACTION_GLIDE
+                        if animal == 1 and active_powerup == 2 and distance > 12:
+                            held |= ACTION_FLY
+                        client.input(
+                            move_x=move_x, move_z=move_z,
+                            look_yaw=max(-1800, min(1800, yaw_delta * 10)),
+                            look_pitch=max(-1800, min(1800, -dy * 10)),
+                            held=held, edge=edge,
+                        )
+                        for bit, name in (
+                            (ACTION_GLIDE, "glide"), (ACTION_FLY, "fly"),
+                            (ACTION_SHOOT, "shoot"),
+                        ):
+                            if held & bit:
+                                action_usage.add(name)
+                                actions_by_player[client.player_id].add(name)
+                        for bit, name in (
+                            (ACTION_JUMP, "jump"), (ACTION_ROLL, "roll"),
+                            (ACTION_DASH, "dash"), (EDGE_MELEE, "melee"),
+                            (EDGE_SPECIAL, "special"),
+                            (EDGE_THROWABLE, "throwable"),
+                        ):
+                            if edge & bit:
+                                action_usage.add(name)
+                                actions_by_player[client.player_id].add(name)
+                        powerup_kind = (me[5] // 8) % 16
+                        if powerup_kind:
+                            powerups_acquired.add(powerup_kind)
                     stop.wait(.045)
                 except (OSError, EOFError, TimeoutError):
                     stop.set()
@@ -191,8 +308,40 @@ def run_battle(port, duration=None, log_path=None):
                 raise AssertionError("bot positions did not change during smoke run")
             if minimum_alive == BOT_COUNT:
                 raise AssertionError("teams did not exchange damage during smoke run")
+            if not powerups_acquired:
+                raise AssertionError("bots did not acquire an authoritative powerup")
+            for player_id, expected_animal in (
+                    [(player_id, 1) for player_id in goose_ids] +
+                    [(player_id, 2) for player_id in cat_ids]):
+                expected_actions = {
+                    "jump", "roll", "dash", "shoot", "special", "throwable",
+                    "fly" if expected_animal == 1 else "glide",
+                }
+                missing = expected_actions - actions_by_player.get(player_id, set())
+                if missing:
+                    raise AssertionError(
+                        f"bot {player_id} did not use actions: {', '.join(sorted(missing))}"
+                    )
+            if "melee" not in action_usage:
+                raise AssertionError("battle bots did not use melee in range")
+            required_animation_states = {1, 2, 3, 6, 7, 9}
+            missing_animation_states = required_animation_states - observed_animation_states
+            if missing_animation_states:
+                raise AssertionError(
+                    "bot snapshots missed animation states: " +
+                    ", ".join(map(str, sorted(missing_animation_states)))
+                )
+            per_bot = "; ".join(
+                f"{player_id}:{','.join(sorted(actions)) or 'none'}"
+                f"/anim={','.join(map(str, sorted(animation_states_by_player[player_id])))}"
+                for player_id, actions in sorted(actions_by_player.items())
+            )
             print(f"/b2teams4 smoke passed: {samples} moving snapshots; "
-                  f"minimum alive={minimum_alive}/8")
+                  f"minimum alive={minimum_alive}/8; "
+                  f"actions={','.join(sorted(action_usage)) or 'none'}; "
+                  f"animation states={','.join(map(str, sorted(observed_animation_states)))}; "
+                  f"powerup kinds={','.join(map(str, sorted(powerups_acquired)))}; "
+                  f"per-bot={per_bot}")
         else:
             print(f"Battle finished: {winner} win." if winner else
                   "Battle timer elapsed.")
@@ -226,8 +375,11 @@ def main():
     if any(option != "--smoke" for option in sys.argv[3:]):
         raise SystemExit("usage: scripts/b2teams4.py SERVER_BINARY PORT [--smoke] [--log PATH]")
     env = dict(os.environ, KOOKIE_WEB_PORT=str(port))
-    process = subprocess.Popen([binary], cwd=os.path.dirname(binary), env=env,
-                               stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    process = subprocess.Popen(
+        [binary], cwd=os.path.dirname(binary), env=env,
+        stdout=sys.stderr if smoke else subprocess.DEVNULL,
+        stderr=sys.stderr if smoke else subprocess.PIPE,
+    )
     try:
         wait_healthy(port, process)
         if smoke:

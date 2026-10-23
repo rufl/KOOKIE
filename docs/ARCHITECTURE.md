@@ -41,25 +41,27 @@ There is no privileged offline simulation path.
 
 ### Measured source composition
 
-`scripts/report_code_mix.py` measures physical source lines in the current
-working tree under `src`, `probes`, `apps`, `native`, `scripts` and `tooling`.
-The report includes untracked source files and excludes generated build output.
-Current result:
+`scripts/report_code_mix.py` measures selected physical source lines in the
+current working tree under `src`, `probes`, `apps`, `native`, `scripts`,
+`tooling` and `launcher`. The report includes untracked source files and
+excludes generated build output and browser JavaScript/HTML/CSS. Current result:
 
 | Group | Files | Lines | Share |
 |---|---:|---:|---:|
-| Kof (`.kf`) | 170 | 83,128 | 77.89% |
-| KofScript (`.ks`) | 4 | 764 | 0.72% |
-| C/header (`.c`, `.h`) | 17 | 8,660 | 8.11% |
-| Shell tooling (`.sh`) | 55 | 8,103 | 7.59% |
-| Python tooling (`.py`) | 21 | 4,346 | 4.07% |
-| PE bridge Java (`.java`) | 1 | 1,504 | 1.41% |
-| GPU shaders | 8 | 215 | 0.20% |
-| **Total** | **276** | **106,720** | **100%** |
+| Kof (`.kf`) | 322 | 165,013 | 83.88% |
+| KofScript (`.ks`) | 4 | 764 | 0.39% |
+| C/header (`.c`, `.h`) | 19 | 9,621 | 4.89% |
+| Shell tooling (`.sh`) | 66 | 9,424 | 4.79% |
+| Python tooling (`.py`) | 31 | 8,375 | 4.26% |
+| PE bridge Java (`.java`) | 1 | 1,810 | 0.92% |
+| Zig runtime/platform (`.zig`) | 2 | 1,513 | 0.77% |
+| GPU shaders | 8 | 215 | 0.11% |
+| **Total selected source** | **453** | **196,735** | **100%** |
 
-The runtime slice (Kof/KofScript/C/shaders, excluding build tooling and the PE
-bridge) is 92,767 lines: Kof 89.61%, KofScript 0.82%, C/header 9.34% and
-shaders 0.23%. This is a composition measure, not a performance claim.
+The runtime slice (Kof/KofScript/C/Zig/shaders, excluding shell/Python tooling
+and the PE bridge) is 177,126 lines: Kof 93.16%, KofScript 0.43%, C/header
+5.43%, Zig 0.85% and shaders 0.12%. This is a selected-source composition
+measure, not a performance claim.
 
 Do not translate code only to increase the Kof percentage. Keep SDL/SDL_GPU,
 SDL_mixer, Winsock, filesystem durability, thread scheduling, SIMD intrinsics,
@@ -127,7 +129,8 @@ flowchart TB
     Client[Client session\ninput, prediction, reconciliation]
     Core[Kof core\nIDs, storage, math, clock, commands, events, RNG]
     Browser[Browser presentation\nKofJS, WebSocket, WebGL2 3D\nGLB skinning, animation, VFX]
-    Native[Native presentation adapter\nSDL3, SDL_GPU, audio, fonts, images]
+    Bugfeed[Bugfeed artifact sidecar\nZig HTTP + private report storage]
+    ReportStore[(Private report directory)]
     GPU[GPU/audio/window mechanisms]
 
     Tools --> Packages
@@ -139,6 +142,8 @@ flowchart TB
     Core --> Client
     Server --> Client
     Client --> Browser
+    Browser -->|HTTP /bugfeed| Bugfeed
+    Bugfeed --> ReportStore
     Client --> Native
     Browser --> GPU
     Native --> GPU
@@ -437,6 +442,13 @@ the native Kof executable with that adapter, and
 `scripts/verify_kof_web_server.sh` qualifies health, metrics, upgrade,
 handshake, full-scene movement and malformed-request rejection.
 
+Bugfeed is deliberately outside this adapter’s 8 KiB HTTP request path:
+`apps/web_server/bugfeed.zig` is a loopback-only Zig sidecar for bounded
+8 MiB screenshot uploads, JSON metadata validation, UUID report storage and
+private atomic publication. Caddy routes `/bugfeed*` directly to that process.
+This sidecar stores diagnostic artifacts only; it has no gameplay, admission
+or protocol authority. The tailnet preview needs Zig 0.17.0, not Node.js.
+
 The current `apps/web_server/main.kf` runs an authoritative fixed-tick server
 with eight-player/four-spectator admission. `scripts/verify_kof_web_server.sh`
 passed end-to-end qualification, covering concurrent admission, movement,
@@ -471,13 +483,12 @@ also applies a deterministic, state-driven procedural lift and bounded
 skeletal animation for idle, moving and attack actor states. Goose/cat GLBs use
 `JOINTS_0`/`WEIGHTS_0`, inverse-bind palettes capped at 32 joints, and
 `LINEAR`/`STEP` TRS clips. Network snapshots pack posture, power-up and action
-animation independently; the browser selects authored clips for idle/run/
-attack/damage/death and uses authored walk motion plus a procedural body roll
-for the roll action. The native SDL actor path also rolls from the input bit,
-using the authored run pose plus a bounded twelve-tick quarter-turn cycle.
-Neither prototype GLB contains a dedicated roll clip; missing clips use an
-explicit fallback. Both renderers consume skinned geometry with 9 goose and 17
-cat joints, under the 32-joint cap.
+animation independently: idle, run, attack, death, damage, eat, airborne, roll,
+swim and walk. The browser selects each authored clip where available. The
+server derives swim from underwater state and uses walk for ordinary movement.
+Shipped goose/cat GLBs have no swim/fly clips, so those states sample walk;
+roll is procedural because neither asset has a roll clip. Native SDL derives
+the equivalent actor actions from its local simulation.
 Arena solids and ramps also sample the same eight generated world-material
 tiles and resource-to-tile mapping as native `BoundedWorldTextureAsset`; the
 browser arena no longer relies on flat-color-only surfaces.

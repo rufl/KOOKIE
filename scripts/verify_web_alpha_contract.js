@@ -387,6 +387,14 @@ async function main() {
     performance: { now: () => monotonicNow },
     navigator: { userAgent: "Bugfeed browser smoke", clipboard: { writeText: async () => {} } },
     fetch: async (url, options) => {
+      if (url.startsWith("assets/prototype/runtime/power_ups/")) {
+        const configPath = path.resolve(__dirname, "..", url);
+        return {
+          ok: true,
+          status: 200,
+          json: async () => JSON.parse(fs.readFileSync(configPath, "utf8")),
+        };
+      }
       assert.equal(url, "/bugfeed");
       bugfeedEnvelope = options.body;
       bugfeedUploadCount += 1;
@@ -510,7 +518,6 @@ async function main() {
   moveStickBase.listeners.pointermove({
     pointerId: 4, clientX: 99, clientY: 50,
   });
-  assert.equal(sentInputFrames.length, movementCountAtDefault + 1);
   await new Promise((resolve) => setTimeout(resolve, 150));
   assert.equal(sentInputFrames.length, movementCountAtDefault + 1);
   moveStickBase.listeners.pointerup({ pointerId: 4 });

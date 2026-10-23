@@ -17,6 +17,7 @@ GROUPS = (
     ("Shell tooling", (".sh",), ("scripts",)),
     ("Python tooling", (".py",), ("scripts",)),
     ("PE bridge Java", (".java",), ("tooling",)),
+    ("Zig runtime/platform", (".zig",), ("apps", "launcher")),
     ("GPU shader", (".glsl", ".hlsl", ".vert", ".frag"), ("native",)),
 )
 

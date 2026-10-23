@@ -31,8 +31,12 @@ command -v curl >/dev/null || {
   echo 'run_tailnet_web_preview: curl is required' >&2
   exit 2
 }
-command -v node >/dev/null || {
-  echo 'run_tailnet_web_preview: Node.js is required for Bugfeed storage' >&2
+command -v zig >/dev/null || {
+  echo 'run_tailnet_web_preview: Zig 0.17.0 is required for Bugfeed storage' >&2
+  exit 2
+}
+[[ "$(zig version)" == "0.17.0" ]] || {
+  printf 'run_tailnet_web_preview: expected Zig 0.17.0; found %s\n' "$(zig version)" >&2
   exit 2
 }
 
@@ -91,11 +95,12 @@ magic_dns="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["Self"]["DN
 }
 
 bash "$root_dir/scripts/build_web_server.sh" --output "$work_dir/server"
+bash "$root_dir/scripts/build_bugfeed.sh" --output "$work_dir/bugfeed"
 KOOKIE_WEB_ALPHA_OUTPUT="$work_dir/site" \
   bash "$root_dir/scripts/build_web_alpha.sh"
 (
   KOOKIE_BUGFEED_PORT="$bugfeed_port" KOOKIE_BUGFEED_DIR="$bugfeed_dir" \
-    node "$root_dir/apps/web_server/bugfeed.js"
+    "$work_dir/bugfeed"
 ) >"$work_dir/bugfeed.log" 2>&1 &
 bugfeed_pid=$!
 for attempt in $(seq 1 100); do

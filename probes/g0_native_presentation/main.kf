@@ -1878,8 +1878,16 @@ class G1NativePresentation {
                     animationState = 3
                 } else if (interactionSession.fpsUnderwater(actorId)) {
                     animationState = 8
-                } else if (animalMeshes.actorMovingAt(index)) {
+                } else if (!interactionSession.fpsGrounded(actorId)) {
+                    animationState = 5
+                } else if ((actionButtonsForPlayer(actorId) &
+                        (inputButtonDashForward() |
+                            inputButtonDashBackward() |
+                            inputButtonDashLeft() |
+                            inputButtonDashRight())) != 0) {
                     animationState = 2
+                } else if (animalMeshes.actorMovingAt(index)) {
+                    animationState = 5
                 } else {
                     animationState = 1
                 }

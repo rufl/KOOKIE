@@ -454,7 +454,14 @@ Bool webTick(WebServerMetrics metrics) {
             }
         }
     }
-    if (!metrics.simulation.advanceTick() || !webBroadcastSnapshots(metrics)) { return false }
+    if (!metrics.simulation.advanceTick()) {
+        println("KOOKIE authoritative simulation tick failed")
+        return false
+    }
+    if (!webBroadcastSnapshots(metrics)) {
+        println("KOOKIE authoritative snapshot broadcast failed")
+        return false
+    }
     metrics.simulation.clearImpacts()
     return true
 }

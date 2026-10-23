@@ -1278,6 +1278,37 @@
       }
     }
 
+    let filteredCamera = null;
+    let lastCameraFrameAt = 0;
+    const wrapDegrees = (degrees) =>
+      ((degrees + 180) % 360 + 360) % 360 - 180;
+    function smoothCamera(target, time) {
+      if (!filteredCamera) {
+        filteredCamera = { ...target };
+        lastCameraFrameAt = time;
+        return filteredCamera;
+      }
+      const deltaSeconds = Math.max(0, Math.min(0.1,
+        (time - lastCameraFrameAt) / 1000));
+      lastCameraFrameAt = time;
+      const distance = Math.hypot(
+        target.x - filteredCamera.x,
+        target.y - filteredCamera.y,
+        target.z - filteredCamera.z,
+      );
+      if (distance > 60) {
+        filteredCamera = { ...target };
+        return filteredCamera;
+      }
+      const positionBlend = 1 - Math.exp(-deltaSeconds / 0.12);
+      const angleBlend = 1 - Math.exp(-deltaSeconds / 0.055);
+      filteredCamera.x += (target.x - filteredCamera.x) * positionBlend;
+      filteredCamera.y += (target.y - filteredCamera.y) * positionBlend;
+      filteredCamera.z += (target.z - filteredCamera.z) * positionBlend;
+      filteredCamera.yaw += wrapDegrees(target.yaw - filteredCamera.yaw) * angleBlend;
+      filteredCamera.pitch += (target.pitch - filteredCamera.pitch) * angleBlend;
+      return filteredCamera;
+    }
     let vfxKey = null;
     let vfxStartedAt = 0;
     const actorAnimationStarts = new Map();
@@ -1341,10 +1372,11 @@
     function render(scene, time = 0) {
       if (contextLost || (typeof gl.isContextLost === "function" && gl.isContextLost())) return;
       resize();
-      const camera = scene.camera || {
+      const targetCamera = scene.camera || {
         x: scene.playerX, y: scene.playerY + 8, z: scene.playerZ - 16,
         yaw: scene.yaw, pitch: scene.pitch,
       };
+      const camera = smoothCamera(targetCamera, time);
       const yaw = (camera.yaw || 0) * Math.PI / 180;
       const pitch = (camera.pitch || 0) * Math.PI / 180;
       const direction = [
@@ -1496,23 +1528,26 @@
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       for (const actor of actors) {
-        if (actor.health <= 0) continue;
+        if (actor.health <= 0 || (scene.playerId > 0 && actor.id === scene.playerId)) continue;
         draw(
           [fallbackMeshes.shadow],
           transform([actor.x, 0.04, actor.z], [8, 1, 6]),
           COLORS.shadow, time, viewProjection,
         );
       }
-      draw(
-        [fallbackMeshes.shadow],
-        transform([scene.playerX, 0.04, scene.playerZ], [8, 1, 6]),
-        COLORS.shadow, time, viewProjection,
-      );
+      if (scene.playerId === undefined || scene.playerId > 0) {
+        draw(
+          [fallbackMeshes.shadow],
+          transform([scene.playerX, 0.04, scene.playerZ], [8, 1, 6]),
+          COLORS.shadow, time, viewProjection,
+        );
+      }
       gl.disable(gl.BLEND);
 
       const modelForActor = (actor) => actor.kind === 2 ? assets.cat : assets.goose;
       for (const actor of actors) {
         const model = modelForActor(actor);
+        if (scene.playerId > 0 && actor.id === scene.playerId) continue;
         const tint = actor.health <= 0 ? COLORS.damaged
           : actor.powerUp > 0 ? COLORS.pickup
           : actor.health < 50 ? COLORS.damaged
@@ -1530,17 +1565,23 @@
           actorRollAngle(actor, time),
         ), tint, time, viewProjection, [0, 0, 1, 1], skinMatrices);
       }
-      const playerModel = assets.goose;
       const playerActor = actors.find((actor) => actor.id === scene.playerId) ||
-        { id: scene.playerId, animation: 0 };
+        { id: scene.playerId, kind: 1, animation: 0 };
+      const playerModel = modelForActor(playerActor);
+      const playerScale = playerActor.kind === 2
+        ? [0.38, 0.38, 0.38] : [1.6, 1.6, 1.6];
+      const playerLift = actorAnimationLift(playerActor, scene.tick);
       const playerAnimationTime = actorAnimationElapsed(playerActor, time);
       const playerSkinMatrices = playerModel?.sampleSkinForAction?.(
         playerActor.animation, playerAnimationTime,
       );
-      draw(playerModel?.meshes || [fallbackMeshes.actor], transform(
-        [scene.playerX, scene.playerY, scene.playerZ], [1.6, 1.6, 1.6], yaw,
-        actorRollAngle(playerActor, time),
-      ), COLORS.player, time, viewProjection, [0, 0, 1, 1], playerSkinMatrices);
+      if (scene.playerId === undefined || scene.playerId > 0) {
+        draw(playerModel?.meshes || [fallbackMeshes.actor], transform(
+          [scene.playerX, scene.playerY + playerLift, scene.playerZ], playerScale,
+          playerActor.yaw === undefined ? yaw : playerActor.yaw * Math.PI / 180,
+          actorRollAngle(playerActor, time),
+        ), COLORS.player, time, viewProjection, [0, 0, 1, 1], playerSkinMatrices);
+      }
 
       if (assets.hearts) {
         if (!heartMesh) heartMesh = planeGeometry(gl, [1, 1, 1, 1], assets.hearts);

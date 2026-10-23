@@ -677,13 +677,16 @@ class WebMultiplayerSimulation {
         tickValue = tickValue + 1
         if (!collectPowerUps()) { return false }
         for (var slot = 0; slot < 8; slot = slot + 1) {
-            if (activeValues[slot] && !effectAt(slot).advance(tickValue)) {
-                return false
-            }
+            if (activeValues[slot] && !effectAt(slot).advance(tickValue)) { return false }
         }
         if (!updateOxygen()) { return false }
         for (var index = 0; index < 16; index = index + 1) {
             if (projectileActive[index]) {
+                var ownerSlot = playerSlot(projectileOwners[index])
+                if (ownerSlot < 0 || healthValues[ownerSlot] <= 0) {
+                    projectileActive[index] = false
+                    continue
+                }
                 projectileAge[index] = projectileAge[index] + 1
                 var oldX = projectileX[index]
                 var oldY = projectileY[index]
@@ -695,7 +698,10 @@ class WebMultiplayerSimulation {
                 var newY = oldY + projectileDY[index] * 2 / 1000
                 var newZ = oldZ + projectileDZ[index] * 2 / 1000
                 var wall = arena.query(oldX, oldY, oldZ, newX, newY, newZ)
-                if (!wall.accepted()) { return false }
+                if (!wall.accepted()) {
+                    projectileActive[index] = false
+                    continue
+                }
                 var wallBlocked = wall.collided()
                 if (wallBlocked) {
                     projectileX[index] = oldX
@@ -719,9 +725,8 @@ class WebMultiplayerSimulation {
                 var hit = -1
                 if (projectileKinds[index] == 1 && !wallBlocked) {
                     for (var actor = 0; actor < 8; actor = actor + 1) {
-                        var ownerSlot = playerSlot(projectileOwners[index])
                         if (activeValues[actor] && playerIds[actor] != projectileOwners[index] &&
-                            (ownerSlot < 0 || teamValues[ownerSlot] == 0 ||
+                            (teamValues[ownerSlot] == 0 ||
                                 teamValues[actor] == 0 ||
                                 teamValues[ownerSlot] != teamValues[actor]) &&
                             healthValues[actor] > 0 &&
@@ -741,9 +746,8 @@ class WebMultiplayerSimulation {
                     projectileActive[index] = false
                 } else if (throwableDetonated) {
                     for (var actor = 0; actor < 8; actor = actor + 1) {
-                        var ownerSlot = playerSlot(projectileOwners[index])
                         if (activeValues[actor] && playerIds[actor] != projectileOwners[index] &&
-                            (ownerSlot < 0 || teamValues[ownerSlot] == 0 ||
+                            (teamValues[ownerSlot] == 0 ||
                                 teamValues[actor] == 0 ||
                                 teamValues[ownerSlot] != teamValues[actor]) &&
                             healthValues[actor] > 0) {
@@ -790,10 +794,10 @@ class WebMultiplayerSimulation {
                 movement.positionX(actor), movement.positionY(actor),
                 movement.positionZ(actor), liquidPhysics.actorHeight())) {
             animation = sessionWebActorAnimationSwim()
-        } else if (gliding) {
+        } else if (!grounded || gliding) {
             animation = sessionWebActorAnimationAirborne()
         } else if (movingValues[slot]) {
-            animation = sessionWebActorAnimationRun()
+            animation = sessionWebActorAnimationWalk()
         }
         state = state + effectAt(slot).activeKind() * 8
         state = state + animation * 128

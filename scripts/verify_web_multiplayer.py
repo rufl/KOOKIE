@@ -281,6 +281,9 @@ def main():
         assert flight_actor[2] > flight_start_y, "fly did not gain altitude"
         flyer.input(held=0)
 
+        _, settled_actor = wait_for_actor(
+            spectators[0], 8, 4, mover.player_id,
+            lambda state, snapshot: state[5] // 128 == 0)
         before = mover.snapshot(expected_players=8, expected_spectators=4)
         actor = next(18 + i * 8 for i in range(before[17])
                      if before[18 + i * 8] == mover.player_id)
@@ -292,6 +295,8 @@ def main():
             spectators[0], 8, 4, mover.player_id,
             lambda state, snapshot: state[1] != old_x)
         assert moved_actor[1] != old_x
+        assert moved_actor[5] // 128 == 9, (
+            f"ordinary locomotion did not select walk animation: {moved_actor}")
         mover.input()
 
         mover.input(held=1, edge=1)

@@ -4,10 +4,40 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 
 ## Unreleased
 
+- Replaced the Node.js Bugfeed runtime with a dedicated Zig sidecar. Caddy
+  routes `/bugfeed*` directly to its loopback listener; report uploads retain
+  the 8 MiB screenshot and 64 KiB metadata bounds, UUID-v4 IDs, private
+  0700/0600 storage and atomic report-directory publication. The authoritative
+  gameplay/admission server remains in Kof; Node.js is retained only for
+  integration-test tooling.
+- Browser camera now follows behind the player’s yaw and uses frame-rate
+  independent position/orientation damping, with snap-on-teleport handling.
+  Mouse look keeps its existing horizontal/vertical polarity. The right touch
+  stick continuously samples movement, applies a radial deadzone and speed
+  setting, and eases camera angular velocity on acceleration and release;
+  unacknowledged look input is included in local camera prediction.
+- Corrected browser local-cat rendering to reuse its replicated cat actor and
+  cat skin instead of drawing a duplicate goose. The authoritative web server
+  now keeps the airborne animation state while an actor is off the ground after
+  the jump action window ends. `/b2teams4 --smoke` records replicated bot
+  animation states and requires walk, run, attack, death, airborne and roll.
+- Extended actor animation state selection across the web server, browser and
+  native renderer: idle, walk, run, attack, damage, death, eat, airborne, roll
+  and swim. Swimming is derived from authoritative underwater state; ordinary
+  locomotion uses walk, dash uses run. The current goose/cat GLBs have no swim
+  or flight clip, so both renderers use the authored walk clip for those states;
+  roll remains procedural because neither asset has a roll clip.
+
 - Added a browser game console: a connected spectator can run `/b2teams4` to
   spawn four goose bots on red against four cat bots on blue, watch their live
   battle, and stop it with `/stop`. The terminal `scripts/b2teams4.py` console
   remains available; ordinary `/session` joins are unchanged.
+- Both browser and terminal `/b2teams4` bots now seek eligible authored powerups
+  when they have no active effect, then return to combat. They use jump, roll,
+  dash, glide/fly, melee, ranged fire, special attacks and throwables according
+  to target distance and vertical separation, not a fixed action timer. Browser
+  bots load waypoint coordinates from the shipped runtime JSON; the CLI reads the
+  same definitions directly.
 - Desktop keyboard and touch-stick movement are camera-relative: W/up follows
   the viewed direction and A/D strafe relative to it, instead of moving along
   fixed world axes after mouse-look turns.
