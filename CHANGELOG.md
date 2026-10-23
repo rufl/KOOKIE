@@ -6,11 +6,11 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Fixed tailnet Caddy routing for the spectator WebSocket and both browser bot
   endpoints; `/spectate`, `/session/goose` and `/session/cat` now reach the
   Kof multiplayer server. Added an index cache-buster for session-role updates.
-- Spectator look updates local camera yaw/pitch without sending player input
-  to the authoritative server. The spectator camera starts above arena center
-  and faces the bot spawn area instead of deriving its position from the
-  out-of-bounds placeholder player origin. Hide touch controls and hints at the
-  701px desktop breakpoint.
+- Spectator mouse-look reverses both axes; camera free-flight uses WASD plus
+  Space/Shift vertically, while mobile sticks move/look and combat actions stay
+  disabled. Local camera motion is client-only. It starts above arena center,
+  aimed at the bot spawn area, not the out-of-bounds placeholder player origin.
+  Touch controls and hints are hidden at the 701px desktop breakpoint.
 - Tailnet preview supervises the Kof multiplayer process, records unexpected
   exit status and restarts it after one second; startup health checks still
   require the backend itself to answer. The Kof transport-poll fatal path now

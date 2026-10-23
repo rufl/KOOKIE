@@ -555,7 +555,7 @@
   }
   const movementSpeedScale = () => clientSettings.movementSpeedPercent / 100;
   addAnalogStick("MOVE", movementControls, (vector) => {
-    const speed = movementSpeedScale();
+    const speed = joinedRole === GAME_ROLE_SPECTATOR ? 1 : movementSpeedScale();
     sendGameplayInput({
       moveX: Math.round(vector.x * GAME_MAXIMUM_INPUT_AXIS * speed),
       moveZ: Math.round(-vector.y * GAME_MAXIMUM_INPUT_AXIS * speed),
@@ -926,6 +926,11 @@
     yaw: 225,
     pitch: -27,
   };
+  let spectatorCameraPosition = { ...spectatorCameraHome };
+  let spectatorMoveX = 0;
+  let spectatorMoveZ = 0;
+  let spectatorVerticalKeys = new Set();
+  let lastSpectatorCameraUpdateAt = 0;
   let sceneRenderer = null;
   let renderFrameHandle = 0;
   let renderSceneState = null;
@@ -1626,6 +1631,33 @@
     }
     updateScene(displayed);
   }
+  function updateSpectatorCamera(now) {
+    const deltaSeconds = lastSpectatorCameraUpdateAt === 0 ? 0
+      : Math.min(0.05, Math.max(0, (now - lastSpectatorCameraUpdateAt) / 1000));
+    lastSpectatorCameraUpdateAt = now;
+    const yaw = (spectatorCameraHome.yaw + spectatorLookYawOffset) * Math.PI / 180;
+    let forward = spectatorMoveZ / GAME_MAXIMUM_INPUT_AXIS;
+    let strafe = spectatorMoveX / GAME_MAXIMUM_INPUT_AXIS;
+    const horizontalMagnitude = Math.hypot(forward, strafe);
+    if (horizontalMagnitude > 1) {
+      forward /= horizontalMagnitude;
+      strafe /= horizontalMagnitude;
+    }
+    const vertical =
+      (spectatorVerticalKeys.has("Space") ? 1 : 0) -
+      (spectatorVerticalKeys.has("ShiftLeft") ||
+        spectatorVerticalKeys.has("ShiftRight") ? 1 : 0);
+    const speed = 64 * movementSpeedScale() * deltaSeconds;
+    spectatorCameraPosition.x = Math.max(GAME_WORLD_MINIMUM_X,
+      Math.min(GAME_WORLD_MAXIMUM_X, spectatorCameraPosition.x +
+        (forward * Math.sin(yaw) + strafe * Math.cos(yaw)) * speed));
+    spectatorCameraPosition.z = Math.max(GAME_WORLD_MINIMUM_Z,
+      Math.min(GAME_WORLD_MAXIMUM_Z, spectatorCameraPosition.z +
+        (forward * Math.cos(yaw) - strafe * Math.sin(yaw)) * speed));
+    spectatorCameraPosition.y = Math.max(2,
+      Math.min(GAME_WORLD_MAXIMUM_Y + 20,
+        spectatorCameraPosition.y + vertical * speed));
+  }
 
   function renderFrame(time) {
     if (!sceneRenderer) return;
@@ -1634,16 +1666,19 @@
     renderSceneState.playerX = position.x;
     renderSceneState.playerZ = position.z;
     if (joinedRole === GAME_ROLE_SPECTATOR) {
-      renderSceneState.camera.x = spectatorCameraHome.x;
-      renderSceneState.camera.y = spectatorCameraHome.y;
-      renderSceneState.camera.z = spectatorCameraHome.z;
+      updateSpectatorCamera(now);
+      renderSceneState.camera.x = spectatorCameraPosition.x;
+      renderSceneState.camera.y = spectatorCameraPosition.y;
+      renderSceneState.camera.z = spectatorCameraPosition.z;
       renderSceneState.camera.yaw =
         (spectatorCameraHome.yaw + spectatorLookYawOffset + 360) % 360;
       renderSceneState.camera.pitch = Math.max(-80, Math.min(80,
         spectatorCameraHome.pitch + spectatorLookPitchOffset));
     }
-    renderSceneState.camera.x += position.x - sceneState.playerX;
-    renderSceneState.camera.z += position.z - sceneState.playerZ;
+    if (joinedRole !== GAME_ROLE_SPECTATOR) {
+      renderSceneState.camera.x += position.x - sceneState.playerX;
+      renderSceneState.camera.z += position.z - sceneState.playerZ;
+    }
     updateRemoteRenderActors(now);
     try {
       sceneRenderer.render(renderSceneState, time);
@@ -1716,8 +1751,9 @@
   let shuttingDown = false;
   let intentionalDisconnect = false;
   const MAX_RECONNECT_ATTEMPTS = 5;
-  function setGameControlsEnabled(enabled) {
-    for (const button of gameActionButtons) button.disabled = !enabled;
+  function setGameControlsEnabled(enabled, spectator = false) {
+    for (const button of gameActionButtons) button.disabled = !enabled || spectator;
+    actionControls.hidden = enabled && spectator;
     for (const stick of analogSticks) stick.setEnabled(enabled);
   }
   function clearReconnectTimer() {
@@ -2575,6 +2611,12 @@
     if (!sceneRenderer || !socket || socket.readyState !== WebSocket.OPEN ||
         !authoritativeReady) return;
     if (joinedRole === GAME_ROLE_SPECTATOR) {
+      if (Number.isFinite(changes.moveX)) {
+        spectatorMoveX = Math.max(-1000, Math.min(1000, changes.moveX));
+      }
+      if (Number.isFinite(changes.moveZ)) {
+        spectatorMoveZ = Math.max(-1000, Math.min(1000, changes.moveZ));
+      }
       const lookYaw = Number.isFinite(changes.lookYaw) ? changes.lookYaw : 0;
       const lookPitch = Number.isFinite(changes.lookPitch) ? changes.lookPitch : 0;
       spectatorLookYawOffset = (spectatorLookYawOffset + lookYaw + 360) % 360;
@@ -2760,7 +2802,9 @@
     pendingMovement.clear();
     pendingInputFrames.clear();
     lastSnapshotSequence = 0;
-    joinedRole = null;
+    spectatorMoveX = 0;
+    spectatorMoveZ = 0;
+    spectatorVerticalKeys.clear();
     joinSequence = 0;
     remoteSnapshots.length = 0;
     remoteArrivalJitterMs = 0;
@@ -2833,6 +2877,11 @@
       if (!isReconnect) {
         spectatorLookYawOffset = 0;
         spectatorLookPitchOffset = 0;
+        spectatorCameraPosition = { ...spectatorCameraHome };
+        spectatorMoveX = 0;
+        spectatorMoveZ = 0;
+        spectatorVerticalKeys.clear();
+        lastSpectatorCameraUpdateAt = 0;
       }
       const expectedPath = requestedRole === GAME_ROLE_SPECTATOR
         ? "/spectate" : "/session";
@@ -2917,7 +2966,7 @@
               throw new Error("multiplayer snapshot role mismatch");
             }
             authoritativeReady = true;
-            setGameControlsEnabled(joinedRole === GAME_ROLE_PLAYER);
+            setGameControlsEnabled(true, joinedRole === GAME_ROLE_SPECTATOR);
             setAsyncButtonState(connectButton, "success", "LEAVE");
             applyAuthoritativeScene(scene, frame.sequence);
             setRuntimeState(joinedRole === GAME_ROLE_SPECTATOR
@@ -2968,7 +3017,9 @@
     };
     clientSocket.onclose = () => {
       if (socket !== clientSocket) return;
-      const wasReady = authoritativeReady;
+      spectatorMoveX = 0;
+      spectatorMoveZ = 0;
+      spectatorVerticalKeys.clear();
       socket = null;
       connected = false;
       authoritativeReady = false;
@@ -3019,7 +3070,9 @@
     }
     const magnitude = Math.hypot(x, z);
     const scale = magnitude > 0
-      ? GAME_MAXIMUM_INPUT_AXIS * clientSettings.movementSpeedPercent / 100 / magnitude
+      ? GAME_MAXIMUM_INPUT_AXIS *
+        (joinedRole === GAME_ROLE_SPECTATOR
+          ? 1 : clientSettings.movementSpeedPercent / 100) / magnitude
       : 0;
     sendGameplayInput({ moveX: Math.round(x * scale), moveZ: Math.round(z * scale) });
   }
@@ -3029,14 +3082,18 @@
     if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
     const axis = movementKeys.get(event.code);
     if (axis) {
-      if (joinedRole !== GAME_ROLE_SPECTATOR) {
-        event.preventDefault();
-        if (!heldMovementKeys.has(event.code)) {
-          heldMovementKeys.add(event.code);
-          updateKeyboardMovement();
-        }
+      event.preventDefault();
+      if (!heldMovementKeys.has(event.code)) {
+        heldMovementKeys.add(event.code);
+        updateKeyboardMovement();
       }
       return;
+    }
+    if (joinedRole === GAME_ROLE_SPECTATOR &&
+        (event.code === "Space" || event.code === "ShiftLeft" ||
+          event.code === "ShiftRight")) {
+      event.preventDefault();
+      spectatorVerticalKeys.add(event.code);
     }
     if (event.key === "q" || event.key === "Q") {
       event.preventDefault();
@@ -3051,6 +3108,10 @@
     }
   });
   document.addEventListener("keyup", (event) => {
+    if (spectatorVerticalKeys.delete(event.code)) {
+      event.preventDefault();
+      return;
+    }
     if (!heldMovementKeys.delete(event.code)) return;
     event.preventDefault();
     updateKeyboardMovement();
@@ -3060,6 +3121,7 @@
     const heldActions = gameplayHeldActions & (ACTION_JUMP | ACTION_GLIDE |
       ACTION_FLY | ACTION_SHOOT);
     heldMovementKeys.clear();
+    spectatorVerticalKeys.clear();
     gameplayHeldActions &= ~heldActions;
     if (hadMovement || heldActions !== 0) {
       updateKeyboardMovement();
@@ -3127,7 +3189,11 @@
       const lookYaw = Math.max(-180, Math.min(180, deltaX * sensitivity * 1.25));
       const lookPitch = Math.max(-180, Math.min(180, -deltaY * sensitivity * 1.25));
       if (lookYaw !== 0 || lookPitch !== 0) {
-        sendGameplayInput({ lookYaw, lookPitch });
+        const spectatorDirection = joinedRole === GAME_ROLE_SPECTATOR ? -1 : 1;
+        sendGameplayInput({
+          lookYaw: lookYaw * spectatorDirection,
+          lookPitch: lookPitch * spectatorDirection,
+        });
       }
     });
     const releaseLook = (event) => {
