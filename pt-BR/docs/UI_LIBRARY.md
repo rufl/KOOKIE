@@ -120,7 +120,7 @@ host de pacote que mantenha o CSS em `assets/ui` e as fontes empacotadas em
 ```
 
 `KookieUiText` aplica família, altura de linha, tamanho, peso e cor ao mesmo
-handle de `Label`. A fonte atual do Kof `0.6.6` mantém o comportamento do
+handle de `Label`. A fonte atual do Kof `0.6.7` mantém o comportamento do
 handle `Font` apenas com metadados; os gates focados de Buffer/exceção passam
 contra o pin ativo, enquanto as sondas específicas de fontes permanecem separadas.
 

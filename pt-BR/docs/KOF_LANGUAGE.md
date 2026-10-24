@@ -2,10 +2,10 @@
 
 Data da pesquisa: 2026-09-22. Esta é uma referência de trabalho, não uma afirmação de conformidade completa com a linguagem.
 
-A baseline ativa de qualificação do KOOKIE é a fonte Kof `0.6.6` da branch
+A baseline ativa de qualificação do KOOKIE é a fonte Kof `0.6.7` da branch
 `lab`, no commit
-[`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`](https://github.com/KofLang/Kof4j/tree/7c237861a9035d84b1f7ec4cfddd89daef4c6ddd).
-O Kof `0.6.6` é construído a partir da fonte na CI; nenhum archive público é
+[`83626d5cc47074ed3edd6e3fb39dd83bcb4e3011`](https://github.com/KofLang/Kof4j/tree/83626d5cc47074ed3edd6e3fb39dd83bcb4e3011).
+O Kof `0.6.7` é construído a partir da fonte na CI; nenhum archive público é
 usado como pin. `scripts/prepare_kof_source.sh` verifica a guarda upstream de
 ciclos do GC native e normaliza os metadados antes do empacotamento.
 
@@ -14,7 +14,7 @@ ciclos do GC native e normaliza os metadados antes do empacotamento.
   assembler integrado do Clang nas chamadas Kof `as -o OBJECT FILE.s` e delega
   outras linhas de assembler ao `as` do sistema.
 - A qualificação de `Buffer` em `scripts/verify_simd_dispatch.sh` é o gate
-  ativo; ela passa na JVM e no native x86-64 com Kof `0.6.6`. As medições
+  ativo; ela passa na JVM e no native x86-64 com Kof `0.6.7`. As medições
   detalhadas de ABI abaixo mantêm seus rótulos de toolchain originais quando
   indicados.
 - O material de 0.4.9 e 0.5.0 abaixo é mantido como pesquisa histórica.
@@ -152,7 +152,7 @@ Conjunto escalar verificado na fonte: `Int`, `Long`, `Float`, `Double`,
 exige uma string de biblioteca e faz a ligação por uso com uma chamada ABI
 direta, não com `dlopen` em tempo de execução.
 
-O `0.6.6` atual também possui um contrato de bytes `Buffer(U8)` com
+O `0.6.7` atual também possui um contrato de bytes `Buffer(U8)` com
 `buffer.alloc`, `buffer.peek8/32/64`, `buffer.poke8/32/64` e `Buffer.bytes()`.
 A implementação fixada o mapeia para o token FFI `B` e um ponteiro de payload
 síncrono; o gate local prova dados produzidos por `buffer.poke8` do Kof,
@@ -163,10 +163,10 @@ afirmação da fonte upstream, não um resultado de qualificação do KOOKIE.
 
 A sonda antiga de 0.4.9 rejeitou `extern ... upload(Float[] values): void` na
 JVM e no nativo. Esse resultado permanece histórico; o binding de arrays/records
-do 0.6.6 é específico por target e não estabelece ABI portátil de upload da
+do 0.6.7 é específico por target e não estabelece ABI portátil de upload da
 engine. Retornar ponteiros SDL como `Long` nunca é substituto suportado.
 
-Callbacks FFI são suportados no `0.6.6` em JVM, no host JS e nos targets
+Callbacks FFI são suportados no `0.6.7` em JVM, no host JS e nos targets
 Native x86-64/riscv64/aarch64 para argumentos escalares e `String`, com retorno
 primitivo ou `void`, sob contrato síncrono/não-escapante. KOOKIE ainda precisa
 de uma sonda local de callback antes de promover essa superfície como ABI da
@@ -193,13 +193,13 @@ Consequências:
    da biblioteca gráfica. Uma consulta de versão não comprova caminhos que
    usam intensivamente alocador/TLS/threads.
 
-Fontes: [fonte Kof4j fixada](https://github.com/KofLang/Kof4j/tree/7c237861a9035d84b1f7ec4cfddd89daef4c6ddd),
-[KofBuffer.java](https://github.com/KofLang/Kof4j/blob/7c237861a9035d84b1f7ec4cfddd89daef4c6ddd/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java),
-[CompilerFfiBinding.java](https://github.com/KofLang/Kof4j/blob/7c237861a9035d84b1f7ec4cfddd89daef4c6ddd/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java),
+Fontes: [fonte Kof4j fixada](https://github.com/KofLang/Kof4j/tree/83626d5cc47074ed3edd6e3fb39dd83bcb4e3011),
+[KofBuffer.java](https://github.com/KofLang/Kof4j/blob/83626d5cc47074ed3edd6e3fb39dd83bcb4e3011/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java),
+[CompilerFfiBinding.java](https://github.com/KofLang/Kof4j/blob/83626d5cc47074ed3edd6e3fb39dd83bcb4e3011/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java),
 [gate local de Buffer](../../scripts/verify_simd_dispatch.sh),
-[ABI do runtime](https://github.com/KofLang/Kof4j/blob/7c237861a9035d84b1f7ec4cfddd89daef4c6ddd/docs/runtime/RUNTIME_ABI.md).
+[ABI do runtime](https://github.com/KofLang/Kof4j/blob/83626d5cc47074ed3edd6e3fb39dd83bcb4e3011/docs/runtime/RUNTIME_ABI.md).
 
-### ABI atual do 0.6.6
+### ABI atual do 0.6.7
 `bytes()` retorna uma cópia gerenciada; o payload FFI nativo só é válido
 durante a chamada. O caminho qualificado agora usa `Buffer(U8)` limitado
 diretamente para `GPU_SCENE_VERTEX_V1`: Kof codifica seis campos `i32_le`, C

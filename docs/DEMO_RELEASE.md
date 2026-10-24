@@ -35,9 +35,9 @@ requires a rerun from the committed source, both passed presentation evidence
 records and approval of the `kookie-demo-release` environment.
 
 
-New release candidates use Kof `0.6.6`, pinned to official release tag
-`kof-0.6.6-linux-x86_64` at commit
-`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`. The upstream Linux archive SHA-256
+New release candidates use Kof `0.6.7`, pinned to official release tag
+`kof-0.6.7-linux-x86_64` at commit
+`83626d5cc47074ed3edd6e3fb39dd83bcb4e3011`. The upstream Linux archive SHA-256
 is `96dd0d804c02e1e0f066dc0b53a4b1c385595d32820d97aeb77bb5dc772296f6`;
 release CI builds the exact pinned source into its own normalized toolchain
 artifact. The release patch digest is
@@ -362,7 +362,7 @@ informational, not release authority.
   `scripts/build_demo_release.sh --target linux-x86_64` with version
   `0.1.0-d1-fix.1`, source commit
   `5201286aa67c718b6d10460bff203ebf0118aada`, Kof source commit
-  `7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`, and archive SHA-256
+  `83626d5cc47074ed3edd6e3fb39dd83bcb4e3011`, and archive SHA-256
   `f292e7a975c9563de7409eb3bfa06c13249cdb7d4de834ef181f487107916cc5`.
   Duplicate builds, signatures/checksums, safe extraction and package smoke
   passed.
@@ -413,7 +413,7 @@ informational, not release authority.
 - A current clean detached-worktree Linux-host cross-build produced
   `0.1.0-d1-win-cross.1` from source commit
   `2b0ef88fff8f284939691a4cac1c535a2ecfb607` with Kof source commit
-  `7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`. The archive SHA-256 is
+  `83626d5cc47074ed3edd6e3fb39dd83bcb4e3011`. The archive SHA-256 is
   `c1dc8b215ab0602bf8ce6b4b927769cff82215afaedebdade323ba5ab8af32e6`;
   the manifest SHA-256 is
   `d28eac7d12930917cdf4e0133191085f13075689d399f61a787e10e2b87927c0`.

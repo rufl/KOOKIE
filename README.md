@@ -7,7 +7,7 @@
   <a href="https://github.com/rufl/KOOKIE/releases"><img alt="Latest KOOKIE dogfood release" src="https://img.shields.io/github/v/release/rufl/KOOKIE?include_prereleases&amp;sort=semver&amp;label=dogfood&amp;color=38bdf8"></a>
   <img alt="Project status: experimental" src="https://img.shields.io/badge/status-experimental-f59e0b">
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/rufl/KOOKIE?color=22c55e"></a>
-  <img alt="Kof 0.6.6" src="https://img.shields.io/badge/Kof-0.6.6-64748b">
+  <img alt="Kof 0.6.7" src="https://img.shields.io/badge/Kof-0.6.7-64748b">
 </p>
 
 <p align="center">
@@ -88,12 +88,12 @@ matching target asset.
 
 ### Run qualification from source
 
-Install [Kof 0.6.6](https://github.com/KofLang/Kof4j) for the source
+Install [Kof 0.6.7](https://github.com/KofLang/Kof4j) for the source
 entrypoint:
 
-The pinned Kof 0.6.6 Linux distribution is the official
-`kof-0.6.6-linux-x86_64` release at source commit
-`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`. Its archive SHA-256 is
+The pinned Kof 0.6.7 Linux distribution is the official
+`kof-0.6.7-linux-x86_64` release at source commit
+`83626d5cc47074ed3edd6e3fb39dd83bcb4e3011`. Its archive SHA-256 is
 `96dd0d804c02e1e0f066dc0b53a4b1c385595d32820d97aeb77bb5dc772296f6`.
 `scripts/prepare_kof_source.sh` verifies the upstream native GC cycle guard and
 normalizes compiler metadata when building from source.
@@ -101,13 +101,13 @@ normalizes compiler metadata when building from source.
 Check the immutable release pin with:
 
 ```bash
-KOOKIE_KOF_REF=refs/tags/kof-0.6.6-linux-x86_64 \
+KOOKIE_KOF_REF=refs/tags/kof-0.6.7-linux-x86_64 \
   python3 scripts/update_kof_lab.py --check
 ```
 
 The repository's scheduled Kof updater still tracks upstream `lab`; running
 `scripts/install_kof_lab.sh` intentionally adopts that moving development
-branch and advances the pin rather than restoring the 0.6.6 release.
+branch and advances the pin rather than restoring the 0.6.7 release.
 
 ```bash
 git clone https://github.com/rufl/KOOKIE.git
@@ -276,7 +276,7 @@ descriptor metadata separate from the bounded native queue and applies
 registered UI spatial gains in SDL_mixer. The 14 supplied JDSherbert OGG files
 remain license-blocked for redistribution until provenance is confirmed.
 [`docs/KOF4J_UI_MIGRATION.md`](docs/KOF4J_UI_MIGRATION.md) records the current
-Kof4j `0.6.6` UI/FFI boundary. The synchronous `Buffer(U8)` qualification
+Kof4j `0.6.7` UI/FFI boundary. The synchronous `Buffer(U8)` qualification
 passes on JVM and native x86-64 with the active pin; cross support remains
 unqualified and `Buffer(U8)` is not a portable typed/asynchronous upload ABI.
 `bash scripts/verify_package.sh` validates the `none` package profile and

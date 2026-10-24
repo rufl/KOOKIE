@@ -7,9 +7,9 @@
 - Preserve measured commands, source pins, hashes and proof limits. Do not translate code identifiers, paths, command names or upstream product names.
 - Write status like a teammate would: say what works, what was actually checked and what is still blocked. Avoid milestone language that sounds more complete than the evidence.
 
-The active source/CI baseline is the official Kof `0.6.6` release tag
-`kof-0.6.6-linux-x86_64` at commit
-`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`. Current session documentation must
+The active source/CI baseline is the official Kof `0.6.7` release tag
+`kof-0.6.7-linux-x86_64` at commit
+`83626d5cc47074ed3edd6e3fb39dd83bcb4e3011`. Current session documentation must
 describe strict tick ordering, newer same-tick state-sequence revisions and
 fresh rewind history after checkpoint restore. Research pages retain their
 dated toolchain snapshots intentionally; refresh their scope and evidence

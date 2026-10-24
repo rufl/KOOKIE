@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Kof 0.6.6 invokes the host assembler as `as -o OBJECT FILE.s`. GNU as
+# Kof 0.6.7 invokes the host assembler as `as -o OBJECT FILE.s`. GNU as
 # takes more than an hour on KOOKIE's generated 28 MiB host modules here,
 # while Clang's integrated assembler handles the same syntax in under a second.
 # Keep GNU as for small modules: the integrated assembler is not interchangeable

@@ -139,7 +139,7 @@ runtime/capture behavior rather than pixel equivalence.
 - Native adapter probe applying real adapter events to Kof state and running the first SPIR-V texture upload/draw path.
 - Bounded Kof frame staging contract measured at 15 scalar writes for a three-vertex textured triangle, with publish/discard ownership checks.
 - Native exception-lifetime probe and negative controls recorded in the
-  verification gate; Kof `0.6.6` now rejects the deliberately failing assertion
+  verification gate; Kof `0.6.7` now rejects the deliberately failing assertion
   on both JVM and native.
 - Native adapter exposes elapsed GPU draw timing after GPU-idle retirement.
 - G1 fixed-step clock, bounded input commands with fire/jump edge transitions, loopback server/client snapshot sync, and bounded integer component storage.
@@ -236,7 +236,7 @@ runtime/capture behavior rather than pixel equivalence.
   replay history automatically and round-trip through checkpoint sidecars;
   JVM/native coverage verifies the path. The isolated DRI3 screenshot gate now
   passes; crash-durable save publication is no longer deferred.
-- DXPERF-051 now has a production-safe native dispatch mechanism: runtime AVX2/SSE2 selection on x86, NEON source coverage on AArch64, checked scalar fallback, thread-safe initialization, host/scalar execution proof and a freestanding syntax matrix for AArch64 Linux, RISC-V Linux and x86-64/AArch64 macOS when Clang is available. The original entry's “FFI001 array/buffer boundary” refers to the older research baseline; the active `0.6.6` source pin has a bounded synchronous `Buffer(U8)` SIMD fixture. Typed/asynchronous GPU bulk integration remains unqualified and no speedup is assumed without a representative profile.
+- DXPERF-051 now has a production-safe native dispatch mechanism: runtime AVX2/SSE2 selection on x86, NEON source coverage on AArch64, checked scalar fallback, thread-safe initialization, host/scalar execution proof and a freestanding syntax matrix for AArch64 Linux, RISC-V Linux and x86-64/AArch64 macOS when Clang is available. The original entry's “FFI001 array/buffer boundary” refers to the older research baseline; the active `0.6.7` source pin has a bounded synchronous `Buffer(U8)` SIMD fixture. Typed/asynchronous GPU bulk integration remains unqualified and no speedup is assumed without a representative profile.
 - `BoundedRayTargetWorld` now provides bounded integer ray and shotgun-pellet target selection with nearest-hit ordering, stable-ID ties, spread offsets, source exclusion through `SpatialAimContract`, target removal and invalid-input rejection; JVM/native coverage proves center and offset pellet hits.
 - `CombatWorld.resolveShotgunPelletTargets` and player/enemy session wrappers now accept exactly one validated target per pellet, preserve repeated target IDs when multiple pellets hit the same actor, allow bounded misses, and publish ordered combat events; JVM/native coverage proves target order and rejects wrong-length selections.
 - `LoopbackSession.resolvePlayerSpatialShotgun` now builds one shared `SpatialAimContract`, derives weapon pellet offsets from the authoritative combat state, selects spatial targets, and resolves the selected IDs through the authoritative per-pellet combat path; JVM/native coverage proves spread-specific damage, source exclusion, target removal and target health.
@@ -488,8 +488,8 @@ indefinitely.
 
 The roadmap is not complete; completed work remains recorded here rather than archiving the active backlog.
 
-- Release qualification now uses source-built Kof `0.6.6` at source commit
-  `7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`; the compiler JAR identity is
+- Release qualification now uses source-built Kof `0.6.7` at source commit
+  `83626d5cc47074ed3edd6e3fb39dd83bcb4e3011`; the compiler JAR identity is
   recorded in `MEMORY.md`, and CI computes the distribution digest per build
   because tar metadata varies. The preparation gate verifies the upstream native
   GC cycle guard; no local GC patch is applied. Its native assembler emits Linux

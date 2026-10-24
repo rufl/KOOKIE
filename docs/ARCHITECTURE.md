@@ -88,9 +88,9 @@ only generated mechanical shader metadata and GPU handles. Kof continues to own
 camera/projection semantics, bounded staging, material/pass selection and render
 ordering; it never parses or composes SPIR-V at runtime.
 
-The active Kof4j `0.6.6` pin is the official `kof-0.6.6-linux-x86_64`
+The active Kof4j `0.6.7` pin is the official `kof-0.6.7-linux-x86_64`
 release tag at source commit
-`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`. The existing
+`83626d5cc47074ed3edd6e3fb39dd83bcb4e3011`. The existing
 `scripts/verify_simd_dispatch.sh` qualifies the bounded synchronous
 `Buffer(U8)` producer/copy-back path on JVM and native x86-64, and provides
 freestanding syntax proofs for AArch64 Linux, RISC-V Linux and x86-64/AArch64

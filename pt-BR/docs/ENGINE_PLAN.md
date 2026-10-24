@@ -6,8 +6,8 @@ release de demo jogável D1 continua aberta e o próximo par dogfood aguarda um
 runner self-hosted Windows**.
 
 Baseline de pesquisa: 2026-09-22, Kof 0.4.9-beta. Gate atual de qualificação:
-fonte Kof `0.6.6` da branch `lab`, no commit
-`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`. A arquitetura do projeto está em
+fonte Kof `0.6.7` da branch `lab`, no commit
+`83626d5cc47074ed3edd6e3fb39dd83bcb4e3011`. A arquitetura do projeto está em
 `ARCHITECTURE.md`. Consulte [evidências de linguagem/runtime](KOF_LANGUAGE.md),
 [sondagens iniciais](RESEARCH_PROBES.md), [análise aprofundada do curso](KOF_COURSE.md)
 e [levantamento de sistemas de jogo](GAME_ECOSYSTEM.md) para os limites das
@@ -218,7 +218,7 @@ As fontes versionadas da UI e os limites adicionais de licenciamento estão em
 
 ## 3. A fronteira FFI deve ser comprovada primeiro
 
-O runtime Kof `0.6.6` fixado expõe `Buffer(U8)` somente em bytes nos
+O runtime Kof `0.6.7` fixado expõe `Buffer(U8)` somente em bytes nos
 caminhos JVM e nativo x86-64; `scripts/verify_simd_dispatch.sh` passa seu
 formato síncrono INOUT nesses alvos. Arrays tipados genéricos, structs,
 ponteiros crus, buffers de saída arbitrários e callbacks nativos continuam
@@ -971,7 +971,7 @@ Saves duráveis contra crash validam um arquivo staged, executam fsync dos
 dados, rename atômico e fsync do diretório pai. Migrações cobrem schemas antigos
 em várias etapas; replay v3 vincula identidade de engine/conteúdo/seed e um
 checksum global.
-O empacotamento exige o toolchain Kof `0.6.6` exato construído a partir da
+O empacotamento exige o toolchain Kof `0.6.7` exato construído a partir da
 fonte, árvore limpa e chave Ed25519 privada do owner; depois assina arquivo,
 manifesto de procedência e conjunto de checksums. O servidor empacotado
 continua independente de gráficos.
@@ -1029,17 +1029,17 @@ válidos. O ponto de entrada `kookie_simd_sum_u8_buffer` mapeia um
 `Buffer(U8)` do Kof mais sua extensão validada pelo Kof para a redução
 selecionada.
 
-O commit de fonte `7c237861a9035d84b1f7ec4cfddd89daef4c6ddd` do Kof `0.6.6` é
+O commit de fonte `83626d5cc47074ed3edd6e3fb39dd83bcb4e3011` do Kof `0.6.7` é
 a entrada do toolchain `Buffer(U8, INOUT)`. A CI constrói essa fonte exata
 depois de normalizar seus metadados de versão embutidos. A fonte fixada também
 implementa callbacks síncronos em JVM, host JS e native x86-64/riscv64/aarch64,
-mas o KOOKIE não repetiu a matriz cross de callback/Buffer contra o 0.6.6.
+mas o KOOKIE não repetiu a matriz cross de callback/Buffer contra o 0.6.7.
 `scripts/verify_simd_dispatch.sh` é a qualificação local JVM/nativo x86-64 e
 deve ser executado novamente contra este pin.
 
 O registro de benchmark mantido abaixo foi produzido com a distribuição Kof
 qualificada anterior; ele é evidência de ABI e redução representativa, não uma
-afirmação de desempenho atual do Kof 0.6.6. Os dois alvos coincidiram em
+afirmação de desempenho atual do Kof 0.6.7. Os dois alvos coincidiram em
 `scalar-total=simd-total=expected-total=16844324864`, e a prova de sintaxe
 AArch64 passou. Isso é evidência de ABI e redução representativa, não de
 tempo de frame nem de velocidade do gameplay; a jogabilidade de produção
@@ -1064,14 +1064,14 @@ Regra de exibição do repositório: configure `KOOKIE_PRESENTATION_ISOLATION_WR
 
 | Risco | Evidência atual | Ação / estágio de liberação |
 |---|---|---|
-| FFI em lote continua específica por alvo; estruturas/ponteiros e callbacks não são um contrato de engine qualificado localmente | O `Buffer(U8, INOUT)` fixado do 0.6.6 passa na qualificação focada JVM/nativo x86-64; a fonte fixada implementa callbacks síncronos em JVM, host JS e targets nativos, mas o KOOKIE não repetiu essa matriz de callback/cross | Usar somente alvos medidos, manter fallback escalar e direcionar trabalho de produção apenas quando um perfil identificar o mesmo formato de redução em lote |
+| FFI em lote continua específica por alvo; estruturas/ponteiros e callbacks não são um contrato de engine qualificado localmente | O `Buffer(U8, INOUT)` fixado do 0.6.7 passa na qualificação focada JVM/nativo x86-64; a fonte fixada implementa callbacks síncronos em JVM, host JS e targets nativos, mas o KOOKIE não repetiu essa matriz de callback/cross | Usar somente alvos medidos, manter fallback escalar e direcionar trabalho de produção apenas quando um perfil identificar o mesmo formato de redução em lote |
 | Inicialização do runtime C nativo/driver | Caminhos reais SDL3 de GPU/áudio/entrada passam no Linux qualificado; o gameplay Kof PE nativo de Windows passa pelo smoke SDL Kof, e o pacote de apresentação verifica ligação nativa a SDL3/SDL_mixer/SDL_GPU e produtos SPIR-V/DXIL | Manter gates por plataforma/GPU; não inferir smoke visual de apresentação Windows a partir de linkage, smoke sem gráficos ou Xvfb padrão |
 | Coletor nativo após spawn | Estágio de spawn cumulativo na fonte do alocador | Uma única thread Kof; soak prolongado; nenhum bypass inseguro de GC manual |
 | Desempenho da geração de código nativo | Pipeline mínimo de otimização | Medir arrays/matemática/FFI representativos; usar batching/pré-alocação; não reescrever a jogabilidade em C |
 | Fechamento do runtime distribuído | O perfil JVM para Windows preserva um runtime OpenJDK completo fixado por digest e sua árvore legal; a poda do compilador nativo ainda emite o aviso conhecido | Manter a escolha JVM explícita, registrar identidade/tamanho do runtime, comparar arquivos reproduzíveis e nunca tratá-la como fallback nativo silencioso |
-| Manipulador nativo de exceção obsoleto | O gate de asserção JVM/native do Kof `0.6.6` termina com status 1 e o diagnóstico esperado; hangs de caminhos de falha continuam limitados externamente | Validar falhas esperadas antes de throw; usar gates externos de timeout/saída/output; nenhum shim de fluxo de controle |
+| Manipulador nativo de exceção obsoleto | O gate de asserção JVM/native do Kof `0.6.7` termina com status 1 e o diagnóstico esperado; hangs de caminhos de falha continuam limitados externamente | Validar falhas esperadas antes de throw; usar gates externos de timeout/saída/output; nenhum shim de fluxo de controle |
 | Paridade de JSON/split nativo | JSON de registros mistos fracionários corrompeu valores; split com pipe escapado diferiu da JVM | Reparar/provar esquemas exatos de conteúdo/salvamento e contratos do parser antes de depender de G3/G4 |
-| Linguagem/documentação divergem rapidamente | Curso 0.3.7 / páginas mais antigas do portal / gate de fonte 0.6.6 | Fixar identidade exata do toolchain e digest do arquivo; atualizar por sondas focadas de comportamento, não somente compilação |
+| Linguagem/documentação divergem rapidamente | Curso 0.3.7 / páginas mais antigas do portal / gate de fonte 0.6.7 | Fixar identidade exata do toolchain e digest do arquivo; atualizar por sondas focadas de comportamento, não somente compilação |
 | Confiabilidade/segurança do editor | Execução de arquivo único, UI em JS, manipuladores privilegiados não autenticados | CLI + editor separado com capacidade de LSP; nenhuma dependência de fork do editor |
 | Pipeline de criação torna-se um segundo engine | Vários runtimes monolíticos ou autoridades | Contratos compartilhados de runtime/query/conteúdo `.kf`; publicação em estágios no limite do quadro |
 | Suposições sobre licenças/recursos | Direitos de código/assets indefinidos; fonte DoomKof sem licença | Preservar a proveniência, resolver concessões, possuir/testar os recursos inicialmente |

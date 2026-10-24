@@ -8,8 +8,8 @@ Status: **PROPOSED**. This plan is the execution document for decision
 Normative boundary and batch ABI: [Kof native-boundary and synchronous batch
 ABI](KOF_NATIVE_BOUNDARY_SPEC.md).
 
-Current source pin: Kof `0.6.6` at
-`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`. Qualification of this pin is in
+Current source pin: Kof `0.6.7` at
+`83626d5cc47074ed3edd6e3fb39dd83bcb4e3011`. Qualification of this pin is in
 progress; the previous local proof was for
 `f42ed91dfbceae09880b7d0619d98f67490149d1` and does not transfer
 automatically.
@@ -49,8 +49,8 @@ is:
 
 This is physical source composition, not a performance claim.
 
-The official Kof 0.6.6 Linux release archive
-`kof-0.6.6-linux-x86_64.tar.gz` has SHA-256
+The official Kof 0.6.7 Linux release archive
+`kof-0.6.7-linux-x86_64.tar.gz` has SHA-256
 `96dd0d804c02e1e0f066dc0b53a4b1c385595d32820d97aeb77bb5dc772296f6`.
 CI separately builds the exact pinned source commit after normalizing
 toolchain metadata. Earlier qualification records below retain their original
@@ -101,19 +101,19 @@ matrix and target-specific cross-platform/hardware gates have not been run.
 1. Re-run `python3 scripts/update_kof_lab.py --check` immediately before the
    change.
 2. If adopting the candidate, apply it with
-   `--expected-commit 7c237861a9035d84b1f7ec4cfddd89daef4c6ddd` and
-   `--expected-version 0.6.6`; do not update a moving `lab` ref implicitly.
+   `--expected-commit 83626d5cc47074ed3edd6e3fb39dd83bcb4e3011` and
+   `--expected-version 0.6.7`; do not update a moving `lab` ref implicitly.
 3. Build the exact source archive and record source commit and archive hash.
 4. Re-run static/JVM, SIMD and the native/package gate with the exact source.
 5. Refresh active documentation only after the new baseline is green or its
    limits are explicitly recorded.
 
 **Exit gate:** all active pin references name
-`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd` and the exact qualification
+`83626d5cc47074ed3edd6e3fb39dd83bcb4e3011` and the exact qualification
 results and remaining native/package limit are recorded. No migration claims
 “latest” before this gate.
 
-**Current local result:** P0 passed for the current tree and exact `0.6.6`
+**Current local result:** P0 passed for the current tree and exact `0.6.7`
 archive. The remaining qualification boundary is target-specific CI and
 hardware evidence, not the local Linux source/package gate.
 
@@ -140,7 +140,7 @@ zero/maximum cases and scalar parity. A source comment or an upstream claim is
 not sufficient.
 
 **Current status:** the focused `scripts/verify_simd_dispatch.sh` gate passed
-with the exact pinned Kof `0.6.6` archive on JVM and native x86-64. The fixture
+with the exact pinned Kof `0.6.7` archive on JVM and native x86-64. The fixture
 reported `buffer-fixture-sum=809`, `buffer-inout-sum=1231`, equal scalar/SIMD
 totals and selected SIMD routing. The same gate now adds freestanding syntax
 proofs for AArch64 Linux, RISC-V Linux and x86-64/AArch64 macOS when Clang is

@@ -31,19 +31,19 @@ registros de evidência dos alvos e obtenha a aprovação de
 cd /home/lich/lichforge/code/monorepo/engines/KOOKIE
 source scripts/kof_pin.sh
 
-export KOF_ROOT=/tmp/kof-debug/dist-ci/kof-0.6.6-linux-x86_64
-export KOF_ARCHIVE=/tmp/kof-debug/dist-ci/kof-0.6.6-linux-x86_64.tar.gz
+export KOF_ROOT=/tmp/kof-debug/dist-ci/kof-0.6.7-linux-x86_64
+export KOF_ARCHIVE=/tmp/kof-debug/dist-ci/kof-0.6.7-linux-x86_64.tar.gz
 export KOOKIE_WINDOWS_SDL_PREFIX=/tmp/kookie-release-deps/sdl/SDL3-3.4.18/x86_64-w64-mingw32
 export KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/tmp/kookie-release-deps/mixer/SDL3_mixer-3.2.4/x86_64-w64-mingw32
 export KOOKIE_WINDOWS_FREETYPE_PREFIX=/tmp/kookie-release-deps/freetype/x86_64-w64-mingw32
 export KOOKIE_WINDOWS_HARFBUZZ_PREFIX=/tmp/kookie-release-deps/harfbuzz/x86_64-w64-mingw32
 export KOOKIE_DXC=/tmp/kookie-release-deps/dxc/bin/dxc
 export PATH="$KOF_ROOT/bin:$PATH"
-export KOOKIE_KOF_SOURCE_COMMIT=7c237861a9035d84b1f7ec4cfddd89daef4c6ddd
+export KOOKIE_KOF_SOURCE_COMMIT=83626d5cc47074ed3edd6e3fb39dd83bcb4e3011
 export KOOKIE_KOF_ARCHIVE_SHA256="$(sha256sum "$KOF_ARCHIVE" | cut -d ' ' -f 1)"
 ```
 
-`KOF_ARCHIVE` deve ser uma distribuição Kof `0.6.6` construída a partir da
+`KOF_ARCHIVE` deve ser uma distribuição Kof `0.6.7` construída a partir da
 fonte, com metadados normalizados, no commit `lab` fixado.
 `scripts/prepare_kof_source.sh` verifica a guarda upstream de ciclos do GC
 native antes do Maven; depois o toolchain de release aplica
@@ -163,8 +163,8 @@ self-hosted, windows, x64, kookie-demo-release
 
 Ambos precisam de suporte ao shell do Git conforme o sistema, Python 3,
 OpenSSL, `glslc`, `spirv-val` e o checkout do repositório. O job hospedado
-`toolchain` constrói o Kof `0.6.6` a partir de
-`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`; cada job self-hosted baixa,
+`toolchain` constrói o Kof `0.6.7` a partir de
+`83626d5cc47074ed3edd6e3fb39dd83bcb4e3011`; cada job self-hosted baixa,
 verifica esse archive exato e adiciona seu binário `kof` ao `PATH`. Archive Kof
 pré-instalado, secret de digest do compilador Kof e Zig pré-instalado não fazem
 parte do contrato dos runners de release.

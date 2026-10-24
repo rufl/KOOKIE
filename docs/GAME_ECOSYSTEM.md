@@ -3,8 +3,8 @@
 Research date: 2026-09-22. Internet/API/source research only; none of these games was built or launched here.
 
 This is a dated ecosystem survey, not the current KOOKIE qualification record.
-The active source/CI baseline is now Kof `0.6.6` from the official
-`kof-0.6.6-linux-x86_64` release tag; the projects below remain research
+The active source/CI baseline is now Kof `0.6.7` from the official
+`kof-0.6.7-linux-x86_64` release tag; the projects below remain research
 references and were not used as engine dependencies.
 
 ## Answer
