@@ -138,6 +138,7 @@ for relative in (
     "RELEASE_PUBLIC_KEY.pem",
     "fonts/jared-lite.ttf",
     "fonts/pixand.ttf",
+    "fonts/ThaleahFat.ttf",
     "fonts/OFL.txt",
     "fonts/readme.txt",
     "fonts/manifest.json",

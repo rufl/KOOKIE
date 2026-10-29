@@ -74,12 +74,33 @@ and touch actions for jump, roll, dash, glide, fly, shoot, melee, special
 projectile and throwable; keyboard and mouse remain available. Movement repeats
 according to stick deflection and the movement-speed setting. Settings retain
 movement speed and camera sensitivity alongside server and reconnect options.
+Training mode is available with `?kookie_role=training&kookie_autoconnect=1`.
+It admits up to four players into a local combat session with four server-owned
+100-HP dummies; the WebGL client shows confirmed melee damage numbers. Dummies
+respawn after 45 server ticks. WebGL and SDL use the imported nine-frame smoke
+flipbook (horizontal atlas in WebGL, cooked 3x3 atlas in SDL) for grounded
+movement and takeoff/landing cues. `scripts/verify_native_presentation_smoke.sh`
+exercises all three triggers and confirms SDL stages the flipbook in its GPU pass.
 
 `apps/web_server/main.kf` runs an authoritative fixed-tick WebSocket server
 with eight-player/four-spectator admission. `scripts/verify_kof_web_server.sh`
-qualifies admission and the tested movement, action, damage, projectile,
-throwable, collision, and disconnect/re-admission scenarios. This is local
-qualification, not proof of WAN/tailnet latency or every gameplay edge case.
+qualifies admission, movement/action/combat/projectile/collision/disconnect
+behavior, shared concurrent Kutter edits, and the network-visible double-jump
+roll animation and roll-side bit. This is local qualification, not proof of
+WAN/tailnet latency or every gameplay edge case.
+
+The SDL gameplay client can join this same authoritative session. Configure
+`KOOKIE_KUTTER_HOST` and `KOOKIE_KUTTER_PORT`, and set
+`KOOKIE_KUTTER_PATH=/session/goose` or `/session/cat` to match the server's
+game route. Hosted connections use verified `wss://` by default; plain `ws://`
+is accepted only for loopback and requires `KOOKIE_KUTTER_SCHEME=ws`. Optional
+`KOOKIE_KUTTER_TOKEN` supplies the server's bearer subprotocol token. The
+default path `/kutter/session` remains the separate editor route. Native builds
+need libcurl 7.86.0 or newer with WebSocket support; Linux packages use the
+system libcurl runtime, while Windows packaging requires
+`KOOKIE_WINDOWS_CURL_PREFIX`. The native client sends authoritative inputs and
+renders shared snapshot state; its compact throwable/effect markers are not
+the browser's 3D item renderer.
 
 Run the canonical local full-scene qualification path through the native Kof
 server. Build it once:
@@ -236,14 +257,14 @@ address; the game backend listens on `KOOKIE_WEB_PORT` (default `8766`) and
 Kutter on `KOOKIE_KUTTER_PORT` (default `8768`), both loopback-only.
 `/session`, `/healthz`, and `/metrics` route to gameplay; `/bugfeed*` routes to
 its dedicated Zig process, so uploads up to the 8 MiB screenshot limit bypass
-the gameplay adapter’s 8 KiB HTTP request buffer. `/kutter/session` routes to
-the separate editor process, so editing does not occupy the gameplay
-connection. The editor currently keeps its document in the session and
-imports/exports canonical `.kutter` files; it does not persist changes on the
-server or load them into gameplay. The Kof protocol has no authentication, so
-Tailscale ACLs are the access boundary. Tailscale Serve terminates TLS; both Kof
-servers remain TCP-only. The preview requires Zig 0.17.0; Node.js is not a
-backend runtime dependency.
+the gameplay adapter's 8 KiB HTTP request buffer. `/kutter/session` routes to
+the separate Kof editor-service process on port `8768`. Browser and native
+editors share one in-memory canonical document there and broadcast edits to
+each other. Save/export produces the canonical `.kutter` file; server-side
+persistence and automatic loading into gameplay are not implemented. The Kof
+protocol has no authentication, so Tailscale ACLs are the access boundary.
+Tailscale Serve terminates TLS; both Kof services remain TCP-only. The preview
+requires Zig 0.17.0; Node.js is not a backend runtime dependency.
 
 Run the Kof server end-to-end gate:
 
@@ -526,8 +547,10 @@ KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
 scripts/package_kookie.sh --runtime native --target linux-x86_64 \
   --content prototype
 ```
-The current Kutter authoring surface is a fixed-layout native workspace, not a
-separate dockable desktop application. It has a model-backed 2D top-down level
+Kutter has web and native clients backed by the same live server document; it
+is not a separate dockable desktop application. The web editor uses a compact
+creative-mode layout with a game viewport, build toolbar, and on-demand
+Layers/Properties drawer. The native surface has a model-backed 2D top-down
 overview, paginated clickable hierarchy and inspector panels, snapped viewport
 placement, and duplicate/group/ungroup/delete/recolor controls. Four hierarchy
 entries are visible per page; header arrows change pages and show the current

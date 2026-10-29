@@ -3,14 +3,152 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Web multiplayer includes a Wizard Hat pickup: its owner gets five
+  authoritative fireball shots, replicated as distinct projectiles with hit
+  damage and fire impacts. The HUD switches from seeds to remaining fireballs.
+  Coffee Mug speed was traced through pickup state into movement speed; its
+  existing +2 movement bonus is applied and expires on schedule.
+- The uploaded ThaleahFat typeface now renders WebGL training damage numbers.
+  The archive contained no license terms; verify licensing before redistribution.
+
+- Native SDL clients can join the authoritative WebSocket multiplayer session
+  used by WebGL; inputs, actors, throwables, health, ammo, and impact state come
+  from the same server snapshots. Native clients show a compact 2D snapshot
+  overlay, including orbiting dizzy markers, rather than the browser's full
+  3D throwable meshes.
+- Thrown watermelons now tumble in flight, bounce once on the arena floor, then
+  burst into four collectible slices. Motion is inspired by
+  [Koppikuoriainen's falling-watermelon picoCAD pack](https://koppikuoriainen.itch.io/watermelon);
+  no reference assets were imported.
+
+
+- Multiplayer now spawns randomized, shared throwable bombs, flour packages,
+  watermelons, crates, and boulders around safe arena locations. Press to pick
+  up, hold to charge, and release to throw; the HUD shows throw power and a
+  parabolic landing preview. Bombs explode and flour clouds on contact; crates,
+  boulders, and watermelons resolve on impact. Watermelons scatter four slices
+  that restore health and seed ammo; acquired seeds can be spat. Non-explosive
+  throws can briefly dizzy opponents, shown by orbiting stars. Existing
+  power-ups remain automatic pickups; throwable items respawn after 180 ticks.
+
+- Ground smoke emitted on jump, landing, and running is now white in the WebGL
+  and native presentations; the smoke sprite's transparency is preserved.
+
+
+- Touch layout customization moves each action button separately by dragging or
+  selecting it for position sliders. Slider edits apply immediately and remain
+  saved independently; legacy action-cluster layouts migrate to each button.
+  WebGL goose and combat-dummy visuals are sized closer to the cat model.
+
+- Added the user-provided Star3 hit-spark flipbook to confirmed melee impacts
+  in the WebGL client. Native VFX atlas and renderer also register its seven
+  frames; the uploaded asset's license terms were not supplied.
+
+- Mobile web has an upper-left Touch toggle. Reposition the movement/look
+  sticks and each action button by dragging or sliders; saved layouts persist
+  locally and can be named, recalled, or reset.
+- Web multiplayer no longer renders text or UID nameplates. Remote player
+  health is shown with the existing heart meter; the local player keeps the
+  HUD-only health display.
+- Web and native Kutter clients now edit one live Kof-owned document session.
+  Both expose the same build tools, hierarchy/properties actions, transforms,
+  grouping, preview, undo/redo, and import/export; changes broadcast between
+  connected editors. The server document remains session-only until exported.
+- Double-jump roll is now held through its full 12-tick animation window on
+  server snapshots, even while Space remains held. SDL uses per-player
+  double-jump animation state instead of a one-frame global event. The web
+  multiplayer regression now releases Space before the second press and checks
+  that the roll survives a subsequent held-input frame.
+- Authoritative double-jump input now selects the roll animation for both
+  renderers and multiplayer-controlled bots. Horizontal jump direction is
+  encoded in the actor snapshot so the WebGL roll follows the correct side;
+  native SDL mirrors the direction from authoritative local movement.
+- Unexpected socket loss now also clears held movement/actions, pending input and
+  ping state, releases captured/pointer-locked look, and stops spectator battle
+  bots; a reconnect cannot inherit stale local controls or bot sessions.
+- Reworked Kutter into an immersive creative-mode workspace: a full-size 3D
+  viewport, compact build hotbar, grouped marker tools, and a hidden-on-start
+  Layers/Properties drawer. File actions are tucked into one menu; mobile keeps
+  the build toolbar over the viewport and opens object details on demand.
+- Kutter now rejects outstanding requests and clears partial document transfers
+  on socket loss, ignores callbacks from replaced sockets, and stops reconnect,
+  heartbeat, and render-loop timers when the editor page is closed.
+- Cleared the browser's authoritative actor scene and interpolation history on
+  explicit leave or socket close, preventing disconnected players from remaining
+  as local render ghosts. Added server snapshot coverage for player removal.
+- Fixed browser Space jump to send the authoritative jump-start edge as well as
+  the held state. Shift roll now travels forward when no direction is held, and
+  the WebGL roll animation tumbles forward instead of tipping sideways.
+- Packaged the game's Pixand and Jared Lite fonts into both web clients. The
+  web game Settings now persist an optional player name and show it with the
+  server-assigned player UID above the local model.
+- Corrected player keyboard strafe and desktop mouse-look direction: A/left
+  moves left, D/right moves right, and mouse motion turns with the pointer.
+  Touch look and spectator controls retain their prior directions.
+- Reduced the WebGL health-heart billboard size, moved the default player
+  camera slightly farther back, and added bounded mouse-wheel zoom. Space is
+  matched by `KeyboardEvent.code`; short taps preserve 80% of upward velocity
+  instead of 60%, making Space jumps more visible.
+- Corrected the WebGL health-heart atlas vertical sampling, lowered the Cat's
+  heart billboard closer to its model, and increased the active player's
+  third-person camera distance by 37.5%; spectator camera framing is unchanged.
+
+- Kutter's WebGL viewport now renders its construction plane immediately,
+  including while the canonical level document is unavailable, instead of
+  leaving the editor canvas black.
+
+- Added a startup team/role choice for red Goose, blue Cat, or spectator.
+  Red and blue selections join through the server's existing team-specific
+  routes; the active status identifies the selected team.
+
+- Corrected the Cat model's reversed forward axis in both WebGL actor rendering
+  and the Kof SDL presentation path; server yaw and Goose orientation are unchanged.
+
+- Reduced browser movement jitter by sampling buffered multiplayer positions
+  against the authoritative 60 Hz tick timeline instead of packet arrival
+  timestamps. A fixed three-tick render buffer keeps network delivery jitter
+  from changing the interpolation speed; server authority is unchanged.
+
+- Corrected the SDL health-heart atlas V mapping so sprite rows render upright.
+
+- Tripled the Cat's visual scale in WebGL and Kof SDL without changing
+  Goose scale or gameplay collision dimensions. Increased shared authoritative
+  jump airtime from 300 ms to 450 ms so both renderers, bots, and multiplayer
+  snapshots use the same more visible jump arc.
+
+- Fixed multiplayer snapshots dropping authoritative health, stamina, and ammo,
+  and corrected their header mapping for player/spectator counts. Combo is not
+  present in the multiplayer payload, so the HUD now displays `--` instead of
+  mislabeling the player count as combo. Spectators see “SPECTATING” and `--`
+  for player-only stats rather than camera coordinates or undefined values.
+
+- Fixed the browser package’s missing heart-atlas URL and multiplayer impacts’
+  placeholder cubes. The HUD texture now resolves from the packaged runtime;
+  hitscan/projectile hits, melee, and explosions use their animated VFX assets.
+  Cumulative snapshots no longer restart active effects; event state is bounded
+  to 32 effects and cleared when the authoritative tick resets.
+- Corrected two stale third-person camera assertions: trailing camera position
+  uses lower Z for KOOKIE's +Z-forward convention, and seven zoom steps (not
+  six) reach the four-unit close bound with the configured two-unit step. Camera
+  follow and zoom implementations were already honoring these contracts.
+
+- Added a native Kof editor-mode toggle: F1 opens the existing Kutter level
+  editor from an active game, and Escape/F1 returns to the same session without
+  resetting gameplay. Editor changes persist in Kutter's bounded level document
+  and undo history; menu access to the editor remains unchanged.
+
 - Fixed tailnet Caddy routing for the spectator WebSocket and both browser bot
   endpoints; `/spectate`, `/session/goose` and `/session/cat` now reach the
-  Kof multiplayer server. Added an index cache-buster for session-role updates.
-- Spectator mouse-look reverses both axes; camera free-flight uses WASD plus
-  Space/Shift vertically, while mobile sticks move/look and combat actions stay
-  disabled. Local camera motion is client-only. It starts above arena center,
-  aimed at the bot spawn area, not the out-of-bounds placeholder player origin.
-  Touch controls and hints are hidden at the 701px desktop breakpoint.
+  Kof multiplayer server. Root HTML and renderer/session scripts revalidate
+  after redeploys instead of silently running cached input code.
+- Fixed spectator desktop inputs: pointer-lock mouse-look is requested above
+  the 700px breakpoint, with hover-to-look fallback if the browser denies
+  locking; WASD movement now computes its axis magnitude before normalization.
+  Mouse-right turns right, A strafes left, and D right. Vertical mouse-look
+  keeps the renderer’s camera convention. Mobile sticks and client-only
+  free-flight stay available; spectator combat actions remain disabled. The
+  camera starts above arena center, aimed at the bot spawn area. Touch controls
+  and hints are hidden at the 701px desktop breakpoint.
 - Tailnet preview supervises the Kof multiplayer process, records unexpected
   exit status and restarts it after one second; startup health checks still
   require the backend itself to answer. The Kof transport-poll fatal path now
@@ -1121,6 +1259,7 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   PvP suppresses player markers while retaining non-player markers. Added
   camera-relative arena mapping, bounded marker geometry, and native/Kof
   regression coverage.
+
 
 ## 2026-10-02
 ### GUI shell polish and current Linux qualification

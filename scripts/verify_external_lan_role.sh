@@ -122,8 +122,8 @@ if [[ "$target" == native ]]; then
     native/kookie_sdl_adapter.c \
     native/kookie_ui_renderer.c \
     native/kookie_transport.c \
-    -o "$runtime_dir/build/libkookie_sdl_adapter.so" \
-    $(pkg-config --cflags --libs sdl3 sdl3-mixer freetype2 harfbuzz) -lm
+    native/kookie_kutter_sync.c \
+    $(pkg-config --cflags --libs sdl3 sdl3-mixer freetype2 harfbuzz libcurl) -lm -pthread
   (
     cd "$runtime_dir"
     kookie_kof_observed "external-lan-role-${target}-${role}" \

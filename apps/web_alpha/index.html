@@ -6,7 +6,10 @@
   <meta name="theme-color" content="#101b16">
   <title>GatoGanso — Play</title>
   <style>
-    :root { color-scheme: dark; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #101b16; color: #f5f4e8; }
+    @font-face { font-family: "ThaleahFat"; src: url("fonts/ThaleahFat.ttf") format("truetype"); font-display: swap; }
+    @font-face { font-family: "Pixand"; src: url("fonts/pixand.ttf") format("truetype"); font-display: swap; }
+    @font-face { font-family: "Jared Lite"; src: url("fonts/jared-lite.ttf") format("truetype"); font-display: swap; }
+    :root { color-scheme: dark; font-family: "Pixand", system-ui, sans-serif; background: #101b16; color: #f5f4e8; }
     * { box-sizing: border-box; }
     html, body { width: 100%; min-width: 0; height: 100%; margin: 0; overflow: hidden; }
     body { background: radial-gradient(ellipse at 50% 30%, #26382a 0, #101b16 72%); }
@@ -20,7 +23,7 @@
     .kookie-session-panel { width: 100%; height: 100%; min-width: 0; display: grid; grid-template-rows: auto minmax(0,1fr) auto; gap: 10px; padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
     .kookie-session-header { display: flex; align-items: center; gap: 14px; min-width: 0; min-height: 48px; }
     .kookie-session-brand { display: flex; align-items: baseline; gap: 10px; min-width: 0; flex: 0 0 auto; }
-    .kookie-session-brand strong { color: #f4d26d; font-size: clamp(18px, 2.5vw, 24px); letter-spacing: .07em; white-space: nowrap; }
+    .kookie-session-brand strong { color: #f4d26d; font-family: "Jared Lite", "Pixand", sans-serif; font-size: clamp(18px, 2.5vw, 24px); letter-spacing: .07em; white-space: nowrap; }
     .kookie-session-brand span { color: #bac5a7; font-size: 13px; }
     .kookie-session-header .kookie-session-controls { margin-left: auto; min-width: 0; }
     .kookie-session-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
@@ -43,13 +46,13 @@
     .kookie-session-stat[data-stat="ping"] { display: block; min-width: 54px; margin-left: auto; }
     .kookie-session-minimap { position: absolute; top: 14px; right: 14px; width: clamp(100px, 17vw, 164px); height: auto; min-height: 0; aspect-ratio: 3/2; border: 1px solid #ffffff35; border-radius: 14px; background: #07100de8; }
     .kookie-session-minimap[hidden] { display: none; }
-    .kookie-session-labels { position: absolute; inset: 0; pointer-events: none; }
-    .kookie-scene-label { padding: 3px 6px; border: 1px solid #ffffff26; border-radius: 7px; background: #101b16d9; color: #fffbe9; font: 700 10px/1.2 system-ui, sans-serif; }
     .kookie-session-runtime { position: absolute; z-index: 3; left: 14px; bottom: 14px; padding: 7px 10px; border: 1px solid #ffffff26; border-radius: 10px; background: #111c18dc; color: #dce8cc; font-size: 12px; }
     .kookie-session-status { position: absolute; z-index: 4; left: 50%; top: 50%; transform: translate(-50%,-50%); max-width: min(80%, 440px); padding: 12px 18px; border: 1px solid #f4d26d88; border-radius: 14px; background: #111c18eb; color: #fffbe9; text-align: center; font-weight: 700; }
     .kookie-session-status:empty { display: none; }
     .kookie-session-help { position: absolute; right: 14px; bottom: 14px; color: #e5e9d8; font-size: 12px; text-shadow: 0 1px 5px #000; }
     .kookie-session-touch-look { position: absolute; right: 16px; bottom: 16px; z-index: 2; padding: 7px 10px; border: 1px solid #ffffff38; border-radius: 999px; background: #111c18b8; color: #f5f4e8; font: 700 10px/1 system-ui, sans-serif; letter-spacing: .08em; pointer-events: none; opacity: .8; transition: opacity 250ms ease; }
+    .kookie-training-damage-layer { position: absolute; z-index: 5; inset: 0; pointer-events: none; overflow: hidden; }
+    .kookie-training-damage { position: absolute; transform: translate(-50%, -50%); color: #fff4a6; font: 30px/1 "ThaleahFat", "Pixand", sans-serif; letter-spacing: .02em; -webkit-text-stroke: .35px #160d00; text-shadow: 0 2px 4px #160d00, 0 0 10px #f08a12; will-change: transform, opacity; }
     .kookie-session-canvas-wrap[data-touch-look-started="true"] .kookie-session-touch-look { opacity: 0; }
     .kookie-session-footer { display: flex; align-items: center; min-height: 124px; }
     .kookie-session-game-controls { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px; }
@@ -70,12 +73,24 @@
     .kookie-touch-layout-editor input, .kookie-touch-layout-editor select { min-width: 0; min-height: 44px; padding: 6px 8px; border: 1px solid #63735b; border-radius: 8px; background: #0b1410; color: #fff; }
     .kookie-touch-layout-editor input[type="range"] { padding: 0; touch-action: manipulation; }
     .kookie-touch-layout-editor button { min-height: 44px; padding: 5px 8px; border-radius: 10px; font-size: 12px; }
-    .kookie-session-panel[data-layout-editing="true"] .kookie-session-stick, .kookie-session-panel[data-layout-editing="true"] .kookie-session-actions { outline: 2px dashed #f4d26d; outline-offset: 5px; cursor: move; }
+    .kookie-touch-layout-toggle { display: none; position: absolute; z-index: 9; top: max(6px, env(safe-area-inset-top)); left: max(6px, env(safe-area-inset-left)); min-width: 76px; min-height: 44px; padding: 0 9px; border: 1px solid #82936e; border-radius: 12px; background: #111c18ed; color: #f5f4e8; font: 700 10px/1 "Pixand", sans-serif; letter-spacing: .04em; touch-action: manipulation; }
+    .kookie-touch-layout-toggle[aria-pressed="true"] { border-color: #f4d26d; background: #59451deF; color: #fff2bd; }
+    .kookie-session-panel[data-layout-editing="true"] .kookie-session-stick, .kookie-session-panel[data-layout-editing="true"] .kookie-session-actions > button { outline: 2px dashed #f4d26d; outline-offset: 4px; cursor: move; }
+    .kookie-session-panel[data-layout-editing="true"] .kookie-session-actions { outline: 0; }
+    .kookie-session-panel[data-layout-editing="true"] .kookie-session-actions > button[data-layout-target="true"] { outline-style: solid; outline-color: #fff2bd; }
+    .kookie-throw-charge { position: absolute; z-index: 6; left: 50%; bottom: 22px; transform: translateX(-50%); display: grid; grid-template-columns: auto minmax(100px, 180px) auto; align-items: center; gap: 8px; width: min(340px, calc(100% - 28px)); padding: 8px 12px; border: 1px solid #f4d26d99; border-radius: 12px; background: #111c18e8; color: #fff2bd; font: 700 10px/1 system-ui, sans-serif; letter-spacing: .04em; pointer-events: none; }
+    .kookie-throw-charge[hidden] { display: none; }
+    .kookie-throw-charge-track { height: 10px; overflow: hidden; border-radius: 8px; background: #24382a; box-shadow: inset 0 0 0 1px #9ebf7966; }
+    .kookie-throw-charge-fill { width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #9ebf79, #f4d26d); transition: width 70ms linear; }
+    .kookie-throw-charge[data-full="true"] .kookie-throw-charge-fill { background: #ffad47; box-shadow: 0 0 12px #ffad47aa; }
+    .kookie-throw-prompt { position: absolute; z-index: 6; left: 50%; top: 57%; transform: translate(-50%,-50%); padding: 7px 10px; border: 1px solid #d1d99b99; border-radius: 8px; background: #111c18dc; color: #eff5d6; font: 700 10px/1 system-ui, sans-serif; letter-spacing: .06em; pointer-events: none; white-space: nowrap; }
+    .kookie-throw-prompt[hidden] { display: none; }
     .kookie-session-settings { position: relative; }
     .kookie-session-settings summary { min-height: 44px; display: flex; align-items: center; padding: 0 10px; color: #d3ddc5; cursor: pointer; font-size: 13px; }
     .kookie-session-settings-grid { position: absolute; z-index: 10; top: 52px; right: 0; bottom: auto; display: grid; grid-template-columns: 1fr; gap: 10px; width: min(320px, calc(100vw - 32px)); max-height: min(72dvh, 620px); overflow-y: auto; overscroll-behavior: contain; padding: 14px; border: 1px solid #68765c; border-radius: 14px; background: #17241def; box-shadow: 0 14px 38px #0008; }
     .kookie-session-settings label { display: flex; gap: 8px; align-items: center; color: #e5e9d8; font-size: 13px; }
-    .kookie-session-settings input[type="url"], .kookie-session-settings input[type="password"], .kookie-session-settings select { width: 100%; min-height: 44px; padding: 8px 10px; border: 1px solid #63735b; border-radius: 8px; background: #0b1410; color: #fff; }
+    .kookie-session-settings .kookie-session-player-name { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; }
+    .kookie-session-settings input[type="url"], .kookie-session-settings input[type="password"], .kookie-session-settings input[type="text"], .kookie-session-settings select { width: 100%; min-height: 44px; padding: 8px 10px; border: 1px solid #63735b; border-radius: 8px; background: #0b1410; color: #fff; }
     .kookie-session-settings input[type="checkbox"] { width: 20px; height: 20px; accent-color: #f4d26d; }
     .kookie-session-settings .kookie-session-range { display: grid; grid-template-columns: minmax(0, 1fr) 48px; gap: 6px 8px; align-items: center; }
     .kookie-session-settings .kookie-session-range span { grid-column: 1 / -1; }
@@ -143,7 +158,8 @@
       .kookie-session-settings { flex: 0 0 44px; min-width: 44px; }
       .kookie-session-settings summary { width: 44px; min-width: 44px; max-width: 44px; min-height: 44px; padding: 0 3px; overflow: hidden; white-space: nowrap; font-size: 8px; }
       .kookie-session-stage { border-radius: 12px; }
-      .kookie-session-hud { top: 6px; left: 6px; right: 6px; gap: 4px; }
+      .kookie-touch-layout-toggle { display: inline-flex; align-items: center; justify-content: center; }
+      .kookie-session-hud { top: 56px; left: 6px; right: 6px; gap: 4px; }
       .kookie-session-stat { min-width: 52px; padding: 4px 6px; border-radius: 8px; }
       .kookie-session-stat-label { font-size: 8px; }
       .kookie-session-stat-value { margin-top: 1px; font-size: 12px; }
@@ -158,7 +174,7 @@
       .kookie-session-actions button { min-width: 44px; min-height: 44px; border-radius: 14px; padding: 3px; font-size: 10px; }
       .kookie-session-help { display: none; }
       .kookie-session-touch-look { right: 10px; bottom: 116px; }
-      .kookie-session-runtime { left: 6px; top: 48px; bottom: auto; max-width: 45%; font-size: 9px; }
+      .kookie-session-runtime { left: 6px; top: 96px; bottom: auto; max-width: 45%; font-size: 9px; }
       .kookie-session-status { top: 44%; max-width: 82%; padding: 8px 12px; font-size: 12px; }
     }
     @media (max-width: 380px) and (orientation: portrait) {
@@ -181,7 +197,7 @@
       .kookie-stick-label { display: none; }
       .kookie-session-help { display: none; }
       .kookie-session-touch-look { right: 50%; bottom: 78px; transform: translateX(50%); }
-      .kookie-session-runtime { left: 8px; top: 72px; bottom: auto; }
+      .kookie-session-runtime { left: 8px; top: 96px; bottom: auto; }
     }
     @media (min-width: 701px) {
       .kookie-session-panel { grid-template-rows: auto minmax(0,1fr); }
@@ -192,7 +208,7 @@
 </head>
 <body>
   <main id="kof-root" aria-label="GatoGanso game"></main>
-  <script src="kookie-webgl-renderer.js"></script>
-  <script src="kookie-session.js?v=20261023-spectator-controls"></script>
+  <script src="kookie-webgl-renderer.js?v=random-throwables-slices"></script>
+  <script src="kookie-session.js?v=random-throwables-slices"></script>
 </body>
 </html>

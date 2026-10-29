@@ -42,6 +42,11 @@
         "Quirky Series - Animals Mega Pack Vol 1 (productId 137259, version 1.5)",
         "Quirky Series - River Animals Vol 1 (productId 183279, version 1.5)"
       ]
+    },
+    {
+      "id": "smoke-fx-lite-user-upload",
+      "archive_name": "Smoke FX Lite Zip 5.25.23.rar",
+      "license": "user-uploaded; license terms not verified"
     }
   ],
   "direct_sources": [
@@ -401,14 +406,18 @@
       "license": "CC0"
     },
     {
-      "id": "model.prildarill-cat",
-      "kind": "model",
-      "source": "direct_sources.prildarill-low-poly-cat",
-      "authored_path": "models/cat/cat.glb",
-      "runtime_path": "models/cat/cat.glb",
-      "format": "glb",
-      "license": "upstream-use-permission-no-credit-required",
-      "cook_status": "cat Unity Asset Store animations retargeted onto existing cat skeleton; prototype-only"
+      "id": "vfx.predrawn-melee-hit-spark",
+      "kind": "predrawn-spritesheet",
+      "source": "user-provided: Hitspark FX Batch1 Star3 sheet.png",
+      "authored_path": "vfx/predrawn/hitspark_star3_7x1.png",
+      "runtime_path": "runtime/vfx/predrawn/hitspark_star3_3x3.png",
+      "cooked_path": "cooked/vfx/predrawn/hitspark_star3_3x3.rgba.png",
+      "format": "png",
+      "grid": "3x3",
+      "source_grid": "7x1",
+      "source_dimensions": "672x96",
+      "runtime_dimensions": "256x256",
+      "license": "user-provided; terms not supplied"
     },
     {
       "id": "ui.player-hearts",
@@ -531,6 +540,29 @@
       "runtime_path": "runtime/power_ups/flour_bag.json",
       "format": "json",
       "license": "project-authored"
+    },
+    {
+      "id": "config.power-ups.wizard-hat",
+      "kind": "runtime-config",
+      "source": "authored",
+      "authored_path": "runtime/power_ups/wizard_hat.json",
+      "runtime_path": "runtime/power_ups/wizard_hat.json",
+      "format": "json",
+      "license": "project-authored"
+    },
+    {
+      "id": "vfx.movement-smoke",
+      "kind": "flipbook-texture",
+      "source": "smoke-fx-lite-user-upload/SmokeFX Lite SpriteSheet 1A-1.png",
+      "authored_path": "vfx/predrawn/smoke_ground_1a_1.png",
+      "runtime_path": "runtime/vfx/predrawn/smoke_ground_3x3.png",
+      "format": "png",
+      "runtime_dimensions": "256x256",
+      "frames": "3x3",
+      "license": "user-uploaded; license terms not verified",
+      "web_runtime_dimensions": "576x64",
+      "web_runtime_path": "vfx/predrawn/smoke_ground_1a_1.png",
+      "web_frames": "9x1"
     }
   ]
 }

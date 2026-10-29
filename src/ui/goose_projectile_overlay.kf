@@ -14,12 +14,13 @@ class GooseProjectileOverlay {
     Int[] toDepths
     Int[] ages
     Bool[] active
+    Int[] halfSizes
     Int activeCountValue
 
     public constructor(Int capacity) {
         var actualCapacity = capacity
         if (actualCapacity <= 0) { actualCapacity = 1 }
-        if (actualCapacity > 16) { actualCapacity = 16 }
+        if (actualCapacity > 64) { actualCapacity = 64 }
         fromXs = new Int[actualCapacity]
         fromYs = new Int[actualCapacity]
         fromDepths = new Int[actualCapacity]
@@ -28,6 +29,10 @@ class GooseProjectileOverlay {
         toDepths = new Int[actualCapacity]
         ages = new Int[actualCapacity]
         active = new Bool[actualCapacity]
+        halfSizes = new Int[actualCapacity]
+        for (var index = 0; index < halfSizes.length; index = index + 1) {
+            halfSizes[index] = gooseProjectileHalfSize()
+        }
         clear()
     }
 
@@ -73,6 +78,16 @@ class GooseProjectileOverlay {
         Int fromX, Int fromY, Int fromDepth,
         Int toX, Int toY, Int toDepth
     ) {
+        return addShotSized(
+            fromX, fromY, fromDepth, toX, toY, toDepth,
+            gooseProjectileHalfSize())
+    }
+
+    Bool addShotSized(
+        Int fromX, Int fromY, Int fromDepth,
+        Int toX, Int toY, Int toDepth, Int halfSize
+    ) {
+        if (halfSize < 1 || halfSize > 6) { return false }
         var slot = freeSlot()
         if (!active[slot]) { activeCountValue = activeCountValue + 1 }
         fromXs[slot] = clampScreen(fromX)
@@ -81,6 +96,7 @@ class GooseProjectileOverlay {
         toXs[slot] = clampScreen(toX)
         toYs[slot] = clampScreen(toY)
         toDepths[slot] = clampDepth(toDepth)
+        halfSizes[slot] = halfSize
         ages[slot] = 0
         active[slot] = true
         return true
@@ -107,9 +123,8 @@ class GooseProjectileOverlay {
 
     Bool pushQuad(
         FrameStaging target, Int resource,
-        Int centerX, Int centerY, Int depth
+        Int centerX, Int centerY, Int depth, Int half
     ) {
-        var half = gooseProjectileHalfSize()
         var left = centerX - half
         var right = centerX + half
         var bottom = centerY - half
@@ -129,7 +144,9 @@ class GooseProjectileOverlay {
             // Tracers are presentation feedback, not world surfaces. Keep
             // them in front of the 3D pass and actor overlays.
             var depth = 0
-            if (!pushQuad(target, resource, centerX, centerY, depth)) {
+            if (!pushQuad(
+                    target, resource, centerX, centerY, depth,
+                    halfSizes[index])) {
                 target.discard()
                 return false
             }

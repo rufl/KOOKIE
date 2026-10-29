@@ -3,7 +3,7 @@ Int sessionWebGameProtocolVersion() { return 2 }
 
 Int sessionWebFrameMagic() { return 0x4B575331 }
 Int sessionWebFrameVersion() { return 1 }
-Int sessionWebMaximumWords() { return 272 }
+Int sessionWebMaximumWords() { return 320 }
 Int sessionWebMaximumFrameBytes() {
     return 16 + sessionWebMaximumWords() * 4
 }
@@ -30,6 +30,7 @@ Int sessionWebPongKind() { return 4 }
 Int sessionWebErrorKind() { return 5 }
 Int sessionWebGameKind() { return 6 }
 Int sessionWebBrowserCapability() { return 1 }
+Int sessionWebNativeDesktopCapability() { return 2 }
 Int sessionWebServerCapability() { return 1 }
 
 Int sessionWebSubprotocolVersion() { return 1 }
@@ -52,6 +53,7 @@ Int sessionWebGameJoinResponseMarker() { return 6 }
 Int sessionWebGameMultiplayerSnapshotMarker() { return 7 }
 Int sessionWebRolePlayer() { return 1 }
 Int sessionWebRoleSpectator() { return 2 }
+Int sessionWebRoleTraining() { return 3 }
 Int sessionWebGameMoveLeftCommand() { return 1 }
 Int sessionWebGameMoveRightCommand() { return 2 }
 Int sessionWebGameMeleeCommand() { return 3 }
@@ -169,7 +171,9 @@ Int sessionWebActorAnimationRoll() { return 7 }
 Int sessionWebActorAnimationSwim() { return 8 }
 Int sessionWebActorAnimationWalk() { return 9 }
 Int sessionWebActorAnimationShift() { return 7 }
-Int sessionWebGameMaximumActorState() { return 1215 }
+Int sessionWebActorRollNegativeSideBit() { return 64 }
+Int sessionWebActorDizzyBit() { return 2048 }
+Int sessionWebGameMaximumActorState() { return 3327 }
 
 
 Int sessionWebChecksumMix(Int state, Int value) {
@@ -203,16 +207,36 @@ Int[] newSessionWebHello(Int sequence) {
     return words
 }
 
+Int[] newSessionWebNativeDesktopHello(Int sequence) {
+    if (sequence <= 0 || sequence > 1000000) {
+        return new Int[0]
+    }
+    var words = new Int[8]
+    words[0] = sessionWebGameProtocolVersion()
+    words[1] = sessionWebHelloKind()
+    words[2] = sequence
+    words[3] = sessionClientTargetNativeDesktop()
+    words[4] = sessionAuthorityRemote()
+    words[5] = sessionGameWebSocket()
+    words[6] = sessionWebNativeDesktopCapability()
+    words[7] = sessionWebMessageChecksum(words, 7)
+    return words
+}
+
 Bool validSessionWebHello(Int[] words) {
-    return words.length == 8 &&
-        words[0] == sessionWebGameProtocolVersion() &&
-        words[1] == sessionWebHelloKind() &&
-        words[2] > 0 && words[2] <= 1000000 &&
-        words[3] == sessionClientTargetBrowser() &&
-        words[4] == sessionAuthorityRemote() &&
-        words[5] == sessionGameWebSocket() &&
-        words[6] == sessionWebBrowserCapability() &&
-        words[7] == sessionWebMessageChecksum(words, 7)
+    if (words.length != 8 ||
+        words[0] != sessionWebGameProtocolVersion() ||
+        words[1] != sessionWebHelloKind() ||
+        words[2] <= 0 || words[2] > 1000000 ||
+        words[4] != sessionAuthorityRemote() ||
+        words[5] != sessionGameWebSocket() ||
+        words[7] != sessionWebMessageChecksum(words, 7)) {
+        return false
+    }
+    return (words[3] == sessionClientTargetBrowser() &&
+            words[6] == sessionWebBrowserCapability()) ||
+        (words[3] == sessionClientTargetNativeDesktop() &&
+            words[6] == sessionWebNativeDesktopCapability())
 }
 
 Int[] newSessionWebAck(Int sequence, Bool accepted) {
@@ -309,7 +333,8 @@ Int[] newSessionWebGameFullSceneProbe(Int sequence) {
 Int[] newSessionWebGameJoinRequest(Int sequence, Int role) {
     if (sequence <= 0 || sequence > 1000000 ||
         (role != sessionWebRolePlayer() &&
-            role != sessionWebRoleSpectator())) {
+            role != sessionWebRoleSpectator() &&
+            role != sessionWebRoleTraining())) {
         return new Int[0]
     }
     var words = new Int[6]
@@ -329,7 +354,8 @@ Bool validSessionWebGameJoinRequest(Int[] words) {
         words[2] > 0 && words[2] <= 1000000 &&
         words[3] == sessionWebGameJoinRequestMarker() &&
         (words[4] == sessionWebRolePlayer() ||
-            words[4] == sessionWebRoleSpectator()) &&
+            words[4] == sessionWebRoleSpectator() ||
+            words[4] == sessionWebRoleTraining()) &&
         words[5] == sessionWebMessageChecksum(words, 5)
 }
 
@@ -339,7 +365,8 @@ Int[] newSessionWebGameJoinResponse(
 ) {
     if (sequence <= 0 || sequence > 1000000 ||
         (role != sessionWebRolePlayer() &&
-            role != sessionWebRoleSpectator()) ||
+            role != sessionWebRoleSpectator() &&
+            role != sessionWebRoleTraining()) ||
         playerId < 0 || playerId > 1000000 ||
         playerCount < 0 || playerCount > 8 ||
         spectatorCount < 0 || spectatorCount > 4 ||
@@ -368,7 +395,8 @@ Bool validSessionWebGameJoinResponse(Int[] words) {
         words[3] == sessionWebGameJoinResponseMarker() &&
         (words[4] == 0 || words[4] == 1) &&
         (words[5] == sessionWebRolePlayer() ||
-            words[5] == sessionWebRoleSpectator()) &&
+            words[5] == sessionWebRoleSpectator() ||
+            words[5] == sessionWebRoleTraining()) &&
         words[6] >= 0 && words[6] <= 1000000 &&
         words[7] >= 0 && words[7] <= 8 &&
         words[8] >= 0 && words[8] <= 4 &&
@@ -384,9 +412,10 @@ Int[] newSessionWebGameMultiplayerSnapshot(
     if (sequence <= 0 || sequence > 1000000 ||
         tick < 0 || tick > sessionWebGameMaximumTick() ||
         (role != sessionWebRolePlayer() &&
-            role != sessionWebRoleSpectator()) ||
+            role != sessionWebRoleSpectator() &&
+            role != sessionWebRoleTraining()) ||
         playerId < 0 || playerId > 1000000 ||
-        (role == sessionWebRolePlayer() && playerId <= 0) ||
+        (role != sessionWebRoleSpectator() && playerId <= 0) ||
         (role == sessionWebRoleSpectator() && playerId != 0) ||
         playerX < sessionWebGameWorldMinimumX() ||
         playerX > sessionWebGameWorldMaximumX() ||
@@ -439,9 +468,10 @@ Bool validSessionWebGameMultiplayerSnapshot(Int[] words) {
         words[3] != sessionWebGameMultiplayerSnapshotMarker() ||
         words[4] < 0 || words[4] > sessionWebGameMaximumTick() ||
         (words[5] != sessionWebRolePlayer() &&
-            words[5] != sessionWebRoleSpectator()) ||
+            words[5] != sessionWebRoleSpectator() &&
+            words[5] != sessionWebRoleTraining()) ||
         words[6] < 0 || words[6] > 1000000 ||
-        (words[5] == sessionWebRolePlayer() && words[6] <= 0) ||
+        (words[5] != sessionWebRoleSpectator() && words[6] <= 0) ||
         (words[5] == sessionWebRoleSpectator() && words[6] != 0) ||
         words[7] < sessionWebGameWorldMinimumX() ||
         words[7] > sessionWebGameWorldMaximumX() ||
@@ -456,7 +486,7 @@ Bool validSessionWebGameMultiplayerSnapshot(Int[] words) {
         words[14] < 0 || words[14] > sessionWebGameMaximumAmmo() ||
         words[15] < 0 || words[15] > 8 ||
         words[16] < 0 || words[16] > 4 ||
-        words[17] < 0 || words[17] > words[15] ||
+        words[17] < 0 || words[17] > 8 ||
         words[words.length - 1] !=
             sessionWebMessageChecksum(words, words.length - 1)) {
         return false
@@ -473,20 +503,33 @@ Bool validSessionWebGameMultiplayerSnapshot(Int[] words) {
         projectileCount = words[trailer + 1]
         throwableCount = words[trailer + 2]
         impactCount = words[trailer + 3]
-        var extendedBaseLength = trailer + 5 + projectileCount * 7 +
+        var extendedBaseLength = trailer + 5 + projectileCount * 8 +
             throwableCount * 8 + impactCount * 8
+        var suffixLength = words.length - extendedBaseLength
+        var validSuffixLength = suffixLength == 0 ||
+            suffixLength == actorCount || suffixLength == 6 ||
+            suffixLength == actorCount + 6 ||
+            (suffixLength >= 10 && suffixLength <= 26 &&
+                (suffixLength - 10) % 4 == 0) ||
+            (suffixLength >= actorCount + 10 &&
+                suffixLength <= actorCount + 26 &&
+                (suffixLength - actorCount - 10) % 4 == 0)
         if (words[trailer] < 0 || words[trailer] > 1000000 ||
             projectileCount < 0 || projectileCount > 12 ||
             throwableCount < 0 || throwableCount > 4 ||
             impactCount < 0 || impactCount > 8 ||
-            (words.length != extendedBaseLength &&
-                words.length != extendedBaseLength + actorCount)) { return false }
+            !validSuffixLength) { return false }
     } else if (words.length != legacyLength) {
         return false
     }
     for (var index = 0; index < actorCount; index = index + 1) {
         var offset = 18 + index * 8
-        if (words[offset] <= 0 || words[offset] > 1000000 ||
+        var actorId = words[offset]
+        var actorKind = words[offset + 6]
+        if ((actorKind == 3 &&
+                (actorId >= 0 || actorId < -4)) ||
+            (actorKind != 3 &&
+                (actorId <= 0 || actorId > 1000000)) ||
             words[offset + 1] < sessionWebGameWorldMinimumX() ||
             words[offset + 1] > sessionWebGameWorldMaximumX() ||
             words[offset + 2] < sessionWebGameWorldMinimumY() ||
@@ -497,7 +540,8 @@ Bool validSessionWebGameMultiplayerSnapshot(Int[] words) {
             words[offset + 4] > sessionWebGameMaximumHealth() ||
             words[offset + 5] < 0 ||
             words[offset + 5] > sessionWebGameMaximumActorState() ||
-            words[offset + 6] < 1 || words[offset + 6] > 2 ||
+            (actorKind != 3 && (actorKind < 1 || actorKind > 2)) ||
+            (actorKind == 3 && words[offset + 5] != 0) ||
             words[offset + 7] < 0 || words[offset + 7] > 359) {
             return false
         }
@@ -509,14 +553,17 @@ Bool validSessionWebGameMultiplayerSnapshot(Int[] words) {
                 words[cursor + 2] < 0 || words[cursor + 3] < 0 ||
                 words[cursor + 4] < 0 || words[cursor + 5] < 0 ||
                 words[cursor + 6] < 0 ||
-                words[cursor + 6] > sessionWebGameMaximumTick()) { return false }
-            cursor = cursor + 7
+                words[cursor + 6] > sessionWebGameMaximumTick() ||
+                (words[cursor + 7] != 1 && words[cursor + 7] != 3)) {
+                return false
+            }
+            cursor = cursor + 8
         }
         for (var index = 0; index < throwableCount; index = index + 1) {
             if (words[cursor] <= 0 || words[cursor + 1] <= 0 ||
                 words[cursor + 2] < 0 || words[cursor + 3] < 0 ||
                 words[cursor + 4] < 0 || words[cursor + 5] < 0 ||
-                words[cursor + 6] != 2 ||
+                words[cursor + 6] < 1 || words[cursor + 6] > 5 ||
                 words[cursor + 7] < 0 ||
                 words[cursor + 7] >
                     sessionWebGameMaximumThrowableFuseTicks()) { return false }
@@ -524,16 +571,108 @@ Bool validSessionWebGameMultiplayerSnapshot(Int[] words) {
         }
         for (var index = 0; index < impactCount; index = index + 1) {
             if (words[cursor] <= 0 || words[cursor + 1] < 1 ||
-                words[cursor + 1] > 5 || words[cursor + 2] <= 0 ||
+                words[cursor + 1] > 8 || words[cursor + 2] <= 0 ||
                 words[cursor + 3] < 0 || words[cursor + 4] < 0 ||
                 words[cursor + 5] < 0 || words[cursor + 6] < 0 ||
                 words[cursor + 7] < 0) { return false }
             cursor = cursor + 8
         }
-        if (words.length == cursor + actorCount + 1) {
+        var suffix = cursor
+        var hasExtendedPickup = false
+        var hasLegacyPickup = false
+        var directSuffix = -1
+        if (words.length >= cursor + 11) {
+            var directSlices = words[cursor + 9]
+            if (directSlices >= 0 && directSlices <= 4 &&
+                words.length == cursor + 10 + directSlices * 4 + 1) {
+                directSuffix = cursor
+            }
+        }
+        var shiftedSuffix = cursor + actorCount
+        if (directSuffix < 0 &&
+            words.length >= shiftedSuffix + 11) {
+            var shiftedSlices = words[shiftedSuffix + 9]
+            if (shiftedSlices >= 0 && shiftedSlices <= 4 &&
+                words.length == shiftedSuffix + 10 +
+                    shiftedSlices * 4 + 1) {
+                for (var index = 0; index < actorCount; index = index + 1) {
+                    if (words[cursor + index] < 0 ||
+                        words[cursor + index] > 1000000) { return false }
+                }
+                directSuffix = shiftedSuffix
+            }
+        }
+        if (directSuffix >= 0) {
+            suffix = directSuffix
+            hasExtendedPickup = true
+        } else if (words.length == cursor + actorCount + 6 + 1) {
             for (var index = 0; index < actorCount; index = index + 1) {
                 if (words[cursor + index] < 0 ||
                     words[cursor + index] > 1000000) { return false }
+            }
+            suffix = cursor + actorCount
+            hasLegacyPickup = true
+        } else if (words.length == cursor + actorCount + 1) {
+            for (var index = 0; index < actorCount; index = index + 1) {
+                if (words[cursor + index] < 0 ||
+                    words[cursor + index] > 1000000) { return false }
+            }
+        } else if (words.length == cursor + 6 + 1) {
+            hasLegacyPickup = true
+        } else if (words.length == cursor + 1) {
+            return true
+        } else {
+            return false
+        }
+        if (hasLegacyPickup) {
+            if ((words[suffix] != 0 && words[suffix] != 1) ||
+                words[suffix + 1] < sessionWebGameWorldMinimumX() ||
+                words[suffix + 1] > sessionWebGameWorldMaximumX() ||
+                words[suffix + 2] < sessionWebGameWorldMinimumY() ||
+                words[suffix + 2] > sessionWebGameWorldMaximumY() ||
+                words[suffix + 3] < sessionWebGameWorldMinimumZ() ||
+                words[suffix + 3] > sessionWebGameWorldMaximumZ() ||
+                (words[suffix + 4] != 0 && words[suffix + 4] != 1) ||
+                words[suffix + 5] < 0 || words[suffix + 5] > 30) {
+                return false
+            }
+        }
+        if (hasExtendedPickup) {
+            var slices = words[suffix + 9]
+            if ((words[suffix] != 0 && words[suffix] != 1) ||
+                words[suffix + 1] < sessionWebGameWorldMinimumX() ||
+                words[suffix + 1] > sessionWebGameWorldMaximumX() ||
+                words[suffix + 2] < sessionWebGameWorldMinimumY() ||
+                words[suffix + 2] > sessionWebGameWorldMaximumY() ||
+                words[suffix + 3] < sessionWebGameWorldMinimumZ() ||
+                words[suffix + 3] > sessionWebGameWorldMaximumZ() ||
+                words[suffix + 4] < 0 || words[suffix + 4] > 5 ||
+                (words[suffix + 5] != 0 && words[suffix + 5] != 1) ||
+                words[suffix + 6] < 0 || words[suffix + 6] > 30 ||
+                words[suffix + 7] < 0 || words[suffix + 7] > 5 ||
+                words[suffix + 8] < 0 || words[suffix + 8] > 30 ||
+                (words[suffix] == 1 && words[suffix + 4] == 0) ||
+                (words[suffix] == 0 && words[suffix + 4] != 0) ||
+                (words[suffix + 5] == 0 && words[suffix + 7] != 0) ||
+                (words[suffix + 5] == 1 && words[suffix + 7] == 0) ||
+                (words[suffix + 5] == 0 && words[suffix + 6] != 0) ||
+                (words[5] == sessionWebRoleSpectator() &&
+                    (words[suffix + 5] != 0 || words[suffix + 6] != 0))) {
+                return false
+            }
+            if (words.length != suffix + 10 + slices * 4 + 1 &&
+                words.length != suffix + 10 + slices * 4 + actorCount + 1) {
+                return false
+            }
+            for (var slice = 0; slice < slices; slice = slice + 1) {
+                var offset = suffix + 10 + slice * 4
+                if (words[offset] <= 0 ||
+                    words[offset + 1] < sessionWebGameWorldMinimumX() ||
+                    words[offset + 1] > sessionWebGameWorldMaximumX() ||
+                    words[offset + 2] < sessionWebGameWorldMinimumY() ||
+                    words[offset + 2] > sessionWebGameWorldMaximumY() ||
+                    words[offset + 3] < sessionWebGameWorldMinimumZ() ||
+                    words[offset + 3] > sessionWebGameWorldMaximumZ()) { return false }
             }
         }
     }

@@ -13,6 +13,11 @@
       "file": "jared-lite.ttf"
     }
   },
+  "damage_numbers": {
+    "family": "ThaleahFat",
+    "file": "ThaleahFat.ttf",
+    "license_terms": "not included in the uploaded archive"
+  },
   "native_renderer": {
     "rasterizer": "FreeType",
     "shaper": "HarfBuzz",
@@ -28,12 +33,16 @@
       "sha256": "a7e0332c2a61b9885ce1ed0a0344ddddd6671492933cb9f710e5c5b81a8926a7"
     },
     {
+      "path": "ThaleahFat.ttf",
+      "sha256": "c9bb0f1370f95140c0f1c71cf844bc448384604151c5570a4bb2bb88021ec873"
+    },
+    {
       "path": "OFL.txt",
       "sha256": "32780aff62874bafcba08be23a9f0e70a8770f9b1ccd8ab18a7dc482a45f2f33"
     },
     {
       "path": "readme.txt",
-      "sha256": "08d03792531c27bbcafa42d20f1094eb957c44af1005ee3f0f3392c19e14330f"
+      "sha256": "5598777e85e2b96bba4070b6a41c3fc393643dd816c44fd1680aaae12c10965b"
     }
   ]
 }

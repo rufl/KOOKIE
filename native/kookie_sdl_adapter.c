@@ -43,10 +43,10 @@
 #define KOOKIE_GPU_WORLD_TEXTURE_COORDINATE_LIMIT 2000000
 #define KOOKIE_GPU_VFX_RESOURCE_BASE 1000
 #define KOOKIE_GPU_VFX_RESOURCE_STRIDE 128
-#define KOOKIE_GPU_VFX_ASSET_COUNT 16
+#define KOOKIE_GPU_VFX_ASSET_COUNT 18
 #define KOOKIE_GPU_VFX_CELL_SIZE 256
 #define KOOKIE_GPU_VFX_ATLAS_COLUMNS 4
-#define KOOKIE_GPU_VFX_ATLAS_ROWS 4
+#define KOOKIE_GPU_VFX_ATLAS_ROWS 5
 #define KOOKIE_GPU_VFX_ATLAS_WIDTH \
     (KOOKIE_GPU_VFX_CELL_SIZE * KOOKIE_GPU_VFX_ATLAS_COLUMNS)
 #define KOOKIE_GPU_VFX_ATLAS_HEIGHT \
@@ -1306,7 +1306,9 @@ static const char *kookie_gpu_vfx_relative_paths[
     "runtime/vfx/predrawn/explosion_6x5.png",
     "runtime/vfx/predrawn/electric_ring_6x5.png",
     "runtime/vfx/predrawn/fire_point_6x5.png",
-    "runtime/vfx/predrawn/impact_white_6x4.png"
+    "runtime/vfx/predrawn/impact_white_6x4.png",
+    "runtime/vfx/predrawn/hitspark_star3_3x3.png",
+    "runtime/vfx/predrawn/smoke_ground_3x3.png"
 };
 
 static bool kookie_gpu_vfx_dimensions(

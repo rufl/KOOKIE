@@ -43,6 +43,9 @@ class FakeElement {
     this.children.push(child);
     return child;
   }
+  append(...children) {
+    for (const child of children) this.appendChild(child);
+  }
   removeChild(child) {
     const index = this.children.indexOf(child);
     if (index >= 0) this.children.splice(index, 1);
@@ -405,11 +408,28 @@ async function main() {
   vm.runInNewContext(rendererSource, context, { filename: rendererPath });
   assert.equal(typeof window.KookieWebRenderer?.create, "function");
   assert.equal(typeof window.KookieWebRenderer?.encodeScreenshot, "function");
-  assert.deepEqual(Array.from(window.KookieArenaGeometry.water[0].bounds), [96, 5, 96, 224, 208]);
+  const arenaGeometry = window.KookieArenaGeometry;
+  const overlaps = (a, b) =>
+    a[0] < b[3] && a[3] > b[0] && a[2] < b[5] && a[5] > b[2];
+  for (let left = 0; left < arenaGeometry.solids.length; left += 1) {
+    const a = arenaGeometry.solids[left].box;
+    for (let right = left + 1; right < arenaGeometry.solids.length; right += 1) {
+      const b = arenaGeometry.solids[right].box;
+      assert.ok(!(a[4] === b[4] && overlaps(a, b)),
+        "arena solids must not have overlapping coplanar top textures");
+    }
+    for (const water of arenaGeometry.water) {
+      const bounds = water.bounds;
+      assert.ok(!(bounds[1] === a[4] &&
+        bounds[0] < a[3] && bounds[3] > a[0] &&
+        bounds[2] < a[5] && bounds[4] > a[2]),
+      "water and solid top textures must not occupy the same plane");
+    }
+  }
   window.KookieWebRenderer = { create: () => renderer };
   vm.runInNewContext(transportSource, context, { filename: transportPath });
   assert.equal(typeof window.kookieSessionTransport.connect, "function");
-  assert.equal(window.kookieSessionTransport.maxFrameBytes, 1104);
+  assert.equal(window.kookieSessionTransport.maxFrameBytes, 1296);
   assert.ok(document.getElementById("kookie-session-panel"));
   assert.ok(document.getElementById("kookie-authoritative-scene"));
 
@@ -421,35 +441,36 @@ async function main() {
     .attributes["aria-label"].includes("tick 12"));
   if (frameCallbacks.length > 0) frameCallbacks.shift()(0);
   await waitFor(() => renderedScenes.some((scene) => scene.sceneObjects?.length === 10));
-  monotonicNow = 200;
+  monotonicNow = 20;
   FakeWebSocket.active.emitScene(3, 13, 100);
   await waitFor(() => document.getElementById("kookie-authoritative-scene")
     .attributes["aria-label"].includes("tick 13"));
-  monotonicNow = 270;
+  monotonicNow = 70;
   FakeWebSocket.active.emitScene(4, 14, 140);
   await waitFor(() => document.getElementById("kookie-authoritative-scene")
     .attributes["aria-label"].includes("tick 14"));
-  monotonicNow = 325;
-  if (frameCallbacks.length > 0) frameCallbacks.shift()(325);
+  monotonicNow = 100;
+  if (frameCallbacks.length > 0) frameCallbacks.shift()(100);
   const jitterSample = renderedActorXs.at(-1);
-  assert.ok(jitterSample > 100 && jitterSample < 140 + 40 * 100 / 70,
-    "adaptive render delay keeps jittered remote samples within the bounded interpolation/extrapolation range");
+  assert.ok(Math.abs(jitterSample - 180) < 1e-6,
+    "remote interpolation follows authoritative ticks despite uneven packet arrival");
   FakeWebSocket.active.emitScene(3, 13, 300);
-  monotonicNow = 326;
-  if (frameCallbacks.length > 0) frameCallbacks.shift()(326);
+  monotonicNow = 110;
+  if (frameCallbacks.length > 0) frameCallbacks.shift()(110);
   assert.ok(renderedActorXs.at(-1) >= jitterSample,
     "stale snapshots cannot roll remote rendering backward");
-  monotonicNow = 700;
-  if (frameCallbacks.length > 0) frameCallbacks.shift()(700);
-  const cappedExtrapolation = 140 + 40 * 100 / 70;
+  monotonicNow = 500;
+  if (frameCallbacks.length > 0) frameCallbacks.shift()(500);
+  const cappedExtrapolation = 140 + 40 * 100 / (1000 / 60);
   assert.ok(Math.abs(renderedActorXs.at(-1) - cappedExtrapolation) < 1e-6,
     "remote extrapolation stops at its configured 100 ms horizon");
-  monotonicNow = 1000;
-  if (frameCallbacks.length > 0) frameCallbacks.shift()(1000);
+  monotonicNow = 800;
+  if (frameCallbacks.length > 0) frameCallbacks.shift()(800);
   assert.equal(renderedActorXs.at(-1), cappedExtrapolation,
     "long snapshot gaps do not extend the extrapolation horizon");
 
-  monotonicNow = 325;
+
+  monotonicNow = 800;
   const pageElements = collectElements(document.body);
   const playButton = pageElements.find((element) => element.textContent === "LEAVE");
   assert.equal(playButton.dataset.asyncState, "success");
@@ -468,7 +489,7 @@ async function main() {
   const sticks = pageElements.filter((element) =>
     element.attributes["data-analog-stick"]);
   assert.deepEqual(sticks.map((element) =>
-    element.attributes["data-analog-stick"]), ["move"]);
+    element.attributes["data-analog-stick"]), ["move", "look"]);
   const shootButton = pageElements.find((element) =>
     element.attributes["data-action"] === "shoot");
   assert.ok(shootButton);
@@ -491,33 +512,48 @@ async function main() {
     if (held) assert.equal(sentInputFrames.at(-1).held & bit, 0,
       action + " release clears its held bit");
   }
+  document.listeners.keydown({
+    code: "Space", key: " ", target: null, preventDefault() {},
+  });
+  assert.equal(sentInputFrames.at(-1).held & 1, 1,
+    "Space keeps jump held for jump height");
+  assert.equal(sentInputFrames.at(-1).edge, 1,
+    "Space sends the jump-start edge to authoritative simulation");
+  document.listeners.keyup({
+    code: "Space", key: " ", target: null, preventDefault() {},
+  });
   const movementSpeed = pageElements.find((element) =>
     element.attributes["aria-label"] === "Movement speed");
   const mouseSensitivity = pageElements.find((element) =>
-    element.attributes["aria-label"] === "Mouse camera sensitivity");
+    element.attributes["aria-label"] === "Camera sensitivity");
   assert.equal(movementSpeed.value, "50");
   assert.equal(movementSpeed.min, "25");
   assert.equal(movementSpeed.max, "100");
   assert.equal(mouseSensitivity.value, "50");
   assert.equal(mouseSensitivity.min, "25");
   assert.equal(mouseSensitivity.max, "150");
+  const playerName = pageElements.find((element) =>
+    element.attributes["aria-label"] === "Player name");
+  assert.ok(playerName);
+  playerName.value = "Mango";
+  playerName.listeners.input();
+  assert.equal(savedSettings.at(-1).value.playerName, "Mango");
   const moveStickBase = sticks[0].children[0];
   moveStickBase.width = 100;
   moveStickBase.height = 100;
   moveStickBase.listeners.pointerdown({
     pointerId: 4, clientX: 88, clientY: 50, preventDefault() {},
   });
-  assert.ok(sentInputFrames.at(-1).moveX >= 900);
-  assert.equal(sentInputFrames.at(-1).moveZ, 0);
-  assert.equal(sentInputFrames.at(-1).held, 0);
-  assert.equal(sentInputFrames.at(-1).edge, 0);
-  assert.ok(sentInputFrames.at(-1).moveX >= 900 &&
+  assert.ok(sentInputFrames.at(-1).moveX >= 490 &&
+    sentInputFrames.at(-1).moveX <= 510 &&
     sentInputFrames.at(-1).moveZ === 0,
-    "touch input sends a normalized continuous movement axis");
+  "full touch deflection uses the configured 50% movement speed");
   const movementCountAtDefault = sentInputFrames.length;
   moveStickBase.listeners.pointermove({
     pointerId: 4, clientX: 99, clientY: 50,
   });
+  const pendingFrames = frameCallbacks.splice(0);
+  for (const frame of pendingFrames) frame(1035);
   await new Promise((resolve) => setTimeout(resolve, 150));
   assert.equal(sentInputFrames.length, movementCountAtDefault + 1);
   moveStickBase.listeners.pointerup({ pointerId: 4 });
@@ -540,10 +576,13 @@ async function main() {
   const fastMovementCount = sentInputFrames.length;
   await new Promise((resolve) => setTimeout(resolve, 150));
   assert.equal(sentInputFrames.length, fastMovementCount);
+  const beforeDeadzone = sentInputFrames.length;
   moveStickBase.listeners.pointerdown({
     pointerId: 7, clientX: 53, clientY: 50, preventDefault() {},
   });
-  assert.equal(sentInputFrames.length, fastMovementCount);
+  assert.equal(sentInputFrames.length, beforeDeadzone + 1);
+  assert.equal(sentInputFrames.at(-1).moveX, 0);
+  assert.equal(sentInputFrames.at(-1).moveZ, 0);
   moveStickBase.listeners.pointerup({ pointerId: 7 });
   const sceneCanvas = document.getElementById("kookie-authoritative-scene");
   const beforeMouseLook = sentGameCommands.length;
@@ -583,7 +622,7 @@ async function main() {
   document.listeners.keydown({
     key: "d", code: "KeyD", repeat: false, preventDefault() {},
   });
-  assert.ok(Math.abs(sentInputFrames.at(-1).moveX - 707) <= 1);
+  assert.ok(Math.abs(sentInputFrames.at(-1).moveX + 707) <= 1);
   assert.ok(Math.abs(sentInputFrames.at(-1).moveZ - 707) <= 1,
     "diagonal keyboard movement is normalized");
   document.listeners.keyup({ key: "d", code: "KeyD", preventDefault() {} });
@@ -592,10 +631,16 @@ async function main() {
   document.listeners.keyup({ key: "w", code: "KeyW", preventDefault() {} });
   assert.equal(sentInputFrames.at(-1).moveX, 0);
   assert.equal(sentInputFrames.at(-1).moveZ, 0);
+  document.listeners.keydown({
+    key: "a", code: "KeyA", repeat: false, preventDefault() {},
+  });
+  assert.equal(sentInputFrames.at(-1).moveX, 1000,
+    "A moves left in the browser world's mirrored horizontal axis");
+  document.listeners.keyup({ key: "a", code: "KeyA", preventDefault() {} });
   const beforeLockedLook = sentInputFrames.length;
   document.pointerLockElement = sceneCanvas;
   sceneCanvas.listeners.pointermove({ movementX: 12 });
-  assert.equal(sentInputFrames.at(-1).lookYaw, 150);
+  assert.equal(sentInputFrames.at(-1).lookYaw, -150);
   assert.equal(sentInputFrames.at(-1).lookPitch, 0);
   assert.equal(sentInputFrames.length, beforeLockedLook + 1);
   document.pointerLockElement = null;
@@ -614,7 +659,8 @@ async function main() {
   assert.equal(authoritative.labels.length, 4);
   assert.equal(authoritative.labels[1].textId, 2);
   assert.equal(authoritative.labels[1].visible, true);
-  assert.equal(document.getElementById("kookie-scene-labels").children.length, 4);
+  assert.equal(document.getElementById("kookie-scene-labels"), null,
+    "world actors do not get text nameplates");
   const bugfeedButton = pageElements.find((element) =>
     element.attributes["aria-label"] === "Report a bug with screenshot and diagnostics");
   assert.ok(bugfeedButton);
@@ -681,13 +727,49 @@ async function main() {
     element.attributes["data-analog-stick"] === "move").style.left, "22vw");
   pageElements.find((element) => element.textContent === "Done").listeners.click();
   assert.equal(panel.dataset.layoutEditing, "false");
+  const touchToggle = pageElements.find((element) =>
+    element.className === "kookie-touch-layout-toggle");
+  assert.ok(touchToggle);
+  assert.equal(touchToggle.textContent, "TOUCH OFF");
+  touchToggle.listeners.click();
+  assert.equal(touchToggle.attributes["aria-pressed"], "true");
+  assert.equal(panel.dataset.layoutEditing, "true");
+  const moveStick = pageElements.find((element) =>
+    element.attributes["data-analog-stick"] === "move");
+  moveStick.listeners.pointerdown({
+    pointerId: 33, clientX: 100, clientY: 200,
+    preventDefault() {}, stopPropagation() {},
+  });
+  moveStick.listeners.pointermove({
+    pointerId: 33, clientX: 180, clientY: 200,
+  });
+  moveStick.listeners.pointerup({ pointerId: 33 });
+  assert.equal(moveStick.style.left, "32vw");
+  touchToggle.listeners.click();
+  assert.equal(touchToggle.attributes["aria-pressed"], "false");
+  assert.equal(panel.dataset.layoutEditing, "false");
+  const persistedTouchLayout = savedSettings.findLast((entry) =>
+    entry.key === "kookie.browser.touch-layouts.v1");
+  assert.equal(persistedTouchLayout.value.activeLayout.move.x, 32,
+    "turning layout editing off persists the dragged coordinates as JSON");
   monotonicNow = 1001;
   FakeWebSocket.active.emit(encodeFrame(
     6, 5, extendedMultiplayerWords(5, 15)));
   await new Promise((resolve) => setImmediate(resolve));
   assert.ok(document.getElementById("kookie-authoritative-scene")
     .attributes["aria-label"].includes("tick 15"),
-    document.getElementById("kookie-session-status").textContent);
+  document.getElementById("kookie-session-status").textContent);
+  if (frameCallbacks.length > 0) frameCallbacks.shift()(1001);
+  assert.equal(document.getElementById("kookie-scene-labels"), null,
+    "multiplayer players never get text or UID nameplates");
+  for (const [stat, expected] of [
+    ["health", "100 / 100"], ["stamina", "100 / 100"],
+    ["ammo", "30"], ["combo", "--"],
+  ]) {
+    const value = pageElements.find((element) =>
+      element.attributes["data-stat"] === stat)?.children[1]?.textContent;
+    assert.equal(value, expected, "multiplayer snapshot updates " + stat + " HUD");
+  }
   if (frameCallbacks.length > 0) frameCallbacks.shift()(1001);
   const replicatedCombatScene = renderedScenes.find((scene) =>
     scene.tick === 15 && scene.projectiles?.length === 1);
@@ -696,6 +778,8 @@ async function main() {
   assert.equal(replicatedCombatScene.throwables[0].fuseTicks, 36);
   assert.equal(replicatedCombatScene.impacts.length, 1);
   assert.equal(replicatedCombatScene.impacts[0].damage, 20);
+  assert.equal(replicatedCombatScene.playerCount, 2);
+  assert.equal(replicatedCombatScene.spectatorCount, 0);
   moveStickBase.listeners.pointerdown({
     pointerId: 22, clientX: 88, clientY: 50, preventDefault() {},
   });
@@ -710,13 +794,13 @@ async function main() {
   assert.ok(document.getElementById("kookie-authoritative-scene")
     .attributes["aria-label"].includes("tick 17"),
     "tick 17 snapshot rejected: " + document.getElementById("kookie-session-status").textContent);
-  assert.ok(renderedScenes.at(-1).playerX > 33 &&
+  assert.ok(renderedScenes.at(-1).playerX >= 32 &&
     renderedScenes.at(-1).playerX < 35,
-  "unacknowledged local prediction expected 33<x<35, got " +
+  "local render remains near authoritative x=33 during reconciliation, got " +
     renderedScenes.at(-1).playerX);
   moveStickBase.listeners.pointerup({ pointerId: 22 });
   const turnedSnapshot = extendedMultiplayerWords(18, 18);
-  turnedSnapshot[10] = 90;
+  turnedSnapshot[8] = 90;
   turnedSnapshot[turnedSnapshot.length - 1] =
     messageChecksum(turnedSnapshot.slice(0, -1));
   FakeWebSocket.active.emit(encodeFrame(6, 18, turnedSnapshot));
@@ -724,16 +808,27 @@ async function main() {
   const keydown = document.listeners.keydown;
   keydown({ code: "KeyW", key: "w", target: null, preventDefault() {} });
   const forwardInput = sentInputFrames.at(-1);
-  assert.ok(forwardInput.moveX > 990 && Math.abs(forwardInput.moveZ) < 10,
-    `W at 90-degree yaw should move forward along +X; got ${forwardInput.moveX},${forwardInput.moveZ}`);
+  assert.ok(forwardInput.moveX >= 0 && forwardInput.moveX < 700 &&
+    forwardInput.moveZ > 700 &&
+    Math.hypot(forwardInput.moveX, forwardInput.moveZ) >= 990,
+  `W follows the eased turn with normalized movement; got ${forwardInput.moveX},${forwardInput.moveZ}`);
   document.listeners.keyup({
     code: "KeyW", key: "w", target: null, preventDefault() {},
   });
+  window.kookieSessionTransport.disconnect();
+  assert.equal(document.getElementById("kookie-authoritative-scene")
+    .attributes["aria-label"].includes("0 actors"), true);
+  assert.equal(document.getElementById("kookie-scene-labels"), null);
   const roleSelect = collectElements(document.body).find((element) =>
-    element.attributes["aria-label"] === "Multiplayer session role");
+    element.attributes["aria-label"] ===
+      "Choose red team, blue team, or spectator");
   roleSelect.value = "spectator";
   window.kookieSessionTransport.connect();
   await waitFor(() => FakeWebSocket.connections.at(-1).joined === true);
+  if (frameCallbacks.length > 0) frameCallbacks.shift()(1035);
+  assert.ok(renderedScenes.at(-1).camera.y >= 120 &&
+    renderedScenes.at(-1).camera.pitch <= -60,
+  "spectator should start above arena geometry with an unobstructed overview camera");
   const consoleButton = collectElements(document.body).find((element) =>
     element.attributes["aria-label"] === "Open game console");
   consoleButton.listeners.click();

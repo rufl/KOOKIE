@@ -17,5 +17,7 @@ http://:{$KOOKIE_TAILNET_PORT} {
   reverse_proxy @kof_backend 127.0.0.1:{$KOOKIE_WEB_PORT}
 
   root * {$KOOKIE_WEB_ALPHA_ROOT}
+  @web_assets path / /index.html /kookie-session.js /kookie-webgl-renderer.js
+  header @web_assets Cache-Control "no-cache"
   file_server
 }

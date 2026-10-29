@@ -19,6 +19,8 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 
+mkdir -p "$work_dir/build"
+cp -R -- "$root_dir/assets/fonts" "$work_dir/build/fonts"
 mkdir -p "$work_dir/build/assets/prototype"
 cp -- "$root_dir/assets/prototype/manifest.json" \
   "$root_dir/assets/prototype/greybox_modules.json" \
@@ -57,8 +59,16 @@ for required in \
   assets/prototype/greybox_modules.json \
   assets/prototype/runtime/liquid_physics.json \
   assets/prototype/runtime/power_ups/watermelon.json \
+  assets/prototype/runtime/power_ups/wizard_hat.json \
+  assets/prototype/runtime/ui/hearts_0001.png \
   assets/prototype/runtime/water_bodies/pool.json \
-  assets/prototype/runtime/floatables/crate.json; do
+  assets/prototype/runtime/floatables/crate.json \
+  fonts/manifest.json \
+  fonts/OFL.txt \
+  fonts/readme.txt \
+  fonts/pixand.ttf \
+  fonts/jared-lite.ttf \
+  fonts/ThaleahFat.ttf; do
   [[ -f "$work_dir/build/$required" ]] || {
     echo "build_web_alpha: missing generated asset: $required" >&2
     exit 1

@@ -12,7 +12,9 @@ import time
 import urllib.error
 from pathlib import Path
 
-from verify_web_multiplayer import Client, actor_record, health
+from verify_web_multiplayer import (
+    Client, actor_record, health, throwable_suffix,
+)
 
 
 ACTION_JUMP = 1
@@ -23,7 +25,7 @@ ACTION_FLY = 16
 ACTION_SHOOT = 32
 EDGE_MELEE = 64
 EDGE_SPECIAL = 128
-EDGE_THROWABLE = 256
+ACTION_THROWABLE = 256
 BOT_COUNT = 8
 POWERUP_CONFIG_DIR = (
     Path(__file__).resolve().parents[1] /
@@ -116,8 +118,10 @@ def run_battle(port, duration=None, log_path=None):
             next_burst = 0.0
             next_melee = action_start + 1.5
             next_special = action_start + .7
-            next_throwable = action_start + 1.2 * ((client.player_id - 1) // 4)
+            throwable_phase = 0
+            throwable_charge_started = 0.0
             next_jump = 0.0
+            double_jump_due = None
             burst_action = ACTION_DASH
             tried_pickups = {}
             animal = 1 if client.player_id in goose_ids else 2
@@ -151,6 +155,9 @@ def run_battle(port, duration=None, log_path=None):
                         yaw_delta = (desired_yaw - me[7] + 180) % 360 - 180
                         now = time.monotonic()
                         active_powerup = (me[5] // 8) % 16
+                        pickup_active, pickup_x, pickup_y, pickup_z, carrying, _ = (
+                            throwable_suffix(scene)
+                        )
                         move_dx, move_dz = dx, dz
                         if active_powerup == 0:
                             pickup = min(
@@ -172,6 +179,12 @@ def run_battle(port, duration=None, log_path=None):
                                     tried_pickups[pickup_index] = now + 30
                                 elif pickup_distance < distance * 1.4:
                                     move_dx, move_dz = pickup_dx, pickup_dz
+                        if throwable_phase == 0 and pickup_active:
+                            move_dx = pickup_x - me[1]
+                            move_dz = pickup_z - me[3]
+                        elif throwable_phase in (1, 2, 3):
+                            move_dx = 0
+                            move_dz = 0
                         move_distance = max(1, math.hypot(move_dx, move_dz))
                         move_x = round(move_dx * 1000 / move_distance)
                         move_z = round(move_dz * 1000 / move_distance)
@@ -196,17 +209,50 @@ def run_battle(port, duration=None, log_path=None):
                         if now >= next_special:
                             edge |= EDGE_SPECIAL
                             next_special = now + (1.8 if active_powerup == 5 else 1.1)
-                        if now >= next_throwable:
-                            edge |= EDGE_THROWABLE
-                            next_throwable = now + 2.2
                         if now >= next_burst:
                             edge |= burst_action
                             burst_action = (ACTION_ROLL if burst_action == ACTION_DASH
                                             else ACTION_DASH)
                             next_burst = now + .7 + (client.player_id % 4) * .05
-                        if now >= next_jump:
+                        grounded = (me[5] & 1) != 0
+                        if double_jump_due is not None:
+                            if not grounded:
+                                edge |= ACTION_JUMP
+                                actions_by_player[client.player_id].add(
+                                    "double_jump")
+                                action_usage.add("double_jump")
+                                double_jump_due = None
+                                next_jump = now + 1.6
+                            elif now >= double_jump_due + .5:
+                                double_jump_due = None
+                                next_jump = now + .5
+                        elif grounded and now >= next_jump:
                             edge |= ACTION_JUMP
+                            double_jump_due = now + .1
                             next_jump = now + 1.6
+                        if throwable_phase == 1:
+                            throwable_phase = 2 if carrying else 0
+                        elif throwable_phase == 2:
+                            held |= ACTION_THROWABLE
+                            throwable_phase = 3
+                            throwable_charge_started = now
+                        elif throwable_phase == 3:
+                            if not carrying:
+                                throwable_phase = 0
+                            elif now - throwable_charge_started < .5:
+                                held |= ACTION_THROWABLE
+                            else:
+                                throwable_phase = 4
+                        elif throwable_phase == 4 and pickup_active:
+                            throwable_phase = 0
+                        if throwable_phase == 0 and pickup_active:
+                            throwable_dx = pickup_x - me[1]
+                            throwable_dz = pickup_z - me[3]
+                            if (throwable_dx * throwable_dx +
+                                    (pickup_y - me[2]) * (pickup_y - me[2]) +
+                                    throwable_dz * throwable_dz <= 36):
+                                held |= ACTION_THROWABLE
+                                throwable_phase = 1
                         held |= ACTION_FLY if animal == 1 else ACTION_GLIDE
                         client.input(
                             move_x=move_x, move_z=move_z,
@@ -217,6 +263,7 @@ def run_battle(port, duration=None, log_path=None):
                         for bit, name in (
                             (ACTION_GLIDE, "glide"), (ACTION_FLY, "fly"),
                             (ACTION_SHOOT, "shoot"),
+                            (ACTION_THROWABLE, "throwable"),
                         ):
                             if held & bit:
                                 action_usage.add(name)
@@ -225,7 +272,6 @@ def run_battle(port, duration=None, log_path=None):
                             (ACTION_JUMP, "jump"), (ACTION_ROLL, "roll"),
                             (ACTION_DASH, "dash"), (EDGE_MELEE, "melee"),
                             (EDGE_SPECIAL, "special"),
-                            (EDGE_THROWABLE, "throwable"),
                         ):
                             if edge & bit:
                                 action_usage.add(name)
@@ -323,14 +369,17 @@ def run_battle(port, duration=None, log_path=None):
                     [(player_id, 1) for player_id in goose_ids] +
                     [(player_id, 2) for player_id in cat_ids]):
                 expected_actions = {
-                    "jump", "roll", "dash", "shoot", "special", "throwable",
-                    "fly" if expected_animal == 1 else "glide",
+                    "jump", "double_jump", "roll", "dash", "shoot", "special",
                 }
                 missing = expected_actions - actions_by_player.get(player_id, set())
                 if missing:
                     raise AssertionError(
                         f"bot {player_id} did not use actions: {', '.join(sorted(missing))}"
                     )
+            if "throwable" not in action_usage:
+                raise AssertionError(
+                    "battle bots did not reach and use the shared throwable pickup"
+                )
             if "melee" not in action_usage:
                 raise AssertionError("battle bots did not use melee in range")
             required_animation_states = {2, 6, 7}

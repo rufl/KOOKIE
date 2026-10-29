@@ -33,7 +33,7 @@ for entry in manifest["files"]:
     path = font_dir / entry["path"]
     assert path.is_file(), path
     assert hashlib.sha256(path.read_bytes()).hexdigest() == entry["sha256"], path
-for name in ("jared-lite.ttf", "pixand.ttf"):
-    assert (font_dir / name).read_bytes()[:4] == b"\x00\x01\x00\x00"
-print("GatoGanso font assets verified: Pixand body, Jared Lite display")
+for name in ("jared-lite.ttf", "pixand.ttf", "ThaleahFat.ttf"):
+    assert (font_dir / name).read_bytes()[:4] == b"\x00\x01\x00\x00", name
+print("GatoGanso font assets verified: Pixand body, Jared Lite display, ThaleahFat damage numbers")
 PY

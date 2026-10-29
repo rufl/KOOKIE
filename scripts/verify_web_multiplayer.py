@@ -3,6 +3,7 @@
 import base64
 import hashlib
 import json
+import math
 import os
 import socket
 import struct
@@ -45,12 +46,13 @@ def decode(wire):
 
 
 class Client:
-    def __init__(self, port, spectator=False, accepted=True, path=None):
+    def __init__(self, port, spectator=False, accepted=True, path=None,
+                 role=None):
         self.sock = socket.create_connection(("127.0.0.1", port), timeout=5)
         self.sock.settimeout(5)
         self.closed = False
         self.sequence = 1
-        role = 2 if spectator else 1
+        role = (2 if spectator else 1) if role is None else role
         path = path or ("/spectate" if spectator else "/session")
         key = base64.b64encode(os.urandom(16)).decode("ascii")
         request = (f"GET {path} HTTP/1.1\r\nHost: localhost\r\n"
@@ -69,7 +71,6 @@ class Client:
         expected_accept = base64.b64encode(hashlib.sha1(
             (key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode()).digest())
         assert b"Sec-WebSocket-Accept: " + expected_accept in header
-
         hello = [2, 1, 1, 1, 1, 1, 1]
         hello.append(checksum(hello))
         self.send(1, hello)
@@ -89,7 +90,6 @@ class Client:
         self.reader = threading.Thread(target=self._read_loop, daemon=True)
         self.reader.start()
 
-
     def input(self, move_x=0, move_z=0, look_yaw=0, look_pitch=0,
               held=0, edge=0):
         self.sequence += 1
@@ -98,6 +98,7 @@ class Client:
         words.append(checksum(words))
         self.send(6, words)
         return self.sequence
+
     def send(self, kind, words):
         data = encode(kind, words[2], words)
         mask = os.urandom(4)
@@ -123,7 +124,7 @@ class Client:
         length = second & 0x7f
         if length == 126:
             length = struct.unpack(">H", self._read_exact(2))[0]
-        assert length <= 1104
+        assert length <= 1296
         return decode(self._read_exact(length))
 
     def _read_loop(self):
@@ -177,6 +178,15 @@ class Client:
         self.sock.close()
         self.closed = True
 
+    def abort(self):
+        if self.closed:
+            return
+        self.sock.setsockopt(
+            socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("ii", 1, 0))
+        self.sock.close()
+        self.closed = True
+
+
 
 def health(port):
     with urllib.request.urlopen(f"http://127.0.0.1:{port}/healthz", timeout=3) as response:
@@ -191,16 +201,47 @@ def actor_record(scene, player_id):
 
 def wait_for_actor(client, players, spectators, player_id, predicate, timeout=5):
     deadline = time.monotonic() + timeout
+    last_actor = None
+    last_tick = None
     while time.monotonic() < deadline:
         scene = client.snapshot(players, spectators)
         actor = actor_record(scene, player_id)
+        last_actor = actor
+        last_tick = scene[4]
         if predicate(actor, scene):
             return scene, actor
-    raise AssertionError(f"authoritative state predicate failed for actor {player_id}")
+    raise AssertionError(
+        f"authoritative state predicate failed for actor {player_id} "
+        f"at tick {last_tick}: {last_actor}")
 
 def input_acknowledgement(scene):
     trailer = 18 + scene[17] * 8
     return scene[trailer] if len(scene) >= trailer + 5 else 0
+
+def throwable_suffix(scene):
+    trailer = 18 + scene[17] * 8
+    cursor = trailer + 4 + scene[trailer + 1] * 8
+    cursor += scene[trailer + 2] * 8 + scene[trailer + 3] * 8
+    # New suffix has ten fixed words plus count * four; six-word legacy remains valid.
+    checksum_index = len(scene) - 1
+    if checksum_index - cursor >= 10:
+        count = scene[cursor + 9]
+        if checksum_index == cursor + 10 + count * 4:
+            return scene[cursor:cursor + 10 + count * 4]
+    return scene[cursor:cursor + 6]
+def projectile_records(scene):
+    trailer = 18 + scene[17] * 8
+    count = scene[trailer + 1]
+    cursor = trailer + 4
+    return [scene[cursor + index * 8:cursor + (index + 1) * 8]
+            for index in range(count)]
+def impact_events(scene):
+    trailer = 18 + scene[17] * 8
+    count = scene[trailer + 3]
+    cursor = trailer + 4 + scene[trailer + 1] * 8 + scene[trailer + 2] * 8
+    return [scene[cursor + index * 8:cursor + (index + 1) * 8]
+            for index in range(count)]
+
 
 
 def wait_for_input_ack(client, input_sequence, timeout=5):
@@ -245,6 +286,12 @@ def main():
             scene = spectator.snapshot(expected_players=8, expected_spectators=4)
             assert scene[5] == 2 and scene[6] == 0
             assert scene[17] == 8
+            suffix = throwable_suffix(scene)
+            assert suffix[0] == 1 and 1 <= suffix[4] <= 5, (
+                "initial shared throwable must have a valid randomized item type")
+            assert 4 <= suffix[1] <= 316 and 0 <= suffix[2] <= 100 and \
+                4 <= suffix[3] <= 276, (
+                    "randomized throwable pickup must be within arena bounds")
         powerup_tester = players[0]
         pickup_deadline = time.monotonic() + 5
         pickup_actor = None
@@ -259,10 +306,36 @@ def main():
         assert pickup_actor is not None and pickup_actor[5] // 8 % 16 == 1, (
             "authoritative coffee pickup was not replicated; actor="
             f"{pickup_actor}")
+        wizard_tester = players[1]
+        wizard_scene = None
+        wizard_deadline = time.monotonic() + 5
+        while time.monotonic() < wizard_deadline:
+            wizard_tester.input()
+            wizard_scene = wizard_tester.snapshot(
+                expected_players=8, expected_spectators=4)
+            wizard_actor = actor_record(wizard_scene, wizard_tester.player_id)
+            if wizard_actor[5] // 8 % 16 == 8:
+                break
+            time.sleep(.04)
+        assert wizard_scene is not None and wizard_actor[5] // 8 % 16 == 8, (
+            "Wizard Hat pickup must activate at the second spawn")
+        assert throwable_suffix(wizard_scene)[8] == 5, (
+            "Wizard Hat must replicate exactly five fireball charges")
+        turn_sequence = wizard_tester.input(look_yaw=900)
+        wizard_scene = wait_for_input_ack(wizard_tester, turn_sequence)
+        for expected_shots in (4, 3, 2, 1, 0):
+            before_projectiles = len(projectile_records(wizard_scene))
+            sequence = wizard_tester.input(edge=128)
+            wizard_scene = wait_for_input_ack(wizard_tester, sequence)
+            assert throwable_suffix(wizard_scene)[8] == expected_shots, (
+                "special action must consume one fireball charge")
+            records = projectile_records(wizard_scene)
+            assert len(records) == before_projectiles + 1 and records[-1][7] == 3, (
+                "each Wizard Hat action must replicate one fireball projectile")
         shooter = players[0]
-        target = players[3]
+        target = players[2]
         target_before = actor_record(target.snapshot(8, 4), target.player_id)[4]
-        shooter.input(look_yaw=-900, held=32)
+        shooter.input(look_yaw=450, held=32)
         _, target_after = wait_for_actor(
             spectators[0], 8, 4, target.player_id,
             lambda state, snapshot: state[4] < target_before)
@@ -299,13 +372,67 @@ def main():
             f"ordinary locomotion did not select walk animation: {moved_actor}")
         mover.input()
 
+        jump_start = settled_actor[2]
         mover.input(held=1, edge=1)
-        scene, actor = wait_for_actor(
+        jump_peak = jump_start
+        saw_jump_animation = False
+        jump_deadline = time.monotonic() + 1.5
+        landed = False
+        while time.monotonic() < jump_deadline:
+            scene = spectators[0].snapshot(expected_players=8,
+                                           expected_spectators=4)
+            actor = actor_record(scene, mover.player_id)
+            jump_peak = max(jump_peak, actor[2])
+            saw_jump_animation |= actor[5] // 128 == 6
+            if actor[2] <= jump_start and jump_peak > jump_start:
+                landed = True
+                break
+        mover.input(held=0)
+        assert jump_peak >= jump_start + 12, (
+            f"authoritative jump arc too low: start={jump_start}, peak={jump_peak}")
+        assert landed, "jump did not land within 1.5 seconds"
+        assert saw_jump_animation, f"jump animation missing: {actor}"
+        double_jump_start = actor[2]
+        mover.input(held=1, edge=1)
+        _, airborne_actor = wait_for_actor(
             spectators[0], 8, 4, mover.player_id,
-            lambda state, snapshot: state[5] & 1 == 0)
-        assert actor[5] // 128 == 6, f"jump animation missing: {actor}"
+            lambda state, snapshot: state[2] > double_jump_start)
+        double_jump_start = airborne_actor[2]
+        mover.input(held=0)
+        double_jump_sequence = mover.input(
+            move_x=-1000, held=1, edge=1)
+        double_jump_scene = wait_for_input_ack(
+            mover, double_jump_sequence)
+        double_jump_actor = actor_record(
+            double_jump_scene, mover.player_id)
+        assert (
+            double_jump_actor[2] > double_jump_start and
+            double_jump_actor[5] // 128 == 7 and
+            double_jump_actor[5] & 64 != 0
+        ), (
+            "second Space press after release must launch and replicate a "
+            "side-directed roll animation: "
+            f"{double_jump_actor}")
+        held_frame_sequence = mover.input(move_x=-1000, held=1)
+        held_frame_scene = wait_for_input_ack(mover, held_frame_sequence)
+        held_frame_actor = actor_record(held_frame_scene, mover.player_id)
+        assert (
+            held_frame_actor[5] // 128 == 7 and
+            held_frame_actor[5] & 64 != 0
+        ), (
+            "double-jump roll must persist while Space remains held: "
+            f"{held_frame_actor}")
+        mover.input(held=0)
+        _, actor = wait_for_actor(
+            spectators[0], 8, 4, mover.player_id,
+            lambda state, snapshot:
+                state[5] // 128 != 7 and (state[5] & 1) != 0)
         dash_start = actor[1]
-        mover.input(move_x=1000, edge=4)
+        dash_sequence = mover.input(move_x=1000, edge=4)
+        dash_scene = wait_for_input_ack(mover, dash_sequence)
+        actor = actor_record(dash_scene, mover.player_id)
+        assert actor[1] > dash_start and actor[5] // 128 == 1, (
+            f"dash input must move and select run animation: {actor}")
         scene, actor = wait_for_actor(
             spectators[0], 8, 4, mover.player_id,
             lambda state, snapshot: state[1] > dash_start and state[5] // 128 == 1)
@@ -314,6 +441,19 @@ def main():
         scene, actor = wait_for_actor(
             spectators[0], 8, 4, mover.player_id,
             lambda state, snapshot: state[1] > roll_start and state[5] // 128 == 7)
+        roll_start_x, roll_start_z, roll_yaw = actor[1], actor[3], actor[7]
+        mover.input(edge=2)
+        forward_x = math.sin(math.radians(roll_yaw))
+        forward_z = math.cos(math.radians(roll_yaw))
+        scene, actor = wait_for_actor(
+            spectators[0], 8, 4, mover.player_id,
+            lambda state, snapshot:
+                (state[1] - roll_start_x) * forward_x +
+                (state[3] - roll_start_z) * forward_z > 0 and
+                state[5] // 128 == 7)
+        assert ((actor[1] - roll_start_x) * forward_x +
+                (actor[3] - roll_start_z) * forward_z) > 0, (
+            f"stationary roll did not travel in facing direction: {actor}")
         mover.input(held=8)
         scene, actor = wait_for_actor(
             spectators[0], 8, 4, mover.player_id,
@@ -330,33 +470,203 @@ def main():
             raise AssertionError("shoot input did not consume authoritative ammunition")
         mover.input(held=0)
         trailer = 18 + scene[17] * 8
-        mover.input(look_yaw=0, edge=128)
-        scene = spectators[0].snapshot(8, 4)
-        deadline = time.monotonic() + 3
+        before_special_scene = mover.snapshot(8, 4)
+        before_special_trailer = 18 + before_special_scene[17] * 8
+        before_special_projectiles = before_special_scene[before_special_trailer + 1]
+        assert throwable_suffix(before_special_scene)[8] == 0
+        special_sequence = mover.input(look_yaw=0, edge=128)
+        scene = wait_for_input_ack(mover, special_sequence)
+        time.sleep(.2)
+        scene = mover.snapshot(8, 4)
+        trailer = 18 + scene[17] * 8
+        assert scene[trailer + 1] == before_special_projectiles and \
+            throwable_suffix(scene)[8] == 0, (
+                "special action must not launch seed projectiles without seed ammo")
+        legacy_edge_sequence = mover.input(edge=256)
+        scene = wait_for_input_ack(mover, legacy_edge_sequence)
+        trailer = 18 + scene[17] * 8
+        assert scene[trailer + 2] == 0 and throwable_suffix(scene)[5] == 0, (
+            "edge-only throwable input must not bypass shared pickup ownership")
+        mover = players[0]
+        deadline = time.monotonic() + 8
         while time.monotonic() < deadline:
-            trailer = 18 + scene[17] * 8
-            if scene[trailer + 1] > 0:
+            scene = mover.snapshot(8, 4)
+            actor = actor_record(scene, mover.player_id)
+            pickup = throwable_suffix(scene)
+            dx, dz = pickup[1] - actor[1], pickup[3] - actor[3]
+            if dx * dx + dz * dz <= 36:
                 break
-            scene = spectators[0].snapshot(8, 4)
+            sequence = mover.input(
+                move_x=0 if dx == 0 else (1000 if dx > 0 else -1000),
+                move_z=0 if dz == 0 else (1000 if dz > 0 else -1000))
+            scene = wait_for_input_ack(mover, sequence)
         else:
-            raise AssertionError("special projectile was not replicated")
-        mover.input(edge=256)
+            raise AssertionError("player could not reach the shared throwable pickup")
+        pickup_sequence = mover.input(held=256)
+        scene = wait_for_input_ack(mover, pickup_sequence)
+        assert throwable_suffix(scene)[0] == 0 and \
+            throwable_suffix(scene)[5:7] == [1, 0] and \
+            throwable_suffix(scene)[7] in range(1, 6), (
+            f"a press within pickup radius must disable pickup and carry the "
+            f"throwable: suffix={throwable_suffix(scene)}, "
+            f"actor={actor_record(scene, mover.player_id)}, tick={scene[4]}")
+        carried_type = throwable_suffix(scene)[7]
+        release_sequence = mover.input(held=0)
+        wait_for_input_ack(mover, release_sequence)
+        charge_sequence = mover.input(held=256)
+        scene = wait_for_input_ack(mover, charge_sequence)
+        charge_deadline = time.monotonic() + 2
+        while time.monotonic() < charge_deadline:
+            if throwable_suffix(scene)[6] >= 5:
+                break
+            scene = mover.snapshot(8, 4)
+        else:
+            raise AssertionError("held throwable charge did not advance on server ticks")
+        assert throwable_suffix(scene)[5] == 1
+        last_impact_sequence = max(
+            (impact[0] for impact in impact_events(scene)), default=0)
+        release_sequence = mover.input(held=0)
+        scene = wait_for_input_ack(mover, release_sequence)
+        assert throwable_suffix(scene)[0] == 0 and \
+            throwable_suffix(scene)[5:7] == [0, 0] and \
+            throwable_suffix(scene)[7] == 0, (
+            "releasing a charged throwable must throw and clear carried charge")
         deadline = time.monotonic() + 3
+        grenade_id = None
         while time.monotonic() < deadline:
-            scene = spectators[0].snapshot(8, 4)
             trailer = 18 + scene[17] * 8
+            throwable_cursor = trailer + 4 + scene[trailer + 1] * 8
             if scene[trailer + 2] > 0:
-                break
-        else:
-            raise AssertionError("throwable was not replicated")
-        deadline = time.monotonic() + 3
-        while time.monotonic() < deadline:
-            trailer = 18 + scene[17] * 8
-            if scene[trailer + 3] > 0:
+                grenade_id = scene[throwable_cursor]
+                assert scene[throwable_cursor + 6] == carried_type, (
+                    "thrown record must preserve the picked-up throwable type")
                 break
             scene = spectators[0].snapshot(8, 4)
         else:
-            raise AssertionError("throwable detonation impact was not replicated")
+            raise AssertionError("released charged throwable was not replicated")
+        resolved_tick = scene[4]
+        resolution_deadline = time.monotonic() + 3
+        observed_impact_kinds = {
+            event[1] for event in impact_events(scene)
+            if event[0] > last_impact_sequence
+        }
+        last_throwable_record = None
+        last_throwable_y = None
+        watermelon_descending = False
+        watermelon_bounced = False
+        last_scene_tick = scene[4]
+        while time.monotonic() < resolution_deadline:
+            next_scene = spectators[0].snapshot(8, 4)
+            if next_scene[4] <= last_scene_tick:
+                continue
+            scene = next_scene
+            last_scene_tick = scene[4]
+            trailer = 18 + scene[17] * 8
+            throwable_cursor = trailer + 4 + scene[trailer + 1] * 8
+            live_ids = [scene[throwable_cursor + index * 8]
+                        for index in range(scene[trailer + 2])]
+            observed_impact_kinds.update(
+                event[1] for event in impact_events(scene)
+                if event[0] > last_impact_sequence)
+            if grenade_id in live_ids:
+                item_index = live_ids.index(grenade_id)
+                last_throwable_record = scene[
+                    throwable_cursor + item_index * 8:
+                    throwable_cursor + item_index * 8 + 8]
+                if carried_type == 3:
+                    watermelon_y = last_throwable_record[3]
+                    if last_throwable_y is not None:
+                        if watermelon_y < last_throwable_y:
+                            watermelon_descending = True
+                        elif watermelon_descending and \
+                                last_throwable_y <= 4 and \
+                                watermelon_y > last_throwable_y:
+                            watermelon_bounced = True
+                    last_throwable_y = watermelon_y
+            else:
+                resolved_tick = scene[4]
+                break
+        else:
+            raise AssertionError("thrown grenade did not resolve")
+        trailer = 18 + scene[17] * 8
+        throwable_cursor = trailer + 4 + scene[trailer + 1] * 8
+        observed_impact_kinds.update(
+            event[1] for event in impact_events(scene)
+            if event[0] > last_impact_sequence)
+        kinds = observed_impact_kinds
+        if carried_type == 1:
+            assert 5 in kinds, (
+                f"bomb impact missing: id={grenade_id}, "
+                f"last_throwable={last_throwable_record}, "
+                f"kinds={sorted(kinds)}, "
+                f"last_sequence={last_impact_sequence}, "
+                f"final_events={impact_events(scene)}, "
+                f"counts={scene[trailer + 1:trailer + 4]}, "
+                f"throwables={scene[throwable_cursor:throwable_cursor + 16]}, "
+                f"suffix={throwable_suffix(scene)}, "
+                f"tick={scene[4]}, mover={actor_record(scene, mover.player_id)}")
+        elif carried_type == 2:
+            assert 6 in kinds, "flour package must create a no-damage smoke impact"
+        elif carried_type == 3:
+            assert 7 in kinds and throwable_suffix(scene)[9] == 4, (
+                "watermelon must shatter into four collectible slices")
+            assert watermelon_bounced, (
+                "watermelon must bounce once from the ground before shattering")
+        else:
+            assert 5 in kinds or 3 in kinds, (
+                "crate/boulder must resolve as a generic non-explosive prop")
+        if carried_type == 3:
+            slice_record = throwable_suffix(scene)[10:14]
+            mover_state = actor_record(scene, mover.player_id)
+            dx, dz = slice_record[1] - mover_state[1], \
+                slice_record[3] - mover_state[3]
+            pickup_deadline = time.monotonic() + 3
+            while dx * dx + dz * dz > 36 and time.monotonic() < pickup_deadline:
+                sequence = mover.input(
+                    move_x=0 if dx == 0 else (1000 if dx > 0 else -1000),
+                    move_z=0 if dz == 0 else (1000 if dz > 0 else -1000))
+                scene = wait_for_input_ack(mover, sequence)
+                mover_state = actor_record(scene, mover.player_id)
+                dx, dz = slice_record[1] - mover_state[1], \
+                    slice_record[3] - mover_state[3]
+            assert dx * dx + dz * dz <= 36, "player could not reach watermelon slice"
+            seed_ammo_before = throwable_suffix(scene)[8]
+            slice_health_before = actor_record(scene, mover.player_id)[4]
+            slice_count_before = throwable_suffix(scene)[9]
+            sequence = mover.input(held=256)
+            scene = wait_for_input_ack(mover, sequence)
+            slice_count_after = throwable_suffix(scene)[9]
+            picked_slices = slice_count_before - slice_count_after
+            assert picked_slices > 0 and throwable_suffix(scene)[8] == \
+                min(30, seed_ammo_before + picked_slices * 3), (
+                    "each collected slice must add three capped seed rounds")
+            assert actor_record(scene, mover.player_id)[4] == \
+                min(100, slice_health_before + picked_slices * 8), (
+                    "each slice must restore eight health up to the maximum")
+            seed_scene = mover.snapshot(8, 4)
+            seed_trailer = 18 + seed_scene[17] * 8
+            seed_projectiles_before = seed_scene[seed_trailer + 1]
+            sequence = mover.input(edge=128)
+            seed_scene = wait_for_input_ack(mover, sequence)
+            assert throwable_suffix(seed_scene)[8] == \
+                min(30, seed_ammo_before + picked_slices * 3) - 1, (
+                    "special action must consume exactly one acquired seed")
+            seed_trailer = 18 + seed_scene[17] * 8
+            assert seed_scene[seed_trailer + 1] == seed_projectiles_before + 1, (
+                "acquired seed must launch one special projectile")
+        respawn_deadline = time.monotonic() + 5
+        while time.monotonic() < respawn_deadline:
+            if (throwable_suffix(scene)[0] == 1 and
+                    scene[4] >= resolved_tick + 180):
+                break
+            scene = spectators[0].snapshot(8, 4)
+        else:
+            raise AssertionError(
+                "shared throwable did not respawn 180 ticks after resolution")
+        respawn_suffix = throwable_suffix(scene)
+        assert 1 <= respawn_suffix[4] <= 5 and \
+            4 <= respawn_suffix[1] <= 316 and 4 <= respawn_suffix[3] <= 276, (
+                "respawn must randomize a valid item type and in-bounds location")
         collision_mover = players[1]
         collision_target = players[5]
         deadline = time.monotonic() + 2
@@ -417,6 +727,15 @@ def main():
                 expected_players=8, expected_spectators=4)
             assert scene[17] == 8
 
+        departed = players[0]
+        departed.close()
+        clients.remove(departed)
+        scene = replacements[0].snapshot(
+            expected_players=7, expected_spectators=4)
+        assert scene[17] == 7
+        assert all(scene[18 + index * 8] != departed.player_id
+                   for index in range(scene[17])), (
+            f"disconnected player {departed.player_id} remained in actor snapshots")
         for client in clients:
             client.close()
         clients.clear()
@@ -430,7 +749,94 @@ def main():
             time.sleep(0.05)
         else:
             raise AssertionError("disconnects did not release every websocket")
-        print("KOOKIE 8-player/4-spectator concurrent session qualification passed")
+        training = Client(port, role=3)
+        clients.append(training)
+        scene = training.snapshot(expected_players=1, expected_spectators=0)
+        assert scene[5] == 3 and scene[17] == 5, (
+            "training admission must replicate the player and four dolls")
+        dolls = [scene[18 + index * 8:26 + index * 8]
+                 for index in range(scene[17])
+                 if scene[24 + index * 8] == 3]
+        assert [doll[0] for doll in dolls] == [-1, -2, -3, -4]
+        damage_confirmed = False
+        for _ in range(240):
+            player = actor_record(scene, training.player_id)
+            living_dolls = [
+                actor for actor in
+                (scene[18 + index * 8:26 + index * 8]
+                 for index in range(scene[17]))
+                if actor[6] == 3 and actor[4] > 0
+            ]
+            assert living_dolls, "training dummies disappeared"
+            target = min(
+                living_dolls,
+                key=lambda actor: abs(actor[1] - player[1]) +
+                abs(actor[2] - player[2]) + abs(actor[3] - player[3]))
+            distance = (abs(target[1] - player[1]) +
+                        abs(target[2] - player[2]) +
+                        abs(target[3] - player[3]))
+            if distance <= 5:
+                before = target[4]
+                training.input(edge=64)
+                for _ in range(8):
+                    scene = training.snapshot(
+                        expected_players=1, expected_spectators=0)
+                    current = next(
+                        actor for actor in
+                        (scene[18 + index * 8:26 + index * 8]
+                         for index in range(scene[17]))
+                        if actor[0] == target[0])
+                    trailer = 18 + scene[17] * 8
+                    impact_count = scene[trailer + 3]
+                    impacts = [
+                        scene[trailer + 4 + index * 8:
+                              trailer + 12 + index * 8]
+                        for index in range(impact_count)
+                    ]
+                    if current[4] < before and any(
+                            impact[1] == 2 and impact[3] == 0 and
+                            impact[7] > 0 for impact in impacts):
+                        damage_confirmed = True
+                        break
+                if damage_confirmed:
+                    break
+            else:
+                move_x = max(-1000, min(1000, (target[1] - player[1]) * 500))
+                move_z = max(-1000, min(1000, (target[3] - player[3]) * 500))
+                training.input(move_x=move_x, move_z=move_z)
+                scene = training.snapshot(
+                    expected_players=1, expected_spectators=0)
+        assert damage_confirmed, (
+            "training melee must damage a doll and replicate a damage impact")
+        training.close()
+        clients.remove(training)
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            if health(port)["active_sessions"] == 0:
+                break
+            time.sleep(0.05)
+        else:
+            raise AssertionError("training disconnect did not clean up its dummies")
+
+        abrupt = Client(port, role=3)
+        clients.append(abrupt)
+        abrupt.abort()
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            assert process.poll() is None, "server exited after abrupt TCP reset"
+            if health(port)["active_sessions"] == 0:
+                break
+            time.sleep(0.05)
+        else:
+            raise AssertionError("abrupt TCP reset did not release its session")
+        replacement = Client(port, role=3)
+        clients.append(replacement)
+        replacement.snapshot(expected_players=1, expected_spectators=0)
+        assert process.poll() is None, "server exited before replacement session joined"
+        replacement.close()
+        clients.remove(replacement)
+        clients.remove(abrupt)
+        print("KOOKIE 8-player/4-spectator, training-dummy, and abrupt-disconnect qualification passed")
     finally:
         failed = sys.exc_info()[0] is not None
         for client in clients:

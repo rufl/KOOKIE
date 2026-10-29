@@ -214,8 +214,9 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null &&
     native/kookie_sdl_adapter.c \
     native/kookie_ui_renderer.c \
     native/kookie_transport.c \
+    native/kookie_kutter_sync.c \
     -o "$adapter_build_dir/build/libkookie_sdl_adapter.so" \
-    $(pkg-config --cflags --libs sdl3 sdl3-mixer freetype2 harfbuzz) -lm
+    $(pkg-config --cflags --libs sdl3 sdl3-mixer freetype2 harfbuzz libcurl) -lm -pthread
   gcc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
     native/kookie_persistence_adapter.c \
     -o "$adapter_build_dir/build/libkookie_persistence_adapter.so"

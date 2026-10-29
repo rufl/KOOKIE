@@ -161,6 +161,7 @@ assert len(manifest["harfbuzz_runtime_sha256"]) == 64
 assert manifest["runtime_dependencies"] == "SDL3+SDL_mixer+FreeType+HarfBuzz"
 assert (package_root / "fonts/jared-lite.ttf").is_file()
 assert (package_root / "fonts/pixand.ttf").is_file()
+assert (package_root / "fonts/ThaleahFat.ttf").is_file()
 assert (package_root / "assets/ui/gatoganso-mark.svg").is_file()
 assert (package_root / "PROVENANCE.txt").is_file()
 PY

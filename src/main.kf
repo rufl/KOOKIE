@@ -897,7 +897,7 @@ test "Kof staging emits bounded GPU camera and world texture coordinates", "gpu-
     assert(vfxTexture.buildWithVfx(64, 64, 64, 64, true) &&
         vfxTexture.vfxEnabled() &&
         vfxTexture.width() == 1408 &&
-        vfxTexture.height() == 1024 &&
+        vfxTexture.height() == 1280 &&
         vfxTexture.vfxX() == 384 &&
         vfxTexture.textureU(explosionFrame0, 0) > 0 &&
         vfxTexture.textureU(explosionFrame1, 0) >
@@ -907,7 +907,16 @@ test "Kof staging emits bounded GPU camera and world texture coordinates", "gpu-
         vfxTexture.textureU(worldVfxResource(
             worldVfxPredrawnImpactAsset(), 24), 0) < 0,
         "VFX atlas resources must map flipbook and predrawn frame UVs")
-    var allVfxAssets = worldVfxAssetCount() == 16
+    var allVfxAssets = worldVfxAssetCount() == 18 &&
+        worldVfxAtlasRows() == 5 &&
+        worldVfxAssetFrameColumns(worldVfxMeleeHitSparkAsset()) == 3 &&
+        worldVfxAssetFrameRows(worldVfxMeleeHitSparkAsset()) == 3 &&
+        worldVfxAssetFrameCount(worldVfxMeleeHitSparkAsset()) == 7 &&
+        worldVfxResource(worldVfxMeleeHitSparkAsset(), 7) == 0 &&
+        worldVfxAssetFrameColumns(worldVfxMovementSmokeAsset()) == 3 &&
+        worldVfxAssetFrameRows(worldVfxMovementSmokeAsset()) == 3 &&
+        worldVfxAssetFrameCount(worldVfxMovementSmokeAsset()) == 9 &&
+        worldVfxResource(worldVfxMovementSmokeAsset(), 9) == 0
     for (var asset = 0; asset < worldVfxAssetCount(); asset = asset + 1) {
         allVfxAssets = allVfxAssets &&
             worldVfxResource(asset, 0) > 0 &&
@@ -983,17 +992,17 @@ test "camera ray selects the target under the crosshair", "camera" {
 
 
 
-test "third person camera eases animal follow and zoom" {
+test "third person camera eases animal follow and zoom", "camera" {
     var camera = CameraState(-450, 450)
     assert(camera.applyLook(20, -20) &&
         camera.setFollowTarget(10, 1, 20) &&
         camera.snapFollowTarget() &&
         camera.currentFollowDistance() == 18 &&
         camera.currentX() < 10 &&
-        camera.currentZ() > 10 &&
+        camera.currentZ() < 20 &&
         camera.currentY() > 1,
         "third person camera must orbit behind and above the followed animal")
-    assert(camera.applyZoom(6) &&
+    assert(camera.applyZoom(7) &&
         camera.desiredFollowDistance() == 4 &&
         camera.stepFollow() &&
         camera.currentFollowDistance() > 4 &&
@@ -1240,6 +1249,23 @@ test "textured VFX renderer stages animated billboards" {
         vfx.activeCount() == 0 &&
         !vfx.stage(frame, 9, 1000, 0, 0, 0, 1000, 0),
         "expired flipbooks must leave no stale billboard geometry")
+}
+test "melee hit spark flipbook advances seven frames" {
+    var vfx = VfxParticleRenderer(1)
+    var frame = FrameStaging(vfx.renderVertexCapacity())
+    var spark = worldVfxMeleeHitSparkAsset()
+    assert(vfx.emit(spark, 14, 20, 30, 10, 7) &&
+        vfx.resourceAt(0) == worldVfxResource(spark, 0),
+        "melee spark must begin on its first authored frame")
+    for (var expected = 1; expected < 7; expected = expected + 1) {
+        assert(vfx.advance() &&
+            vfx.resourceAt(0) == worldVfxResource(spark, expected),
+            "melee spark must advance one frame per lifetime tick")
+    }
+    assert(vfx.stage(frame, 8, 1000, 0, 0, 0, 1000, 0) &&
+        frame.resourceAt(0) == worldVfxResource(spark, 6) &&
+        frame.retire(8),
+        "native renderer must stage the final spark frame")
 }
 
 
@@ -3419,6 +3445,19 @@ test "Kof native input owns raw bindings and focus reset", "input" {
         input.applyKey(102, 0) &&
         input.fireHeld() == 0,
         "F must own keyboard fire")
+    assert(input.applyKey(116, 1) &&
+        input.throwableHeld() == 1 &&
+        input.consumeActionButtons() == 0 &&
+        input.applyKey(116, 2) &&
+        input.throwableHeld() == 1 &&
+        input.applyKey(116, 0) &&
+        input.throwableHeld() == 0,
+        "T must hold, charge, and release the throwable action without an edge")
+    assert(input.applyKey(98, 1) &&
+        input.fireHeld() == 1 &&
+        input.applyKey(98, 0) &&
+        input.fireHeld() == 0,
+        "B must match WebGL's held fire binding")
     assert(input.applyKey(9, 1) &&
         input.consumeScoreboardToggle() == 1 &&
         input.consumeScoreboardToggle() == 0,
@@ -3471,9 +3510,15 @@ test "runtime plans keep browser, wrapper and native routes explicit" {
         sessionControlWebSocket(), sessionGameNativeUdp())
     assert(nativeUdp.valid() && nativeUdp.usesExperimentalGameTransport(),
         "native UDP must remain an explicit opt-in transport")
+    var nativeWebSocket = BoundedSessionRuntimePlan(
+        sessionClientTargetNativeDesktop(), sessionAuthorityRemote(),
+        sessionControlWebSocket(), sessionGameWebSocket())
+    assert(nativeWebSocket.valid() && nativeWebSocket.nativeRenderer() &&
+        !nativeWebSocket.usesExperimentalGameTransport(),
+        "native desktop must support authoritative WebSocket gameplay")
 }
 
-test "browser WebSocket handshake and heartbeat words are bounded" {
+test "browser and native WebSocket handshake and heartbeat words are bounded" {
     var hello = newSessionWebHello(1)
     assert(validSessionWebHello(hello) &&
         hello[3] == sessionClientTargetBrowser() &&
@@ -3487,6 +3532,22 @@ test "browser WebSocket handshake and heartbeat words are bounded" {
     malformed[2] = 2
     assert(!validSessionWebHello(malformed),
         "browser handshake must reject checksum-invalid sequence changes")
+    var nativeHello = newSessionWebNativeDesktopHello(3)
+    assert(validSessionWebHello(nativeHello) &&
+        nativeHello[3] == sessionClientTargetNativeDesktop() &&
+        nativeHello[5] == sessionGameWebSocket() &&
+        nativeHello[6] == sessionWebNativeDesktopCapability(),
+        "native desktop must identify its WebSocket multiplayer route")
+
+    var malformedNative = new Int[nativeHello.length]
+    for (var index = 0; index < nativeHello.length; index = index + 1) {
+        malformedNative[index] = nativeHello[index]
+    }
+    malformedNative[6] = sessionWebBrowserCapability()
+    malformedNative[7] = sessionWebMessageChecksum(malformedNative, 7)
+    assert(!validSessionWebHello(malformedNative),
+        "native desktop must reject mismatched client capabilities")
+
 
     var accepted = newSessionWebAck(hello[2], true)
     var rejected = newSessionWebAck(hello[2], false)
@@ -3498,7 +3559,7 @@ test "browser WebSocket handshake and heartbeat words are bounded" {
     var pong = newSessionWebPing(sessionWebPongKind(), 2)
     assert(validSessionWebPing(ping, sessionWebPingKind()) &&
         validSessionWebPing(pong, sessionWebPongKind()) &&
-        sessionWebMaximumFrameBytes() == 1104,
+        sessionWebMaximumFrameBytes() == 1296,
         "WebSocket heartbeat frames must remain bounded and checksummed")
 
     var move = newSessionWebGameCommand(
@@ -5474,6 +5535,21 @@ test "tuned FPS movement preserves air control and jump assists" {
     assert(controller.positionX(1) > startingX &&
         controller.velocityX(1) > 0,
         "ground acceleration must move and build horizontal speed")
+    var baselineSpeed = FpsMovementController(1)
+    var coffeeSpeed = FpsMovementController(1)
+    assert(baselineSpeed.configure(arena.authoredCollision()) &&
+        coffeeSpeed.configure(arena.authoredCollision()) &&
+        baselineSpeed.addActor(1, 6, 1, 6) &&
+        coffeeSpeed.addActor(1, 6, 1, 6) &&
+        coffeeSpeed.configurePowerUpActor(1, 2, 0),
+        "coffee movement comparison must configure identical actors")
+    for (var tick = 0; tick < 12; tick = tick + 1) {
+        assert(baselineSpeed.step(1, 4, 0, false, false) &&
+            coffeeSpeed.step(1, 4, 0, false, false),
+            "baseline and coffee movement steps must both succeed")
+    }
+    assert(coffeeSpeed.positionX(1) > baselineSpeed.positionX(1),
+        "coffee mug bonus must increase authoritative ground travel")
     var diagonal = FpsMovementController(1)
     assert(diagonal.configure(arena.authoredCollision()) &&
         diagonal.addActor(1, 6, 1, 6) &&
@@ -5491,7 +5567,7 @@ test "tuned FPS movement preserves air control and jump assists" {
     assert(controller.step(1, 0, 0, true, true) &&
         controller.lastJumped() && controller.velocityY(1) > 0 &&
         !controller.grounded(1),
-        "ground jump must launch with held-state tracking")
+        "Space jump must launch with held-state tracking")
     var heldJumpVelocity = controller.velocityY(1)
     var heldAirVelocity = controller.velocityX(1)
     assert(controller.step(1, 0, 0, false, false) &&
@@ -5609,6 +5685,7 @@ test "power-up JSON definitions stage named pickups" {
     var watermelon = PowerUpConfig()
     var woolBall = PowerUpConfig()
     var flourBag = PowerUpConfig()
+    var wizardHat = PowerUpConfig()
     assert(loader.load(
             coffee, "assets/prototype/runtime/power_ups/coffee_mug.json") &&
         loader.load(
@@ -5626,6 +5703,9 @@ test "power-up JSON definitions stage named pickups" {
             "assets/prototype/runtime/power_ups/wool_ball.json") &&
         loader.load(
             flourBag, "assets/prototype/runtime/power_ups/flour_bag.json") &&
+        loader.load(
+            wizardHat,
+            "assets/prototype/runtime/power_ups/wizard_hat.json") &&
         coffee.kind() == powerUpKindCoffeeMug() &&
         jetpack.kind() == powerUpKindJetpack() &&
         megaphone.kind() == powerUpKindMegaphone() &&
@@ -5633,13 +5713,15 @@ test "power-up JSON definitions stage named pickups" {
         watermelon.kind() == powerUpKindWatermelon() &&
         woolBall.kind() == powerUpKindWoolBall() &&
         flourBag.kind() == powerUpKindFlourBag() &&
+        wizardHat.kind() == powerUpKindWizardHat() &&
         powerUpName(coffee.kind()) == "COFFEE MUG" &&
         powerUpName(jetpack.kind()) == "JETPACK" &&
         powerUpName(megaphone.kind()) == "MEGAPHONE" &&
         powerUpName(scuba.kind()) == "SCUBA KIT" &&
         powerUpName(watermelon.kind()) == "WATERMELON" &&
         powerUpName(woolBall.kind()) == "WOOL BALL" &&
-        powerUpName(flourBag.kind()) == "FLOUR BAG",
+        powerUpName(flourBag.kind()) == "FLOUR BAG" &&
+        powerUpName(wizardHat.kind()) == "WIZARD HAT",
         "power-up JSON must load every named pickup definition")
     var world = PowerUpWorld(powerUpMaximumDefinitions())
     assert(world.add(coffee.definition()) &&
@@ -5649,15 +5731,16 @@ test "power-up JSON definitions stage named pickups" {
         world.add(watermelon.definition()) &&
         world.add(woolBall.definition()) &&
         world.add(flourBag.definition()) &&
-        world.count() == 7 &&
-        world.activeCount() == 7 &&
-        world.renderVertexCount() == 42,
+        world.add(wizardHat.definition()) &&
+        world.count() == 8 &&
+        world.activeCount() == 8 &&
+        world.renderVertexCount() == 48,
         "power-up definitions must populate the bounded pickup world")
     var frame = FrameStaging(world.renderVertexCount())
     assert(world.stage(frame, 3) &&
-        frame.stagedCount() == 42 &&
+        frame.stagedCount() == 48 &&
         frame.resourceAt(6) == jetpack.resource() &&
-        frame.resourceAt(36) == flourBag.resource(),
+        frame.resourceAt(42) == wizardHat.resource(),
         "power-up world must stage resource-backed diamond pickups")
 }
 
@@ -5724,6 +5807,24 @@ test "power-up state applies configurable effects" {
         state.flourCloudRadius(340) == 0 &&
         state.remaining(340) == 0,
         "flour smoke must block sight only inside its bounded radius and expire on time")
+    var wizardHat = PowerUpEffectState()
+    assert(wizardHat.apply(
+            PowerUpPickup(
+                true, 8, powerUpKindWizardHat(), 1800, 5, 9),
+            200) &&
+        wizardHat.wizardFireballsRemaining(200) == 5 &&
+        wizardHat.remaining(200) == 1800 &&
+        wizardHat.consumeWizardFireball(200) &&
+        wizardHat.wizardFireballsRemaining(200) == 4 &&
+        wizardHat.consumeWizardFireball(200) &&
+        wizardHat.consumeWizardFireball(200) &&
+        wizardHat.consumeWizardFireball(200) &&
+        wizardHat.wizardFireballsRemaining(200) == 1 &&
+        wizardHat.consumeWizardFireball(200) &&
+        wizardHat.wizardFireballsRemaining(200) == 0 &&
+        wizardHat.activeKind() == 0 &&
+        !wizardHat.consumeWizardFireball(200),
+        "Wizard Hat must grant exactly five consumable fireballs")
 }
 test "animal abilities enforce role actions and stamina" {
     var abilities = AnimalAbilityController(2)
@@ -8474,6 +8575,38 @@ test "external kutter packages load through bounded file envelopes" {
             overlap, overlapPayload, overlapPaths) &&
         files.diagnostic() == packageFileDiagnosticChunk(),
         "package file must reject overlapping chunk ranges")
+}
+
+test "native Kutter editor mode preserves the live game session", "input" {
+    var shell = GameShell()
+    assert(nativeInputAction(1073741882) == gameShellActionToggleEditor(),
+        "F1 must map to the editor toggle action")
+    assert(shell.handleAction(gameShellActionActivate()) &&
+        shell.screen() == gameShellScreenGame() &&
+        shell.consumeGameplayEntry(),
+        "the main game must enter play before editor mode is opened")
+    assert(shell.handleAction(gameShellActionToggleEditor()) &&
+        shell.screen() == gameShellScreenKutterLevel() &&
+        shell.editorMode() == gameShellEditorModeEdit(),
+        "F1 must open the existing Kutter level editor from gameplay")
+    var count = shell.levelEditor().nodeCount()
+    assert(shell.levelEditor().cycleTool(1) &&
+        shell.levelEditor().tool() == kutterLevelToolProp() &&
+        shell.levelEditor().moveCursor(0, 1) &&
+        shell.levelEditor().applyTool() &&
+        shell.levelEditor().nodeCount() == count + 1,
+        "edits made during the game must use Kutter's bounded document and history")
+    assert(shell.handleAction(gameShellActionBack()) &&
+        shell.screen() == gameShellScreenGame() &&
+        shell.editorMode() == gameShellEditorModePlay() &&
+        !shell.gameplayEntryPending(),
+        "leaving editor mode must resume the existing session without restarting it")
+    assert(shell.handleAction(gameShellActionToggleEditor()) &&
+        shell.screen() == gameShellScreenKutterLevel() &&
+        shell.levelEditor().nodeCount() == count + 1 &&
+        shell.handleAction(gameShellActionToggleEditor()) &&
+        shell.screen() == gameShellScreenGame(),
+        "reopening editor mode must retain authored changes")
 }
 
 test "kutter inspector editors publish atomic undoable products" {

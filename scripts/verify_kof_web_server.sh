@@ -11,4 +11,7 @@ port="${KOOKIE_WEB_TEST_PORT:-8766}"
 LD_LIBRARY_PATH="$output_dir/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
   python3 "$root_dir/scripts/verify_web_multiplayer.py" \
     "$output_dir/kookie-web-server" "$port"
+LD_LIBRARY_PATH="$output_dir/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+  python3 "$root_dir/scripts/verify_kutter_shared_document.py" \
+    "$output_dir/kookie-web-server" "$port"
 printf 'KOOKIE Kof web server end-to-end gate passed\n'

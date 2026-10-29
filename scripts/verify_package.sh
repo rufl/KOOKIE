@@ -95,8 +95,8 @@ test -f "$HEADLESS_ADAPTER" -a -f "$PERSISTENCE_ADAPTER" -a \
 test -f "$PACKAGE_ROOT/LICENSE"
 test -f "$PACKAGE_ROOT/THIRD_PARTY_NOTICES.txt"
 test -f "$PACKAGE_ROOT/RELEASE_PUBLIC_KEY.pem"
-for font_asset in fonts/jared-lite.ttf fonts/pixand.ttf fonts/OFL.txt \
-  fonts/readme.txt fonts/manifest.json; do
+for font_asset in fonts/jared-lite.ttf fonts/pixand.ttf fonts/ThaleahFat.ttf \
+  fonts/OFL.txt fonts/readme.txt fonts/manifest.json; do
   test -f "$PACKAGE_ROOT/$font_asset"
 done
 for ui_asset in assets/ui/kookie-ui.css assets/ui/manifest.json \

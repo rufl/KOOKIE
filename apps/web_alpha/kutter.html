@@ -6,111 +6,188 @@
   <meta name="theme-color" content="#101b16">
   <title>Kutter — GatoGanso Editor</title>
   <style>
-    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #101b16; color: #f5f4e8; }
+    @font-face { font-family: "Pixand"; src: url("fonts/pixand.ttf") format("truetype"); font-display: swap; }
+    @font-face { font-family: "Jared Lite"; src: url("fonts/jared-lite.ttf") format("truetype"); font-display: swap; }
+    :root {
+      color-scheme: dark;
+      font-family: "Pixand", system-ui, sans-serif;
+      color: #f5f4e8;
+      background: #101b16;
+      --glass: #111a16eF;
+      --line: #89927a80;
+      --accent: #f4d26d;
+      --muted: #b7c2b1;
+    }
     * { box-sizing: border-box; }
     html, body, #kutter-app { width: 100%; height: 100%; margin: 0; overflow: hidden; }
     body { background: #101b16; }
     button, input, select { font: inherit; }
-    button { min-height: 42px; border: 1px solid #596a52; border-radius: 9px; background: #1a2920; color: #f3f2e6; padding: 7px 10px; font-weight: 650; cursor: pointer; touch-action: manipulation; }
-    button:hover:not(:disabled), button[aria-pressed="true"] { border-color: #f4d26d; background: #35452f; }
+    button, summary, select { touch-action: manipulation; }
+    button {
+      min-height: 42px; border: 1px solid var(--line); border-radius: 10px;
+      background: #1a2920; color: #f3f2e6; padding: 7px 12px;
+      font-weight: 650; cursor: pointer;
+    }
+    button:hover:not(:disabled), button[aria-pressed="true"], summary:hover {
+      border-color: var(--accent); background: #35452f;
+    }
     button:disabled { opacity: .45; cursor: not-allowed; }
-    input, select { min-width: 0; min-height: 40px; border: 1px solid #455747; border-radius: 7px; padding: 6px 8px; background: #0d1612; color: #fff; }
-    :focus-visible { outline: 3px solid #f4d26d; outline-offset: 2px; }
-    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
-    #kutter-app { display: grid; grid-template-rows: 58px minmax(0,1fr) 46px; }
-    .topbar { display: flex; align-items: center; gap: 16px; padding: 0 16px; border-bottom: 1px solid #36463a; background: #131f19; }
-    .brand { color: #f4d26d; font-weight: 800; letter-spacing: .1em; }
-    .subbrand { color: #9eae99; font-size: 12px; }
-    .top-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
-    .top-actions a { color: #dce8cc; font-size: 13px; }
-    .top-actions a { display: inline-flex; min-height: 44px; align-items: center; padding: 0 6px; }
+    input, select {
+      min-width: 0; min-height: 40px; border: 1px solid #596a52;
+      border-radius: 8px; padding: 6px 8px; background: #0d1612; color: #fff;
+    }
+    :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+    #kutter-app { display: grid; grid-template-rows: 54px minmax(0,1fr) 38px; }
     #kutter-app:fullscreen, #kutter-app:-webkit-full-screen { width: 100vw; height: 100dvh; }
-    #connection-state { color: #d8c878; font: 12px ui-monospace, monospace; }
-    .workspace { display: grid; min-height: 0; grid-template-columns: 188px minmax(0,1fr) 310px; gap: 1px; background: #334339; }
-    .panel { min-width: 0; min-height: 0; background: #142019; }
-    .tool-panel { display: flex; flex-direction: column; gap: 8px; padding: 12px; overflow: auto; }
-    .panel-title { color: #bdc9ae; font-size: 11px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
-    .tool-panel button { width: 100%; text-align: left; }
-    .tool-panel button small { display: block; color: #93a28d; font-size: 10px; font-weight: 400; }
-    .viewport-panel { position: relative; overflow: hidden; background: #07100d; }
+    .topbar {
+      display: flex; align-items: center; gap: 14px; padding: 0 18px;
+      border-bottom: 1px solid #ffffff1a; background: #131f19;
+    }
+    .brand { color: var(--accent); font-family: "Jared Lite", "Pixand", sans-serif; font-weight: 800; letter-spacing: .1em; }
+    .subbrand { color: #9eae99; font-size: 11px; letter-spacing: .06em; }
+    .top-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+    .top-actions a, .file-menu > summary {
+      display: inline-flex; min-height: 42px; align-items: center; justify-content: center;
+      padding: 0 10px; color: #e8eddf; font-size: 13px; text-decoration: none;
+      border: 1px solid transparent; border-radius: 9px; cursor: pointer;
+    }
+    .top-actions a:hover { color: var(--accent); background: #ffffff0d; }
+    #connection-state { color: #d8c878; font: 11px ui-monospace, monospace; }
+    .file-menu { position: relative; }
+    .file-menu-items {
+      position: absolute; z-index: 10; top: calc(100% + 8px); right: 0; display: grid;
+      width: 190px; gap: 6px; padding: 8px; border: 1px solid var(--line);
+      border-radius: 12px; background: #101914f5; box-shadow: 0 12px 32px #0009;
+    }
+    .file-menu:not([open]) .file-menu-items { display: none; }
+    .workspace { position: relative; min-width: 0; min-height: 0; background: #101b16; }
+    .viewport-panel { position: absolute; inset: 0; overflow: hidden; background: #07100d; }
     #kutter-viewport { display: block; width: 100%; height: 100%; touch-action: none; }
-    .viewport-info { position: absolute; top: 12px; left: 12px; z-index: 2; padding: 8px 10px; border: 1px solid #ffffff27; border-radius: 8px; background: #101b16da; color: #dce8cc; font: 11px ui-monospace, monospace; pointer-events: none; }
-    .viewport-hint { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); width: max-content; max-width: calc(100% - 24px); padding: 7px 10px; border-radius: 8px; background: #101b16d9; color: #c5d0b9; font-size: 11px; pointer-events: none; }
-    .inspector { display: grid; grid-template-rows: minmax(120px, 38%) minmax(0,1fr); overflow: hidden; }
-    .hierarchy { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-bottom: 1px solid #35463a; min-height: 0; }
+    .viewport-info {
+      position: absolute; top: 14px; left: 14px; z-index: 2; padding: 8px 11px;
+      border: 1px solid #ffffff24; border-radius: 999px; background: var(--glass);
+      color: #dce8cc; font: 11px ui-monospace, monospace; pointer-events: none;
+      backdrop-filter: blur(10px);
+    }
+    .viewport-hint {
+      position: absolute; left: 50%; bottom: 82px; transform: translateX(-50%);
+      max-width: calc(100% - 24px); padding: 7px 12px; border: 1px solid #ffffff1c;
+      border-radius: 999px; background: var(--glass); color: var(--muted);
+      font-size: 11px; white-space: nowrap; pointer-events: none;
+    }
+    .tool-panel {
+      position: absolute; z-index: 4; left: 50%; bottom: 14px; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 6px; max-width: calc(100% - 24px);
+      padding: 8px; border: 1px solid #ffffff30; border-radius: 16px;
+      background: var(--glass); box-shadow: 0 10px 28px #0008;
+      backdrop-filter: blur(14px); overflow: visible;
+    }
+    .tool-button, .marker-menu > summary {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 70px; min-height: 48px; padding: 8px 12px;
+      border: 1px solid var(--line); border-radius: 11px;
+      background: #1a2920; color: #e7eadf; font-size: 12px;
+      font-weight: 650; list-style: none; cursor: pointer;
+    }
+    .marker-menu > summary::-webkit-details-marker { display: none; }
+    .marker-menu { position: relative; }
+    .marker-menu-items {
+      position: absolute; z-index: 8; left: 0; bottom: calc(100% + 10px);
+      display: grid; width: 176px; gap: 5px; padding: 7px;
+      border: 1px solid var(--line); border-radius: 13px;
+      background: #101914f5; box-shadow: 0 12px 32px #0009;
+    }
+    .marker-menu:not([open]) .marker-menu-items { display: none; }
+    .marker-menu-items button { min-height: 44px; text-align: left; }
+    #grid-size { width: 108px; min-height: 48px; }
+    .inspector {
+      position: absolute; z-index: 5; top: 14px; right: 14px; bottom: 14px;
+      display: grid; grid-template-rows: minmax(150px, 42%) minmax(0,1fr);
+      width: min(340px, calc(100% - 28px)); min-width: 0; min-height: 0;
+      overflow: hidden; border: 1px solid #ffffff30; border-radius: 16px;
+      background: #111a16f2; box-shadow: 0 12px 32px #0008; backdrop-filter: blur(16px);
+    }
+    .inspector[hidden] { display: none; }
+    .hierarchy { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-bottom: 1px solid #ffffff20; min-height: 0; }
+    .panel-heading { display: flex; align-items: center; gap: 6px; }
+    .panel-title { color: #bdc9ae; font-size: 11px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
+    .panel-heading .panel-title { flex: 1; }
+    .panel-heading button { min-height: 36px; padding: 5px 8px; font-size: 10px; }
     #node-list { min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 4px; }
-    .node-row { display: flex; justify-content: space-between; align-items: center; min-height: 36px; padding: 4px 8px; border: 1px solid transparent; border-radius: 7px; color: #dce8cc; font: 12px ui-monospace, monospace; cursor: pointer; }
+    .node-row {
+      display: flex; justify-content: space-between; align-items: center; min-height: 40px;
+      padding: 4px 8px; border: 1px solid transparent; border-radius: 8px;
+      color: #dce8cc; font: 12px ui-monospace, monospace; cursor: pointer;
+    }
     .node-row[aria-current="true"] { border-color: #d8bf69; background: #35452f; }
-    .node-row[data-multi="true"]::after { content: "GROUP"; color: #f4d26d; font-size: 9px; }
+    .node-row[data-multi="true"]::after { content: "GROUP"; color: var(--accent); font-size: 9px; }
     .inspector-form { display: flex; flex-direction: column; gap: 9px; overflow: auto; padding: 12px; }
-    .inspector-form label { display: grid; grid-template-columns: 64px minmax(0,1fr); align-items: center; gap: 8px; color: #b9c5b2; font-size: 11px; }
+    .inspector-form label { display: grid; grid-template-columns: 72px minmax(0,1fr); align-items: center; gap: 8px; color: #c2ccb9; font-size: 11px; }
     .xyz { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; }
     .xyz label { grid-template-columns: 18px minmax(0,1fr); }
     .row-actions { display: grid; grid-template-columns: repeat(2,1fr); gap: 6px; }
-    .row-actions button { min-height: 38px; font-size: 11px; }
+    .row-actions button { min-height: 40px; font-size: 11px; }
     #node-color { height: 42px; padding: 3px; }
     #asset-token { width: 100%; }
-    #validation { min-height: 35px; padding: 8px; border-radius: 7px; background: #1a2a20; color: #cbd7c1; font-size: 11px; }
-    .bottombar { display: flex; align-items: center; gap: 10px; padding: 4px 12px; border-top: 1px solid #35463a; background: #131f19; }
-    #editor-message { overflow: hidden; color: #b8c8b4; font: 11px ui-monospace, monospace; text-overflow: ellipsis; white-space: nowrap; }
+    .advanced-controls { display: grid; gap: 7px; padding: 8px; border: 1px solid #ffffff1c; border-radius: 9px; background: #0d1612; }
+    .advanced-title { color: #bdc9ae; font-size: 10px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+    .step-row { display: grid; grid-template-columns: minmax(44px,1fr) repeat(2,minmax(44px,1fr)); gap: 5px; align-items: center; }
+    .step-row > span { color: #c2ccb9; font-size: 10px; }
+    .step-row button, .advanced-controls select { min-height: 38px; padding: 4px 6px; font-size: 10px; }
+    .asset-browser { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 5px; }
+    .asset-browser select { min-height: 38px; font-size: 10px; }
+    .unsupported-note { color: #b7c2b1; font-size: 10px; line-height: 1.4; }
+    .preview-status { color: #d8c878; font-size: 10px; }
+    .scale-step { grid-template-columns: minmax(44px,1fr) minmax(70px,1fr) minmax(80px,1fr); }
+    .scale-buttons { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 5px; }
+    #validation { min-height: 35px; padding: 8px; border-radius: 8px; background: #1a2a20; color: #cbd7c1; font-size: 11px; }
+    .bottombar {
+      display: flex; align-items: center; gap: 8px; padding: 3px 12px;
+      border-top: 1px solid #ffffff18; background: #131f19;
+    }
+    .bottombar button { min-height: 32px; padding: 4px 10px; font-size: 11px; }
+    #editor-message { overflow: hidden; color: #b8c8b4; font: 10px ui-monospace, monospace; text-overflow: ellipsis; white-space: nowrap; }
     #document-meta { margin-left: auto; color: #99a894; font: 10px ui-monospace, monospace; }
     @media (max-width: 860px) {
-      #kutter-app { min-width: 0; height: 100dvh; grid-template-rows: calc(56px + env(safe-area-inset-top)) minmax(0,1fr) calc(48px + env(safe-area-inset-bottom)); }
-      .topbar { min-width: 0; width: 100%; gap: 6px; padding: env(safe-area-inset-top) 8px 0; }
-      .top-actions { min-width: 0; flex: 1 1 auto; justify-content: flex-end; gap: 4px; overflow: hidden; }
-      .top-actions button, .top-actions a { flex: 0 0 auto; min-width: 44px; min-height: 44px; }
-      .bottombar { min-width: 0; padding-bottom: max(2px, env(safe-area-inset-bottom)); }
-      #editor-message { min-width: 0; flex: 1 1 auto; }
-      .brand { flex: 0 0 auto; }
+      #kutter-app { height: 100dvh; grid-template-rows: calc(54px + env(safe-area-inset-top)) minmax(0,1fr) calc(42px + env(safe-area-inset-bottom)); }
+      .topbar { min-width: 0; gap: 6px; padding: env(safe-area-inset-top) 8px 0; }
       .subbrand { display: none; }
-      .workspace { grid-template-columns: minmax(0,1fr); grid-template-rows: minmax(250px,1.08fr) minmax(260px,.92fr); }
-      .tool-panel { position: absolute; z-index: 4; top: 0; left: 0; right: 0; width: 100%; height: 56px; max-height: none; flex-direction: row; align-items: center; gap: 6px; padding: 6px; overflow-x: auto; overflow-y: hidden; border-bottom: 1px solid #52634f; background: #142019ed; }
-      .tool-panel .panel-title { display: none; }
-      .tool-panel button { flex: 0 0 auto; width: auto; min-width: 92px; min-height: 44px; padding: 6px 10px; font-size: 12px; text-align: center; }
-      .tool-panel button small { display: none; }
-      .tool-panel select { flex: 0 0 126px; min-height: 44px; }
-      .viewport-panel { grid-row: 1; }
-      .viewport-info { top: 64px; left: 8px; }
+      .top-actions { gap: 3px; }
+      .top-actions button, .top-actions a, .file-menu > summary { min-height: 42px; padding: 4px 8px; font-size: 11px; }
+      #connection-state { max-width: 88px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; }
+      .tool-panel { bottom: max(10px, env(safe-area-inset-bottom)); max-width: calc(100% - 16px); gap: 4px; padding: 6px; }
+      .tool-button, .marker-menu > summary { min-width: 58px; min-height: 46px; padding: 7px 8px; font-size: 11px; }
+      #grid-size { width: 92px; min-height: 46px; font-size: 11px; }
       .viewport-hint { display: none; }
-      .inspector { grid-row: 2; grid-template-columns: minmax(112px, 34%) minmax(0,1fr); grid-template-rows: minmax(0,1fr); }
-      .hierarchy { border-right: 1px solid #35463a; border-bottom: 0; padding: 8px; }
-      .node-row { min-height: 44px; padding: 6px; font-size: 11px; }
-      .inspector-form { padding: 8px; gap: 6px; }
-      .inspector-form label { grid-template-columns: 56px minmax(0,1fr); font-size: 12px; }
-      .inspector-form input, .inspector-form button, .inspector-form select { min-height: 44px; font-size: 14px; }
-      .xyz { gap: 4px; }
-      .xyz label { grid-template-columns: 14px minmax(0,1fr); }
-      .row-actions { gap: 6px; }
-      .row-actions button { min-height: 44px; font-size: 11px; }
-      .bottombar { padding: 2px 6px; gap: 6px; }
-      .bottombar button { min-height: 44px; padding: 5px 8px; font-size: 11px; }
+      .inspector { top: 8px; right: 8px; bottom: 8px; width: min(360px, calc(100% - 16px)); }
+      .bottombar { gap: 5px; padding: 2px 7px; padding-bottom: max(2px, env(safe-area-inset-bottom)); }
+      .bottombar button { min-height: 38px; min-width: 44px; padding: 4px 8px; }
       #document-meta { display: none; }
-      #editor-message { font-size: 10px; }
+      #editor-message { flex: 1; min-width: 0; font-size: 9px; }
     }
     @media (max-width: 480px) {
       .brand { font-size: 13px; }
-      .top-actions { gap: 3px; }
-      .top-actions button, .top-actions a { min-height: 44px; padding: 4px 6px; font-size: 10px; }
-      #connection-state { flex: 0 0 1px; width: 1px; max-width: 1px; overflow: hidden; font-size: 0; }
-      .tool-panel button { min-width: 88px; }
-      .inspector { grid-template-columns: minmax(104px, 32%) minmax(0,1fr); }
-      .node-row { font-size: 10px; }
-      .inspector-form label { grid-template-columns: 48px minmax(0,1fr); font-size: 11px; }
-      .inspector-form input { font-size: 16px; }
-      .xyz label { grid-template-columns: 12px minmax(0,1fr); }
-      .bottombar { gap: 4px; }
-      .bottombar button { min-width: 44px; padding: 4px 6px; font-size: 10px; }
+      .top-actions button, .top-actions a, .file-menu > summary { min-width: 42px; padding: 4px 6px; font-size: 10px; }
+      #fullscreen-button { width: 42px; font-size: 0; }
+      #fullscreen-button::before { content: "⛶"; font-size: 20px; }
+      #connection-state { width: 54px; }
+      .tool-panel { left: 8px; right: 8px; transform: none; justify-content: center; }
+      .tool-button, .marker-menu > summary { min-width: 0; flex: 1 1 auto; padding: 6px 5px; font-size: 10px; }
+      #grid-size { width: 82px; flex: 0 0 82px; }
+      .inspector { grid-template-rows: minmax(120px, 38%) minmax(0,1fr); }
+      .panel-heading button { min-height: 40px; }
+      .inspector-form { padding: 10px; }
     }
     @media (max-height: 540px) and (orientation: landscape) and (max-width: 900px) {
-      #kutter-app { grid-template-rows: 48px minmax(0,1fr) 48px; }
-      .workspace { grid-template-columns: minmax(0,1fr) minmax(240px,40%); grid-template-rows: minmax(0,1fr); }
-      .viewport-panel { grid-column: 1; grid-row: 1; }
-      .inspector { grid-column: 2; grid-row: 1; grid-template-columns: minmax(0,1fr); grid-template-rows: minmax(88px,30%) minmax(0,1fr); }
-      .hierarchy { border-right: 0; border-bottom: 1px solid #35463a; }
-      .tool-panel { top: 4px; left: 4px; right: auto; width: min(42%, 340px); height: 48px; }
-      .tool-panel button { min-width: 76px; }
-      .viewport-info { top: 58px; }
-      .bottombar #editor-message { display: none; }
+      #kutter-app { grid-template-rows: calc(44px + env(safe-area-inset-top)) minmax(0,1fr) calc(38px + env(safe-area-inset-bottom)); }
+      .topbar { gap: 4px; }
+      .tool-panel { bottom: 6px; }
+      .tool-button, .marker-menu > summary, #grid-size { min-height: 40px; }
+      .inspector { width: min(340px, 48vw); }
     }
   </style>
 </head>
@@ -118,81 +195,140 @@
   <main id="kutter-app" aria-label="Kutter level editor">
     <header class="topbar">
       <div class="brand">KUTTER</div>
-      <div class="subbrand">GATOGANSO LEVEL STUDIO · LIVE KOF DOCUMENT</div>
+      <div class="subbrand">CREATIVE WORLD BUILDER</div>
       <div class="top-actions">
         <span id="connection-state" role="status" aria-live="polite">Connecting…</span>
-        <button id="open-file" type="button">Open</button>
-        <button id="save-file" type="button">Save .kutter</button>
-        <button id="fullscreen-button" type="button" aria-label="Enter fullscreen" aria-pressed="false" title="Enter fullscreen">Fullscreen</button>
-        <a href="/" aria-label="Return to GatoGanso">Game</a>
+        <details class="file-menu">
+          <summary aria-label="File menu">File</summary>
+          <div class="file-menu-items">
+            <button id="open-file" type="button">Open world</button>
+            <button id="save-file" type="button">Save world</button>
+            <button id="refresh" type="button">Reload from server</button>
+          </div>
+        </details>
+        <button id="layers-toggle" type="button" aria-controls="level-inspector"
+          aria-expanded="false" aria-label="Show layers and properties">Layers</button>
+        <button id="fullscreen-button" type="button" aria-label="Enter fullscreen"
+          aria-pressed="false" title="Enter fullscreen">Fullscreen</button>
+        <a href="/" aria-label="Return to GatoGanso">Play</a>
       </div>
     </header>
-    <section class="workspace" aria-label="Editor workspace">
-      <aside class="panel tool-panel" aria-label="Placement tools">
-        <div class="panel-title">Place</div>
-        <button type="button" data-tool="1" aria-pressed="true">Select<small>Pick and inspect nodes</small></button>
-        <button type="button" data-tool="2" aria-pressed="false">Prop<small>Place greybox prop</small></button>
-        <button type="button" data-tool="3" aria-pressed="false">Player spawn<small>Player start marker</small></button>
-        <button type="button" data-tool="4" aria-pressed="false">Enemy spawn<small>Enemy start marker</small></button>
-        <button type="button" data-tool="5" aria-pressed="false">Encounter<small>Encounter marker</small></button>
-        <button type="button" data-tool="6" aria-pressed="false">Goal trigger<small>Required level goal</small></button>
-        <button type="button" data-tool="7" aria-pressed="false">Light<small>Light marker</small></button>
-        <button type="button" data-tool="8" aria-pressed="false">Erase<small>Remove selected node</small></button>
-        <label class="panel-title" for="grid-size">Grid</label>
-        <select id="grid-size" aria-label="Kutter snap grid">
-          <option value="25">Small · 25</option>
-          <option value="100" selected>Medium · 100</option>
-          <option value="250">Large · 250</option>
-        </select>
-      </aside>
+    <section class="workspace" aria-label="Creative world editor">
       <section class="viewport-panel" aria-label="3D level viewport">
-        <canvas id="kutter-viewport" aria-label="3D Kutter viewport. Click to place or select on the grid." tabindex="0"></canvas>
+        <canvas id="kutter-viewport"
+          aria-label="3D Kutter viewport. Click to place or select on the grid."
+          tabindex="0"></canvas>
         <div class="viewport-info" id="viewport-info">WAITING FOR KOF</div>
-        <div class="viewport-hint">Click viewport to place/select · Use hierarchy for exact selection</div>
+        <div class="viewport-hint">Click to place · select an object to edit</div>
+        <div class="tool-panel" role="toolbar" aria-label="Build tools">
+          <button class="tool-button" type="button" data-tool="1"
+            aria-label="Select" title="Select and inspect" aria-pressed="true">Select</button>
+          <button class="tool-button" type="button" data-tool="2"
+            aria-label="Prop" title="Place a prop" aria-pressed="false">Prop</button>
+          <details class="marker-menu">
+            <summary class="tool-button" aria-label="Marker tools" title="Spawn and goal markers">Markers</summary>
+            <div class="marker-menu-items">
+              <button type="button" data-tool="3" aria-pressed="false">Player spawn</button>
+              <button type="button" data-tool="4" aria-pressed="false">Enemy spawn</button>
+              <button type="button" data-tool="5" aria-pressed="false">Encounter</button>
+              <button type="button" data-tool="6" aria-pressed="false">Goal</button>
+            </div>
+          </details>
+          <button class="tool-button" type="button" data-tool="7"
+            aria-label="Light" title="Place a light" aria-pressed="false">Light</button>
+          <button class="tool-button" type="button" data-tool="8"
+            aria-label="Erase" title="Erase a selected node" aria-pressed="false">Erase</button>
+          <label class="sr-only" for="grid-size">Snap grid</label>
+          <select id="grid-size" aria-label="Kutter snap grid">
+            <option value="25">Grid · 25</option>
+            <option value="100" selected>Grid · 100</option>
+            <option value="250">Grid · 250</option>
+          </select>
+        </div>
+        <aside class="panel inspector" id="level-inspector"
+          aria-label="Level layers and properties" hidden>
+          <section class="hierarchy">
+            <div class="panel-heading">
+              <div class="panel-title">Layers <span id="node-count">0</span></div>
+              <button id="group-nodes" type="button" aria-label="Group selected nodes">Group</button>
+              <button id="ungroup-node" type="button" aria-label="Ungroup selected">Ungroup</button>
+            </div>
+            <div id="node-list" role="listbox" aria-label="Level nodes"></div>
+          </section>
+          <form class="inspector-form" id="inspector-form">
+            <div class="panel-title">Properties</div>
+            <div id="selection-name">No object selected</div>
+            <div class="xyz" aria-label="Position">
+              <label>X<input id="node-x" type="number" step="25" aria-label="Node X position"></label>
+              <label>Y<input id="node-y" type="number" step="25" aria-label="Node Y position"></label>
+              <label>Z<input id="node-z" type="number" step="25" aria-label="Node Z position"></label>
+            </div>
+            <label>Rotation<input id="node-rotation" type="number" step="15000" aria-label="Node rotation in Kutter units"></label>
+            <div class="xyz" aria-label="Node size">
+              <label>Scale X<input id="node-sx" type="number" min="100" max="1000000" step="100" aria-label="Node X scale"></label>
+              <label>Scale Y<input id="node-sy" type="number" min="100" max="1000000" step="100" aria-label="Node Y scale"></label>
+              <label>Scale Z<input id="node-sz" type="number" min="100" max="1000000" step="100" aria-label="Node Z scale"></label>
+            </div>
+            <label>Color<input id="node-color" type="color" aria-label="Node color"></label>
+            <section class="advanced-controls" aria-label="Advanced editing">
+              <div class="advanced-title">Step controls</div>
+              <div class="step-row">
+                <span>Rotate · 15°</span>
+                <button id="rotate-down" type="button" aria-label="Rotate selected counterclockwise 15 degrees">−</button>
+                <button id="rotate-up" type="button" aria-label="Rotate selected clockwise 15 degrees">+</button>
+              </div>
+              <div class="step-row scale-step">
+                <label for="scale-axis">Scale</label>
+                <select id="scale-axis" aria-label="Scale axis">
+                  <option value="0">X axis</option>
+                  <option value="1">Y axis</option>
+                  <option value="2">Z axis</option>
+                </select>
+                <div class="scale-buttons">
+                  <button id="scale-down" type="button" aria-label="Decrease selected scale axis">−</button>
+                  <button id="scale-up" type="button" aria-label="Increase selected scale axis">+</button>
+                </div>
+              </div>
+              <div class="step-row">
+                <span>Height · grid</span>
+                <button id="height-down" type="button" aria-label="Lower selected object by one grid step">−</button>
+                <button id="height-up" type="button" aria-label="Raise selected object by one grid step">+</button>
+              </div>
+              <div class="advanced-title">Asset catalog</div>
+              <div class="asset-browser">
+                <select id="asset-catalog" aria-label="Browse document asset catalog" disabled>
+                  <option value="">No catalog assets</option>
+                </select>
+              </div>
+              <div class="row-actions asset-actions">
+                <button id="assign-asset" type="button" disabled>Assign to prop</button>
+                <button id="add-asset" type="button" disabled>Add at cursor</button>
+              </div>
+              <div class="unsupported-note" id="asset-add-status">Loading prototype asset catalog…</div>
+              <button id="preview-toggle" type="button" disabled aria-pressed="false">
+                Preview off
+              </button>
+              <div class="preview-status" id="preview-status" role="status">Preview mode is off.</div>
+            </section>
+            <label>Asset token<input id="asset-token" type="number" min="0" max="1000000" step="1" aria-label="Node asset token"></label>
+            <div class="row-actions">
+              <button id="duplicate-node" type="button">Duplicate</button>
+              <button id="delete-node" type="button">Delete</button>
+              <button id="move-node" type="button">Move to cursor</button>
+              <button id="reset-transform" type="button">Reset transform</button>
+            </div>
+            <div id="validation" role="status" aria-live="polite">Checking level…</div>
+          </form>
+        </aside>
       </section>
-      <aside class="panel inspector" aria-label="Level hierarchy and inspector">
-        <section class="hierarchy">
-          <div class="panel-title">Hierarchy · <span id="node-count">0</span></div>
-          <div id="node-list" role="listbox" aria-label="Level nodes"></div>
-          <div class="row-actions">
-            <button id="group-nodes" type="button">Group selected</button>
-            <button id="ungroup-node" type="button">Ungroup</button>
-          </div>
-        </section>
-        <form class="inspector-form" id="inspector-form">
-          <div class="panel-title">Inspector</div>
-          <div id="selection-name">No node selected</div>
-          <div class="xyz" aria-label="Position">
-            <label>X<input id="node-x" type="number" step="25" aria-label="Node X position"></label>
-            <label>Y<input id="node-y" type="number" step="25" aria-label="Node Y position"></label>
-            <label>Z<input id="node-z" type="number" step="25" aria-label="Node Z position"></label>
-          </div>
-          <label>Rotation<input id="node-rotation" type="number" step="15000" aria-label="Node rotation in Kutter units"></label>
-          <div class="xyz" aria-label="Node size">
-            <label>Scale X<input id="node-sx" type="number" min="100" max="1000000" step="100" aria-label="Node X scale"></label>
-            <label>Scale Y<input id="node-sy" type="number" min="100" max="1000000" step="100" aria-label="Node Y scale"></label>
-            <label>Scale Z<input id="node-sz" type="number" min="100" max="1000000" step="100" aria-label="Node Z scale"></label>
-          </div>
-          <label>Color<input id="node-color" type="color" aria-label="Node color"></label>
-          <label>Asset token<input id="asset-token" type="number" min="0" max="1000000" step="1" aria-label="Node asset token"></label>
-          <div class="row-actions">
-            <button id="duplicate-node" type="button">Duplicate</button>
-            <button id="delete-node" type="button">Delete</button>
-            <button id="move-node" type="button">Move to cursor</button>
-            <button id="reset-transform" type="button">Reset transform</button>
-          </div>
-          <div id="validation" role="status" aria-live="polite">Checking level…</div>
-        </form>
-      </aside>
     </section>
     <footer class="bottombar">
-      <button id="undo" type="button">Undo</button>
-      <button id="redo" type="button">Redo</button>
-      <button id="refresh" type="button">Refresh</button>
+      <button id="undo" type="button" aria-label="Undo">Undo</button>
+      <button id="redo" type="button" aria-label="Redo">Redo</button>
       <span id="editor-message" role="status" aria-live="polite">Opening Kof editor session…</span>
       <span id="document-meta"></span>
     </footer>
-    <input id="file-input" type="file" accept=".kutter,application/octet-stream">
+    <input id="file-input" type="file" accept=".kutter,application/octet-stream" hidden>
   </main>
   <span id="fullscreen-status" class="sr-only" role="status" aria-live="polite"></span>
   <script src="kookie-webgl-renderer.js"></script>

@@ -10,7 +10,7 @@
  * they are not array indices and are not reused during one open lifetime.
  *
  * Limits: 12 connections, 64 queued events, 8192-byte HTTP requests,
- * 1104-byte WebSocket payloads, and 65536 bytes per committed output.
+ * 1296-byte WebSocket payloads, and 65536 bytes per committed output.
  * Event data is copied into the current event and remains valid until the
  * next poll_event call. Connection slots are not reused until its disconnect
  * event is consumed. poll_event returns 0 for timeout, otherwise event kinds:

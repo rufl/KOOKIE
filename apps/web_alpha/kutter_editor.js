@@ -14,7 +14,7 @@
     get: 1, tool: 2, cursor: 3, apply: 4, select: 5, move: 6,
     rotate: 7, resize: 8, recolor: 9, duplicate: 10, remove: 11,
     group: 12, ungroup: 13, undo: 14, redo: 15, import: 16,
-    grid: 17, update: 18,
+    grid: 17, update: 18, height: 19, preview: 20,
   });
   const NODE_GROUP = 9;
   const NODE_LABELS = {
@@ -42,6 +42,14 @@
   let groupedSelection = new Set();
   let currentScene = null;
   let statusMessage = "Opening Kof editor session…";
+  let reconnectTimer = null;
+  let animationFrameHandle = 0;
+  let shuttingDown = false;
+  let refreshTimer = null;
+  let refreshInFlight = false;
+  let assetCatalog = [];
+  let assetCatalogError = "";
+  let previewActive = false;
 
   function checksum(words, length = words.length) {
     let result = 53;
@@ -75,7 +83,7 @@
 
   function decodeFrame(buffer) {
     if (!(buffer instanceof ArrayBuffer) || buffer.byteLength < 16 ||
-        buffer.byteLength > 16 + 272 * 4) throw new Error("Invalid Kof frame size");
+        buffer.byteLength > 16 + 320 * 4) throw new Error("Invalid Kof frame size");
     const bytes = new Uint8Array(buffer);
     const view = new DataView(buffer);
     if (bytes[0] !== 0x4b || bytes[1] !== 0x57 || bytes[2] !== 0x53 ||
@@ -84,7 +92,7 @@
     }
     const sequence = view.getUint32(8, false);
     const count = view.getUint16(12, false);
-    if (!sequence || count < 1 || count > 272 || buffer.byteLength !== 16 + count * 4 ||
+    if (!sequence || count < 1 || count > 320 || buffer.byteLength !== 16 + count * 4 ||
         checksumWire(bytes) !== view.getUint16(14, false)) {
       throw new Error("Invalid Kof frame checksum");
     }
@@ -147,6 +155,7 @@
     if (transfer.received < total) return;
     incomingStates.delete(frame.sequence);
     const parsed = decodeDocument(transfer.data);
+    previewActive = (validation & 8) !== 0;
     documentState = { ...transfer.metadata, ...parsed };
     statusMessage = "Connected · Kof Kutter document accepted";
     updateDocumentMeta();
@@ -162,6 +171,15 @@
     if (error) waiter.reject(error);
     else waiter.resolve(value);
   }
+  function rejectPendingRequests(error) {
+    for (const [sequence, waiter] of pending) {
+      clearTimeout(waiter.timer);
+      waiter.reject(error);
+      pending.delete(sequence);
+    }
+    incomingStates.clear();
+  }
+
 
   function decodeSigned(value) {
     return value % 2 === 0 ? value / 2 : -Math.floor(value / 2) - 1;
@@ -208,13 +226,15 @@
   }
 
   function request(command, args = []) {
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
+    const activeSocket = ws;
+    if (shuttingDown || !activeSocket ||
+        activeSocket.readyState !== WebSocket.OPEN) {
       return Promise.reject(new Error("Kof editor is disconnected"));
     }
     const sequence = ++requestSequence;
     const words = [PROTOCOL_VERSION, KIND_GAME, sequence, KUTTER_REQUEST, command, ...args];
     words.push(checksum(words));
-    if (words.length > 272) return Promise.reject(new Error("Kutter request exceeds Kof frame bound"));
+    if (words.length > 320) return Promise.reject(new Error("Kutter request exceeds Kof frame bound"));
     const promise = new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         pending.delete(sequence);
@@ -222,7 +242,11 @@
       }, 10000);
       pending.set(sequence, { resolve, reject, timer });
     });
-    ws.send(encodeFrame(KIND_GAME, sequence, words));
+    try {
+      activeSocket.send(encodeFrame(KIND_GAME, sequence, words));
+    } catch (error) {
+      settle(sequence, error);
+    }
     return promise;
   }
 
@@ -274,12 +298,77 @@
   }
 
   function setField(id, value) { byId(id).value = String(value); }
+  function renderAssetCatalog(node) {
+    const select = byId("asset-catalog");
+    select.replaceChildren();
+    if (assetCatalog.length === 0) {
+      const option = document.createElement("option");
+      option.value = "";
+      option.textContent = assetCatalogError ? "Catalog unavailable" :
+        assetCatalogLoaded ? "No catalog assets" : "Loading catalog…";
+      select.appendChild(option);
+    } else {
+      for (const asset of assetCatalog) {
+        const option = document.createElement("option");
+        option.value = String(asset.asset_token);
+        option.textContent = asset.module_id + " · " + asset.name + " · " + asset.kind;
+        select.appendChild(option);
+      }
+    }
+    const available = assetCatalogLoaded && assetCatalog.length > 0;
+    select.disabled = !available;
+    byId("asset-add-status").textContent = assetCatalogError ||
+      (available ? "Assign to a selected prop or add at the cursor." :
+        assetCatalogLoaded ? "No prototype assets are available." : "Loading prototype asset catalog…");
+    if (node && node.asset > 0) {
+      if (assetCatalog.some((asset) => asset.asset_token === node.asset)) {
+        select.value = String(node.asset);
+      } else {
+        select.selectedIndex = -1;
+      }
+    } else if (assetCatalog.length) {
+      select.selectedIndex = 0;
+    }
+    const hasSelection = assetCatalog.some((asset) =>
+      asset.asset_token === Number(select.value));
+    byId("assign-asset").disabled = !node || node.kind !== 2 || !hasSelection;
+    byId("add-asset").disabled = !documentState || !hasSelection;
+  }
+
+  let assetCatalogLoaded = false;
+  async function loadAssetCatalog() {
+    try {
+      const response = await fetch("/assets/prototype/greybox_modules.json");
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      const entries = await response.json();
+      if (entries?.schema !== "kookie.greybox-module-catalog/v1" ||
+          !Array.isArray(entries.modules)) {
+        throw new Error("Unexpected catalog format");
+      }
+      assetCatalog = entries.modules.map((entry) => {
+        const token = Number(entry?.asset_token);
+        if (!Number.isInteger(token) || token <= 0 ||
+            entry.module_id === undefined || entry.name === undefined || entry.kind === undefined) {
+          throw new Error("Invalid catalog entry");
+        }
+        return { ...entry, asset_token: token };
+      });
+      assetCatalogError = "";
+      assetCatalogLoaded = true;
+    } catch (error) {
+      assetCatalog = [];
+      assetCatalogError = "Asset catalog unavailable: " + error.message;
+      assetCatalogLoaded = false;
+    }
+    renderAssetCatalog(currentNode());
+  }
 
   function renderInspector() {
     const node = currentNode();
     const ids = ["node-x", "node-y", "node-z", "node-rotation", "node-sx", "node-sy",
       "node-sz", "node-color", "asset-token", "duplicate-node", "delete-node",
-      "move-node", "reset-transform", "group-nodes", "ungroup-node"];
+      "move-node", "reset-transform", "group-nodes", "ungroup-node", "rotate-down",
+      "rotate-up", "scale-down", "scale-up", "height-down", "height-up", "assign-asset", "scale-axis"];
     for (const id of ids) {
       const element = byId(id);
       if (element) element.disabled = !node;
@@ -298,6 +387,14 @@
       byId(id).disabled = node.kind === NODE_GROUP;
     }
     byId("delete-node").disabled = false;
+    const groupNode = node.kind === NODE_GROUP;
+    for (const id of ["rotate-down", "rotate-up", "scale-down", "scale-up",
+      "height-down", "height-up"]) {
+      byId(id).disabled = groupNode;
+    }
+    byId("scale-axis").disabled = groupNode;
+    byId("height-down").disabled = groupNode || node.y - documentState.grid < -1000000;
+    byId("height-up").disabled = groupNode || node.y + documentState.grid > 1000000;
     byId("duplicate-node").disabled = node.kind === NODE_GROUP;
     byId("ungroup-node").disabled = node.kind !== NODE_GROUP;
     byId("group-nodes").disabled = groupedSelection.size < 2;
@@ -319,10 +416,18 @@
   function drawUi() {
     connectionState.textContent = ws?.readyState === WebSocket.OPEN ? "KOF CONNECTED" : "DISCONNECTED";
     message.textContent = statusMessage;
-    if (!documentState) return;
+    byId("preview-toggle").disabled = !documentState || ws?.readyState !== WebSocket.OPEN;
+    byId("preview-toggle").setAttribute("aria-pressed", String(previewActive));
+    byId("preview-toggle").textContent = previewActive ? "Preview on" : "Preview off";
+    byId("preview-status").textContent = previewActive
+      ? "Preview mode is on." : "Preview mode is off.";
+    if (!documentState) {
+      renderAssetCatalog(null);
+      return;
+    }
     renderHierarchy();
     renderInspector();
-    renderValidation();
+    renderAssetCatalog(currentNode());
     for (const button of document.querySelectorAll("[data-tool]")) {
       button.setAttribute("aria-pressed", String(Number(button.dataset.tool) === documentState.tool));
     }
@@ -349,11 +454,12 @@
   }
 
   function frame(now) {
-    if (rendererReady && documentState) {
+    if (shuttingDown) return;
+    if (rendererReady) {
       currentScene = sceneForRenderer();
       renderer.render(currentScene, now);
     }
-    requestAnimationFrame(frame);
+    animationFrameHandle = requestAnimationFrame(frame);
   }
 
   function screenWorldPoint(event) {
@@ -419,11 +525,70 @@
 
   document.querySelectorAll("[data-tool]").forEach((button) => {
     button.addEventListener("click", async () => {
+      button.closest("details")?.removeAttribute("open");
       try { await operate(COMMAND.tool, [Number(button.dataset.tool)]); } catch (error) {}
     });
   });
+  const layersToggle = byId("layers-toggle");
+  const levelInspector = byId("level-inspector");
+  layersToggle.addEventListener("click", () => {
+    levelInspector.hidden = !levelInspector.hidden;
+    layersToggle.setAttribute("aria-expanded", String(!levelInspector.hidden));
+    layersToggle.setAttribute(
+      "aria-label",
+      levelInspector.hidden ? "Show layers and properties" : "Hide layers and properties",
+    );
+    layersToggle.textContent = levelInspector.hidden ? "Layers" : "Close";
+  });
   byId("grid-size").addEventListener("change", async () => {
     try { await operate(COMMAND.grid, [Number(byId("grid-size").value)]); } catch (error) {}
+  });
+  byId("rotate-down").addEventListener("click", async () => {
+    try { await operate(COMMAND.rotate, [-1]); } catch (error) {}
+  });
+  byId("rotate-up").addEventListener("click", async () => {
+    try { await operate(COMMAND.rotate, [1]); } catch (error) {}
+  });
+  for (const [id, direction] of [["scale-down", -1], ["scale-up", 1]]) {
+    byId(id).addEventListener("click", async () => {
+      try {
+        await operate(COMMAND.resize, [Number(byId("scale-axis").value), direction]);
+      } catch (error) {}
+    });
+  }
+  for (const [id, direction] of [["height-down", -1], ["height-up", 1]]) {
+    byId(id).addEventListener("click", async () => {
+      try { await operate(COMMAND.height, [direction]); } catch (error) {}
+    });
+  }
+  byId("asset-catalog").addEventListener("change", () => {
+    const token = Number(byId("asset-catalog").value);
+    const selected = assetCatalog.some((asset) => asset.asset_token === token);
+    const node = currentNode();
+    byId("asset-token").value = byId("asset-catalog").value;
+    byId("assign-asset").disabled = !selected || !node || node.kind !== 2;
+    byId("add-asset").disabled = !selected || !documentState;
+  });
+  byId("assign-asset").addEventListener("click", updateSelectedFromForm);
+  byId("add-asset").addEventListener("click", async () => {
+    const token = Number(byId("asset-catalog").value);
+    if (!Number.isInteger(token) || token <= 0 || !documentState) return;
+    try {
+      await operate(COMMAND.tool, [2]);
+      await operate(COMMAND.cursor, [documentState.cursorX, documentState.cursorZ]);
+      await operate(COMMAND.apply);
+      const node = currentNode();
+      if (!node || node.kind !== 2) throw new Error("Kof did not select the new prop");
+      setField("asset-token", token);
+      await updateSelectedFromForm();
+    } catch (error) {}
+  });
+  byId("preview-toggle").addEventListener("click", async () => {
+    try {
+      await operate(COMMAND.preview);
+      previewActive = !previewActive;
+      drawUi();
+    } catch (error) {}
   });
   canvas.addEventListener("click", async (event) => {
     if (!documentState) return;
@@ -548,21 +713,44 @@
 
   function updateDocumentMeta() { renderValidation(); }
 
+  async function refreshDocument() {
+    if (refreshInFlight || shuttingDown || !ws || ws.readyState !== WebSocket.OPEN) return;
+    refreshInFlight = true;
+    try { await operate(COMMAND.get); } catch (error) {}
+    finally { refreshInFlight = false; }
+  }
+
+  function startDocumentRefresh() {
+    if (refreshTimer !== null) return;
+    void refreshDocument();
+    refreshTimer = window.setInterval(refreshDocument, 5000);
+  }
+
   function connect() {
+    if (shuttingDown) return;
     const scheme = location.protocol === "https:" ? "wss:" : "ws:";
-    ws = new WebSocket(scheme + "//" + location.host + "/kutter/session", ["kookie.v1", "kutter.v1"]);
-    ws.binaryType = "arraybuffer";
-    ws.addEventListener("open", () => {
+    const clientSocket = new WebSocket(
+      scheme + "//" + location.host + "/kutter/session",
+      ["kookie.v1", "kutter.v1"],
+    );
+    ws = clientSocket;
+    clientSocket.binaryType = "arraybuffer";
+    clientSocket.addEventListener("open", () => {
+      if (ws !== clientSocket || shuttingDown) return;
       connectionState.textContent = "CONNECTING";
-      statusMessage = "Connected to Kof · requesting canonical Kutter document";
+      statusMessage = "Connected to Kof · waiting for canonical Kutter document";
       sendHello();
       heartbeatTimer = window.setInterval(sendHeartbeat, 1000);
       drawUi();
     });
-    ws.addEventListener("message", (event) => {
+    clientSocket.addEventListener("message", (event) => {
+      if (ws !== clientSocket || shuttingDown) return;
       try {
         const frame = decodeFrame(event.data);
-        if (frame.kind === KIND_ACK) return;
+        if (frame.kind === KIND_ACK) {
+          startDocumentRefresh();
+          return;
+        }
         if (frame.kind === KIND_PONG) return;
         if (frame.kind === KIND_GAME) receiveState(frame);
       } catch (error) {
@@ -570,21 +758,55 @@
         drawUi();
       }
     });
-    ws.addEventListener("close", (event) => {
+    clientSocket.addEventListener("close", (event) => {
+      if (ws !== clientSocket) return;
+      ws = null;
       if (heartbeatTimer !== null) window.clearInterval(heartbeatTimer);
+      if (refreshTimer !== null) window.clearInterval(refreshTimer);
+      refreshTimer = null;
+      refreshInFlight = false;
       heartbeatTimer = null;
+      rejectPendingRequests(new Error("Kof Kutter connection closed"));
       connectionState.textContent = "DISCONNECTED";
-      statusMessage = "Kof connection closed (" + event.code +
-        (event.reason ? ": " + event.reason : "") + ") · reconnecting in 2 seconds";
+      statusMessage = shuttingDown
+        ? "Kof connection closed"
+        : "Kof connection closed (" + event.code +
+          (event.reason ? ": " + event.reason : "") + ") · reconnecting in 2 seconds";
       drawUi();
-      setTimeout(connect, 2000);
+      if (!shuttingDown) {
+        reconnectTimer = window.setTimeout(() => {
+          reconnectTimer = null;
+          connect();
+        }, 2000);
+      }
     });
-    ws.addEventListener("error", () => {
+    clientSocket.addEventListener("error", () => {
+      if (ws !== clientSocket || shuttingDown) return;
       connectionState.textContent = "CONNECTION ERROR";
       statusMessage = "Kof editor endpoint unavailable";
       drawUi();
     });
   }
+
+  window.addEventListener("pagehide", () => {
+    shuttingDown = true;
+    if (reconnectTimer !== null) window.clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+    if (heartbeatTimer !== null) window.clearInterval(heartbeatTimer);
+    if (refreshTimer !== null) window.clearInterval(refreshTimer);
+    refreshTimer = null;
+    heartbeatTimer = null;
+    rejectPendingRequests(new Error("Kutter editor page closed"));
+    const activeSocket = ws;
+    ws = null;
+    if (activeSocket && activeSocket.readyState < WebSocket.CLOSING) {
+      activeSocket.close();
+    }
+    if (animationFrameHandle) cancelAnimationFrame(animationFrameHandle);
+    animationFrameHandle = 0;
+    if (renderer && typeof renderer.destroy === "function") renderer.destroy();
+    renderer = null;
+  });
 
   async function start() {
     try {
@@ -595,9 +817,15 @@
       statusMessage = "Viewport unavailable: " + error.message;
       drawUi();
     }
-    requestAnimationFrame(frame);
+    if (shuttingDown) {
+      if (renderer && typeof renderer.destroy === "function") renderer.destroy();
+      renderer = null;
+      return;
+    }
+    animationFrameHandle = requestAnimationFrame(frame);
     connect();
   }
 
+  loadAssetCatalog();
   start();
 })();

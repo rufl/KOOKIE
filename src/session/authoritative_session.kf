@@ -1084,6 +1084,13 @@ class LoopbackSession {
     Int fpsAirJumpsUsed(Int player) {
         return fpsMovement.airJumpsUsed(player)
     }
+    Bool fpsDoubleJumpAnimationActive(Int player) {
+        return fpsMovement.doubleJumpAnimationActive(player)
+    }
+
+    Int fpsDoubleJumpAnimationTicks(Int player) {
+        return fpsMovement.doubleJumpAnimationTicks(player)
+    }
 
     Bool fpsLastCoyoteJump() {
         return fpsMovement.lastCoyoteJump()

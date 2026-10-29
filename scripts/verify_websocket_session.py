@@ -51,7 +51,7 @@ from kookie_websocket_session import (  # noqa: E402
 )
 
 
-MAX_PAYLOAD = 16 + 272 * 4
+MAX_PAYLOAD = 16 + 320 * 4
 
 
 def recv_exact(sock: socket.socket, count: int) -> bytes:

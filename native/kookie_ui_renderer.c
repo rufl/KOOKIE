@@ -713,7 +713,7 @@ static bool kookie_ui_sample_resource(
     if (resource >= 600 && resource < 605) {
         int state = resource - 600;
         int x = (int)lrintf(fminf(100.0f, fmaxf(0.0f, u)) * 0.07f);
-        int y = 7 - (int)lrintf(fminf(100.0f, fmaxf(0.0f, v)) * 0.07f);
+        int y = (int)lrintf(fminf(100.0f, fmaxf(0.0f, v)) * 0.07f);
         memcpy(color, kookie_heart_tiles[state][y][x], 4u);
         return true;
     }

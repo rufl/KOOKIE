@@ -76,6 +76,7 @@ cp -- "$ROOT_DIR/probes/shared/gpu_world_texture_batch.kf" \
   "$SOURCE_DIR/content/gpu_world_texture_batch.kf"
 IFS=' ' read -r -a TEXT_FLAGS <<<"$(pkg-config --cflags freetype2 harfbuzz)"
 IFS=' ' read -r -a TEXT_LIBS <<<"$(pkg-config --libs freetype2 harfbuzz)"
+IFS=' ' read -r -a CURL_CFLAGS <<<"$(pkg-config --cflags libcurl)"
 echo "KOOKIE G5 phase=shader-pipeline"
 python3 "$ROOT_DIR/scripts/shader_pipeline.py" \
   --root "$ROOT_DIR" --output "$SOURCE_DIR/build" --target linux
@@ -85,10 +86,12 @@ cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared \
   "$ROOT_DIR/native/kookie_sdl_adapter.c" \
   "$ROOT_DIR/native/kookie_ui_renderer.c" \
   "$ROOT_DIR/native/kookie_transport.c" \
+  "$ROOT_DIR/native/kookie_kutter_sync.c" \
   -o "$SOURCE_DIR/build/libkookie_sdl_adapter.so" \
   "${SDL_FLAGS[@]}" \
   "${TEXT_FLAGS[@]}" \
-  "${TEXT_LIBS[@]}" -lm
+  "${CURL_CFLAGS[@]}" \
+  "${TEXT_LIBS[@]}" $(pkg-config --libs libcurl) -lm -pthread
 while IFS= read -r library; do
   case "$(basename "$library")" in
     libSDL3.so*|libSDL3_mixer.so*)

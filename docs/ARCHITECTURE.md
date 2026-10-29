@@ -449,7 +449,10 @@ handshake, full-scene movement and malformed-request rejection.
   grounding/step policy, actor contacts, weapon/fuse state, teams, damage,
   power-up effects, bot decisions and replication. Registered Box3D kinematic
   sensor capsules are synchronized from Kof; the adapter's actor ray/overlap
-  checks are bounded Zig geometry queries, not Box3D's dynamic solver.
+  checks are bounded Zig geometry queries, not Box3D's dynamic solver. Thrown
+  watermelons receive one authoritative soft ground bounce before their impact
+  event spawns four slice pickups; wall and actor contacts still resolve
+  immediately.
 - Startup gates differentially compare Kof and Box3D movement through floor,
   ramp/raised-lane and jump/landing routes. G1's four perimeter walls are
   excluded from Box3D triangle meshes because long mesh faces generated distant
@@ -798,6 +801,17 @@ then activates at a frame boundary. The Kof coordinator retains referenced
 generation identities and permits retirement only after references and the
 fence clear. This reload contract covers validated scene products; it is not
 arbitrary code, shader or plugin hot reload.
+
+Browser and native Kutter frontends connect to the same Kof-owned
+`BoundedKutterLevelEditor` session over `/kutter/session`. The tailnet preview
+runs that editor service as a separate Kof server process from gameplay. It
+publishes one canonical document in bounded chunks, applies edits through the
+same editor commands, and broadcasts updates to every connected editor;
+previews, history, transforms, grouping, asset assignment and file
+import/export share that contract. The live document is held in memory and is
+not automatically persisted or loaded as the active gameplay level. Native
+WebSocket transport is an adapter boundary; it does not own document or editor
+policy.
 
 ### Additional intake hardening
 

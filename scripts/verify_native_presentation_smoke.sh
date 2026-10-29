@@ -57,26 +57,50 @@ printf '%s' '00000001000000020000000300000004' >"$transport_key_file"
 chmod 600 "$transport_key_file"
 
 probe_root="$root_dir/probes/g0_native_presentation"
+static_scene="$probe_root/core/gpu_scene_batch.kf"
+static_save="$probe_root/session/pe_durable_save_coordinator.kf"
+declare -a staged_static_paths=()
+cleanup() {
+  rm -rf -- "$build_dir"
+  for module in core content session world ui demo; do
+    find "$probe_root/$module" -maxdepth 1 -type l \
+      ! -path "$static_scene" ! -path "$static_save" -delete
+  done
+  for staged_path in "${staged_static_paths[@]}"; do
+    rm -f -- "$staged_path"
+  done
+}
+trap cleanup EXIT
+stage_static_file() {
+  local source="$1"
+  local target="$2"
+  if [[ -L "$target" ]] &&
+    [[ "$(readlink -f "$target")" == "$(readlink -f "$source")" ]]; then
+    return 0
+  fi
+  if [[ -e "$target" ]]; then
+    if cmp -s -- "$source" "$target"; then return 0; fi
+    printf 'native presentation: refusing to overwrite staged file: %s\n' \
+      "$target" >&2
+    return 1
+  fi
+  cp -- "$source" "$target"
+  staged_static_paths+=("$target")
+}
 for module in core content session world ui demo; do
   mkdir -p "$probe_root/$module"
   for source_file in "$root_dir/src/$module"/*.kf; do
     ln -sfn "$source_file" "$probe_root/$module/$(basename "$source_file")"
   done
 done
-cp -- "$root_dir/probes/shared/gpu_scene_batch.kf" \
-  "$probe_root/core/gpu_scene_batch.kf"
-cp -- "$root_dir/probes/shared/pe_durable_save_coordinator.kf" \
-  "$probe_root/session/pe_durable_save_coordinator.kf"
+stage_static_file "$root_dir/probes/shared/gpu_scene_batch.kf" \
+  "$static_scene"
+stage_static_file "$root_dir/probes/shared/pe_durable_save_coordinator.kf" \
+  "$static_save"
 
-cleanup() {
-  rm -rf -- "$build_dir"
-  for module in core content session world ui demo; do
-    find "$probe_root/$module" -maxdepth 1 -type l -delete
-  done
-  rm -f -- "$probe_root/core/gpu_scene_batch.kf" \
-    "$probe_root/session/pe_durable_save_coordinator.kf"
-}
-trap cleanup EXIT
+zig_bin="${ZIG:-zig}"
+"$zig_bin" build check-box3d-adapter
+"$zig_bin" build -Drelease=true --prefix "$adapter_build_dir"
 
 python3 scripts/shader_pipeline.py \
   --root "$root_dir" --output "$adapter_build_dir" --target linux
@@ -85,8 +109,9 @@ gcc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
   native/kookie_sdl_adapter.c \
   native/kookie_ui_renderer.c \
   native/kookie_transport.c \
+  native/kookie_kutter_sync.c \
   -o "$adapter_build_dir/build/libkookie_sdl_adapter.so" \
-  $(pkg-config --cflags --libs sdl3 sdl3-mixer freetype2 harfbuzz) -lm
+  $(pkg-config --cflags --libs sdl3 sdl3-mixer freetype2 harfbuzz libcurl) -lm -pthread
 gcc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
   native/kookie_persistence_adapter.c \
   -o "$adapter_build_dir/build/libkookie_persistence_adapter.so"
@@ -128,6 +153,7 @@ set +e
 "$isolation_wrapper" --timeout "${KOOKIE_PRESENTATION_TIMEOUT:-90}" \
   --render-node "$render_node" -- \
   env \
+    LD_LIBRARY_PATH="$adapter_build_dir/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
     KOOKIE_ASSET_DIR="$adapter_build_dir/assets" \
     KOOKIE_CONTENT_DIR="$adapter_build_dir/assets/prototype" \
     KOOKIE_TRANSPORT_KEY_FILE="$transport_key_file" \

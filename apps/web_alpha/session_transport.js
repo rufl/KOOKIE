@@ -3,7 +3,7 @@
   const MAGIC = [0x4b, 0x57, 0x53, 0x31];
   const FRAME_VERSION = 1;
   const NETCODE_PROTOCOL_VERSION = 2;
-  const MAX_WORDS = 272;
+  const MAX_WORDS = 320;
   const MAX_FRAME_BYTES = 16 + MAX_WORDS * 4;
   const MAX_SEQUENCE = 1000000;
   const MAX_PENDING_INPUT_FRAMES = 64;
@@ -47,6 +47,7 @@
   const GAME_MULTIPLAYER_SNAPSHOT_MARKER = 7;
   const GAME_ROLE_PLAYER = 1;
   const GAME_ROLE_SPECTATOR = 2;
+  const GAME_ROLE_TRAINING = 3;
   const GAME_MOVE_LEFT = 1;
   const GAME_MOVE_RIGHT = 2;
   const GAME_MELEE = 3;
@@ -76,6 +77,7 @@
   const GAME_MAXIMUM_INPUT_AXIS = 1000;
   const GAME_MAXIMUM_LOOK_DELTA = 1800;
   const GAME_LOOK_DOWN = 17;
+  const GAME_MAXIMUM_SEED_AMMO = 30;
   const GAME_MINIMUM_POSITION = -100;
   const GAME_MAXIMUM_POSITION = 100;
   const GAME_MINIMUM_DEPTH = -60;
@@ -95,7 +97,7 @@
   const GAME_MAXIMUM_VFX = 15;
   const GAME_VFX_LIQUID = 14;
   const GAME_MAXIMUM_ACTORS = 4;
-  const GAME_MAXIMUM_ACTOR_STATE = 1215;
+  const GAME_MAXIMUM_ACTOR_STATE = 3327;
 
   const root = document.getElementById("kof-root") || document.body;
   let statusTimer = null;
@@ -133,14 +135,16 @@
   for (const [value, label] of [
     ["player", "Player"],
     ["spectator", "Spectator"],
+    ["training", "Training · Goose vs combat dolls"],
   ]) {
     const option = document.createElement("option");
     option.value = value;
     option.textContent = label;
     roleSelect.appendChild(option);
   }
-  roleSelect.value = params.get("kookie_role") === "spectator"
-    ? "spectator" : "player";
+  const roleParam = params.get("kookie_role");
+  roleSelect.value = ["player", "spectator", "training"].includes(roleParam)
+    ? roleParam : "player";
   roleLabel.appendChild(roleSelect);
   const tokenLabel = document.createElement("label");
   tokenLabel.textContent = "Session token (optional)";
@@ -376,6 +380,34 @@
   labelOverlay.className = "kookie-session-labels";
   labelOverlay.setAttribute("aria-label", "Visible player and animal labels");
   sceneCanvasWrap.appendChild(labelOverlay);
+  const trainingDamageLayer = document.createElement("div");
+  trainingDamageLayer.className = "kookie-training-damage-layer";
+  trainingDamageLayer.setAttribute("aria-hidden", "true");
+  sceneCanvasWrap.appendChild(trainingDamageLayer);
+  const throwPrompt = document.createElement("span");
+  throwPrompt.className = "kookie-throw-prompt";
+  throwPrompt.hidden = true;
+  throwPrompt.textContent = "PRESS T / PICK UP";
+  throwPrompt.setAttribute("aria-hidden", "true");
+  sceneCanvasWrap.appendChild(throwPrompt);
+  const throwCharge = document.createElement("div");
+  throwCharge.className = "kookie-throw-charge";
+  throwCharge.hidden = true;
+  throwCharge.setAttribute("role", "progressbar");
+  throwCharge.setAttribute("aria-label", "Throw power");
+  throwCharge.setAttribute("aria-valuemin", "0");
+  throwCharge.setAttribute("aria-valuemax", "100");
+  const chargeLabel = document.createElement("span");
+  chargeLabel.textContent = "THROW";
+  const chargeTrack = document.createElement("div");
+  chargeTrack.className = "kookie-throw-charge-track";
+  const chargeFill = document.createElement("div");
+  chargeFill.className = "kookie-throw-charge-fill";
+  chargeTrack.appendChild(chargeFill);
+  const chargePercent = document.createElement("span");
+  chargePercent.textContent = "0%";
+  throwCharge.append(chargeLabel, chargeTrack, chargePercent);
+  sceneCanvasWrap.appendChild(throwCharge);
   const minimapCanvas = document.createElement("canvas");
   minimapCanvas.className = "kookie-session-minimap";
   minimapCanvas.width = 360;
@@ -392,6 +424,7 @@
   const hud = document.createElement("div");
   hud.className = "kookie-session-hud";
   const hudValues = {};
+  const hudLabels = {};
   function addHudStat(key, label, value) {
     const stat = document.createElement("div");
     stat.className = "kookie-session-stat";
@@ -406,12 +439,14 @@
     stat.appendChild(statValue);
     hud.appendChild(stat);
     hudValues[key] = statValue;
+    hudLabels[key] = statLabel;
   }
   addHudStat("tick", "TICK", "0");
   addHudStat("position", "PLAYER X / Z", "32 / 52");
   addHudStat("health", "HEALTH", "100");
   addHudStat("stamina", "STAMINA", "100");
   addHudStat("ammo", "AMMO", "24");
+  addHudStat("seeds", "SEEDS", "0");
   addHudStat("combo", "COMBO", "0");
   addHudStat("actors", "ACTORS", "4");
   addHudStat("projectiles", "PROJECTILES", "0");
@@ -441,7 +476,7 @@
   sceneCanvasWrap.appendChild(status);
   const help = document.createElement("span");
   help.className = "kookie-session-help";
-  help.textContent = "Left stick: move · right stick: look · WASD / mouse also supported";
+  help.textContent = "Move/look: sticks or WASD/mouse · Hold T or PICK / THROW to charge, release to throw";
   sceneCanvasWrap.appendChild(help);
   const touchLookHint = document.createElement("span");
   touchLookHint.className = "kookie-session-touch-look";
@@ -594,15 +629,23 @@
     button.setAttribute("aria-label", options.ariaLabel || label);
     if (options.action) button.setAttribute("data-action", options.action);
     const bit = options.bit || 0;
+    let activePointer = null;
     if (bit) {
       const down = (event) => {
-        if (button.disabled) return;
+        if (button.disabled || activePointer !== null) return;
         event.preventDefault();
+        activePointer = event.pointerId;
         if (options.held) gameplayHeldActions |= bit;
+        if (options.held && typeof button.setPointerCapture === "function") {
+          button.setPointerCapture(event.pointerId);
+        }
         sendGameplayInput({ heldActions: gameplayHeldActions,
           edgeActions: options.edge ? bit : 0 });
       };
-      const up = () => {
+      const up = (event) => {
+        if (activePointer !== null && event.pointerId !== undefined &&
+            event.pointerId !== activePointer) return;
+        activePointer = null;
         if (!options.held || !(gameplayHeldActions & bit)) return;
         gameplayHeldActions &= ~bit;
         sendGameplayInput({ heldActions: gameplayHeldActions });
@@ -610,15 +653,29 @@
       button.addEventListener("pointerdown", down);
       button.addEventListener("pointerup", up);
       button.addEventListener("pointercancel", up);
-      button.addEventListener("pointerleave", up);
+      button.addEventListener("lostpointercapture", up);
       button.addEventListener("click", (event) => {
-        if (event.detail === 0 && options.edge) sendGameplayInput({ edgeActions: bit });
+        if (event.detail !== 0) return;
+        if (!options.held) {
+          if (options.edge) sendGameplayInput({ edgeActions: bit });
+          return;
+        }
+        if (!(gameplayHeldActions & bit)) {
+          gameplayHeldActions |= bit;
+          sendGameplayInput({ heldActions: gameplayHeldActions,
+            edgeActions: options.edge ? bit : 0 });
+          window.setTimeout(() => {
+            gameplayHeldActions &= ~bit;
+            sendGameplayInput({ heldActions: gameplayHeldActions });
+          }, 100);
+        }
       });
     } else {
       button.addEventListener("click", () => sendGameCommand(command, value));
     }
     gameActionButtons.push(button);
     destination.appendChild(button);
+    return button;
   }
   addGameAction("JUMP", GAME_JUMP, 0, actionControls, { action: "jump", bit: ACTION_JUMP, edge: true, held: true });
   addGameAction("ROLL", 0, 0, actionControls, { action: "roll", bit: ACTION_ROLL, edge: true });
@@ -628,7 +685,10 @@
   addGameAction("SHOOT", GAME_FIRE, 0, actionControls, { action: "shoot", bit: ACTION_SHOOT, held: true });
   addGameAction("MELEE", GAME_MELEE, 0, actionControls, { action: "melee", bit: ACTION_MELEE, edge: true });
   addGameAction("SPECIAL", GAME_SPECIAL, 0, actionControls, { action: "special", bit: ACTION_SPECIAL, edge: true });
-  addGameAction("THROW", 0, 0, actionControls, { action: "throwable", bit: ACTION_THROWABLE, edge: true });
+  const throwableActionButton = addGameAction("PICK", 0, 0, actionControls, {
+    action: "throwable", ariaLabel: "Pick up item; hold to charge, release to throw",
+    bit: ACTION_THROWABLE, held: true,
+  });
   gameControls.appendChild(movementControls);
   gameControls.appendChild(lookControls);
   gameControls.appendChild(actionControls);
@@ -643,21 +703,47 @@
       return {};
     }
   };
-  const clampLayoutPoint = (point, fallback) => ({
-    x: Number.isFinite(point?.x) ? Math.max(6, Math.min(94, point.x)) : fallback.x,
-    y: Number.isFinite(point?.y) ? Math.max(8, Math.min(92, point.y)) : fallback.y,
-  });
+  const controlGroups = {
+    move: movementControls, look: lookControls,
+    ...Object.fromEntries([...actionControls.children].map((button) => [
+      "action:" + button.dataset.action, button,
+    ])),
+  };
+  const clampLayoutPoint = (point, fallback, element) => {
+    const width = Math.max(1, window.innerWidth);
+    const height = Math.max(1, window.innerHeight);
+    const rect = element?.getBoundingClientRect();
+    const horizontalMargin = Math.min(
+      49, ((rect?.width || 0) / 2 + 6) / width * 100,
+    );
+    const verticalMargin = Math.min(
+      49, ((rect?.height || 0) / 2 + 6) / height * 100,
+    );
+    const x = Number.isFinite(point?.x) ? point.x : fallback.x;
+    const y = Number.isFinite(point?.y) ? point.y : fallback.y;
+    return {
+      x: Math.max(horizontalMargin, Math.min(100 - horizontalMargin, x)),
+      y: Math.max(verticalMargin, Math.min(100 - verticalMargin, y)),
+    };
+  };
   const touchLayoutState = readTouchLayouts();
   const defaultTouchLayout = {
     move: { x: 12, y: 80 },
     look: { x: 78, y: 80 },
-    actions: { x: 89, y: 57 },
+    ...Object.fromEntries([...actionControls.children].map((button, index) => [
+      "action:" + button.dataset.action,
+      { x: 89 + (index % 3 - 1) * 6, y: 57 + Math.floor(index / 3) * 7 },
+    ])),
   };
-  const validTouchLayout = (layout) => ({
-    move: clampLayoutPoint(layout?.move, defaultTouchLayout.move),
-    look: clampLayoutPoint(layout?.look, defaultTouchLayout.look),
-    actions: clampLayoutPoint(layout?.actions, defaultTouchLayout.actions),
-  });
+  const validTouchLayout = (layout) => Object.fromEntries(
+    Object.entries(controlGroups).map(([name, element]) => [
+      name,
+      clampLayoutPoint(
+        layout?.[name] || (name.startsWith("action:") ? layout?.actions : null),
+        defaultTouchLayout[name], element,
+      ),
+    ]),
+  );
   const touchPresets = touchLayoutState.presets &&
     typeof touchLayoutState.presets === "object" ? touchLayoutState.presets : {};
   let activeTouchLayout = touchLayoutState.activeName &&
@@ -665,12 +751,11 @@
     ? validTouchLayout(touchPresets[touchLayoutState.activeName])
     : touchLayoutState.activeLayout ? validTouchLayout(touchLayoutState.activeLayout) : null;
   let touchLayoutEditing = false;
-  const controlGroups = {
-    move: movementControls, look: lookControls, actions: actionControls,
-  };
   const applyTouchLayout = (layout) => {
     for (const [name, element] of Object.entries(controlGroups)) {
-      const point = layout?.[name];
+      const point = layout?.[name]
+        ? clampLayoutPoint(layout[name], defaultTouchLayout[name], element)
+        : null;
       if (!point) {
         element.style.position = "";
         element.style.left = "";
@@ -678,6 +763,7 @@
         element.style.transform = "";
         continue;
       }
+      layout[name] = point;
       element.style.position = "fixed";
       element.style.left = point.x + "vw";
       element.style.top = point.y + "vh";
@@ -695,6 +781,13 @@
       // Layout remains usable for this session when storage is unavailable.
     }
   };
+  window.addEventListener("resize", () => {
+    if (!activeTouchLayout) return;
+    activeTouchLayout = validTouchLayout(activeTouchLayout);
+    applyTouchLayout(activeTouchLayout);
+    persistTouchLayout();
+    if (!layoutEditor.hidden) syncLayoutSliders();
+  });
   if (activeTouchLayout) applyTouchLayout(activeTouchLayout);
   const layoutEditor = document.createElement("div");
   layoutEditor.className = "kookie-touch-layout-editor";
@@ -707,7 +800,9 @@
   layoutMode.setAttribute("aria-label", "Control to reposition");
   for (const [value, label] of [
     ["move", "Movement stick"], ["look", "Camera look stick"],
-    ["actions", "Action buttons"],
+    ...[...actionControls.children].map((button) => [
+      "action:" + button.dataset.action, button.textContent,
+    ]),
   ]) {
     const option = document.createElement("option");
     option.value = value;
@@ -754,6 +849,11 @@
       defaultTouchLayout[layoutMode.value];
     layoutX.value = String(Math.round(point.x));
     layoutY.value = String(Math.round(point.y));
+    for (const [name, element] of Object.entries(controlGroups)) {
+      if (element !== movementControls && element !== lookControls) {
+        element.dataset.layoutTarget = String(name === layoutMode.value);
+      }
+    }
   };
   const updateLayoutPoint = () => {
     const key = layoutMode.value;
@@ -761,6 +861,7 @@
     activeTouchLayout[key] = clampLayoutPoint(
       { x: Number(layoutX.value), y: Number(layoutY.value) },
       defaultTouchLayout[key],
+      controlGroups[key],
     );
     touchLayoutState.activeName = "";
     applyTouchLayout(activeTouchLayout);
@@ -810,24 +911,46 @@
   doneLayout.type = "button";
   doneLayout.textContent = "Done";
   doneLayout.addEventListener("click", () => {
-    touchLayoutEditing = false;
-    layoutEditor.hidden = true;
-    panel.dataset.layoutEditing = "false";
+    setTouchLayoutEditing(false, false);
   });
   layoutEditor.appendChild(doneLayout);
   refreshPresetSelect();
   syncLayoutSliders();
   sceneCanvasWrap.appendChild(layoutEditor);
+  const touchLayoutToggle = document.createElement("button");
+  touchLayoutToggle.type = "button";
+  touchLayoutToggle.className = "kookie-touch-layout-toggle";
+  touchLayoutToggle.textContent = "TOUCH OFF";
+  touchLayoutToggle.setAttribute("aria-label", "Enable touch control repositioning");
+  touchLayoutToggle.setAttribute("aria-pressed", "false");
+  sceneCanvasWrap.appendChild(touchLayoutToggle);
+  const setTouchLayoutEditing = (editing, showEditor) => {
+    if (editing) {
+      activeTouchLayout = activeTouchLayout ||
+        validTouchLayout(defaultTouchLayout);
+      applyTouchLayout(activeTouchLayout);
+    } else {
+      persistTouchLayout();
+    }
+    touchLayoutEditing = editing;
+    layoutEditor.hidden = !editing || !showEditor;
+    panel.dataset.layoutEditing = String(editing);
+    touchLayoutToggle.setAttribute("aria-pressed", String(editing));
+    touchLayoutToggle.textContent = editing ? "TOUCH ON" : "TOUCH OFF";
+    touchLayoutToggle.setAttribute(
+      "aria-label",
+      editing ? "Lock touch control positions" : "Enable touch control repositioning",
+    );
+    if (editing && showEditor) syncLayoutSliders();
+  };
+  touchLayoutToggle.addEventListener("click", () => {
+    setTouchLayoutEditing(!touchLayoutEditing, false);
+  });
   const customizeLayout = document.createElement("button");
   customizeLayout.type = "button";
   customizeLayout.textContent = "Customize touch controls";
   customizeLayout.addEventListener("click", () => {
-    activeTouchLayout = activeTouchLayout || validTouchLayout(defaultTouchLayout);
-    applyTouchLayout(activeTouchLayout);
-    touchLayoutEditing = true;
-    layoutEditor.hidden = false;
-    panel.dataset.layoutEditing = "true";
-    syncLayoutSliders();
+    setTouchLayoutEditing(true, true);
   });
   settingsGrid.appendChild(customizeLayout);
   for (const [name, element] of Object.entries(controlGroups)) {
@@ -847,7 +970,7 @@
       const point = clampLayoutPoint({
         x: drag.x + (event.clientX - drag.startX) / width * 100,
         y: drag.y + (event.clientY - drag.startY) / height * 100,
-      }, defaultTouchLayout[name]);
+      }, defaultTouchLayout[name], element);
       activeTouchLayout = activeTouchLayout || validTouchLayout(defaultTouchLayout);
       activeTouchLayout[name] = point;
       touchLayoutState.activeName = "";
@@ -934,6 +1057,7 @@
   let sceneRenderer = null;
   let renderFrameHandle = 0;
   let renderSceneState = null;
+  const trainingDamageLabels = new Map();
   const remoteSnapshots = [];
   const REMOTE_SNAPSHOT_HISTORY = 16;
   const REMOTE_BASE_TICK_MS = 1000 / 60;
@@ -1556,29 +1680,36 @@
     drawMinimap(scene);
     hudValues.tick.textContent = String(scene.tick);
     hudValues.position.textContent = scene.playerX + " / " + scene.playerZ;
-    hudValues.health.textContent = scene.health + " / 100";
-    hudValues.stamina.textContent = scene.stamina + " / 100";
-    hudValues.ammo.textContent = String(scene.ammo);
-    hudValues.combo.textContent = String(scene.combo);
+    const healthText = Number.isFinite(scene.health) ? String(scene.health) : "--";
+    const staminaText = Number.isFinite(scene.stamina) ? String(scene.stamina) : "--";
+    const ammoText = Number.isFinite(scene.ammo) ? String(scene.ammo) : "--";
+    hudValues.health.textContent = healthText + " / 100";
+    hudValues.stamina.textContent = staminaText + " / 100";
+    hudValues.ammo.textContent = ammoText;
+    const localActor = scene.actors.find((actor) => actor.id === scene.playerId);
+    const fireballsActive = localActor?.powerUp === 8;
+    hudLabels.seeds.textContent = fireballsActive ? "FIREBALLS" : "SEEDS";
+    hudValues.seeds.textContent = Number.isInteger(scene.seedAmmo)
+      ? String(scene.seedAmmo) : "--";
+    hudValues.combo.textContent = String(scene.combo ?? 0);
     hudValues.actors.textContent = String(
       scene.actors.filter((actor) => actor.health > 0).length
     );
-    const localActor = scene.actors.find((actor) => actor.id === scene.playerId);
     hudValues.oxygen.textContent = localActor && Number.isInteger(localActor.oxygen)
       ? String(localActor.oxygen) : "--";
     hudValues.projectiles.textContent = String(scene.projectiles.length);
     remoteState.textContent = "AUTHORITATIVE STATE / tick=" + scene.tick +
       " position=" + scene.playerX + "," + scene.playerZ +
-      " health=" + scene.health + " stamina=" + scene.stamina +
-      " ammo=" + scene.ammo + " combo=" + scene.combo +
+      " health=" + healthText + " stamina=" + staminaText +
+      " ammo=" + ammoText + " combo=" + (scene.combo ?? 0) +
       " actors=" + scene.actors.length +
       " projectiles=" + scene.projectiles.length;
     sceneCanvas.setAttribute(
       "aria-label",
       "Authoritative WebGL2 scene tick " + scene.tick +
         ", player position " + scene.playerX + "," + scene.playerZ +
-        ", health " + scene.health + ", stamina " + scene.stamina +
-        ", ammo " + scene.ammo + ", " + scene.actors.length + " actors"
+        ", health " + healthText + ", stamina " + staminaText +
+        ", ammo " + ammoText + ", " + scene.actors.length + " actors"
     );
   }
   function applyAuthoritativeScene(scene, snapshotSequence) {
@@ -1659,6 +1790,132 @@
         spectatorCameraPosition.y + vertical * speed));
   }
 
+  function removeTrainingDamageLabel(element) {
+    if (element.parentNode === trainingDamageLayer) {
+      trainingDamageLayer.removeChild(element);
+    }
+  }
+  function updateTrainingDamageNumbers(scene, now) {
+    if (!scene.training) {
+      for (const entry of trainingDamageLabels.values()) {
+        removeTrainingDamageLabel(entry.element);
+      }
+      trainingDamageLabels.clear();
+      return;
+    }
+    for (const impact of scene.impacts || []) {
+      if (impact.kind !== 2 || impact.damage <= 0 ||
+          trainingDamageLabels.has(impact.sequence)) continue;
+      const element = document.createElement("span");
+      element.className = "kookie-training-damage";
+      element.textContent = "-" + impact.damage;
+      trainingDamageLayer.appendChild(element);
+      trainingDamageLabels.set(impact.sequence, {
+        element, impact, startedAt: now,
+      });
+      if (trainingDamageLabels.size > 24) {
+        const oldest = trainingDamageLabels.keys().next().value;
+        removeTrainingDamageLabel(trainingDamageLabels.get(oldest).element);
+        trainingDamageLabels.delete(oldest);
+      }
+    }
+    for (const [sequence, entry] of trainingDamageLabels) {
+      const progress = (now - entry.startedAt) / 950;
+      if (progress >= 1) {
+        removeTrainingDamageLabel(entry.element);
+        trainingDamageLabels.delete(sequence);
+        continue;
+      }
+      const projected = sceneRenderer.projectWorld(
+        scene, entry.impact.x, entry.impact.y, entry.impact.z,
+      );
+      entry.element.hidden = !projected;
+      if (!projected) continue;
+      entry.element.style.left = (projected.x * 100) + "%";
+      entry.element.style.top = (projected.y * 100) + "%";
+      entry.element.style.opacity = String(1 - progress);
+      entry.element.style.transform =
+        "translate(-50%, calc(-50% - " + (progress * 38) + "px))";
+    }
+  }
+
+  const THROWABLE_NAMES = Object.freeze({
+    1: "bomb", 2: "flour package", 3: "watermelon", 4: "crate",
+    5: "small boulder",
+  });
+  const throwableName = (type) => THROWABLE_NAMES[type] || "throwable";
+  const THROW_CHARGE_TICKS = 30;
+  let carriedButtonState = null;
+  let carriedButtonType = null;
+  let pickupButtonType = null;
+  function updateThrowableHud(scene) {
+    const player = scene.playerId > 0
+      ? scene.actors.find((actor) => actor.id === scene.playerId) : null;
+    const dx = player && scene.pickup ? player.x - scene.pickup.x : Infinity;
+    const dy = player && scene.pickup ? player.y - scene.pickup.y : Infinity;
+    const dz = player && scene.pickup ? player.z - scene.pickup.z : Infinity;
+    const canPickUp = joinedRole !== GAME_ROLE_SPECTATOR &&
+      !scene.carriesThrowable && Boolean(scene.pickup) &&
+      dx * dx + dy * dy + dz * dz <= 36;
+    const name = throwableName(scene.pickup?.type);
+    throwPrompt.textContent = "PRESS T / PICK UP " + name.toUpperCase();
+    throwPrompt.hidden = !canPickUp;
+    if (carriedButtonState !== scene.carriesThrowable ||
+        carriedButtonType !== scene.carryType ||
+        pickupButtonType !== scene.pickup?.type) {
+      carriedButtonState = scene.carriesThrowable;
+      carriedButtonType = scene.carryType;
+      pickupButtonType = scene.pickup?.type;
+      const carriedName = throwableName(scene.carryType);
+      throwableActionButton.textContent = carriedButtonState
+        ? "THROW " + carriedName.toUpperCase() : "PICK";
+      throwableActionButton.setAttribute(
+        "aria-label",
+        carriedButtonState
+          ? "Throw " + carriedName + "; hold to charge, release to throw"
+          : "Pick up nearby " + name,
+      );
+    }
+    const charging = joinedRole !== GAME_ROLE_SPECTATOR &&
+      scene.carriesThrowable && (gameplayHeldActions & ACTION_THROWABLE) !== 0;
+    const percent = Math.max(0, Math.min(100,
+      Math.round(scene.throwableChargeTicks / THROW_CHARGE_TICKS * 100)));
+    throwCharge.hidden = !charging;
+    throwCharge.dataset.full = String(percent >= 100);
+    throwCharge.setAttribute("aria-valuenow", String(percent));
+    chargeFill.style.width = percent + "%";
+    chargePercent.textContent = percent + "%";
+    chargeLabel.textContent = percent >= 100
+      ? "MAX " + throwableName(scene.carryType).toUpperCase()
+      : "THROW " + throwableName(scene.carryType).toUpperCase();
+  }
+  function buildThrowPreview(scene) {
+    if (joinedRole === GAME_ROLE_SPECTATOR || !scene.carriesThrowable ||
+        !(gameplayHeldActions & ACTION_THROWABLE)) return null;
+    const charge = Math.max(0, Math.min(THROW_CHARGE_TICKS,
+      scene.throwableChargeTicks || 0));
+    const speed = 167 + Math.trunc(charge * (360 - 167) / THROW_CHARGE_TICKS);
+    const multiplier = speed / 167;
+    const yaw = scene.yaw * Math.PI / 180;
+    const pitch = scene.pitch * Math.PI / 180;
+    let x = scene.playerX;
+    let y = scene.playerY + 3;
+    let z = scene.playerZ;
+    let vx = Math.sin(yaw) * 1000 * multiplier;
+    let vy = (167 - Math.sin(pitch) * 1000) * multiplier;
+    let vz = Math.sin(yaw + Math.PI / 2) * 1000 * multiplier;
+    const points = [];
+    for (let tick = 1; tick <= 30; tick += 1) {
+      vy -= 33;
+      x += vx * 0.002;
+      y += vy * 0.002;
+      z += vz * 0.002;
+      if (tick % 2 === 0 || y <= 0) points.push({ x, y: Math.max(0, y), z });
+      if (y <= 0 || x < 0 || x > 320 || z < 0 || z > 280) break;
+    }
+    return points.length > 1 ? points : null;
+  }
+
   function renderFrame(time) {
     if (!sceneRenderer) return;
     const now = performance.now();
@@ -1675,6 +1932,8 @@
       renderSceneState.camera.pitch = Math.max(-80, Math.min(80,
         spectatorCameraHome.pitch + spectatorLookPitchOffset));
     }
+    updateThrowableHud(renderSceneState);
+    renderSceneState.throwPreview = buildThrowPreview(renderSceneState);
     if (joinedRole !== GAME_ROLE_SPECTATOR) {
       renderSceneState.camera.x += position.x - sceneState.playerX;
       renderSceneState.camera.z += position.z - sceneState.playerZ;
@@ -1682,6 +1941,7 @@
     updateRemoteRenderActors(now);
     try {
       sceneRenderer.render(renderSceneState, time);
+      updateTrainingDamageNumbers(renderSceneState, now);
       if (typeof sceneRenderer.getStatus === "function") {
         const rendererStatus = sceneRenderer.getStatus();
         if (hudValues.renderer.textContent !== rendererStatus) {
@@ -1808,7 +2068,8 @@
     if (kind === GAME) {
       if (words.length === 10 && words[3] === GAME_JOIN_RESPONSE_MARKER) {
         return (words[4] === 0 || words[4] === 1) &&
-          (words[5] === GAME_ROLE_PLAYER || words[5] === GAME_ROLE_SPECTATOR) &&
+          (words[5] === GAME_ROLE_PLAYER || words[5] === GAME_ROLE_SPECTATOR ||
+            words[5] === GAME_ROLE_TRAINING) &&
           words[6] >= 0 && words[6] <= 1000000 &&
           words[7] >= 0 && words[7] <= 8 &&
           words[8] >= 0 && words[8] <= 4 &&
@@ -1818,15 +2079,9 @@
       if (words.length >= 19 && words[3] === GAME_MULTIPLAYER_SNAPSHOT_MARKER) {
         const actorCount = words[17];
         const trailer = 18 + actorCount * 8;
-        const extendedLength = 23 + actorCount * 8 +
-          words[trailer + 1] * 7 + words[trailer + 2] * 8 +
-          words[trailer + 3] * 8;
+        const baseLength = 19 + actorCount * 8;
         if (!Number.isInteger(actorCount) || actorCount < 0 || actorCount > 8 ||
-            (words.length !== 19 + actorCount * 8 &&
-              words.length !== extendedLength &&
-              words.length !== extendedLength + actorCount)) {
-          return false;
-        }
+            words.length < baseLength || words.length > MAX_WORDS) return false;
         const actorIds = new Set();
         for (let index = 0; index < actorCount; index += 1) {
           const offset = 18 + index * 8;
@@ -1838,13 +2093,16 @@
           const state = words[offset + 5];
           const actorKind = words[offset + 6];
           const actorYaw = words[offset + 7];
-          if (id <= 0 || id > 1000000 || actorIds.has(id) ||
+          if ((actorKind === 3 ? id >= 0 || id < -4
+                : id <= 0 || id > 1000000) || actorIds.has(id) ||
               x < GAME_WORLD_MINIMUM_X || x > GAME_WORLD_MAXIMUM_X ||
               y < GAME_WORLD_MINIMUM_Y || y > GAME_WORLD_MAXIMUM_Y ||
               z < GAME_WORLD_MINIMUM_Z || z > GAME_WORLD_MAXIMUM_Z ||
               health < 0 || health > GAME_MAXIMUM_HEALTH ||
               state < 0 || state > GAME_MAXIMUM_ACTOR_STATE ||
-              Math.floor(state / 128) > 9 ||
+              Math.floor(state / 128) % 16 > 9 ||
+              (actorKind !== 3 && (actorKind < 1 || actorKind > 2)) ||
+              (actorKind === 3 && state !== 0) ||
               actorYaw < 0 || actorYaw > 359) {
             return false;
           }
@@ -1864,7 +2122,7 @@
             return false;
           }
           let offset = trailer + 4;
-          for (let index = 0; index < projectileCount; index += 1, offset += 7) {
+          for (let index = 0; index < projectileCount; index += 1, offset += 8) {
             if (words[offset] <= 0 || words[offset + 1] < 0 ||
                 words[offset + 1] > 1000000 || words[offset + 2] < 0 ||
                 words[offset + 2] > 1000000 ||
@@ -1874,7 +2132,8 @@
                 words[offset + 4] > GAME_WORLD_MAXIMUM_Y ||
                 words[offset + 5] < GAME_WORLD_MINIMUM_Z ||
                 words[offset + 5] > GAME_WORLD_MAXIMUM_Z ||
-                words[offset + 6] < 0 || words[offset + 6] > GAME_MAXIMUM_TICK) {
+                words[offset + 6] < 0 || words[offset + 6] > GAME_MAXIMUM_TICK ||
+                (words[offset + 7] !== 1 && words[offset + 7] !== 3)) {
               return false;
             }
           }
@@ -1888,8 +2147,7 @@
                 words[offset + 4] < GAME_WORLD_MINIMUM_Z ||
                 words[offset + 4] > GAME_WORLD_MAXIMUM_Z ||
                 words[offset + 5] < 0 || words[offset + 6] < 1 ||
-                words[offset + 6] > 4 ||
-                words[offset + 7] < 0 ||
+                words[offset + 6] > 5 || words[offset + 7] < 0 ||
                 words[offset + 7] > GAME_MAXIMUM_THROWABLE_FUSE_TICKS) return false;
           }
           for (let index = 0; index < impactCount; index += 1, offset += 8) {
@@ -1905,8 +2163,20 @@
                 words[offset + 6] > GAME_WORLD_MAXIMUM_Z ||
                 words[offset + 7] < 0 || words[offset + 7] > GAME_MAXIMUM_HEALTH) return false;
           }
-          const hasOxygen = words.length === offset + actorCount + 1;
-          if (words.length !== offset + 1 && !hasOxygen) return false;
+          const tailLength = words.length - offset - 1;
+          const hasNoOxygenNewSuffix = tailLength >= 10 && tailLength <= 26 &&
+            Number.isInteger(words[offset + 9]) &&
+            words[offset + 9] >= 0 && words[offset + 9] <= 4 &&
+            tailLength === 10 + words[offset + 9] * 4;
+          const hasOxygen = !hasNoOxygenNewSuffix &&
+            (tailLength === actorCount || tailLength === actorCount + 6 ||
+              (tailLength >= actorCount + 10 && tailLength <= actorCount + 26 &&
+                (tailLength - actorCount - 10) % 4 === 0));
+          const suffixOffset = offset + (hasOxygen ? actorCount : 0);
+          const suffixLength = words.length - suffixOffset - 1;
+          if (suffixLength !== 0 && suffixLength !== 6 &&
+              !(suffixLength >= 10 && suffixLength <= 26 &&
+                (suffixLength - 10) % 4 === 0)) return false;
           if (hasOxygen) {
             for (let index = 0; index < actorCount; index += 1) {
               if (!Number.isInteger(words[offset + index]) ||
@@ -1914,12 +2184,56 @@
                   words[offset + index] > 1000000) return false;
             }
           }
+          if (suffixLength === 6) {
+            if ((words[suffixOffset] !== 0 && words[suffixOffset] !== 1) ||
+                words[suffixOffset + 1] < GAME_WORLD_MINIMUM_X ||
+                words[suffixOffset + 1] > GAME_WORLD_MAXIMUM_X ||
+                words[suffixOffset + 2] < GAME_WORLD_MINIMUM_Y ||
+                words[suffixOffset + 2] > GAME_WORLD_MAXIMUM_Y ||
+                words[suffixOffset + 3] < GAME_WORLD_MINIMUM_Z ||
+                words[suffixOffset + 3] > GAME_WORLD_MAXIMUM_Z ||
+                (words[suffixOffset + 4] !== 0 && words[suffixOffset + 4] !== 1) ||
+                words[suffixOffset + 5] < 0 ||
+                words[suffixOffset + 5] > THROW_CHARGE_TICKS) return false;
+          } else if (suffixLength >= 10) {
+            const sliceCount = words[suffixOffset + 9];
+            if ((words[suffixOffset] !== 0 && words[suffixOffset] !== 1) ||
+                words[suffixOffset + 1] < GAME_WORLD_MINIMUM_X ||
+                words[suffixOffset + 1] > GAME_WORLD_MAXIMUM_X ||
+                words[suffixOffset + 2] < GAME_WORLD_MINIMUM_Y ||
+                words[suffixOffset + 2] > GAME_WORLD_MAXIMUM_Y ||
+                words[suffixOffset + 3] < GAME_WORLD_MINIMUM_Z ||
+                words[suffixOffset + 3] > GAME_WORLD_MAXIMUM_Z ||
+                words[suffixOffset + 4] < 0 || words[suffixOffset + 4] > 5 ||
+                (words[suffixOffset + 5] !== 0 && words[suffixOffset + 5] !== 1) ||
+                words[suffixOffset + 6] < 0 ||
+                words[suffixOffset + 6] > THROW_CHARGE_TICKS ||
+                words[suffixOffset + 7] < 0 || words[suffixOffset + 7] > 5 ||
+                words[suffixOffset + 8] < 0 ||
+                words[suffixOffset + 8] > GAME_MAXIMUM_SEED_AMMO ||
+                !Number.isInteger(sliceCount) || sliceCount < 0 || sliceCount > 4 ||
+                suffixLength !== 10 + sliceCount * 4) return false;
+            const sliceIds = new Set();
+            for (let index = 0; index < sliceCount; index += 1) {
+              const sliceOffset = suffixOffset + 10 + index * 4;
+              if (words[sliceOffset] < 0 || words[sliceOffset] > 1000000 ||
+                  sliceIds.has(words[sliceOffset]) ||
+                  words[sliceOffset + 1] < GAME_WORLD_MINIMUM_X ||
+                  words[sliceOffset + 1] > GAME_WORLD_MAXIMUM_X ||
+                  words[sliceOffset + 2] < GAME_WORLD_MINIMUM_Y ||
+                  words[sliceOffset + 2] > GAME_WORLD_MAXIMUM_Y ||
+                  words[sliceOffset + 3] < GAME_WORLD_MINIMUM_Z ||
+                  words[sliceOffset + 3] > GAME_WORLD_MAXIMUM_Z) return false;
+              sliceIds.add(words[sliceOffset]);
+            }
+          }
         }
         const validSnapshot = words[4] >= 0 && words[4] <= GAME_MAXIMUM_TICK &&
-          (words[5] === GAME_ROLE_PLAYER || words[5] === GAME_ROLE_SPECTATOR) &&
+          (words[5] === GAME_ROLE_PLAYER || words[5] === GAME_ROLE_SPECTATOR ||
+            words[5] === GAME_ROLE_TRAINING) &&
           words[6] >= 0 && words[6] <= 1000000 &&
-          ((words[5] === GAME_ROLE_PLAYER && words[6] > 0) ||
-            (words[5] === GAME_ROLE_SPECTATOR && words[6] === 0)) &&
+          ((words[5] === GAME_ROLE_SPECTATOR && words[6] === 0) ||
+            (words[5] !== GAME_ROLE_SPECTATOR && words[6] > 0)) &&
           words[7] >= GAME_WORLD_MINIMUM_X && words[7] <= GAME_WORLD_MAXIMUM_X &&
           words[8] >= GAME_WORLD_MINIMUM_Y && words[8] <= GAME_WORLD_MAXIMUM_Y &&
           words[9] >= GAME_WORLD_MINIMUM_Z && words[9] <= GAME_WORLD_MAXIMUM_Z &&
@@ -2148,7 +2462,7 @@
   const browserBattleBots = [];
   const BOT_POWERUP_CONFIGS = [
     "coffee_mug", "jetpack", "megaphone", "scuba_kit", "watermelon",
-    "wool_ball", "flour_bag", "multiplayer_coffee",
+    "wool_ball", "flour_bag", "multiplayer_coffee", "wizard_hat",
   ];
   let botPowerupWaypoints = null;
   async function loadBotPowerupWaypoints() {
@@ -2492,7 +2806,8 @@
     words.push(messageChecksum(words));
     socket.send(encodeFrame(GAME, joinSequence, words));
     setRuntimeState("joining as " +
-      (requestedRole === GAME_ROLE_SPECTATOR ? "spectator" : "player"));
+      (requestedRole === GAME_ROLE_SPECTATOR ? "spectator"
+        : requestedRole === GAME_ROLE_TRAINING ? "training" : "player"));
   }
   function parseMultiplayerScene(words) {
     const actors = [];
@@ -2507,7 +2822,8 @@
         health: words[offset + 4],
         state: rawState % 8,
         powerUp: Math.floor(rawState / 8) % 16,
-        animation: Math.floor(rawState / 128),
+        animation: Math.floor(rawState / 128) % 16,
+        dizzy: Math.floor(rawState / 2048) % 2 === 1,
         kind: words[offset + 6],
         yaw: words[offset + 7],
       });
@@ -2516,19 +2832,27 @@
     const throwables = [];
     const impacts = [];
     let lastInputSequence = 0;
+    let pickup = null;
+    let carriesThrowable = false;
+    let throwableChargeTicks = 0;
     const trailer = 18 + words[17] * 8;
+    let carryType = 0;
+    let seedAmmo = 0;
+    const slicePickups = [];
+
     if (words.length !== 19 + words[17] * 8) {
       lastInputSequence = words[trailer];
       let offset = trailer + 4;
-      for (let index = 0; index < words[trailer + 1]; index += 1, offset += 7) {
+      for (let index = 0; index < words[trailer + 1]; index += 1, offset += 8) {
         projectiles.push({ id: words[offset], sourceId: words[offset + 1],
           targetId: words[offset + 2], x: words[offset + 3], y: words[offset + 4],
-          z: words[offset + 5], ttl: words[offset + 6] });
+          z: words[offset + 5], ttl: words[offset + 6], kind: words[offset + 7] });
       }
       for (let index = 0; index < words[trailer + 2]; index += 1, offset += 8) {
         throwables.push({ id: words[offset], sourceId: words[offset + 1],
           x: words[offset + 2], y: words[offset + 3], z: words[offset + 4],
-          ttl: words[offset + 5], kind: words[offset + 6], fuseTicks: words[offset + 7] });
+          ttl: words[offset + 5], type: words[offset + 6],
+          kind: words[offset + 6], fuseTicks: words[offset + 7] });
       }
       for (let index = 0; index < words[trailer + 3]; index += 1, offset += 8) {
         impacts.push({ sequence: words[offset], kind: words[offset + 1],
@@ -2536,9 +2860,43 @@
           x: words[offset + 4], y: words[offset + 5], z: words[offset + 6],
           damage: words[offset + 7] });
       }
-      if (words.length === offset + words[17] + 1) {
+      let suffix = offset;
+      const tailLength = words.length - suffix - 1;
+      const isSuffixLength = (length) => length === 0 || length === 6 ||
+        (length >= 10 && length <= 26 && (length - 10) % 4 === 0);
+      const hasNewSuffix = tailLength >= 10 && tailLength <= 26 &&
+        Number.isInteger(words[suffix + 9]) &&
+        words[suffix + 9] >= 0 && words[suffix + 9] <= 4 &&
+        tailLength === 10 + words[suffix + 9] * 4;
+      const hasOxygen = !hasNewSuffix && !isSuffixLength(tailLength) &&
+        isSuffixLength(tailLength - words[17]);
+      if (hasOxygen) {
         for (let index = 0; index < words[17]; index += 1) {
-          actors[index].oxygen = words[offset + index];
+          actors[index].oxygen = words[suffix + index];
+        }
+        suffix += words[17];
+      }
+      const suffixLength = words.length - suffix - 1;
+      if (suffixLength === 6) {
+        pickup = words[suffix] === 1
+          ? { x: words[suffix + 1], y: words[suffix + 2],
+            z: words[suffix + 3], type: 0 }
+          : null;
+        carriesThrowable = words[suffix + 4] === 1;
+        throwableChargeTicks = words[suffix + 5];
+      } else if (suffixLength >= 10) {
+        pickup = words[suffix] === 1
+          ? { x: words[suffix + 1], y: words[suffix + 2],
+            z: words[suffix + 3], type: words[suffix + 4] }
+          : null;
+        carriesThrowable = words[suffix + 5] === 1;
+        throwableChargeTicks = words[suffix + 6];
+        carryType = words[suffix + 7];
+        seedAmmo = words[suffix + 8];
+        for (let index = 0; index < words[suffix + 9]; index += 1) {
+          const sliceOffset = suffix + 10 + index * 4;
+          slicePickups.push({ id: words[sliceOffset], x: words[sliceOffset + 1],
+            y: words[sliceOffset + 2], z: words[sliceOffset + 3] });
         }
       }
     }
@@ -2547,12 +2905,18 @@
     const playerZ = words[9];
     const yaw = words[10];
     const pitch = words[11];
+    const localActor = actors.find((actor) => actor.id === words[6]);
     const cameraYaw = yaw * Math.PI / 180;
     return {
       tick: words[4],
       lastInputSequence,
       role: words[5],
+      training: words[5] === GAME_ROLE_TRAINING,
       playerId: words[6],
+      health: localActor ? localActor.health : null,
+      stamina: null,
+      ammo: null,
+      combo: 0,
       playerX,
       playerY,
       playerZ,
@@ -2569,7 +2933,12 @@
       projectiles,
       throwables,
       impacts,
-      pickup: null,
+      pickup,
+      carriesThrowable,
+      throwableChargeTicks,
+      carryType,
+      seedAmmo,
+      slicePickups,
       sceneObjects: [],
       labels: [],
     };
@@ -2872,8 +3241,9 @@
       if (url.protocol !== "ws:" && url.protocol !== "wss:") {
         throw new Error("endpoint must use ws:// or wss://");
       }
-      requestedRole = roleSelect.value === "spectator"
-        ? GAME_ROLE_SPECTATOR : GAME_ROLE_PLAYER;
+      requestedRole = roleSelect.value === "spectator" ? GAME_ROLE_SPECTATOR
+        : roleSelect.value === "training" ? GAME_ROLE_TRAINING
+        : GAME_ROLE_PLAYER;
       if (!isReconnect) {
         spectatorLookYawOffset = 0;
         spectatorLookPitchOffset = 0;
@@ -2955,9 +3325,12 @@
             }
             joinedRole = frame.words[5];
             setRuntimeState("joined / " +
-              (joinedRole === GAME_ROLE_SPECTATOR ? "spectator" : "player"),
+              (joinedRole === GAME_ROLE_SPECTATOR ? "spectator"
+                : joinedRole === GAME_ROLE_TRAINING ? "training" : "player"),
               "#4ade80");
-            setStatus("JOINED / player=" + frame.words[6] +
+            setStatus("JOINED / " +
+              (joinedRole === GAME_ROLE_TRAINING ? "training / " : "") +
+              "player=" + frame.words[6] +
               " players=" + frame.words[7] +
               " spectators=" + frame.words[8], "#4ade80");
           } else if (frame.words[3] === GAME_MULTIPLAYER_SNAPSHOT_MARKER) {
@@ -2970,7 +3343,8 @@
             setAsyncButtonState(connectButton, "success", "LEAVE");
             applyAuthoritativeScene(scene, frame.sequence);
             setRuntimeState(joinedRole === GAME_ROLE_SPECTATOR
-              ? "spectating" : "in game", "#4ade80");
+              ? "spectating" : joinedRole === GAME_ROLE_TRAINING
+                ? "training" : "in game", "#4ade80");
             setStatus("");
           } else if (frame.words[3] === GAME_PROBE_PAYLOAD) {
             setStatus("PROTOCOL ECHO RECEIVED sequence=" + frame.sequence, "#4ade80");
@@ -3119,7 +3493,7 @@
   window.addEventListener("blur", () => {
     const hadMovement = heldMovementKeys.size > 0;
     const heldActions = gameplayHeldActions & (ACTION_JUMP | ACTION_GLIDE |
-      ACTION_FLY | ACTION_SHOOT);
+      ACTION_FLY | ACTION_SHOOT | ACTION_THROWABLE);
     heldMovementKeys.clear();
     spectatorVerticalKeys.clear();
     gameplayHeldActions &= ~heldActions;
@@ -3133,7 +3507,7 @@
     [" ", [ACTION_JUMP, true]],
     ["shift", [ACTION_ROLL, false]], ["c", [ACTION_DASH, false]],
     ["g", [ACTION_GLIDE, true]], ["v", [ACTION_FLY, true]],
-    ["b", [ACTION_SHOOT, true]], ["t", [ACTION_THROWABLE, false]],
+    ["b", [ACTION_SHOOT, true]], ["t", [ACTION_THROWABLE, true]],
   ]);
   document.addEventListener("keydown", (event) => {
     if (!authoritativeReady || joinedRole === GAME_ROLE_SPECTATOR) return;

@@ -10,7 +10,7 @@ extern "c" fn __errno_location() *c_int;
 const NC = 12;
 const NE = 64;
 const NR = 8192;
-const NF = 1104;
+const NF = 1296;
 const NO = 65536;
 const DEADLINE_NS: i64 = 30_000_000_000;
 const Event = struct { kind: i32 = 0, id: i32 = 0, opcode: i32 = 0, len: i32 = 0, data: [NR]u8 = undefined };
@@ -246,7 +246,10 @@ export fn kookie_web_server_open(port: c_int) callconv(.c) bool {
     if (builtinWindows()) {
         if (!winsock_started) { var data: c.WSADATA = undefined; if (c.WSAStartup(0x0202, &data) != 0) return false; winsock_started = true; }
         c.InitializeCriticalSection(&mutex);
-    } else _ = c.pthread_mutex_init(&mutex, null);
+    } else {
+        _ = c.signal(c.SIGPIPE, c.SIG_IGN);
+        _ = c.pthread_mutex_init(&mutex, null);
+    }
     const sock = c.socket(c.AF_INET, c.SOCK_STREAM, c.IPPROTO_TCP);
     if (sock == invalidSocket()) { destroyMutex(); return false; }
     var one: c_int = 1;

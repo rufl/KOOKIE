@@ -7,8 +7,9 @@ Int powerUpKindScubaKit() { return 4 }
 Int powerUpKindWatermelon() { return 5 }
 Int powerUpKindWoolBall() { return 6 }
 Int powerUpKindFlourBag() { return 7 }
-Int powerUpMaximumKinds() { return 7 }
-Int powerUpMaximumDefinitions() { return 8 }
+Int powerUpKindWizardHat() { return 8 }
+Int powerUpMaximumKinds() { return 8 }
+Int powerUpMaximumDefinitions() { return 12 }
 Int powerUpMaximumId() { return 64 }
 Int powerUpMaximumRadius() { return 32 }
 Int powerUpMaximumDuration() { return 1000000 }
@@ -20,9 +21,8 @@ Int powerUpRenderBobAmplitude() { return 1 }
 
 Bool validPowerUpKind(Int kind) {
     return kind >= powerUpKindCoffeeMug() &&
-        kind <= powerUpKindFlourBag()
+        kind <= powerUpKindWizardHat()
 }
-
 String powerUpName(Int kind) {
     if (kind == powerUpKindCoffeeMug()) { return "COFFEE MUG" }
     if (kind == powerUpKindJetpack()) { return "JETPACK" }
@@ -30,7 +30,7 @@ String powerUpName(Int kind) {
     if (kind == powerUpKindScubaKit()) { return "SCUBA KIT" }
     if (kind == powerUpKindWatermelon()) { return "WATERMELON" }
     if (kind == powerUpKindWoolBall()) { return "WOOL BALL" }
-    if (kind == powerUpKindFlourBag()) { return "FLOUR BAG" }
+    if (kind == powerUpKindWizardHat()) { return "WIZARD HAT" }
     return ""
 }
 
@@ -285,9 +285,10 @@ class PowerUpEffectState {
     Int woolMaceExpiryValue
     Int flourCloudRadiusValue
     Int flourCloudExpiryValue
+    Int wizardFireballShotsValue
+    Int wizardHatExpiryValue
     Int lastKindValue
     Int lastResourceValue
-
     public constructor() {
         clear()
     }
@@ -306,8 +307,8 @@ class PowerUpEffectState {
         watermelonNextShotTickValue = 0
         woolMaceDamageValue = 0
         woolMaceExpiryValue = 0
-        flourCloudRadiusValue = 0
-        flourCloudExpiryValue = 0
+        wizardFireballShotsValue = 0
+        wizardHatExpiryValue = 0
         lastKindValue = 0
         lastResourceValue = 0
         return true
@@ -360,6 +361,11 @@ class PowerUpEffectState {
             watermelonNextShotTickValue = tick
             return true
         }
+        if (pickup.kind() == powerUpKindWizardHat()) {
+            wizardFireballShotsValue = pickup.effectValue()
+            wizardHatExpiryValue = expiry
+            return true
+        }
         if (pickup.kind() == powerUpKindWoolBall()) {
             woolMaceDamageValue = pickup.effectValue()
             woolMaceExpiryValue = expiry
@@ -401,6 +407,10 @@ class PowerUpEffectState {
             flourCloudRadiusValue = 0
             flourCloudExpiryValue = 0
         }
+        if (wizardHatExpiryValue > 0 && tick >= wizardHatExpiryValue) {
+            wizardFireballShotsValue = 0
+            wizardHatExpiryValue = 0
+        }
         if ((lastKindValue == powerUpKindCoffeeMug() &&
                 coffeeExpiryValue == 0) ||
             (lastKindValue == powerUpKindJetpack() &&
@@ -414,7 +424,9 @@ class PowerUpEffectState {
             (lastKindValue == powerUpKindWoolBall() &&
                 woolMaceExpiryValue == 0) ||
             (lastKindValue == powerUpKindFlourBag() &&
-                flourCloudExpiryValue == 0)) {
+                flourCloudExpiryValue == 0) ||
+            (lastKindValue == powerUpKindWizardHat() &&
+                wizardHatExpiryValue == 0)) {
             lastKindValue = 0
             lastResourceValue = 0
         }
@@ -464,6 +476,22 @@ class PowerUpEffectState {
         return true
     }
 
+    Int wizardFireballsRemaining(Int tick) {
+        return if (tick >= 0 && wizardHatExpiryValue > tick)
+            wizardFireballShotsValue else 0
+    }
+    Bool consumeWizardFireball(Int tick) {
+        if (wizardFireballsRemaining(tick) <= 0) { return false }
+        wizardFireballShotsValue = wizardFireballShotsValue - 1
+        if (wizardFireballShotsValue == 0) {
+            wizardHatExpiryValue = 0
+            if (lastKindValue == powerUpKindWizardHat()) {
+                lastKindValue = 0
+                lastResourceValue = 0
+            }
+        }
+        return true
+    }
 
     Int activeKind() { return lastKindValue }
     Int activeResource() { return lastResourceValue }
@@ -496,6 +524,10 @@ class PowerUpEffectState {
         if (lastKindValue == powerUpKindFlourBag()) {
             return if (flourCloudExpiryValue > tick)
                 flourCloudExpiryValue - tick else 0
+        }
+        if (lastKindValue == powerUpKindWizardHat()) {
+            return if (wizardHatExpiryValue > tick)
+                wizardHatExpiryValue - tick else 0
         }
         return 0
     }

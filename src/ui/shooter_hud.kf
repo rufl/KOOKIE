@@ -44,6 +44,14 @@ class ShooterHud {
     Int kutterGenerationValue
     Int kutterDiagnosticValue
     Bool kutterCompatibleValue
+    Bool throwablePickupValue
+    Bool throwableCarryValue
+    Bool throwableHeldValue
+    Int throwableKindValue
+    Int throwableCarryKindValue
+    Int throwableChargeValue
+    Bool webAuthoritativeValue
+    Int webSeedAmmoValue
 
 
     public constructor(Int maxHealth, Int maxAmmunition) {
@@ -93,6 +101,14 @@ class ShooterHud {
         kutterGenerationValue = 0
         kutterDiagnosticValue = 0
         kutterCompatibleValue = false
+        throwablePickupValue = false
+        throwableCarryValue = false
+        throwableHeldValue = false
+        throwableKindValue = 0
+        throwableCarryKindValue = 0
+        throwableChargeValue = 0
+        webAuthoritativeValue = false
+        webSeedAmmoValue = 0
 
 
     }
@@ -130,6 +146,9 @@ class ShooterHud {
         if (scaled < -100) { return -100 }
         if (scaled > 100) { return 100 }
         return scaled
+    }
+    void setWebConnectionStatus(Bool connected) {
+        remoteConnectedValue = connected
     }
     Bool updateEncounterReplication(
         Int activeEnemies, Int remainingBudget,
@@ -276,8 +295,42 @@ class ShooterHud {
     }
 
 
+    void setWebAuthoritative(Bool enabled) {
+        webAuthoritativeValue = enabled
+        maxAmmunitionValue = if (enabled) 99 else 3
+    }
+    Bool updateWebVitals(Int health, Int ammunition, Int seedAmmo) {
+        if (health < 0 || health > 100 ||
+            ammunition < 0 || ammunition > 99 ||
+            seedAmmo < 0 || seedAmmo > 30) { return false }
+        healthValue = health
+        ammunitionValue = ammunition
+        webSeedAmmoValue = seedAmmo
+        return true
+    }
+    Bool updateThrowableStatus(
+        Bool pickup, Int pickupKind, Bool carrying, Int carryKind,
+        Int charge, Bool held
+    ) {
+        if (pickupKind < 0 || pickupKind > 5 ||
+            carryKind < 0 || carryKind > 5 ||
+            charge < 0 || charge > 30 ||
+            (pickup && pickupKind == 0) ||
+            (!pickup && pickupKind != 0) ||
+            (carrying && carryKind == 0) ||
+            (!carrying && (carryKind != 0 || charge != 0 || held))) {
+            return false
+        }
+        throwablePickupValue = pickup
+        throwableKindValue = pickupKind
+        throwableCarryValue = carrying
+        throwableCarryKindValue = carryKind
+        throwableChargeValue = charge
+        throwableHeldValue = held
+        return true
+    }
     Int renderVertexCount() {
-        return 474
+        return 680
     }
 
 
@@ -511,6 +564,14 @@ class ShooterHud {
             connectionBottom = 90
             connectionRight = -30
             connectionTop = 94
+        }
+        if (webAuthoritativeValue) {
+            return pushQuad(target, resourceBase, -42, 84, 42, 98) &&
+                pushQuad(target, resourceBase + 1, -40, 86, 40, 96) &&
+                pushQuad(
+                    target, connectionResource,
+                    connectionLeft, connectionBottom,
+                    connectionRight, connectionTop)
         }
         var loadRight = -22
         var encounterTotal = enemiesValue + encounterRemainingValue
@@ -758,6 +819,40 @@ class ShooterHud {
     }
 
 
+    String throwableName(Int kind) {
+        if (kind == 1) { return "BOMB" }
+        if (kind == 2) { return "FLOUR" }
+        if (kind == 3) { return "MELON" }
+        if (kind == 4) { return "CRATE" }
+        if (kind == 5) { return "BOULDER" }
+        return "ITEM"
+    }
+    Bool pushThrowableStatus(FrameStaging target, Int resourceBase) {
+        if (!throwableCarryValue && !throwablePickupValue) { return true }
+        var label = "PICK " + throwableName(throwableKindValue)
+        if (throwableCarryValue) {
+            label = "THROW " + throwableName(throwableCarryKindValue)
+        }
+        if (!pushText(
+                target, label, -24, 54, 1,
+                themeValue.foregroundColor())) { return false }
+        if (!throwableCarryValue || !throwableHeldValue) { return true }
+        var right = -12 + throwableChargeValue * 24 / 30
+        return pushQuad(
+                target, resourceBase + 3, -12, 50, 12, 53) &&
+            pushQuad(
+                target, resourceBase + 5, -12, 50, right, 53)
+    }
+    Bool pushWebSeedStatus(FrameStaging target, Int resourceBase) {
+        if (!webAuthoritativeValue) { return true }
+        var right = 24 + webSeedAmmoValue * 30 / 30
+        return pushText(
+                target, "SEED", 24, 61, 1,
+                themeValue.foregroundColor()) &&
+            pushQuad(target, resourceBase + 3, 24, 58, 54, 60) &&
+            pushQuad(
+                target, resourceBase + 5, 24, 58, right, 60)
+    }
     Bool stage(FrameStaging target, Int frame, Int resourceBase) {
         if (!configuredValue || resourceBase <= 0 ||
             target.vertexCapacity() < renderVertexCount() ||
@@ -794,26 +889,25 @@ class ShooterHud {
                 crosshairGap, crosshairReach, crosshairThickness) ||
             !pushEncounterStatus(target, resourceBase) ||
             !pushKutterPublicationStatus(target, resourceBase) ||
-            !pushThreatStatus(target, resourceBase) ||
-            !pushCombatFeedback(target, resourceBase) ||
-            !pushBuildStatus(target, resourceBase) ||
-            !pushText(
-                target, "HP", -96, -78, 1, themeValue.foregroundColor()) ||
-            !pushText(
-                target, "AMMO", 24, -78, 1,
-                themeValue.foregroundColor()) ||
-            !pushText(
-                target, "BAG", -14, -69, 1,
-                themeValue.mutedColor()) ||
-            !pushText(
-                target, "XP", 4, -69, 1,
-                themeValue.mutedColor()) ||
-            !pushPowerUpStatus(target, resourceBase) ||
-            !pushPowerUpText(target) ||
-            !pushOxygenStatus(target, resourceBase) ||
-            !pushStaminaStatus(target, resourceBase) ||
-            !pushText(
-                target, "O2", 48, 68, 1, themeValue.foregroundColor())) {
+            (!webAuthoritativeValue && (
+                    !pushThreatStatus(target, resourceBase) ||
+                    !pushCombatFeedback(target, resourceBase) ||
+                    !pushBuildStatus(target, resourceBase) ||
+                    !pushText(
+                        target, "BAG", -14, -69, 1,
+                        themeValue.mutedColor()) ||
+                    !pushText(
+                        target, "XP", 4, -69, 1,
+                        themeValue.mutedColor()) ||
+                    !pushPowerUpStatus(target, resourceBase) ||
+                    !pushPowerUpText(target) ||
+                    !pushOxygenStatus(target, resourceBase) ||
+                    !pushStaminaStatus(target, resourceBase) ||
+                    !pushText(
+                        target, "O2", 48, 68, 1,
+                        themeValue.foregroundColor()))) ||
+            !pushThrowableStatus(target, resourceBase) ||
+            !pushWebSeedStatus(target, resourceBase)) {
             target.discard()
             return false
         }

@@ -23,6 +23,7 @@ class ArenaAnimalMeshes {
     Bool[] actorFlashed
     Bool[] actorAttacking
     Bool[] actorRolling
+    Int[] actorRollDirections
     Int actorCountValue
     Bool gooseMovingValue
     Bool gooseAttackingValue
@@ -52,6 +53,7 @@ class ArenaAnimalMeshes {
         actorMoving = new Bool[actualCapacity]
         actorAttacking = new Bool[actualCapacity]
         actorRolling = new Bool[actualCapacity]
+        actorRollDirections = new Int[actualCapacity]
         gooseGraph = BoundedAnimationGraphProduct(3, 6)
         catGraph = BoundedAnimationGraphProduct(3, 6)
         gooseRuntime = BoundedAnimationGraphRuntime(3, 6)
@@ -109,6 +111,7 @@ class ArenaAnimalMeshes {
             actorCurrent[index] = false
             actorMoving[index] = false
             actorRolling[index] = false
+            actorRollDirections[index] = 1
         }
         if (!animationReadyValue ||
             !gooseRuntime.start(gooseGraph, 1) ||
@@ -198,6 +201,22 @@ class ArenaAnimalMeshes {
         var slot = slotFor(actorId)
         if (slot < 0) { return false }
         actorRolling[slot] = rolling
+        return true
+    }
+    Bool setActorYaw(Int actorId, Int yaw) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || yaw < 0 || yaw > 359) { return false }
+        if (yaw >= 90 && yaw < 270) {
+            actorFacings[slot] = -1
+        } else {
+            actorFacings[slot] = 1
+        }
+        return true
+    }
+    Bool setActorRollDirection(Int actorId, Int direction) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || (direction != -1 && direction != 1)) { return false }
+        actorRollDirections[slot] = direction
         return true
     }
     Bool setActorDamageFlash(Int actorId, Bool flashed) {
@@ -301,6 +320,10 @@ class ArenaAnimalMeshes {
     }
     Bool actorRollingAt(Int index) {
         return actorCurrentAt(index) && actorRolling[index]
+    }
+    Int actorRollDirectionAt(Int index) {
+        if (!actorCurrentAt(index)) { return 1 }
+        return actorRollDirections[index]
     }
 
     Int modelVertexCount(Int gooseVertices, Int catVertices) {

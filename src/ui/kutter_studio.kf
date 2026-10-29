@@ -545,8 +545,9 @@ class BoundedKutterStudio {
         return if (result <= 0) 1 else result
     }
 
-    Bool decode(Int[] source) {
-        if (source.length < 11 || source[0] != kutterStudioMagic() ||
+    Bool decodeDocumentWords(Int[] source, Int sourceLength) {
+        if (sourceLength < 11 || sourceLength > source.length ||
+            source[0] != kutterStudioMagic() ||
             (source[1] != 1 && source[1] != 2 &&
                 source[1] != kutterStudioSchemaVersion()) ||
             source[2] < 11 || source[2] > wire.length ||
@@ -554,7 +555,7 @@ class BoundedKutterStudio {
             source[6] <= 0 || source[7] <= 0 ||
             source[7] > nodeCapacityValue || source[8] < 0 ||
             source[8] > assetCapacityValue || source[9] <= 0 ||
-            source[10] != 0 || source.length != source[2]) {
+            source[10] != 0 || sourceLength != source[2]) {
             return false
         }
         var version = source[1]

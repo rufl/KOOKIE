@@ -81,7 +81,7 @@ if [[ "$profile" == release-windows ]]; then
   done
   for variable_name in KOOKIE_KOF_ARCHIVE KOOKIE_WINDOWS_SDL_PREFIX \
       KOOKIE_WINDOWS_SDL_MIXER_PREFIX KOOKIE_WINDOWS_FREETYPE_PREFIX \
-      KOOKIE_WINDOWS_HARFBUZZ_PREFIX KOOKIE_DXC; do
+      KOOKIE_WINDOWS_HARFBUZZ_PREFIX KOOKIE_WINDOWS_CURL_PREFIX KOOKIE_DXC; do
     [[ -n "${!variable_name:-}" ]] || {
       echo "runner_preflight: $variable_name is required" >&2
       exit 2
@@ -89,7 +89,8 @@ if [[ "$profile" == release-windows ]]; then
   done
   for required_path in "$KOOKIE_KOF_ARCHIVE" \
       "$KOOKIE_WINDOWS_SDL_PREFIX/include/SDL3/SDL_version.h" \
-      "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/include/SDL3_mixer/SDL_mixer.h"; do
+      "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/include/SDL3_mixer/SDL_mixer.h" \
+      "$KOOKIE_WINDOWS_CURL_PREFIX/include/curl/curl.h"; do
     [[ -e "$required_path" ]] || {
       echo "runner_preflight: required runner path missing: $required_path" >&2
       exit 2

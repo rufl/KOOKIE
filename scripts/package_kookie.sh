@@ -44,7 +44,7 @@ SDL3_ARCHIVE_SHA256="${KOOKIE_SDL3_ARCHIVE_SHA256:-not-pinned}"
 SDL3_MIXER_ARCHIVE_SHA256="${KOOKIE_SDL3_MIXER_ARCHIVE_SHA256:-not-pinned}"
 SDL3_RUNTIME_SHA256=not-bundled
 WINDOWS_FREETYPE_PREFIX="${KOOKIE_WINDOWS_FREETYPE_PREFIX:-}"
-WINDOWS_HARFBUZZ_PREFIX="${KOOKIE_WINDOWS_HARFBUZZ_PREFIX:-}"
+WINDOWS_CURL_PREFIX="${KOOKIE_WINDOWS_CURL_PREFIX:-}"
 WINDOWS_TEXT_PKG_CONFIG_PATH=""
 SDL3_MIXER_RUNTIME_SHA256=not-bundled
 FREETYPE_RUNTIME_SHA256=not-bundled
@@ -88,12 +88,14 @@ the native adapter, and SPIR-V/DXIL shader binaries.
 Set `KOOKIE_KOF_ARCHIVE` to that regular archive and set
 `KOOKIE_KOF_ARCHIVE_SHA256` and `KOOKIE_KOF_SOURCE_COMMIT` to its verified
 identity. The archive is hashed again before the compiler is packaged.
-Linux presentation packaging
-auto-discovers `.kookie-deps/sdl3-mixer-3.2.4`; run
-`bash scripts/bootstrap_sdl3_mixer.sh` when the host lacks SDL_mixer.
+Linux presentation packaging requires libcurl 7.86.0 or later at build and
+runtime. Its libcurl runtime is a system dependency and is not bundled; the
+runtime host must provide it. `.kookie-deps/sdl3-mixer-3.2.4` is discovered
+automatically; run `bash scripts/bootstrap_sdl3_mixer.sh` if SDL_mixer is absent.
 Windows native/presentation packaging additionally requires
-`KOOKIE_WINDOWS_FREETYPE_PREFIX` and `KOOKIE_WINDOWS_HARFBUZZ_PREFIX`
-with MinGW import libraries and runtime DLLs.
+`KOOKIE_WINDOWS_FREETYPE_PREFIX`, `KOOKIE_WINDOWS_HARFBUZZ_PREFIX`, and
+`KOOKIE_WINDOWS_CURL_PREFIX` with libcurl 7.86.0+ headers/import library and
+runtime DLLs.
 EOF
 }
 
@@ -350,6 +352,12 @@ if [[ "$RUNTIME" == presentation && "$TARGET" == linux-x86_64 ]]; then
   command -v cc >/dev/null || { echo 'package_kookie: cc is required for presentation packaging' >&2; exit 2; }
   command -v glslc >/dev/null || { echo 'package_kookie: glslc is required for presentation packaging' >&2; exit 2; }
   command -v pkg-config >/dev/null || { echo 'package_kookie: pkg-config is required for presentation packaging' >&2; exit 2; }
+  if ! pkg-config --atleast-version=7.86.0 libcurl; then
+    echo 'package_kookie: Linux presentation packaging requires libcurl 7.86.0 or later at build and runtime; runtime libcurl is not bundled' >&2
+    exit 2
+  fi
+  printf 'package_kookie: libcurl %s build dependency; libcurl 7.86.0+ must also be installed on the runtime host (not bundled)\n' \
+    "$(pkg-config --modversion libcurl)"
   kookie_require_sdl3_dependencies "$ROOT_DIR" || exit 2
   kookie_require_native_text_dependencies "$ROOT_DIR" || exit 2
 fi
@@ -384,6 +392,22 @@ if [[ "$TARGET" == windows-x86_64 &&
     echo 'package_kookie: Windows packaging requires KOOKIE_WINDOWS_HARFBUZZ_PREFIX containing the HarfBuzz MinGW package' >&2
     exit 2
   }
+  [[ -n "$WINDOWS_CURL_PREFIX" &&
+    -f "$WINDOWS_CURL_PREFIX/include/curl/curl.h" &&
+    -f "$WINDOWS_CURL_PREFIX/include/curl/curlver.h" &&
+    -f "$WINDOWS_CURL_PREFIX/lib/libcurl.dll.a" &&
+    ( -f "$WINDOWS_CURL_PREFIX/bin/libcurl-4.dll" ||
+      -f "$WINDOWS_CURL_PREFIX/bin/libcurl.dll" ) ]] || {
+    echo 'package_kookie: Windows packaging requires KOOKIE_WINDOWS_CURL_PREFIX containing libcurl 7.86.0+ headers, MinGW import library, and runtime DLLs' >&2
+    exit 2
+  }
+  windows_curl_version_num="$(awk '$1 == "#define" && $2 == "LIBCURL_VERSION_NUM" { print $3; exit }' \
+    "$WINDOWS_CURL_PREFIX/include/curl/curlver.h")"
+  if [[ ! "$windows_curl_version_num" =~ ^0[xX][0-9A-Fa-f]+$ ]] ||
+     (( windows_curl_version_num < 0x075600 )); then
+    echo 'package_kookie: KOOKIE_WINDOWS_CURL_PREFIX must provide libcurl 7.86.0 or later' >&2
+    exit 2
+  fi
   command -v pkg-config >/dev/null || {
     echo 'package_kookie: pkg-config is required for Windows text dependency provenance' >&2
     exit 2
@@ -618,6 +642,7 @@ bundle_demo_runtime_configs() {
     power_ups/scuba_kit.json
     power_ups/watermelon.json
     power_ups/wool_ball.json
+    power_ups/wizard_hat.json
   )
   for relative_path in "${paths[@]}"; do
     [[ -f "$source_root/$relative_path" &&
@@ -647,9 +672,8 @@ bundle_font_assets() {
     cp -- "$source" "$destination_root/$(basename "$source")"
     count=$((count + 1))
   done
-  [[ "$count" == 5 ]] || {
-    echo "package_kookie: expected 5 font assets, found $count" >&2
-    exit 1
+  [[ "$count" == 6 ]] || {
+    echo "package_kookie: expected 6 font assets, found $count" >&2
   }
 }
 bundle_ui_assets() {
@@ -761,6 +785,7 @@ bundle_linux_native() {
     local found_harfbuzz=0
     local found_sdl=0
     local found_mixer=0
+    local found_curl=0
     for dependency in "$binary" "$@"; do
       while IFS= read -r library; do
         case "$(basename "$library")" in
@@ -780,6 +805,9 @@ bundle_linux_native() {
             cp -L -- "$library" "$PACKAGE_ROOT/lib/$(basename "$library")"
             found_harfbuzz=1
             ;;
+          libcurl.so*)
+            found_curl=1
+            ;;
           ld-linux-x86-64.so*|libc.so*|libm.so*|libdl.so*|libpthread.so*|librt.so*|libgcc_s.so*|libz.so*|libbz2.so*|libglib-2.0.so*|libgraphite2.so*|libpng16.so*|libbrotlidec.so*|libbrotlicommon.so*|libpcre2-8.so*)
             ;;
           *)
@@ -790,8 +818,9 @@ bundle_linux_native() {
       done < <(ldd "$dependency" | sed -n -E 's/.*=> (\/[^ ]+) .*/\1/p')
     done
     [[ "$found_sdl" == 1 && "$found_mixer" == 1 &&
-       "$found_freetype" == 1 && "$found_harfbuzz" == 1 ]] || {
-      echo 'package_kookie: SDL3, SDL_mixer, FreeType, and HarfBuzz runtime libraries must resolve' >&2
+       "$found_freetype" == 1 && "$found_harfbuzz" == 1 &&
+       "$found_curl" == 1 ]] || {
+      echo 'package_kookie: SDL3, SDL_mixer, FreeType, HarfBuzz, and libcurl runtime libraries must resolve; libcurl is not bundled' >&2
       exit 1
     }
     {
@@ -1026,6 +1055,7 @@ bundle_windows_kof_sdl() {
   local adapter_obj="$WORK_DIR/kookie-sdl-adapter.obj"
   local renderer_obj="$WORK_DIR/kookie-ui-renderer.obj"
   local transport_obj="$WORK_DIR/kookie-transport.obj"
+  local kutter_sync_obj="$WORK_DIR/kookie-kutter-sync.obj"
   local persistence_obj="$WORK_DIR/kookie-persistence-adapter.obj"
   mkdir -p "$presentation_root"/{core,content,session,world,ui,demo} "$PACKAGE_ROOT/build"
   cp -- "$ROOT_DIR/probes/g0_native_presentation/main.kf" \
@@ -1093,6 +1123,10 @@ bundle_windows_kof_sdl() {
     -c "$ROOT_DIR/native/kookie_transport.c" -o "$transport_obj"
   zig cc -target x86_64-windows-gnu -std=c11 \
     -Wall -Wextra -Werror -O2 -fno-ident \
+    -I "$WINDOWS_CURL_PREFIX/include" \
+    -c "$ROOT_DIR/native/kookie_kutter_sync.c" -o "$kutter_sync_obj"
+  zig cc -target x86_64-windows-gnu -std=c11 \
+    -Wall -Wextra -Werror -O2 -fno-ident \
     -I "$ROOT_DIR/native" \
     -c "$ROOT_DIR/native/kookie_persistence_adapter.c" -o "$persistence_obj"
   local -a package_profile_defines=()
@@ -1104,13 +1138,18 @@ bundle_windows_kof_sdl() {
     "${package_profile_defines[@]}" \
     "$ROOT_DIR/native/kookie_pe_entry.c" \
     "$pe_build/kof-module.obj" "$adapter_obj" "$renderer_obj" "$transport_obj" \
-    "$persistence_obj" \
+    "$kutter_sync_obj" "$persistence_obj" \
     "$WINDOWS_HARFBUZZ_PREFIX/lib/libharfbuzz.dll.a" \
     "$WINDOWS_FREETYPE_PREFIX/lib/libfreetype.dll.a" \
     "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/lib/libSDL3_mixer.dll.a" \
     "$KOOKIE_WINDOWS_SDL_PREFIX/lib/libSDL3.dll.a" \
-    -lws2_32 -lpsapi -o "$PACKAGE_ROOT/kookie.exe"
+    "$WINDOWS_CURL_PREFIX/lib/libcurl.dll.a" \
+    -lws2_32 -lbcrypt -lpsapi -o "$PACKAGE_ROOT/kookie.exe"
   cp -- "$PACKAGE_ROOT/kookie.exe" "$PACKAGE_ROOT/kookie-visual.exe"
+  for curl_runtime_dll in "$WINDOWS_CURL_PREFIX"/bin/*.dll; do
+    [[ -f "$curl_runtime_dll" ]] || continue
+    cp -- "$curl_runtime_dll" "$PACKAGE_ROOT/$(basename "$curl_runtime_dll")"
+  done
   cp -- "$KOOKIE_WINDOWS_SDL_PREFIX/bin/SDL3.dll" "$PACKAGE_ROOT/SDL3.dll"
   cp -- "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/bin/SDL3_mixer.dll" \
     "$PACKAGE_ROOT/SDL3_mixer.dll"
@@ -1328,7 +1367,7 @@ else
   done
   cp -- "$ROOT_DIR/probes/shared/gpu_scene_batch.kf" \
     "$PRESENTATION_ROOT/core/gpu_scene_batch.kf"
-  IFS=' ' read -r -a SDL_FLAGS <<<"$(pkg-config --cflags --libs sdl3 sdl3-mixer freetype2 harfbuzz)"
+  IFS=' ' read -r -a SDL_FLAGS <<<"$(pkg-config --cflags --libs sdl3 sdl3-mixer freetype2 harfbuzz libcurl)"
   python3 "$ROOT_DIR/scripts/shader_pipeline.py" \
     --root "$ROOT_DIR" --output "$PACKAGE_ROOT/build" --target linux
   cc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
@@ -1336,8 +1375,9 @@ else
     "$ROOT_DIR/native/kookie_sdl_adapter.c" \
     "$ROOT_DIR/native/kookie_ui_renderer.c" \
     "$ROOT_DIR/native/kookie_transport.c" \
+    "$ROOT_DIR/native/kookie_kutter_sync.c" \
     -o "$PACKAGE_ROOT/build/libkookie_sdl_adapter.so" \
-    "${SDL_FLAGS[@]}" -lm
+    "${SDL_FLAGS[@]}" -lm -pthread
   cc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
     "$ROOT_DIR/native/kookie_persistence_adapter.c" \
     -o "$PACKAGE_ROOT/build/libkookie_persistence_adapter.so"

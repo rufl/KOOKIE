@@ -13,7 +13,7 @@ Int fpsMovementTicksForMicros(Int durationMicros) {
 
 Int fpsMovementCoyoteWindowMicros() { return 100000 }
 Int fpsMovementJumpBufferWindowMicros() { return 100000 }
-Int fpsMovementJumpAirTimeMicros() { return 300000 }
+Int fpsMovementJumpAirTimeMicros() { return 450000 }
 Int fpsMovementCoyoteTicks() {
     return fpsMovementTicksForMicros(fpsMovementCoyoteWindowMicros())
 }
@@ -40,7 +40,7 @@ Int fpsMovementMaximumFallTicks() { return 16 }
 Int fpsMovementMaxFallSpeed() {
     return fpsMovementGravity() * fpsMovementMaximumFallTicks()
 }
-Int fpsMovementJumpCutNumerator() { return 3 }
+Int fpsMovementJumpCutNumerator() { return 4 }
 Int fpsMovementJumpCutDenominator() { return 5 }
 
 Int fpsMovementMaximumActors() { return 8 }
@@ -78,6 +78,7 @@ class FpsMovementController {
     Int[] coyoteTicksValues
     Int[] jumpBufferTicksValues
     Int[] airJumpValues
+    Int[] doubleJumpAnimationTicksValues
     Int[] flapCooldownValues
     Bool[] activeValues
     Bool[] groundedValues
@@ -145,6 +146,7 @@ class FpsMovementController {
         coyoteTicksValues = new Int[actualCapacityValue]
         jumpBufferTicksValues = new Int[actualCapacityValue]
         airJumpValues = new Int[actualCapacityValue]
+        doubleJumpAnimationTicksValues = new Int[actualCapacityValue]
         flapCooldownValues = new Int[actualCapacityValue]
         activeValues = new Bool[actualCapacityValue]
         groundedValues = new Bool[actualCapacityValue]
@@ -188,6 +190,7 @@ class FpsMovementController {
             coyoteTicksValues[index] = 0
             jumpBufferTicksValues[index] = 0
             airJumpValues[index] = 0
+            doubleJumpAnimationTicksValues[index] = 0
             flapCooldownValues[index] = 0
             activeValues[index] = false
             groundedValues[index] = false
@@ -473,7 +476,7 @@ class FpsMovementController {
         coyoteTicksValues[slot] = fpsMovementCoyoteTicks()
         jumpBufferTicksValues[slot] = 0
         airJumpValues[slot] = 0
-        flapCooldownValues[slot] = 0
+        doubleJumpAnimationTicksValues[slot] = 0
         activeValues[slot] = true
         groundedValues[slot] = true
         crouchedValues[slot] = false
@@ -504,7 +507,7 @@ class FpsMovementController {
         coyoteTicksValues[slot] = fpsMovementCoyoteTicks()
         jumpBufferTicksValues[slot] = 0
         airJumpValues[slot] = 0
-        flapCooldownValues[slot] = 0
+        doubleJumpAnimationTicksValues[slot] = 0
         crouchedValues[slot] = false
         glidingValues[slot] = false
         groundedValues[slot] = true
@@ -653,6 +656,10 @@ class FpsMovementController {
         var liquid = liquidActiveValues[slot]
         var crouched = crouchedValues[slot]
         var wasGrounded = groundedValues[slot]
+        if (doubleJumpAnimationTicksValues[slot] > 0) {
+            doubleJumpAnimationTicksValues[slot] =
+                doubleJumpAnimationTicksValues[slot] - 1
+        }
         if (!liquid) {
             if (wasGrounded) {
                 coyoteTicksValues[slot] = fpsMovementCoyoteTicks()
@@ -730,6 +737,7 @@ class FpsMovementController {
                 airJumpValues[slot] < fpsMovementMaximumAirJumps()) {
                 jumped = true
                 airJumpValues[slot] = airJumpValues[slot] + 1
+                doubleJumpAnimationTicksValues[slot] = 12
                 jumpBufferTicksValues[slot] = 0
                 groundedValues[slot] = false
                 velocityYValues[slot] = fpsMovementJumpVelocity() +
@@ -924,6 +932,17 @@ class FpsMovementController {
         var slot = slotFor(actorId)
         if (slot < 0 || !activeValues[slot]) { return 0 }
         return airJumpValues[slot]
+    }
+    Bool doubleJumpAnimationActive(Int actorId) {
+        var slot = slotFor(actorId)
+        return slot >= 0 && activeValues[slot] &&
+            doubleJumpAnimationTicksValues[slot] > 0
+    }
+
+    Int doubleJumpAnimationTicks(Int actorId) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || !activeValues[slot]) { return 0 }
+        return doubleJumpAnimationTicksValues[slot]
     }
 
     Bool lastAccepted() { return lastAcceptedValue }

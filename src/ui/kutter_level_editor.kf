@@ -142,7 +142,7 @@ class BoundedKutterLevelEditor {
         for (var index = 0; index < wordCount; index = index + 1) {
             words[index] = snapshots[offset + index]
         }
-        return documentValue.decode(words)
+        return documentValue.decodeDocumentWords(words, wordCount)
     }
 
     Bool beginMutation() {
@@ -554,7 +554,10 @@ class BoundedKutterLevelEditor {
     }
 
     Bool importDocument(Int[] words) {
-        if (!documentValue.decode(words)) { return false }
+        return importDocumentWords(words, words.length)
+    }
+    Bool importDocumentWords(Int[] words, Int wordCount) {
+        if (!documentValue.decodeDocumentWords(words, wordCount)) { return false }
         undoCountValue = 0
         redoCountValue = 0
         selectedNodeValue = 0
@@ -566,6 +569,10 @@ class BoundedKutterLevelEditor {
             cursorZValue = documentValue.nodeZValue(0)
         }
         toolValue = kutterLevelToolSelect()
+        return true
+    }
+    Bool setPreviewActive(Bool active) {
+        previewActiveValue = active
         return true
     }
 

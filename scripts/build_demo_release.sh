@@ -200,6 +200,7 @@ PY
     build/g0_triangle.vert.dxil build/g6_world.vert.dxil \
     build/g0_triangle.frag.dxil RELEASE_PUBLIC_KEY.pem \
     PROVENANCE.txt THIRD_PARTY_NOTICES.txt \
+    fonts/jared-lite.ttf fonts/pixand.ttf fonts/ThaleahFat.ttf \
     fonts/OFL.txt fonts/readme.txt fonts/manifest.json; do
     [[ -f "$PACKAGE_ROOT/$required" ]] || {
       echo "build_demo_release: missing Windows package entry $required" >&2
@@ -220,9 +221,8 @@ else
   for required in kookie kookie.bin kookie-launcher kookie-smoke.bin \
     build/libkookie_sdl_adapter.so build/g0_triangle.vert.spv \
     build/g6_world.vert.spv \
-    THIRD_PARTY_NOTICES.txt DEMO_CONTROLS.txt PROVENANCE.txt \
-    fonts/jared-lite.ttf fonts/pixand.ttf fonts/OFL.txt fonts/readme.txt \
-    fonts/manifest.json; do
+    fonts/jared-lite.ttf fonts/pixand.ttf fonts/ThaleahFat.ttf \
+    fonts/OFL.txt fonts/readme.txt fonts/manifest.json; do
     [[ -e "$PACKAGE_ROOT/$required" ]] || {
       echo "build_demo_release: missing Linux package entry $required" >&2
       exit 1

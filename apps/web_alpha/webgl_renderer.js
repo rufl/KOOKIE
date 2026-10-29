@@ -1,6 +1,10 @@
 (() => {
   "use strict";
 
+  const CAT_RENDER_SCALE = 1.14;
+  const GOOSE_RENDER_SCALE = 4.8;
+  const DUMMY_RENDER_SCALE = 0.35;
+
   const VERTEX_SHADER = `#version 300 es
     precision highp float;
     layout(location = 0) in vec3 aPosition;
@@ -86,8 +90,8 @@
     actorAlt: [0.20, 0.42, 1.0, 1],
     damaged: [0.28, 0.32, 0.38, 1],
     projectile: [1.0, 0.88, 0.20, 1],
+    fireball: [1.0, 0.24, 0.035, 1],
     pickup: [0.30, 1.0, 0.58, 1],
-    vfx: [1.0, 0.35, 0.72, 1],
     shadow: [0.015, 0.020, 0.025, 0.42],
     water: [0.05, 0.34, 0.45, 0.72],
   });
@@ -111,7 +115,8 @@
     { box: [4, 0, 0, 316, 24, 4], material: 8, color: COLORS.wall },
     { box: [4, 0, 276, 316, 24, 280], material: 8, color: COLORS.wall },
     { box: [92, 6, 146, 228, 9, 158], material: 5, color: [0.24, 0.30, 0.38, 1] },
-    { box: [154, 6, 92, 166, 9, 212], material: 5, color: [0.24, 0.30, 0.38, 1] },
+    { box: [154, 6, 92, 166, 9, 146], material: 5, color: [0.24, 0.30, 0.38, 1] },
+    { box: [154, 6, 158, 166, 9, 212], material: 5, color: [0.24, 0.30, 0.38, 1] },
     { box: [228, 6, 66, 308, 9, 78], material: 5, color: [0.24, 0.30, 0.38, 1] },
     { box: [36, 8, 64, 96, 11, 216], material: 6, color: [0.30, 0.36, 0.28, 1] },
     { box: [224, 8, 64, 284, 11, 216], material: 6, color: [0.30, 0.36, 0.28, 1] },
@@ -135,7 +140,10 @@
     }),
   ]);
   const ARENA_WATER = Object.freeze([
-    Object.freeze({ bounds: [96, 5, 96, 224, 208], style: WATER_STYLES[0] }),
+    Object.freeze({ bounds: [96, 5, 96, 188, 208], style: WATER_STYLES[0] }),
+    Object.freeze({ bounds: [208, 5, 96, 224, 208], style: WATER_STYLES[0] }),
+    Object.freeze({ bounds: [188, 5, 96, 208, 184], style: WATER_STYLES[0] }),
+    Object.freeze({ bounds: [188, 5, 204, 208, 208], style: WATER_STYLES[0] }),
     Object.freeze({ bounds: [232, 4, 32, 304, 112], style: WATER_STYLES[1] }),
   ]);
   const ARENA_RAMPS = Object.freeze([
@@ -168,9 +176,30 @@
     { id: 13, name: "electric-ring", path: "assets/prototype/vfx/predrawn/electric_ring_6x5.png", columns: 6, rows: 5, frameMs: 55, scale: 9 },
     { id: 14, name: "fire-point", path: "assets/prototype/vfx/predrawn/fire_point_6x5.png", columns: 6, rows: 5, frameMs: 55, scale: 8 },
     { id: 15, name: "impact", path: "assets/prototype/vfx/predrawn/impact_white_6x4.png", columns: 6, rows: 4, frameMs: 55, scale: 7 },
+    { id: 16, name: "melee-hit-spark", path: "assets/prototype/vfx/predrawn/hitspark_star3_7x1.png", columns: 7, rows: 1, frameCount: 7, frameMs: 40, scale: 9 },
+    { id: 17, name: "movement-smoke", path: "assets/prototype/vfx/predrawn/smoke_ground_1a_1.png", columns: 9, rows: 1, frameCount: 9, frameMs: 60, scale: 8 },
   ]);
 
   const VFX_LEGACY_STYLE_ASSET = Object.freeze({ 1: 5, 2: 8 });
+  const MULTIPLAYER_IMPACT_ASSET = Object.freeze({
+    1: 15,
+    2: 16,
+    3: 15,
+    4: 8,
+    5: 8,
+    6: 11,
+    7: 16,
+    8: 15,
+  });
+  const THROWABLE_VISUALS = Object.freeze({
+    1: { mesh: "projectile", scale: [2.2, 2.2, 2.2], pickupScale: [4.0, 4.0, 4.0], color: [0.9, 0.12, 0.12, 1] },
+    2: { mesh: "solid", scale: [2.2, 3.0, 2.2], pickupScale: [4.0, 5.4, 4.0], color: [0.94, 0.91, 0.8, 1] },
+    3: { mesh: "pickup", scale: [2.8, 2.8, 2.8], pickupScale: [5.0, 5.0, 5.0], color: [0.12, 0.66, 0.23, 1] },
+    4: { mesh: "solid", scale: [3.5, 3.0, 3.5], pickupScale: [6.3, 5.4, 6.3], color: [0.48, 0.25, 0.12, 1] },
+    5: { mesh: "projectile", scale: [3.0, 2.4, 3.0], pickupScale: [5.4, 4.3, 5.4], color: [0.48, 0.52, 0.57, 1] },
+  });
+
+  const MAX_MULTIPLAYER_IMPACT_EFFECTS = 32;
 
 
   function compileShader(gl, type, source) {
@@ -266,15 +295,21 @@
     ];
   }
 
-  function transform(position, scale, rotationY = 0, rotationZ = 0) {
+  function transform(position, scale, rotationY = 0, rotationZ = 0, rotationX = 0) {
     const c = Math.cos(rotationY);
     const s = Math.sin(rotationY);
     const rzC = Math.cos(rotationZ);
     const rzS = Math.sin(rotationZ);
+    const rxC = Math.cos(rotationX);
+    const rxS = Math.sin(rotationX);
     return [
       c * rzC * scale[0], rzS * scale[0], -s * rzC * scale[0], 0,
-      -c * rzS * scale[1], rzC * scale[1], s * rzS * scale[1], 0,
-      s * scale[2], 0, c * scale[2], 0,
+      (-c * rzS * rxC + s * rxS) * scale[1],
+      (rzC * rxC) * scale[1],
+      (s * rzS * rxC + c * rxS) * scale[1], 0,
+      (c * rzS * rxS + s * rxC) * scale[2],
+      -rzC * rxS * scale[2],
+      (-s * rzS * rxS + c * rxC) * scale[2], 0,
       position[0], position[1], position[2], 1,
     ];
   }
@@ -388,7 +423,7 @@
     });
   }
 
-  function boxGeometry(gl, size, color, texture = null) {
+  function boxGeometry(gl, size, color, texture = null, omitBottom = false) {
     const [width, height, depth] = size.map((value) => value / 2);
     const positions = new Float32Array([
       -width, -height, depth, width, -height, depth, width, height, depth, -width, height, depth,
@@ -416,6 +451,7 @@
     ]);
     const indices = [];
     for (let face = 0; face < 6; face += 1) {
+      if (omitBottom && face === 5) continue;
       const offset = face * 4;
       indices.push(offset, offset + 1, offset + 2, offset, offset + 2, offset + 3);
     }
@@ -524,7 +560,6 @@
     ]);
     const indices = [
       0, 1, 2, 0, 2, 3,
-      4, 6, 5, 4, 7, 6,
       0, 4, 5, 0, 5, 1,
       1, 5, 6, 1, 6, 2,
       2, 6, 7, 2, 7, 3,
@@ -689,45 +724,45 @@
   }
 
   function invertMatrix(matrix) {
-    const a00 = matrix[0], a01 = matrix[1], a02 = matrix[2], a03 = matrix[3];
-    const a10 = matrix[4], a11 = matrix[5], a12 = matrix[6], a13 = matrix[7];
-    const a20 = matrix[8], a21 = matrix[9], a22 = matrix[10], a23 = matrix[11];
-    const a30 = matrix[12], a31 = matrix[13], a32 = matrix[14], a33 = matrix[15];
-    const b00 = a00 * a11 - a01 * a10;
-    const b01 = a00 * a12 - a02 * a10;
-    const b02 = a00 * a13 - a03 * a10;
-    const b03 = a01 * a12 - a02 * a11;
-    const b04 = a01 * a13 - a03 * a11;
-    const b05 = a02 * a13 - a03 * a12;
-    const b06 = a20 * a31 - a21 * a30;
-    const b07 = a20 * a32 - a22 * a30;
-    const b08 = a20 * a33 - a23 * a30;
-    const b09 = a21 * a32 - a22 * a31;
-    const b10 = a21 * a33 - a23 * a31;
-    const b11 = a22 * a33 - a23 * a32;
-    const determinant =
-      b00 * b11 - b01 * b10 + b02 * b09 +
-      b03 * b08 - b04 * b07 + b05 * b06;
-    if (Math.abs(determinant) < 1e-8) return null;
-    const inverse = 1 / determinant;
-    return [
-      (a11 * b11 - a12 * b10 + a13 * b09) * inverse,
-      (a02 * b10 - a01 * b11 - a03 * b09) * inverse,
-      (a31 * b05 - a32 * b04 + a33 * b03) * inverse,
-      (a22 * b04 - a21 * b05 - a23 * b03) * inverse,
-      (a12 * b08 - a10 * b11 - a13 * b07) * inverse,
-      (a00 * b11 - a02 * b08 + a03 * b07) * inverse,
-      (a32 * b02 - a30 * b05 - a33 * b01) * inverse,
-      (a20 * b05 - a22 * b02 + a23 * b01) * inverse,
-      (a10 * b10 - a11 * b08 + a13 * b06) * inverse,
-      (a30 * b04 - a31 * b02 + a33 * b00) * inverse,
-      (a21 * b02 - a20 * b04 - a23 * b00) * inverse,
-      (a20 * b03 - a21 * b01 + a22 * b00) * inverse,
-      (a11 * b07 - a10 * b09 - a12 * b06) * inverse,
-      (a01 * b09 - a00 * b07 + a02 * b06) * inverse,
-      (a31 * b01 - a30 * b03 - a32 * b00) * inverse,
-      (a30 * b02 - a31 * b00 + a32 * b01) * inverse,
-    ];
+    const rows = Array.from({ length: 4 }, (_, row) => [
+      matrix[row], matrix[4 + row], matrix[8 + row], matrix[12 + row],
+      row === 0 ? 1 : 0, row === 1 ? 1 : 0,
+      row === 2 ? 1 : 0, row === 3 ? 1 : 0,
+    ]);
+    for (let column = 0; column < 4; column += 1) {
+      let pivotRow = column;
+      for (let row = column + 1; row < 4; row += 1) {
+        if (Math.abs(rows[row][column]) >
+            Math.abs(rows[pivotRow][column])) {
+          pivotRow = row;
+        }
+      }
+      const pivot = rows[pivotRow][column];
+      if (!Number.isFinite(pivot) || Math.abs(pivot) < 1e-8) return null;
+      if (pivotRow !== column) {
+        [rows[column], rows[pivotRow]] = [rows[pivotRow], rows[column]];
+      }
+      const pivotValues = rows[column];
+      for (let entry = 0; entry < 8; entry += 1) {
+        pivotValues[entry] /= pivot;
+      }
+      for (let row = 0; row < 4; row += 1) {
+        if (row === column) continue;
+        const values = rows[row];
+        const factor = values[column];
+        if (factor === 0) continue;
+        for (let entry = 0; entry < 8; entry += 1) {
+          values[entry] -= factor * pivotValues[entry];
+        }
+      }
+    }
+    const inverse = new Array(16);
+    for (let row = 0; row < 4; row += 1) {
+      for (let column = 0; column < 4; column += 1) {
+        inverse[column * 4 + row] = rows[row][4 + column];
+      }
+    }
+    return inverse;
   }
 
   function normalizeQuaternion(quaternion) {
@@ -1173,7 +1208,9 @@
     };
     const worldMaterialTexture = createWorldMaterialTexture(gl);
     const fallbackMeshes = {
-      solid: boxGeometry(gl, [1, 1, 1], [1, 1, 1, 1], worldMaterialTexture),
+      solid: boxGeometry(
+        gl, [1, 1, 1], [1, 1, 1, 1], worldMaterialTexture, true,
+      ),
       water: horizontalPlaneGeometry(gl, [1, 1, 1, 1]),
       shadow: horizontalPlaneGeometry(gl, COLORS.shadow),
       actor: boxGeometry(gl, [8, 14, 8], COLORS.actor),
@@ -1187,12 +1224,21 @@
     const assets = { goose: null, cat: null, hearts: null };
     const vfxTextures = new Array(VFX_ASSETS.length).fill(null);
     const vfxMeshes = new Array(VFX_ASSETS.length).fill(null);
+    let playerCameraZoom = 1.5;
+    let playerCameraActive = false;
+    const handleCameraWheel = (event) => {
+      if (!playerCameraActive) return;
+      event.preventDefault();
+      playerCameraZoom = Math.max(1.3, Math.min(1.8,
+        playerCameraZoom + Math.sign(event.deltaY) * 0.05));
+    };
+    canvas.addEventListener("wheel", handleCameraWheel, { passive: false });
     const assetFailures = [];
     const assetBase = "assets/prototype/models/";
     const assetLoads = [
       ["goose", assetBase + "goose/goose.glb"],
       ["cat", assetBase + "cat/cat.glb"],
-      ["hearts", "content/prototype/runtime/ui/hearts_0001.png"],
+      ["hearts", "assets/prototype/runtime/ui/hearts_0001.png"],
     ].map(async ([name, url]) => {
       try {
         assets[name] = name === "hearts"
@@ -1206,7 +1252,9 @@
     const vfxLoads = VFX_ASSETS.map(async (asset) => {
       try {
         vfxTextures[asset.id] = await loadTextureUrl(gl, asset.path);
-        vfxMeshes[asset.id] = planeGeometry(gl, COLORS.vfx, vfxTextures[asset.id]);
+        vfxMeshes[asset.id] = planeGeometry(gl,
+          asset.id === 17 ? [1, 1, 1, 1] : COLORS.vfx,
+          vfxTextures[asset.id]);
       } catch (error) {
         assetFailures.push(asset.name + ": " + error.message);
       }
@@ -1311,8 +1359,54 @@
     }
     let vfxKey = null;
     let vfxStartedAt = 0;
+    let lastImpactSceneTick = null;
+    const impactEffects = new Map();
+    const movementSmokeEffects = new Map();
+    const actorMovementStates = new Map();
     const actorAnimationStarts = new Map();
     const rollDurationMs = 12 * (1000 / 60);
+
+    function emitMovementSmoke(actor, time, scale) {
+      if (movementSmokeEffects.size >= 24) {
+        movementSmokeEffects.delete(movementSmokeEffects.keys().next().value);
+      }
+      movementSmokeEffects.set(
+        `${actor.id}:${time}:${movementSmokeEffects.size}`,
+        { x: actor.x, y: actor.y + 1, z: actor.z, startedAt: time, scale },
+      );
+    }
+    function updateMovementSmoke(actors, time) {
+      for (const actor of actors) {
+        if (actor.kind === 3 || !Number.isInteger(actor.id)) continue;
+        const grounded = (actor.state & 1) !== 0;
+        const previous = actorMovementStates.get(actor.id);
+        if (previous) {
+          if (previous.grounded && !grounded) {
+            emitMovementSmoke(actor, time, 7);
+          } else if (!previous.grounded && grounded) {
+            emitMovementSmoke(actor, time, 9.5);
+          } else if (grounded &&
+              Math.hypot(actor.x - previous.x, actor.z - previous.z) > 0.12 &&
+              time - previous.lastRunPuffAt >= 125) {
+            emitMovementSmoke(actor, time, 6.5);
+            previous.lastRunPuffAt = time;
+          }
+          previous.x = actor.x;
+          previous.y = actor.y;
+          previous.z = actor.z;
+          previous.grounded = grounded;
+          previous.lastSeenAt = time;
+        } else {
+          actorMovementStates.set(actor.id, {
+            x: actor.x, y: actor.y, z: actor.z,
+            grounded, lastRunPuffAt: time, lastSeenAt: time,
+          });
+        }
+      }
+      for (const [actorId, state] of actorMovementStates) {
+        if (time - state.lastSeenAt > 2500) actorMovementStates.delete(actorId);
+      }
+    }
     function actorAnimationElapsed(actor, time) {
       const id = Number.isInteger(actor.id) ? actor.id : 0;
       const action = Number.isInteger(actor.animation) ? actor.animation : 0;
@@ -1327,13 +1421,23 @@
       if (actor.animation !== 7) return 0;
       const progress = Math.min(1, actorAnimationElapsed(actor, time) / rollDurationMs);
       const eased = progress * progress * (3 - 2 * progress);
-      return eased * Math.PI * 2;
+      return eased * Math.PI * 2 *
+        (actor.rollDirection === -1 ? -1 : 1);
     }
-    function projectWorld(scene, x, y, z) {
-      const camera = scene.camera || {
+    function cameraTargetForScene(scene) {
+      const target = scene.camera || {
         x: scene.playerX, y: scene.playerY + 8, z: scene.playerZ - 16,
         yaw: scene.yaw, pitch: scene.pitch,
       };
+      if (!(scene.playerId > 0)) return target;
+      return {
+        ...target,
+        x: scene.playerX + (target.x - scene.playerX) * playerCameraZoom,
+        z: scene.playerZ + (target.z - scene.playerZ) * playerCameraZoom,
+      };
+    }
+    function projectWorld(scene, x, y, z) {
+      const camera = cameraTargetForScene(scene);
       const yaw = (camera.yaw || 0) * Math.PI / 180;
       const pitch = (camera.pitch || 0) * Math.PI / 180;
       const direction = [
@@ -1368,14 +1472,21 @@
         depth: normalized[2],
       });
     }
-
+ 
     function render(scene, time = 0) {
+      if (Number.isInteger(scene.tick)) {
+        if (lastImpactSceneTick !== null && scene.tick < lastImpactSceneTick) {
+          impactEffects.clear();
+          movementSmokeEffects.clear();
+          actorMovementStates.clear();
+        }
+        lastImpactSceneTick = scene.tick;
+      }
+      updateMovementSmoke(scene.actors || [], time);
       if (contextLost || (typeof gl.isContextLost === "function" && gl.isContextLost())) return;
       resize();
-      const targetCamera = scene.camera || {
-        x: scene.playerX, y: scene.playerY + 8, z: scene.playerZ - 16,
-        yaw: scene.yaw, pitch: scene.pitch,
-      };
+      const targetCamera = cameraTargetForScene(scene);
+      playerCameraActive = scene.playerId > 0;
       const camera = smoothCamera(targetCamera, time);
       const yaw = (camera.yaw || 0) * Math.PI / 180;
       const pitch = (camera.pitch || 0) * Math.PI / 180;
@@ -1545,15 +1656,44 @@
       gl.disable(gl.BLEND);
 
       const modelForActor = (actor) => actor.kind === 2 ? assets.cat : assets.goose;
+      const renderYawForActor = (actor, fallbackYaw = 0) =>
+        (actor.yaw === undefined ? fallbackYaw : actor.yaw * Math.PI / 180) +
+        (actor.kind === 2 ? Math.PI : 0);
       for (const actor of actors) {
         const model = modelForActor(actor);
         if (scene.playerId > 0 && actor.id === scene.playerId) continue;
+        if (actor.kind === 3) {
+          const x = actor.x;
+          const y = actor.y;
+          const z = actor.z;
+          const straw = actor.health > 0 ? [0.92, 0.64, 0.2, 1] : COLORS.damaged;
+          const dummyScale = DUMMY_RENDER_SCALE;
+          draw([fallbackMeshes.solid],
+            transform([x, y + 6 * dummyScale, z],
+              [1.2 * dummyScale, 12 * dummyScale, 1.2 * dummyScale]),
+            [0.28, 0.19, 0.1, 1], time, viewProjection);
+          draw([fallbackMeshes.solid],
+            transform([x, y + 9 * dummyScale, z],
+              [6 * dummyScale, 5 * dummyScale, 3 * dummyScale]),
+            straw, time, viewProjection);
+          draw([fallbackMeshes.solid],
+            transform([x, y + 14 * dummyScale, z],
+              [4 * dummyScale, 4 * dummyScale, 4 * dummyScale]),
+            [0.96, 0.78, 0.4, 1], time, viewProjection);
+          draw([fallbackMeshes.solid],
+            transform([x, y + 10 * dummyScale, z],
+              [13 * dummyScale, 2 * dummyScale, 2 * dummyScale]),
+            straw, time, viewProjection);
+          continue;
+        }
         const tint = actor.health <= 0 ? COLORS.damaged
           : actor.powerUp > 0 ? COLORS.pickup
           : actor.health < 50 ? COLORS.damaged
           : actor.kind === 2 ? COLORS.actorAlt : COLORS.actor;
-        const scale = actor.kind === 2 ? [0.38, 0.38, 0.38] : [1.6, 1.6, 1.6];
-        const actorYaw = actor.yaw === undefined ? 0 : actor.yaw * Math.PI / 180;
+        const scale = actor.kind === 2
+          ? [CAT_RENDER_SCALE, CAT_RENDER_SCALE, CAT_RENDER_SCALE]
+          : [GOOSE_RENDER_SCALE, GOOSE_RENDER_SCALE, GOOSE_RENDER_SCALE];
+        const actorYaw = renderYawForActor(actor);
         const actorLift = actorAnimationLift(actor, scene.tick);
         const actorAnimation = Number.isInteger(actor.animation) ? actor.animation : 0;
         const actorAnimationTime = actorAnimationElapsed(actor, time);
@@ -1561,7 +1701,7 @@
           actorAnimation, actorAnimationTime,
         );
         draw(model?.meshes || [fallbackMeshes.actor], transform(
-          [actor.x, actor.y + actorLift, actor.z], scale, actorYaw,
+          [actor.x, actor.y + actorLift, actor.z], scale, actorYaw, 0,
           actorRollAngle(actor, time),
         ), tint, time, viewProjection, [0, 0, 1, 1], skinMatrices);
       }
@@ -1569,7 +1709,8 @@
         { id: scene.playerId, kind: 1, animation: 0 };
       const playerModel = modelForActor(playerActor);
       const playerScale = playerActor.kind === 2
-        ? [0.38, 0.38, 0.38] : [1.6, 1.6, 1.6];
+        ? [CAT_RENDER_SCALE, CAT_RENDER_SCALE, CAT_RENDER_SCALE]
+        : [GOOSE_RENDER_SCALE, GOOSE_RENDER_SCALE, GOOSE_RENDER_SCALE];
       const playerLift = actorAnimationLift(playerActor, scene.tick);
       const playerAnimationTime = actorAnimationElapsed(playerActor, time);
       const playerSkinMatrices = playerModel?.sampleSkinForAction?.(
@@ -1578,7 +1719,7 @@
       if (scene.playerId === undefined || scene.playerId > 0) {
         draw(playerModel?.meshes || [fallbackMeshes.actor], transform(
           [scene.playerX, scene.playerY + playerLift, scene.playerZ], playerScale,
-          playerActor.yaw === undefined ? yaw : playerActor.yaw * Math.PI / 180,
+          renderYawForActor(playerActor, yaw), 0,
           actorRollAngle(playerActor, time),
         ), COLORS.player, time, viewProjection, [0, 0, 1, 1], playerSkinMatrices);
       }
@@ -1589,48 +1730,175 @@
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.depthMask(false);
         for (const actor of actors) {
-          if (actor.health <= 0) continue;
+          if (actor.health <= 0 || actor.id === scene.playerId) continue;
           const health = Math.max(0, Math.min(100, actor.health));
           const heartState = Math.max(0, Math.min(4, Math.floor(health * 4 / 100)));
           const actorLift = actorAnimationLift(actor, scene.tick);
-          const heartHeight = actor.kind === 2 ? 15 : 19;
+          const heartHeight = actor.kind === 2 ? 9 : 19;
           draw(
             [heartMesh],
             transform(
               [actor.x, actor.y + actorLift + heartHeight, actor.z],
-              [4, 4, 1], yaw,
+              [2.8, 2.8, 1], yaw,
             ),
             [1, 1, 1, 1], time, viewProjection,
-            [heartState / 5, 0, 1 / 5, 1],
+            [heartState / 5, 1, 1 / 5, -1],
           );
         }
         gl.depthMask(true);
         gl.disable(gl.BLEND);
       }
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.depthMask(false);
+      for (const actor of actors) {
+        if (!actor.dizzy || actor.health <= 0) continue;
+        const actorLift = actorAnimationLift(actor, scene.tick);
+        const starCount = 3;
+        const orbit = time * 0.004 + actor.id * 0.7;
+        const starHeight = actor.kind === 2 ? 12 : 24;
+        for (let star = 0; star < starCount; star += 1) {
+          const angle = orbit + star * Math.PI * 2 / starCount;
+          const starX = actor.x + Math.cos(angle) * 4.2;
+          const starZ = actor.z + Math.sin(angle) * 4.2;
+          const starY = actor.y + actorLift + starHeight +
+            Math.sin(orbit * 1.7 + star) * 0.7;
+          draw(vfxMeshes[3] ? [vfxMeshes[3]] : [fallbackMeshes.vfx],
+            transform([starX, starY, starZ], [2.1, 2.1, 1], -angle),
+            [1, 0.88, 0.18, 1], time, viewProjection, [0, 0, 1, 1]);
+        }
+      }
+      gl.depthMask(true);
+      gl.disable(gl.BLEND);
+      if (scene.carriesThrowable && scene.playerId > 0) {
+        const playerYaw = (scene.yaw || 0) * Math.PI / 180;
+        const heldX = scene.playerX + Math.sin(playerYaw) * 2.5;
+        const heldZ = scene.playerZ + Math.cos(playerYaw) * 2.5;
+        const visual = THROWABLE_VISUALS[scene.carryType] ||
+          THROWABLE_VISUALS[1];
+        draw([fallbackMeshes[visual.mesh]], transform(
+          [heldX, scene.playerY + 2.8, heldZ], visual.scale,
+          time * 0.002,
+        ), visual.color, time, viewProjection);
+      }
       if (scene.pickup) {
         const bob = Math.sin(time * 0.004) * 0.7;
-        draw([fallbackMeshes.pickup], transform(
+        const visual = THROWABLE_VISUALS[scene.pickup.type] ||
+          THROWABLE_VISUALS[1];
+        draw([fallbackMeshes[visual.mesh]], transform(
           [scene.pickup.x, scene.pickup.y + 3 + bob, scene.pickup.z],
-          [5, 5, 5], time * 0.001,
-        ), COLORS.pickup, time, viewProjection);
+          visual.pickupScale, time * 0.001,
+        ), visual.color, time, viewProjection);
+      }
+      for (const slice of scene.slicePickups || []) {
+        const bob = Math.sin(time * 0.005 + slice.id) * 0.3;
+        draw([fallbackMeshes.solid], transform(
+          [slice.x, slice.y + 1.1 + bob, slice.z], [2.4, 1.1, 1.5],
+          time * 0.002,
+        ), [0.92, 0.08, 0.13, 1], time, viewProjection);
+        draw([fallbackMeshes.solid], transform(
+          [slice.x, slice.y + 1.7 + bob, slice.z], [2.5, 0.35, 1.6],
+          time * 0.002,
+        ), [0.2, 0.62, 0.22, 1], time, viewProjection);
+      }
+      if (Array.isArray(scene.throwPreview)) {
+        for (let index = 0; index < scene.throwPreview.length; index += 1) {
+          const point = scene.throwPreview[index];
+          const terminal = index === scene.throwPreview.length - 1;
+          const size = terminal ? 1.7 : 0.65;
+          draw([fallbackMeshes.solid], transform(
+            [point.x, point.y, point.z],
+            terminal ? [3.2, 0.16, 3.2] : [size, size, size],
+          ), terminal ? [1, 0.68, 0.2, 1] : [0.98, 0.86, 0.42, 0.9],
+          time, viewProjection);
+        }
       }
 
       for (const projectile of scene.projectiles || []) {
+        const fireball = projectile.kind === 3;
         draw([fallbackMeshes.projectile], transform(
-          [projectile.x, projectile.y, projectile.z], [1, 1, 1], time * 0.003,
-        ), COLORS.projectile, time, viewProjection);
+          [projectile.x, projectile.y, projectile.z],
+          fireball ? [1.7, 1.7, 1.7] : [1, 1, 1], time * 0.003,
+        ), fireball ? COLORS.fireball : COLORS.projectile, time, viewProjection);
       }
       for (const throwable of scene.throwables || []) {
-        draw([fallbackMeshes.projectile], transform(
-          [throwable.x, throwable.y, throwable.z], [1.5, 1.5, 1.5],
-          time * 0.004,
-        ), COLORS.pickup, time, viewProjection);
+        const type = throwable.type || throwable.kind;
+        const visual = THROWABLE_VISUALS[type] || THROWABLE_VISUALS[1];
+        const melonSpin = type === 3;
+        const phase = time * (melonSpin ? 0.012 : 0.004) +
+          (melonSpin ? throwable.id * 0.7 : 0);
+        const tumbleZ = melonSpin ? Math.sin(phase * 0.7) * 0.65 : 0;
+        const tumbleX = melonSpin ? Math.cos(phase * 0.9) * 0.55 : 0;
+        draw([fallbackMeshes[visual.mesh]], transform(
+          [throwable.x, throwable.y, throwable.z], visual.scale,
+          phase, tumbleZ, tumbleX,
+        ), visual.color, time, viewProjection);
       }
       for (const impact of scene.impacts || []) {
-        const size = impact.kind === 4 ? 5 : 2;
-        draw([fallbackMeshes.projectile], transform(
-          [impact.x, impact.y, impact.z], [size, size, size], time * 0.002,
-        ), impact.kind === 4 ? COLORS.vfx : COLORS.damaged, time, viewProjection);
+        const assetId = MULTIPLAYER_IMPACT_ASSET[impact.kind];
+        if (!Number.isInteger(assetId)) continue;
+        const key = [impact.sequence, impact.sourceId, impact.targetId,
+          impact.kind, impact.x, impact.y, impact.z].join(":");
+        if (!impactEffects.has(key)) {
+          if (impactEffects.size >= MAX_MULTIPLAYER_IMPACT_EFFECTS) {
+            impactEffects.delete(impactEffects.keys().next().value);
+          }
+          impactEffects.set(key, { impact, assetId, startedAt: time });
+        }
+      }
+      for (const [key, effect] of impactEffects) {
+        const asset = VFX_ASSETS[effect.assetId];
+        const frameCount = asset.frameCount || asset.columns * asset.rows;
+        const age = time - effect.startedAt;
+        if (age >= frameCount * asset.frameMs) {
+          impactEffects.delete(key);
+          continue;
+        }
+        const frame = Math.floor(age / asset.frameMs);
+        const uvRect = [
+          (frame % asset.columns) / asset.columns,
+          (asset.rows - 1 - Math.floor(frame / asset.columns)) / asset.rows,
+          1 / asset.columns,
+          1 / asset.rows,
+        ];
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        draw(
+          vfxMeshes[asset.id] ? [vfxMeshes[asset.id]] : [fallbackMeshes.vfx],
+          transform([effect.impact.x, effect.impact.y, effect.impact.z],
+            [asset.scale, asset.scale, 1], yaw + Math.PI / 2),
+          COLORS.vfx, time, viewProjection, uvRect,
+        );
+        gl.disable(gl.BLEND);
+      }
+      const movementSmokeAsset = VFX_ASSETS[17];
+      for (const [key, effect] of movementSmokeEffects) {
+        const age = time - effect.startedAt;
+        const frameCount = movementSmokeAsset.frameCount;
+        if (age >= frameCount * movementSmokeAsset.frameMs) {
+          movementSmokeEffects.delete(key);
+          continue;
+        }
+        const frame = Math.floor(age / movementSmokeAsset.frameMs);
+        const progress = age / (frameCount * movementSmokeAsset.frameMs);
+        const frameWidth = 1 / movementSmokeAsset.columns;
+        const uvRect = [
+          frame / movementSmokeAsset.columns, 0, frameWidth, 1,
+        ];
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        draw(
+          vfxMeshes[movementSmokeAsset.id]
+            ? [vfxMeshes[movementSmokeAsset.id]] : [fallbackMeshes.vfx],
+          transform(
+            [effect.x, effect.y, effect.z],
+            [effect.scale * (0.8 + progress * 0.6),
+              effect.scale * (0.8 + progress * 0.6), 1],
+            yaw,
+          ),
+          [1, 1, 1, 0.96], time, viewProjection, uvRect,
+        );
+        gl.disable(gl.BLEND);
       }
       const event = scene.vfxEvent || (scene.vfx > 0
         ? { style: scene.vfx, x: scene.playerX, y: scene.playerY + 2, z: scene.playerZ, tick: scene.tick }
@@ -1647,7 +1915,7 @@
             vfxStartedAt = time;
           }
           const age = time - vfxStartedAt;
-          const frameCount = asset.columns * asset.rows;
+          const frameCount = asset.frameCount || asset.columns * asset.rows;
           const frame = Math.min(frameCount - 1, Math.floor(age / asset.frameMs));
           const uvRect = [
             (frame % asset.columns) / asset.columns,
@@ -1700,6 +1968,7 @@
       captureScreenshot,
       resize,
       destroy() {
+        canvas.removeEventListener("wheel", handleCameraWheel);
         const meshes = [
           ...Object.values(fallbackMeshes),
           ...Object.values(assets).flatMap((value) => value?.meshes || []),

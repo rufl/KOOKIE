@@ -20,7 +20,7 @@ extern "./lib/libkookie_web_server.so" kookie_web_server_port(): Int
 extern "./lib/libkookie_web_server.so" kookie_web_server_max_connections(): Int
 
 Int webMaximumRequestBytes() { return 8192 }
-Int webMaximumWebSocketPayloadBytes() { return 1104 }
+Int webMaximumWebSocketPayloadBytes() { return 1296 }
 Int webMaximumResponseBytes() { return 16384 }
 Int webWebSocketOpcodeBinary() { return 2 }
 Int webWebSocketOpcodeClose() { return 8 }
@@ -194,10 +194,16 @@ class WebSessionFrame {
 
 class WebServerMetrics {
     WebMultiplayerSimulation simulation
+    BoundedKutterLevelEditor kutterEditor
+    Int kutterImportOwner
+    Int kutterImportTotal
+    Int kutterImportReceived
+    Int[] kutterImportWords
     Int[] connectionIds
     Bool[] connectionUsed
     Bool[] connectionWebSocket
     Bool[] connectionSpectatorRoute
+    Bool[] connectionKutter
     Bool[] connectionHello
     Bool[] connectionJoined
     Bool[] connectionSpectators
@@ -225,12 +231,18 @@ class WebServerMetrics {
 
     public constructor() {
         simulation = WebMultiplayerSimulation()
+        kutterEditor = BoundedKutterLevelEditor()
+        kutterImportOwner = 0
+        kutterImportTotal = 0
+        kutterImportReceived = 0
+        kutterImportWords = new Int[11 + 64 * 13 + 32 * 5]
         connectionIds = new Int[12]
         connectionUsed = new Bool[12]
         connectionWebSocket = new Bool[12]
         connectionSpectatorRoute = new Bool[12]
         connectionHello = new Bool[12]
         connectionJoined = new Bool[12]
+        connectionKutter = new Bool[12]
         connectionSpectators = new Bool[12]
         connectionPlayerIds = new Int[12]
         connectionAnimal = new Int[12]
@@ -273,6 +285,7 @@ class WebServerMetrics {
                 connectionLookYaw[i] = 0; connectionLookPitch[i] = 0
                 connectionHeldActions[i] = 0; connectionEdgeActions[i] = 0
                 connectionOutputSequence[i] = 1; connectionLastSequence[i] = 0
+                connectionKutter[i] = false
                 acceptedConnectionsValue = acceptedConnectionsValue + 1
                 return i
             }
@@ -282,6 +295,11 @@ class WebServerMetrics {
     Bool release(Int id) {
         var slot = find(id)
         if (slot < 0) { return false }
+        if (kutterImportOwner == id) {
+            kutterImportOwner = 0
+            kutterImportTotal = 0
+            kutterImportReceived = 0
+        }
         if (connectionJoined[slot] && !connectionSpectators[slot]) { simulation.removePlayer(connectionPlayerIds[slot]) }
         connectionUsed[slot] = false; connectionIds[slot] = 0
         connectionJoined[slot] = false; connectionWebSocket[slot] = false
@@ -309,6 +327,202 @@ class WebServerMetrics {
             "\n# TYPE kookie_gateway_health_requests_total counter\nkookie_gateway_health_requests_total " + healthCountValue +
             "\n# TYPE kookie_gateway_metrics_requests_total counter\nkookie_gateway_metrics_requests_total " + metricsCountValue + "\n"
     }
+}
+Int[] webKutterResponse(
+    WebServerMetrics metrics, Int sequence, Int command, Int status,
+    Int offset, Int total
+) {
+    var editor = metrics.kutterEditor
+    var dataLength = 0
+    if (status == 0 && total > 0) {
+        dataLength = total - offset
+        if (dataLength > sessionWebKutterTransferWords()) {
+            dataLength = sessionWebKutterTransferWords()
+        }
+    }
+    var words = new Int[16 + dataLength]
+    words[0] = sessionWebGameProtocolVersion()
+    words[1] = sessionWebGameKind()
+    words[2] = sequence
+    words[3] = sessionWebKutterResponseMarker()
+    words[4] = command
+    words[5] = status
+    words[6] = editor.generation()
+    words[7] = editor.selectedNode()
+    words[8] = editor.tool()
+    words[9] = editor.cursorX()
+    words[10] = editor.cursorZ()
+    words[11] = editor.gridSize()
+    words[12] = editor.validationMask() |
+        (if (editor.previewActive()) 8 else 0)
+    words[13] = offset
+    words[14] = total
+    for (var index = 0; index < dataLength; index = index + 1) {
+        words[15 + index] = editor.document().encodedWord(offset + index)
+    }
+    words[words.length - 1] =
+        sessionWebMessageChecksum(words, words.length - 1)
+    return words
+}
+Bool webSendKutterState(
+    WebServerMetrics metrics, Int slot, Int sequence, Int command,
+    Int status
+) {
+    var editor = metrics.kutterEditor
+    var total = 0
+    if (status == 0 && editor.document().validate() &&
+        editor.document().encode()) {
+        total = editor.document().encodedLength()
+    }
+    if (total <= 0) {
+        var response = webKutterResponse(
+            metrics, sequence, command, if (status == 0) 1 else status,
+            0, 0)
+        return webSendSessionWords(
+            metrics.connectionIds[slot], sessionWebGameKind(),
+            sequence, response)
+    }
+    var offset = 0
+    while (offset < total) {
+        var response = webKutterResponse(
+            metrics, sequence, command, 0, offset, total)
+        if (!webSendSessionWords(metrics.connectionIds[slot],
+                sessionWebGameKind(), sequence, response)) {
+            return false
+        }
+        offset = offset + sessionWebKutterTransferWords()
+    }
+    return true
+}
+Bool webBroadcastKutterState(WebServerMetrics metrics, Int exceptSlot) {
+    for (var slot = 0; slot < 12; slot = slot + 1) {
+        if (slot != exceptSlot && metrics.connectionUsed[slot] &&
+            metrics.connectionWebSocket[slot] &&
+            metrics.connectionKutter[slot]) {
+            if (!webSendKutterState(
+                    metrics, slot, 1000000,
+                    sessionWebKutterGet(), 0)) {
+                var id = metrics.connectionIds[slot]
+                kookie_web_server_close_client(id)
+                metrics.release(id)
+            }
+        }
+    }
+    return true
+}
+Bool webHandleKutter(WebServerMetrics metrics, Int slot, WebSessionFrame frame) {
+    var words = frame.words()
+    if (!validSessionWebKutterRequest(words)) { return false }
+    if (frame.sequence() <= metrics.connectionLastSequence[slot]) {
+        return false
+    }
+    metrics.connectionLastSequence[slot] = frame.sequence()
+    metrics.connectionKutter[slot] = true
+    var beforeChecksum = metrics.kutterEditor.document().checksum()
+    var beforePreview = metrics.kutterEditor.previewActive()
+    var beforeSelected = metrics.kutterEditor.selectedNode()
+    var beforeTool = metrics.kutterEditor.tool()
+    var beforeCursorX = metrics.kutterEditor.cursorX()
+    var beforeCursorZ = metrics.kutterEditor.cursorZ()
+    var beforeGrid = metrics.kutterEditor.gridSize()
+    var command = words[4]
+    var editor = metrics.kutterEditor
+    var accepted = false
+    if (command == sessionWebKutterGet()) {
+        accepted = editor.document().validate()
+    } else if (command == sessionWebKutterTool() && words.length == 7) {
+        accepted = editor.selectTool(words[5])
+    } else if (command == sessionWebKutterCursor() && words.length == 8) {
+        accepted = editor.setCursor(words[5], words[6])
+    } else if (command == sessionWebKutterApplyTool() && words.length == 6) {
+        accepted = editor.applyTool()
+    } else if (command == sessionWebKutterSelect() && words.length == 7) {
+        accepted = editor.selectNode(words[5])
+    } else if (command == sessionWebKutterMove() && words.length == 8) {
+        accepted = editor.setCursor(words[5], words[6]) &&
+            editor.moveSelectedToCursor()
+    } else if (command == sessionWebKutterRotate() && words.length == 7) {
+        accepted = editor.rotateSelected(words[5])
+    } else if (command == sessionWebKutterResize() && words.length == 8) {
+        accepted = editor.resizeSelected(words[5], words[6])
+    } else if (command == sessionWebKutterRecolor() && words.length == 7) {
+        accepted = editor.recolorSelected(words[5])
+    } else if (command == sessionWebKutterDuplicate() && words.length == 6) {
+        accepted = editor.duplicateSelected()
+    } else if (command == sessionWebKutterRemove() && words.length == 6) {
+        accepted = editor.removeSelected()
+    } else if (command == sessionWebKutterGroup() && words.length == 7) {
+        accepted = editor.groupSelectedWith(words[5])
+    } else if (command == sessionWebKutterUngroup() && words.length == 6) {
+        accepted = editor.ungroupSelected()
+    } else if (command == sessionWebKutterUndo() && words.length == 6) {
+        accepted = editor.undo()
+    } else if (command == sessionWebKutterRedo() && words.length == 6) {
+        accepted = editor.redo()
+    } else if (command == sessionWebKutterGrid() && words.length == 7) {
+        accepted = editor.setGridSize(words[5])
+    } else if (command == sessionWebKutterUpdate() && words.length == 15) {
+        accepted = editor.updateSelectedNode(
+            words[5], words[6], words[7], words[8],
+            words[9], words[10], words[11], words[12], words[13])
+    } else if (command == sessionWebKutterHeight() && words.length == 7) {
+        accepted = editor.adjustSelectedHeight(words[5])
+    } else if (command == sessionWebKutterPreview() && words.length == 6) {
+        accepted = editor.togglePreview()
+    } else if (command == sessionWebKutterImportChunk() && words.length >= 9) {
+        var total = words[5]
+        var offset = words[6]
+        var count = words.length - 8
+        accepted = total >= 11 && total <= metrics.kutterImportWords.length &&
+            offset >= 0 && count > 0 && offset + count <= total
+        if (accepted && offset == 0) {
+            metrics.kutterImportOwner = metrics.connectionIds[slot]
+            metrics.kutterImportTotal = total
+            metrics.kutterImportReceived = 0
+        }
+        accepted = accepted &&
+            metrics.kutterImportOwner == metrics.connectionIds[slot] &&
+            metrics.kutterImportTotal == total &&
+            metrics.kutterImportReceived == offset
+        if (accepted) {
+            for (var index = 0; index < count; index = index + 1) {
+                metrics.kutterImportWords[offset + index] = words[7 + index]
+            }
+            metrics.kutterImportReceived = offset + count
+            if (metrics.kutterImportReceived == total) {
+                var upload = new Int[total]
+                for (var index = 0; index < total; index = index + 1) {
+                    upload[index] = metrics.kutterImportWords[index]
+                }
+                accepted = editor.importDocument(upload)
+                metrics.kutterImportOwner = 0
+                metrics.kutterImportTotal = 0
+                metrics.kutterImportReceived = 0
+            } else {
+                var pending = webKutterResponse(
+                    metrics, frame.sequence(), command, 0, 0, 0)
+                return webSendSessionWords(
+                    metrics.connectionIds[slot], sessionWebGameKind(),
+                    frame.sequence(), pending)
+            }
+        }
+    } else {
+        return false
+    }
+    var sent = webSendKutterState(
+        metrics, slot, frame.sequence(), command, if (accepted) 0 else 1)
+    if (!sent) { return false }
+    if (accepted &&
+        (metrics.kutterEditor.document().checksum() != beforeChecksum ||
+            metrics.kutterEditor.previewActive() != beforePreview ||
+            metrics.kutterEditor.selectedNode() != beforeSelected ||
+            metrics.kutterEditor.tool() != beforeTool ||
+            metrics.kutterEditor.cursorX() != beforeCursorX ||
+            metrics.kutterEditor.cursorZ() != beforeCursorZ ||
+            metrics.kutterEditor.gridSize() != beforeGrid)) {
+        return webBroadcastKutterState(metrics, slot)
+    }
+    return true
 }
 
 Int[] webEventBytes(Int length) {
@@ -350,7 +564,9 @@ Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot) {
         x = own.x; y = own.y; z = own.z; yaw = own.yaw; pitch = own.pitch
         health = own.health; ammo = own.ammo
     }
-    var actors = new Int[metrics.simulation.playerCount() * 8]
+    var actors = new Int[
+        (metrics.simulation.playerCount() +
+            metrics.simulation.trainingDummyCount()) * 8]
     var cursor = 0
     for (var actorSlot = 0; actorSlot < 12; actorSlot = actorSlot + 1) {
         if (metrics.connectionUsed[actorSlot] && metrics.connectionJoined[actorSlot] && !metrics.connectionSpectators[actorSlot]) {
@@ -364,10 +580,24 @@ Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot) {
             }
         }
     }
+    for (var dummy = 0;
+        dummy < metrics.simulation.trainingDummyCount(); dummy = dummy + 1) {
+        actors[cursor] = -(dummy + 1)
+        actors[cursor + 1] = metrics.simulation.trainingDummyX(dummy)
+        actors[cursor + 2] = metrics.simulation.trainingDummyY(dummy)
+        actors[cursor + 3] = metrics.simulation.trainingDummyZ(dummy)
+        actors[cursor + 4] = metrics.simulation.trainingDummyHealth(dummy)
+        actors[cursor + 5] = 0
+        actors[cursor + 6] = 3
+        actors[cursor + 7] = 0
+        cursor = cursor + 8
+    }
     if (cursor != actors.length) { return new Int[0] }
     var sequence = webOutputSequence(metrics, slot)
     var base = newSessionWebGameMultiplayerSnapshot(sequence, metrics.simulation.tick(),
-        if (spectator) sessionWebRoleSpectator() else sessionWebRolePlayer(),
+        if (spectator) sessionWebRoleSpectator()
+        else if (metrics.simulation.trainingMode()) sessionWebRoleTraining()
+        else sessionWebRolePlayer(),
         if (spectator) 0 else id, x, y, z, webActorYaw(yaw), pitch,
         metrics.playerCount(), metrics.spectatorCount(), actors)
     base[12] = health
@@ -376,8 +606,9 @@ Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot) {
     var throwableCount = metrics.simulation.throwableCount()
     var impactCount = metrics.simulation.impactCount()
     var trailer = 18 + actors.length
-    var extended = new Int[base.length + 4 + projectileCount * 7 +
-        throwableCount * 8 + impactCount * 8]
+    var sliceCount = metrics.simulation.sliceCount()
+    var extended = new Int[base.length + 4 + projectileCount * 8 +
+        throwableCount * 8 + impactCount * 8 + 10 + sliceCount * 4]
     for (var i = 0; i < base.length; i = i + 1) {
         extended[i] = base[i]
     }
@@ -391,7 +622,8 @@ Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot) {
         extended[cursor] = item.id; extended[cursor + 1] = item.ownerId
         extended[cursor + 2] = item.targetId; extended[cursor + 3] = item.x
         extended[cursor + 4] = item.y; extended[cursor + 5] = item.z
-        extended[cursor + 6] = item.ttl; cursor = cursor + 7
+        extended[cursor + 6] = item.ttl
+        extended[cursor + 7] = item.kind; cursor = cursor + 8
     }
     for (var i = 0; i < throwableCount; i = i + 1) {
         var item = metrics.simulation.throwableAt(i)
@@ -408,6 +640,30 @@ Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot) {
         extended[cursor + 4] = item.x; extended[cursor + 5] = item.y
         extended[cursor + 6] = item.z; extended[cursor + 7] = item.damage
         cursor = cursor + 8
+    }
+    extended[cursor] = if (metrics.simulation.throwablePickupIsActive()) 1 else 0
+    extended[cursor + 1] = metrics.simulation.throwablePickupPositionX()
+    extended[cursor + 2] = metrics.simulation.throwablePickupPositionY()
+    extended[cursor + 3] = metrics.simulation.throwablePickupPositionZ()
+    extended[cursor + 4] =
+        if (metrics.simulation.throwablePickupIsActive()) metrics.simulation.throwablePickupTypeValue() else 0
+    extended[cursor + 5] =
+        if (!spectator && metrics.simulation.playerCarriesThrowable(id)) 1 else 0
+    extended[cursor + 6] =
+        if (!spectator) metrics.simulation.playerThrowableChargeTicks(id) else 0
+    extended[cursor + 7] =
+        if (!spectator && metrics.simulation.playerCarriesThrowable(id)) metrics.simulation.playerThrowableType(id) else 0
+    extended[cursor + 8] =
+        if (!spectator) metrics.simulation.playerSeedAmmo(id) else 0
+    extended[cursor + 9] = sliceCount
+    cursor = cursor + 10
+    for (var i = 0; i < sliceCount; i = i + 1) {
+        var item = metrics.simulation.sliceAt(i)
+        extended[cursor] = item.id
+        extended[cursor + 1] = item.x
+        extended[cursor + 2] = item.y
+        extended[cursor + 3] = item.z
+        cursor = cursor + 4
     }
     extended[extended.length - 1] = sessionWebMessageChecksum(extended, extended.length - 1)
     if (!validSessionWebGameMultiplayerSnapshot(extended)) {
@@ -473,17 +729,33 @@ Bool webTick(WebServerMetrics metrics) {
         println("KOOKIE authoritative snapshot broadcast failed")
         return false
     }
-    metrics.simulation.clearImpacts()
     return true
 }
 Bool webHandleJoin(WebServerMetrics metrics, Int slot, Int[] words) {
-    if (!validSessionWebGameJoinRequest(words) || words[4] !=
-        (if (metrics.connectionSpectatorRoute[slot]) sessionWebRoleSpectator() else sessionWebRolePlayer())) { return false }
+    if (!validSessionWebGameJoinRequest(words) ||
+        (metrics.connectionSpectatorRoute[slot] &&
+            words[4] != sessionWebRoleSpectator()) ||
+        (!metrics.connectionSpectatorRoute[slot] &&
+            words[4] != sessionWebRolePlayer() &&
+            words[4] != sessionWebRoleTraining())) { return false }
     var role = words[4]
     var playerId = metrics.nextPlayerIdValue
     var accepted = false
-    if (role == sessionWebRolePlayer()) {
-        if (metrics.playerCount() < 8 && playerId <= 1000000) {
+    if (role == sessionWebRoleTraining()) {
+        if (!metrics.simulation.trainingMode() &&
+            metrics.playerCount() == 0) {
+            metrics.simulation.enableTrainingMode()
+        }
+        if (metrics.simulation.trainingMode() &&
+            metrics.playerCount() < 4 && playerId <= 1000000) {
+            var spawnX = 24 + (playerId % 4) * 12
+            var spawnZ = 24 + (playerId % 3) * 12
+            accepted = metrics.simulation.addPlayer(
+                playerId, 1, spawnX, 1, spawnZ)
+        }
+    } else if (role == sessionWebRolePlayer()) {
+        if (!metrics.simulation.trainingMode() &&
+            metrics.playerCount() < 8 && playerId <= 1000000) {
             var spawnX = 24 + (playerId % 4) * 12
             var spawnZ = 24 + (playerId % 3) * 12
             accepted = metrics.simulation.addPlayer(playerId,
@@ -511,6 +783,10 @@ Bool webHandleJoin(WebServerMetrics metrics, Int slot, Int[] words) {
 }
 Bool webHandleGame(WebServerMetrics metrics, Int slot, WebSessionFrame frame) {
     var words = frame.words()
+    if (words.length > 3 &&
+        words[3] == sessionWebKutterRequestMarker()) {
+        return webHandleKutter(metrics, slot, frame)
+    }
     if (!metrics.connectionJoined[slot]) {
         if (words.length > 3 && words[3] == sessionWebGameJoinRequestMarker()) { return webHandleJoin(metrics, slot, words) }
         return false

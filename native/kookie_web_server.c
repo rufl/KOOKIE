@@ -40,7 +40,7 @@ typedef int sock_t; typedef pthread_t thread_t; typedef pthread_mutex_t mutex_t;
 #define NC 12
 #define NE 64
 #define NR 8192
-#define NF 1104
+#define NF 1296
 #define NO 65536
 typedef struct {
  sock_t fd;

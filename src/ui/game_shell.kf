@@ -17,6 +17,10 @@ Int gameShellActionLeft() { return 3 }
 Int gameShellActionRight() { return 4 }
 Int gameShellActionActivate() { return 5 }
 Int gameShellActionBack() { return 6 }
+Int gameShellActionToggleEditor() { return 7 }
+Int gameShellEditorModePlay() { return 0 }
+Int gameShellEditorModeEdit() { return 1 }
+
 
 Int gameShellNetworkIdle() { return 0 }
 Int gameShellNetworkHosting() { return 1 }
@@ -34,6 +38,8 @@ class GameShell {
     Int selectionValue
     Bool quitRequestedValue
     Bool gameplayEntryPendingValue
+    Bool editorReturnToGameValue
+    Int editorModeValue
 
     Int resolutionValue
     Int displayModeValue
@@ -78,6 +84,8 @@ class GameShell {
         selectionValue = 0
         quitRequestedValue = false
         gameplayEntryPendingValue = false
+        editorReturnToGameValue = false
+        editorModeValue = gameShellEditorModePlay()
         resolutionValue = 0
         displayModeValue = 0
         effectsVolumeValue = 80
@@ -129,6 +137,36 @@ class GameShell {
     Bool consumeGameplayEntry() {
         if (!gameplayEntryPendingValue) { return false }
         gameplayEntryPendingValue = false
+        return true
+    }
+
+    Int editorMode() { return editorModeValue }
+    Bool enterEditorMode() {
+        if (screenValue != gameShellScreenGame() ||
+            editorModeValue != gameShellEditorModePlay()) {
+            return false
+        }
+        editorReturnToGameValue = true
+        editorModeValue = gameShellEditorModeEdit()
+        screenValue = gameShellScreenKutterLevel()
+        selectionValue = 0
+        editorHierarchyKeyboardFocusValue = false
+        editorAssetBrowserOpenValue = false
+        editorMoveArmedValue = false
+        return true
+    }
+    Bool returnToGameplay() {
+        if (!editorReturnToGameValue ||
+            screenValue != gameShellScreenKutterLevel() ||
+            editorModeValue != gameShellEditorModeEdit()) {
+            return false
+        }
+        screenValue = gameShellScreenGame()
+        editorModeValue = gameShellEditorModePlay()
+        editorReturnToGameValue = false
+        editorHierarchyKeyboardFocusValue = false
+        editorAssetBrowserOpenValue = false
+        editorMoveArmedValue = false
         return true
     }
 
@@ -767,6 +805,7 @@ class GameShell {
                 if (action == gameShellActionUp()) -1 else 1)
         }
         if (action == gameShellActionBack()) {
+            if (editorReturnToGameValue) { return returnToGameplay() }
             if (editorMoveArmedValue) {
                 editorMoveArmedValue = false
                 return true
@@ -859,6 +898,12 @@ class GameShell {
     }
 
     Bool handleAction(Int action) {
+        if (action == gameShellActionToggleEditor()) {
+            if (screenValue == gameShellScreenGame()) {
+                return enterEditorMode()
+            }
+            return returnToGameplay()
+        }
         if (action < gameShellActionUp() || action > gameShellActionBack()) {
             return false
         }

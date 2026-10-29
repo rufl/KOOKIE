@@ -2,10 +2,10 @@ package content
 
 Int worldVfxResourceBase() { return 1000 }
 Int worldVfxResourceStride() { return 128 }
-Int worldVfxAssetCount() { return 16 }
+Int worldVfxAssetCount() { return 18 }
 Int worldVfxAtlasCellSize() { return 256 }
 Int worldVfxAtlasColumns() { return 4 }
-Int worldVfxAtlasRows() { return 4 }
+Int worldVfxAtlasRows() { return 5 }
 Int worldVfxAtlasWidth() {
     return worldVfxAtlasCellSize() * worldVfxAtlasColumns()
 }
@@ -28,11 +28,15 @@ Int worldVfxPredrawnExplosionAsset() { return 12 }
 Int worldVfxPredrawnElectricRingAsset() { return 13 }
 Int worldVfxPredrawnFirePointAsset() { return 14 }
 Int worldVfxPredrawnImpactAsset() { return 15 }
+Int worldVfxMeleeHitSparkAsset() { return 16 }
+Int worldVfxMovementSmokeAsset() { return 17 }
 
 Int worldVfxAssetFrameColumns(Int asset) {
     if (asset < 0 || asset >= worldVfxAssetCount()) { return 0 }
     if (asset < 8) { return 1 }
     if (asset < 12) { return 8 }
+    if (asset == worldVfxMeleeHitSparkAsset()) { return 3 }
+    if (asset == worldVfxMovementSmokeAsset()) { return 3 }
     return 6
 }
 
@@ -41,10 +45,14 @@ Int worldVfxAssetFrameRows(Int asset) {
     if (asset < 8) { return 1 }
     if (asset < 12) { return 8 }
     if (asset == worldVfxPredrawnImpactAsset()) { return 4 }
+    if (asset == worldVfxMeleeHitSparkAsset()) { return 3 }
+    if (asset == worldVfxMovementSmokeAsset()) { return 3 }
     return 5
 }
 
 Int worldVfxAssetFrameCount(Int asset) {
+    if (asset == worldVfxMeleeHitSparkAsset()) { return 7 }
+    if (asset == worldVfxMovementSmokeAsset()) { return 9 }
     return worldVfxAssetFrameColumns(asset) *
         worldVfxAssetFrameRows(asset)
 }

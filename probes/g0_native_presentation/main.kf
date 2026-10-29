@@ -139,6 +139,20 @@ extern "./build/libkookie_sdl_adapter.so" kookie_transport_send_word(Int index, 
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_send_commit(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_receive_available(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_receive_word(Int index): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_kutter_sync_open(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_kutter_sync_state(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_kutter_sync_send_begin(
+    Int wordCount
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_kutter_sync_send_word(
+    Int index, Int word
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_kutter_sync_send_commit(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_kutter_sync_receive_available(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_kutter_sync_receive_word(
+    Int index
+): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_kutter_sync_close(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_close(): Bool
 Int kookieModelGoose() { return 1 }
 Int kookieModelCat() { return 2 }
@@ -794,6 +808,7 @@ class G1NativePresentation {
     ArenaAnimalMeshes animalMeshes
     AnimalAttackVfx attackVfx
     VfxParticleRenderer texturedVfx
+    VfxParticleRenderer movementSmokeVfx
     ShooterHud hud
     GooseStatusOverlay gooseOverlay
     GooseMinimap minimap
@@ -853,6 +868,7 @@ class G1NativePresentation {
     FrameStaging shadowFrame
     FrameStaging attackVfxFrame
     FrameStaging texturedVfxFrame
+    FrameStaging movementSmokeFrame
     FrameStaging lootBeamFrame
     FrameStaging minimapFrame
     FrameStaging scoreboardFrame
@@ -870,6 +886,7 @@ class G1NativePresentation {
     Int shadowCapacity
     Int attackVfxCapacity
     Int texturedVfxCapacity
+    Int movementSmokeCapacity
     Int lootBeamCapacity
     Int minimapCapacity
     Int projectileCapacity
@@ -891,7 +908,14 @@ class G1NativePresentation {
     Bool remoteShotValue
     Int localActionButtonsValue
     Int remoteActionButtonsValue
+    Int movementSmokeEmissionCountValue
     Int[] damageFlashTicks
+    Int[] webSnapshotWords
+    Int webSnapshotLength
+    Int webLocalPlayerId
+    Bool webSharedMode
+    Int webLookYawValue
+    Int webLookPitchValue
     public constructor() {
         var g3Config = BoundedG3Config()
         g3Config.loadDefaults()
@@ -899,15 +923,16 @@ class G1NativePresentation {
         kutterScenario = G4KutterDemo()
         arena = scenario.authoredArena()
         hud = ShooterHud(100, 3)
-        gooseOverlay = GooseStatusOverlay(6)
+        gooseOverlay = GooseStatusOverlay(8)
         minimap = GooseMinimap(8)
-        animalMeshes = ArenaAnimalMeshes(6)
+        animalMeshes = ArenaAnimalMeshes(8)
         attackVfx = AnimalAttackVfx(animalMeshes.actorCapacity())
         texturedVfx = VfxParticleRenderer(24)
+        movementSmokeVfx = VfxParticleRenderer(24)
         scoreboardUi = MultiplayerScoreboard()
         consoleValue = DevConsole()
         scoreboardState = MatchScoreboardState(2)
-        projectileOverlay = GooseProjectileOverlay(8)
+        projectileOverlay = GooseProjectileOverlay(96)
         inputStateValue = NativeInputState()
         enemyTuningValue = EnemyTuningConfig()
         windowStateValue = WindowStateTracker(1280, 720)
@@ -960,6 +985,8 @@ class G1NativePresentation {
             attackVfx.renderVertexCapacity(), 0)
         texturedVfxFrame = FrameStaging(
             texturedVfx.renderVertexCapacity(), 0)
+        movementSmokeFrame = FrameStaging(
+            movementSmokeVfx.renderVertexCapacity(), 0)
         lootBeamFrame = FrameStaging(8 * 18, 0)
         actorFrame = FrameStaging(
             gooseOverlay.renderVertexCapacity(), 72)
@@ -988,6 +1015,7 @@ class G1NativePresentation {
         shadowCapacity = shadowFrame.vertexCapacity()
         attackVfxCapacity = attackVfxFrame.vertexCapacity()
         texturedVfxCapacity = texturedVfxFrame.vertexCapacity()
+        movementSmokeCapacity = movementSmokeFrame.vertexCapacity()
         lootBeamCapacity = lootBeamFrame.vertexCapacity()
         minimapCapacity = minimapFrame.vertexCapacity()
         scoreboardCapacity = scoreboardFrame.vertexCapacity()
@@ -1009,12 +1037,40 @@ class G1NativePresentation {
         remoteShotValue = false
         localActionButtonsValue = 0
         remoteActionButtonsValue = 0
+        webSnapshotWords = new Int[sessionWebMaximumWords()]
+        webSnapshotLength = 0
+        webLocalPlayerId = 0
+        webSharedMode = false
+        webLookYawValue = 0
+        webLookPitchValue = 0
         damageFlashTicks = new Int[6]
         for (var flashIndex = 0;
              flashIndex < damageFlashTicks.length;
              flashIndex = flashIndex + 1) {
             damageFlashTicks[flashIndex] = 0
         }
+        movementSmokeEmissionCountValue = 0
+    }
+    void setWebConnectionStatus(Bool connected) {
+        hud.setWebConnectionStatus(connected)
+    }
+    Bool setWebSnapshot(Int[] words, Int length, Int playerId) {
+        if (length < 19 || length > words.length ||
+            length > webSnapshotWords.length || words[6] != playerId ||
+            playerId <= 0) { return false }
+        for (var index = 0; index < length; index = index + 1) {
+            webSnapshotWords[index] = words[index]
+        webSnapshotLength = length
+        webLocalPlayerId = playerId
+        webSharedMode = true
+        hud.setWebAuthoritative(true)
+        return true
+    }
+    void clearWebSnapshot() {
+        webSharedMode = false
+        webSnapshotLength = 0
+        webLocalPlayerId = 0
+        hud.setWebAuthoritative(false)
     }
     Bool applyNativeKey(Int key, Int phase) {
         return inputStateValue.applyKey(key, phase)
@@ -1064,6 +1120,49 @@ class G1NativePresentation {
         return true
     }
 
+    Int webMoveX() {
+        return camera.movementWorldX(
+            localMoveForwardAxis(inputStateValue),
+            localMoveStrafeAxis(inputStateValue)) * 250
+    }
+    Int webMoveZ() {
+        return camera.movementWorldZ(
+            localMoveForwardAxis(inputStateValue),
+            localMoveStrafeAxis(inputStateValue)) * 250
+    }
+    Int webHeldActions() {
+        var result = 0
+        if (inputStateValue.jumpHeld() != 0) { result = result | 1 }
+        if (inputStateValue.fireHeld() != 0) { result = result | 32 }
+        if (inputStateValue.throwableHeld() != 0) {
+            result = result | 256
+        }
+        return result
+    }
+    Int consumeWebEdgeActions() {
+        var buttons = inputStateValue.consumeActionButtons()
+        var result = 0
+        if ((buttons & inputButtonRoll()) != 0) { result = result | 2 }
+        if ((buttons & inputButtonDashForward()) != 0 ||
+            (buttons & inputButtonDashBackward()) != 0 ||
+            (buttons & inputButtonDashLeft()) != 0 ||
+            (buttons & inputButtonDashRight()) != 0) {
+            result = result | 4
+        }
+        if ((buttons & inputButtonMelee()) != 0) { result = result | 64 }
+        if ((buttons & inputButtonSpecial()) != 0) { result = result | 128 }
+        return result
+    }
+    Int consumeWebLookYaw() {
+        var result = webLookYawValue
+        webLookYawValue = 0
+        return result
+    }
+    Int consumeWebLookPitch() {
+        var result = webLookPitchValue
+        webLookPitchValue = 0
+        return result
+    }
     Int inputForwardHeld() { return inputStateValue.forwardHeld() }
     Int consumeScoreboardToggle() {
         return inputStateValue.consumeScoreboardToggle()
@@ -1748,6 +1847,19 @@ class G1NativePresentation {
         if (!nativeAnimalModelsValue) { return true }
         return texturedVfx.emit(asset, x, y, z, size, lifetime)
     }
+    Bool emitMovementSmoke(Int x, Int y, Int z) {
+        if (!movementSmokeVfx.emit(
+                worldVfxMovementSmokeAsset(), x, y, z, 8, 36)) {
+            return false
+        }
+        movementSmokeEmissionCountValue =
+            movementSmokeEmissionCountValue + 1
+        return true
+    }
+
+    Int movementSmokeEmissionCount() {
+        return movementSmokeEmissionCountValue
+    }
     Bool stageTexturedVfx(Int frame) {
         if (!nativeAnimalModelsValue || texturedVfx.activeCount() <= 0) {
             return true
@@ -1758,6 +1870,16 @@ class G1NativePresentation {
             camera.viewUpX(), camera.viewUpY(), camera.viewUpZ())
     }
 
+    Bool stageMovementSmoke(Int frame) {
+        if (!nativeAnimalModelsValue ||
+            movementSmokeVfx.activeCount() <= 0) {
+            return true
+        }
+        return movementSmokeVfx.stage(
+            movementSmokeFrame, frame,
+            camera.viewRightX(), camera.viewRightY(), camera.viewRightZ(),
+            camera.viewUpX(), camera.viewUpY(), camera.viewUpZ())
+    }
     Int phaseWave(Int phase, Int period) {
         var value = phase % period
         if (value < 0) { value = value + period }
@@ -1778,9 +1900,12 @@ class G1NativePresentation {
         Int moving,
         Int attacking,
         Bool flashed,
-        Bool rolling
+        Bool rolling,
+        Int rollDirection
     ) {
         if (!reader.valid() || facing == 0) { return false }
+        var modelFacing = if (model == kookieModelCat()) -facing else facing
+        var modelScale = if (model == kookieModelCat()) 3 else 1
         var poseState = if (rolling) 2 else animationState
         var poseTick = if (rolling) animationTick % 12 else animationTick
         var authoredPose = reader.prepareAnimationPose(poseState, poseTick)
@@ -1796,31 +1921,39 @@ class G1NativePresentation {
         var attackLift = if (!authoredPose && attacking != 0) 2 else 0
         var bob = idleBob + gaitBob + attackLift
         for (var index = 0; index < reader.vertexCount(); index = index + 1) {
-            var localX = reader.vertexX(index)
-            var localY = reader.vertexY(index) + bob
+            var localX = reader.vertexX(index) * modelScale
+            var localY = (reader.vertexY(index) + bob) * modelScale
             if (!authoredPose) {
                 localY = localY + reader.vertexAnimationLift(
-                    index, animationState, animationTick, moving, attacking)
+                    index, animationState, animationTick, moving, attacking) *
+                    modelScale
             }
-            var localZ = reader.vertexZ(index)
+            var localZ = reader.vertexZ(index) * modelScale
             if (rolling) {
+                var rollPivotY = 1000 * modelScale
                 var centeredX = localX
-                var centeredY = localY - 1000
+                var centeredY = localY - rollPivotY
                 var rollPhase = (animationTick % 12) / 3
-                if (rollPhase == 1) {
+                var rollForward = rollPhase == 1
+                var rollBackward = rollPhase == 3
+                if (rollDirection < 0) {
+                    rollForward = rollPhase == 3
+                    rollBackward = rollPhase == 1
+                }
+                if (rollForward) {
                     localX = -centeredY
-                    localY = 1000 + centeredX
+                    localY = rollPivotY + centeredX
                 } else if (rollPhase == 2) {
                     localX = -centeredX
-                    localY = 1000 - centeredY
-                } else if (rollPhase == 3) {
+                    localY = rollPivotY - centeredY
+                } else if (rollBackward) {
                     localX = centeredY
-                    localY = 1000 - centeredX
+                    localY = rollPivotY - centeredX
                 }
             }
             var worldX = x
             var worldZ = z
-            if (facing > 0) {
+            if (modelFacing > 0) {
                 worldX = x - localZ
                 worldZ = z + localX
             } else {
@@ -1903,7 +2036,8 @@ class G1NativePresentation {
                     if (animalMeshes.actorMovingAt(index)) 1 else 0,
                     if (animalMeshes.actorAttackingAt(index)) 1 else 0,
                     damageFlashAt(animalMeshes.actorIdAt(index)),
-                    animalMeshes.actorRollingAt(index))) {
+                    animalMeshes.actorRollingAt(index),
+                    animalMeshes.actorRollDirectionAt(index))) {
                 println("KOOKIE gameplay native animal model upload failed")
                 println(animalMeshes.actorIdAt(index))
                 return false
@@ -1989,6 +2123,35 @@ class G1NativePresentation {
         if (!gooseOverlay.clear() || !minimap.clear()) {
             println("KOOKIE gameplay actor/minimap clear failed")
             return false
+        }
+        if (webSharedMode && webSnapshotLength > 0) {
+            var actorCount = webSnapshotWords[17]
+            for (var actorIndex = 0; actorIndex < actorCount;
+                actorIndex = actorIndex + 1) {
+                var offset = 18 + actorIndex * 8
+                var actorId = webSnapshotWords[offset]
+                var kind = webSnapshotWords[offset + 6]
+                if (kind == 3 && actorId < 0) {
+                    actorId = 1100000 - actorId
+                }
+                if (actorId <= 0) { continue }
+                var actorX = webSnapshotWords[offset + 1]
+                var actorY = webSnapshotWords[offset + 2]
+                var actorZ = webSnapshotWords[offset + 3]
+                var health = webSnapshotWords[offset + 4]
+                if (!gooseOverlay.addDepthColored(
+                        actorId,
+                        arena.projectX(actorX, actorZ, camera),
+                        arena.projectY(actorX, actorY, actorZ, camera),
+                        arena.projectDepthAt(actorX, actorY, actorZ, camera),
+                        health, 100, actorIndex % 4 + 1, kind == 3,
+                        if (kind == 3) 2 else shell.lobby().remoteColorId()) ||
+                    !minimap.addMarker(
+                        gooseMinimapMarkerRemotePlayer(), actorX, actorZ)) {
+                    return false
+                }
+            }
+            return gooseOverlay.stage(actorFrame, frame, 9)
         }
         var playerOneX = interactionSession.serverPosition(1)
         var playerOneY = 1
@@ -2119,6 +2282,39 @@ class G1NativePresentation {
             println("KOOKIE gameplay animal frame begin failed")
             return false
         }
+        if (webSharedMode && webSnapshotLength > 0) {
+            var actorCount = webSnapshotWords[17]
+            for (var actorIndex = 0; actorIndex < actorCount;
+                actorIndex = actorIndex + 1) {
+                var offset = 18 + actorIndex * 8
+                var actorId = webSnapshotWords[offset]
+                var kind = webSnapshotWords[offset + 6]
+                var state = webSnapshotWords[offset + 5]
+                if (kind == 3 || actorId <= 0) { continue }
+                if (!animalMeshes.setActor(
+                        actorId, kind,
+                        webSnapshotWords[offset + 1],
+                        webSnapshotWords[offset + 2],
+                        webSnapshotWords[offset + 3],
+                        animation == sessionWebActorAnimationRun() ||
+                            animation == sessionWebActorAnimationWalk(),
+                        animation == sessionWebActorAnimationAttack()) ||
+                    !animalMeshes.setActorYaw(
+                        actorId, webSnapshotWords[offset + 7]) ||
+                    !animalMeshes.setActorRolling(
+                        actorId,
+                        animation == sessionWebActorAnimationRoll()) ||
+                    !animalMeshes.setActorDamageFlash(
+                        actorId,
+                        (state & sessionWebActorDizzyBit()) != 0)) {
+                    return false
+                }
+            }
+            if (nativeAnimalModelsValue) {
+                return animalMeshes.stepNative()
+            }
+            return animalMeshes.stage(animalFrame, frame, 3)
+        }
         var playerOneX = interactionSession.serverPosition(1)
         var playerOneY = interactionSession.enemySpatialPositionY(1)
         var playerOneZ = interactionSession.enemySpatialPositionZ(1)
@@ -2176,7 +2372,12 @@ class G1NativePresentation {
                 localPlayerMoving, localPlayerAttack) ||
             !animalMeshes.setActorRolling(
                 localPlayerId,
-                (actionButtonsForPlayer(localPlayerId) & inputButtonRoll()) != 0)) {
+                (actionButtonsForPlayer(localPlayerId) & inputButtonRoll()) != 0 ||
+                    interactionSession.fpsDoubleJumpAnimationActive(localPlayerId)) ||
+            !animalMeshes.setActorRollDirection(
+                localPlayerId,
+                if (interactionSession.fpsVelocityX(localPlayerId) < 0)
+                    -1 else 1)) {
             println("KOOKIE gameplay local player mesh staging failed")
             return false
         }
@@ -2195,10 +2396,15 @@ class G1NativePresentation {
                 remotePlayerMoving, remotePlayerAttack) ||
             !animalMeshes.setActorRolling(
                 remotePlayerId,
-                (actionButtonsForPlayer(remotePlayerId) & inputButtonRoll()) != 0)) {
+                (actionButtonsForPlayer(remotePlayerId) & inputButtonRoll()) != 0 ||
+                    interactionSession.fpsDoubleJumpAnimationActive(remotePlayerId))) {
             println("KOOKIE gameplay remote player mesh staging failed")
             return false
         }
+        for (var bot = 3; bot <= 5; bot = bot + 1) {
+            var botX = interactionSession.enemySpatialPositionX(bot)
+            var botY = interactionSession.enemySpatialPositionY(bot)
+            var botZ = interactionSession.enemySpatialPositionZ(bot)
             if (mirrorRemoteValue &&
                 interactionSession.clientRemoteEnemyIndex(bot) >= 0) {
                 botX = interactionSession.clientRemoteEnemyPositionX(bot)
@@ -2239,15 +2445,160 @@ class G1NativePresentation {
         return true
     }
 
+    Bool addWebEffectAtSize(Int x, Int y, Int z, Int size) {
+        var screenX = arena.projectX(x, z, camera)
+        var screenY = arena.projectY(x, y, z, camera)
+        var depth = arena.projectDepthAt(x, y, z, camera)
+        return projectileOverlay.addShotSized(
+            screenX, screenY, depth, screenX, screenY, depth, size)
+    }
+    Bool addWebEffectAt(Int x, Int y, Int z) {
+        return addWebEffectAtSize(x, y, z, 2)
+    }
+    Int throwableMarkerSize(Int kind) {
+        if (kind == 1) { return 4 }
+        if (kind == 2) { return 1 }
+        if (kind == 3) { return 3 }
+        if (kind == 4) { return 5 }
+        if (kind == 5) { return 2 }
+        return 2
+    }
+    Bool stageWebSnapshotObjects() {
+        if (!projectileOverlay.clear() ||
+            !webSharedMode || webSnapshotLength <= 0) { return true }
+        var actorCount = webSnapshotWords[17]
+        for (var actor = 0; actor < actorCount; actor = actor + 1) {
+            var actorOffset = 18 + actor * 8
+            if ((webSnapshotWords[actorOffset + 5] &
+                    sessionWebActorDizzyBit()) != 0) {
+                var orbit = webSnapshotWords[4] % 4
+                var actorX = webSnapshotWords[actorOffset + 1]
+                var actorY = webSnapshotWords[actorOffset + 2] + 9
+                var actorZ = webSnapshotWords[actorOffset + 3]
+                if (!addWebEffectAtSize(
+                        actorX + (if (orbit == 0) 2 else if (orbit == 2) -2 else 0),
+                        actorY,
+                        actorZ + (if (orbit == 1) 2 else if (orbit == 3) -2 else 0),
+                        1) ||
+                    !addWebEffectAtSize(
+                        actorX + (if (orbit == 0) 0 else if (orbit == 2) 0 else if (orbit == 1) 2 else -2),
+                        actorY + 1,
+                        actorZ + (if (orbit == 0) 2 else if (orbit == 2) -2 else 0),
+                        1) ||
+                    !addWebEffectAtSize(
+                        actorX + (if (orbit == 0) -2 else if (orbit == 2) 2 else 0),
+                        actorY - 1,
+                        actorZ + (if (orbit == 1) -2 else if (orbit == 3) 2 else 0),
+                        1)) { return false }
+            }
+            if (webSnapshotWords[actorOffset + 6] == 3) {
+                if (!addWebEffectAtSize(
+                        webSnapshotWords[actorOffset + 1],
+                        webSnapshotWords[actorOffset + 2],
+                        webSnapshotWords[actorOffset + 3], 1)) { return false }
+            }
+        }
+        var trailer = 18 + actorCount * 8
+        if (webSnapshotLength <= trailer + 4) { return true }
+        var projectileCount = webSnapshotWords[trailer + 1]
+        var throwableCount = webSnapshotWords[trailer + 2]
+        var impactCount = webSnapshotWords[trailer + 3]
+        var cursor = trailer + 4
+        for (var index = 0; index < projectileCount; index = index + 1) {
+            if (!addWebEffectAt(
+                    webSnapshotWords[cursor + 3],
+                    webSnapshotWords[cursor + 4],
+                    webSnapshotWords[cursor + 5])) { return false }
+            cursor = cursor + 7
+        }
+        for (var index = 0; index < throwableCount; index = index + 1) {
+            if (!addWebEffectAtSize(
+                    webSnapshotWords[cursor + 2],
+                    webSnapshotWords[cursor + 3],
+                    webSnapshotWords[cursor + 4],
+                    throwableMarkerSize(webSnapshotWords[cursor + 6]))) {
+                return false
+            }
+            cursor = cursor + 8
+        }
+        for (var index = 0; index < impactCount; index = index + 1) {
+            if (!addWebEffectAt(
+                    webSnapshotWords[cursor + 4],
+                    webSnapshotWords[cursor + 5],
+                    webSnapshotWords[cursor + 6])) { return false }
+            cursor = cursor + 8
+        }
+        if (cursor + 9 < webSnapshotLength && webSnapshotWords[cursor] == 1) {
+            if (!addWebEffectAtSize(
+                    webSnapshotWords[cursor + 1],
+                    webSnapshotWords[cursor + 2],
+                    webSnapshotWords[cursor + 3],
+                    throwableMarkerSize(webSnapshotWords[cursor + 4]))) {
+                return false
+            }
+        }
+        if (cursor + 9 < webSnapshotLength) {
+            var sliceCount = webSnapshotWords[cursor + 9]
+            for (var slice = 0; slice < sliceCount; slice = slice + 1) {
+                var sliceOffset = cursor + 10 + slice * 4
+                if (!addWebEffectAt(
+                        webSnapshotWords[sliceOffset + 1],
+                        webSnapshotWords[sliceOffset + 2],
+                        webSnapshotWords[sliceOffset + 3])) { return false }
+            }
+        }
+        if (cursor + 9 < webSnapshotLength &&
+            webSnapshotWords[cursor + 5] == 1 &&
+            inputStateValue.throwableHeld() != 0) {
+            var charge = webSnapshotWords[cursor + 6]
+            var speed = 167 + charge * (360 - 167) / 30
+            var yaw = camera.normalizedYaw()
+            var pitch = camera.currentPitch()
+            var x = webSnapshotWords[7]
+            var y = webSnapshotWords[8] + 3
+            var z = webSnapshotWords[9]
+            var vx = camera.sineFixed(yaw) * speed / 167
+            var vy = (167 - camera.sineFixed(pitch)) * speed / 167
+            var vz = camera.sineFixed(yaw + 90) * speed / 167
+            for (var tick = 1; tick <= 30; tick = tick + 1) {
+                vy = vy - 33
+                x = x + vx * 2 / 1000
+                y = y + vy * 2 / 1000
+                z = z + vz * 2 / 1000
+                if (tick % 2 == 0 &&
+                    !addWebEffectAt(x, y, z)) { return false }
+                if (y <= 0 || x < 4 || x > 316 || z < 4 || z > 276) {
+                    break
+                }
+            }
+        }
+        return true
+    }
     Bool updateFollowCamera(Int player) {
-        if (player != 1 && player != 2) { return false }
-        var targetX = interactionSession.serverPosition(player)
+        var targetX = 0
         var targetY = 1
         var targetZ = 6
-        if (interactionSession.fpsMovementEnabled()) {
-            targetX = interactionSession.fpsPositionX(player)
-            targetY = interactionSession.fpsPositionY(player)
-            targetZ = interactionSession.fpsPositionZ(player)
+        if (webSharedMode && webSnapshotLength > 0) {
+            var found = false
+            for (var index = 0; index < webSnapshotWords[17]; index = index + 1) {
+                var offset = 18 + index * 8
+                if (webSnapshotWords[offset] == player) {
+                    targetX = webSnapshotWords[offset + 1]
+                    targetY = webSnapshotWords[offset + 2]
+                    targetZ = webSnapshotWords[offset + 3]
+                    found = true
+                    break
+                }
+            }
+            if (!found) { return false }
+        } else {
+            if (player != 1 && player != 2) { return false }
+            targetX = interactionSession.serverPosition(player)
+            if (interactionSession.fpsMovementEnabled()) {
+                targetX = interactionSession.fpsPositionX(player)
+                targetY = interactionSession.fpsPositionY(player)
+                targetZ = interactionSession.fpsPositionZ(player)
+            }
         }
         var hadTarget = camera.hasFollowTarget()
         if (!camera.setFollowTarget(targetX, targetY, targetZ)) {
@@ -2264,10 +2615,11 @@ class G1NativePresentation {
     }
 
     Bool applyMouseLook() {
-        return camera.applyZoom(kookie_consume_mouse_wheel_y()) &&
-            camera.applyLook(
-                kookie_consume_mouse_delta_x() / 2,
-                -kookie_consume_mouse_delta_y() / 2)
+        var wheel = kookie_consume_mouse_wheel_y()
+        webLookYawValue = kookie_consume_mouse_delta_x() / 2
+        webLookPitchValue = -kookie_consume_mouse_delta_y() / 2
+        return camera.applyZoom(wheel) &&
+            camera.applyLook(webLookYawValue, webLookPitchValue)
     }
 
     Int aimTargetForPlayer(Int player) {
@@ -2529,7 +2881,8 @@ class G1NativePresentation {
     ) {
         if (!advanceDamageFlashes() ||
             !projectileOverlay.advance() ||
-            !texturedVfx.advance()) {
+            !texturedVfx.advance() ||
+            !movementSmokeVfx.advance()) {
             return false
         }
         var player = if (host) 1 else 2
@@ -2566,11 +2919,41 @@ class G1NativePresentation {
             println("KOOKIE gameplay remote input admission failed")
             return false
         }
+        var p1GroundBefore = interactionSession.fpsGrounded(1)
+        var p1XBefore = interactionSession.fpsPositionX(1)
+        var p1ZBefore = interactionSession.fpsPositionZ(1)
+        var p2GroundBefore = interactionSession.fpsGrounded(2)
+        var p2XBefore = interactionSession.fpsPositionX(2)
+        var p2ZBefore = interactionSession.fpsPositionZ(2)
         var steps = interactionSession.advance(16667)
         if (steps != 1) {
             println("KOOKIE gameplay step result")
             println(steps)
             println(interactionSession.currentServerTick())
+            return false
+        }
+        var p1GroundAfter = interactionSession.fpsGrounded(1)
+        var p1XAfter = interactionSession.fpsPositionX(1)
+        var p1YAfter = interactionSession.fpsPositionY(1)
+        var p1ZAfter = interactionSession.fpsPositionZ(1)
+        var p2GroundAfter = interactionSession.fpsGrounded(2)
+        var p2XAfter = interactionSession.fpsPositionX(2)
+        var p2YAfter = interactionSession.fpsPositionY(2)
+        var p2ZAfter = interactionSession.fpsPositionZ(2)
+        var p1SmokeY = p1YAfter + 1
+        var p2SmokeY = p2YAfter + 1
+        if ((p1GroundBefore != p1GroundAfter ||
+                (p1GroundAfter &&
+                    (p1XBefore != p1XAfter || p1ZBefore != p1ZAfter) &&
+                    tick % 7 == 0)) &&
+            !emitMovementSmoke(p1XAfter, p1SmokeY, p1ZAfter)) {
+            return false
+        }
+        if ((p2GroundBefore != p2GroundAfter ||
+                (p2GroundAfter &&
+                    (p2XBefore != p2XAfter || p2ZBefore != p2ZAfter) &&
+                    tick % 7 == 0)) &&
+            !emitMovementSmoke(p2XAfter, p2SmokeY, p2ZAfter)) {
             return false
         }
         if (interactionSession.fpsLastJumpedFor(player) &&
@@ -2732,10 +3115,12 @@ class G1NativePresentation {
             println("KOOKIE gameplay water splash stage failed")
             return false
         }
+        if (!stageWebSnapshotObjects()) { return false }
         if (!stageGooseActors(frame, network, shell) ||
             !stageAnimalMeshes(frame, network) ||
             !stageAnimalAttackVfx(frame) ||
             !stageTexturedVfx(frame) ||
+            !stageMovementSmoke(frame) ||
             !stageLootBeams(frame)) {
             println("KOOKIE gameplay animal/loot stage failed")
             return false
@@ -2748,8 +3133,41 @@ class G1NativePresentation {
             println("KOOKIE gameplay door world stage failed")
             return false
         }
+        var webPickup = false
+        var webPickupKind = 0
+        var webCarry = false
+        var webCarryKind = 0
+        var webCharge = 0
+        var webHealth = 100
+        var webAmmo = 0
+        var webSeedAmmo = 0
+        if (webSharedMode && webSnapshotLength > 0) {
+            webHealth = webSnapshotWords[12]
+            webAmmo = webSnapshotWords[14]
+            var webTrailer = 18 + webSnapshotWords[17] * 8
+            var webCursor = webTrailer + 4 +
+                webSnapshotWords[webTrailer + 1] * 7 +
+                webSnapshotWords[webTrailer + 2] * 8 +
+                webSnapshotWords[webTrailer + 3] * 8
+            if (webCursor + 9 < webSnapshotLength) {
+                webPickup = webSnapshotWords[webCursor] == 1
+                webPickupKind = webSnapshotWords[webCursor + 4]
+                webCarry = webSnapshotWords[webCursor + 5] == 1
+                webCarryKind = webSnapshotWords[webCursor + 7]
+                webCharge = webSnapshotWords[webCursor + 6]
+                webSeedAmmo = webSnapshotWords[webCursor + 8]
+            }
+        if (webSharedMode &&
+            !hud.updateWebVitals(webHealth, webAmmo, webSeedAmmo)) {
+            return false
+        }
+        }
         if (!hud.updateWorldLootStatus(
                 worldLootCountForRender(), highestWorldLootRank()) ||
+            !hud.updateThrowableStatus(
+                webPickup, webPickupKind, webCarry, webCarryKind,
+                webCharge,
+                webCarry && inputStateValue.throwableHeld() != 0) ||
             !hud.updateOxygen(
                 oxygenMeterValue.current(), oxygenMeterValue.maximum(),
                 interactionSession.fpsUnderwater(localPlayerValue)) ||
@@ -2790,7 +3208,8 @@ class G1NativePresentation {
             (if (attackVfx.active()) attackVfxFrame.stagedCount() else 0) +
             (if (texturedVfx.activeCount() > 0)
                 texturedVfxFrame.stagedCount() else 0) +
-            (if (lootBeamActiveValue) lootBeamFrame.stagedCount() else 0) +
+            (if (movementSmokeVfx.activeCount() > 0)
+                movementSmokeFrame.stagedCount() else 0) +
             editorWorldCount
         if (animalVertexCount <= 0) {
             println("KOOKIE gameplay animal model count failed")
@@ -2872,7 +3291,8 @@ class G1NativePresentation {
             (attackVfx.active() && !uploadWorld(attackVfxFrame)) ||
             (texturedVfx.activeCount() > 0 &&
                 !uploadWorld(texturedVfxFrame)) ||
-            (lootBeamActiveValue && !uploadWorld(lootBeamFrame)) ||
+            (movementSmokeVfx.activeCount() > 0 &&
+                !uploadWorld(movementSmokeFrame)) ||
             ((!nativeAnimalModelsValue && !uploadWorld(animalFrame)) ||
                 (nativeAnimalModelsValue && !uploadAnimalModels())) ||
             !kookie_gpu_world_commit() ||
@@ -3158,6 +3578,515 @@ Bool driveSmokeKeyboardAction(
     return true
 }
 
+class NativeWebGameClient {
+    Int[] receiveWords
+    Int[] validationWords
+    Int validationWordCount
+    Int[] snapshotWords
+    Int sendSequence
+    Int pendingEdgeActionsValue
+    Int snapshotLength
+    Int retryTicks
+    Bool attempted
+    Bool active
+    Bool helloSent
+    Bool joinSent
+    Bool joined
+    Bool hasSnapshot
+
+    public constructor() {
+        receiveWords = new Int[sessionWebMaximumWords()]
+        snapshotWords = new Int[sessionWebMaximumWords()]
+        pendingEdgeActionsValue = 0
+        validationWordCount = 0
+        sendSequence = 1
+        playerIdValue = 0
+        snapshotLength = 0
+        retryTicks = 0
+        attempted = false
+        active = false
+        helloSent = false
+        joinSent = false
+        joined = false
+        hasSnapshot = false
+    }
+
+    Bool send(Int[] words) {
+        if (words.length <= 0 ||
+            words.length > sessionWebMaximumWords() ||
+            !kookie_kutter_sync_send_begin(words.length)) { return false }
+        for (var index = 0; index < words.length; index = index + 1) {
+            if (!kookie_kutter_sync_send_word(index, words[index])) {
+                return false
+            }
+        }
+        return kookie_kutter_sync_send_commit()
+    }
+
+    void disconnect() {
+        kookie_kutter_sync_close()
+        attempted = false
+        active = false
+        helloSent = false
+        joinSent = false
+        joined = false
+        hasSnapshot = false
+        playerIdValue = 0
+        snapshotLength = 0
+        sendSequence = 1
+        pendingEdgeActionsValue = 0
+    }
+
+    Bool service(Bool enabled) {
+        if (!enabled) {
+            if (attempted) { kookie_kutter_sync_close() }
+            attempted = false
+            active = false
+            helloSent = false
+            joinSent = false
+            joined = false
+            hasSnapshot = false
+            playerIdValue = 0
+            snapshotLength = 0
+            sendSequence = 1
+            pendingEdgeActionsValue = 0
+            return true
+        }
+        if (!attempted) {
+            if (retryTicks > 0) {
+                retryTicks = retryTicks - 1
+                return true
+            }
+            attempted = true
+            active = kookie_kutter_sync_open()
+            if (!active) {
+                attempted = false
+                retryTicks = 120
+            }
+            return true
+        }
+        var state = kookie_kutter_sync_state()
+        if (state < 0) {
+            disconnect()
+            return true
+        }
+        active = state == 2
+        if (!active) { return true }
+        if (!helloSent) {
+            var hello = newSessionWebNativeDesktopHello(sendSequence)
+            if (hello.length == 0 || !send(hello)) { disconnect(); return true }
+            sendSequence = sendSequence + 1
+            helloSent = true
+            return true
+        }
+        var received = kookie_kutter_sync_receive_available()
+        if (received <= 0) { return true }
+        if (received > receiveWords.length) { disconnect(); return true }
+        for (var index = 0; index < received; index = index + 1) {
+            receiveWords[index] = kookie_kutter_sync_receive_word(index)
+        }
+        if (received != validationWordCount) {
+            validationWords = new Int[received]
+            validationWordCount = received
+        }
+        for (var index = 0; index < received; index = index + 1) {
+            validationWords[index] = receiveWords[index]
+        }
+        var words = validationWords
+        if (!joinSent) {
+            if (!validSessionWebAck(words) || received != 7 ||
+                words[2] != 1 || words[3] != 1) {
+                disconnect()
+                return true
+            }
+            var join = newSessionWebGameJoinRequest(
+                sendSequence, sessionWebRolePlayer())
+            if (join.length == 0 || !send(join)) { disconnect(); return true }
+            sendSequence = sendSequence + 1
+            joinSent = true
+            return true
+        }
+        if (!joined) {
+            if (!validSessionWebGameJoinResponse(words) || received != 10 ||
+                words[2] != 2 || words[4] != 1 ||
+                words[5] != sessionWebRolePlayer()) {
+                disconnect()
+                return true
+            }
+            playerIdValue = words[6]
+            joined = true
+            return true
+        }
+        if (!validSessionWebGameMultiplayerSnapshot(words) ||
+            words[3] != sessionWebGameMultiplayerSnapshotMarker() ||
+            words[6] != playerIdValue) {
+            disconnect()
+            return true
+        }
+        if (!hasSnapshot || words[4] > snapshotWords[4]) {
+            snapshotLength = received
+            for (var index = 0; index < received; index = index + 1) {
+                snapshotWords[index] = words[index]
+            }
+            hasSnapshot = true
+        }
+        return true
+    }
+
+    Bool sendInput(Int tick, Int moveX, Int moveZ,
+        Int lookYaw, Int lookPitch, Int heldActions, Int edgeActions) {
+        if (!joined || !hasSnapshot) { return true }
+        var pendingEdges = pendingEdgeActionsValue | edgeActions
+        var input = newSessionWebGameInput(
+            sendSequence, tick, moveX, moveZ,
+            lookYaw, lookPitch, heldActions, pendingEdges)
+        if (input.length == 0) { disconnect(); return true }
+        if (!kookie_kutter_sync_send_begin(input.length)) {
+            pendingEdgeActionsValue = pendingEdges
+            return true
+        }
+        for (var index = 0; index < input.length; index = index + 1) {
+            if (!kookie_kutter_sync_send_word(index, input[index])) {
+                disconnect()
+                return true
+            }
+        }
+        if (!kookie_kutter_sync_send_commit()) {
+            disconnect()
+            return true
+        }
+        pendingEdgeActionsValue = 0
+        sendSequence = sendSequence + 1
+        if (sendSequence > 1000000) { sendSequence = 1 }
+        return true
+    }
+
+    Bool connected() { return joined && active }
+    Bool ready() { return connected() && hasSnapshot }
+    Int playerId() { return playerIdValue }
+    Int snapshotLengthValue() { return snapshotLength }
+    Int snapshotWord(Int index) {
+        if (index < 0 || index >= snapshotLength) { return 0 }
+        return snapshotWords[index]
+    }
+    Int snapshotSequence() {
+        if (!hasSnapshot) { return 0 }
+        return snapshotWords[2]
+    }
+    Bool copySnapshot(Int[] target) {
+        if (!hasSnapshot || target.length < snapshotLength) { return false }
+        for (var index = 0; index < snapshotLength; index = index + 1) {
+            target[index] = snapshotWords[index]
+        }
+        return true
+}
+}
+
+class NativeKutterSync {
+    Int[] snapshotWords
+    Int[] remoteWords
+    Int[] receiveWords
+    Int[] sendWords
+    Int snapshotLength
+    Int sendOffset
+    Int sendSequence
+    Int baselineChecksum
+    Int publishedChecksum
+    Int pendingChecksum
+    Int pendingSequence
+    Int importTotal
+    Int importReceived
+    Int importValidation
+    Bool active
+    Bool attempted
+    Bool helloSent
+    Bool getSent
+    Bool initialReceived
+    Bool baselineCaptured
+    Bool sending
+    Int heartbeatTicks
+    Bool publicationPending
+    Int importSequence
+    Int retryTicks
+
+    public constructor() {
+        snapshotWords = new Int[1100]
+        remoteWords = new Int[1100]
+        receiveWords = new Int[272]
+        sendWords = new Int[264]
+        active = false
+        attempted = false
+        helloSent = false
+        getSent = false
+        initialReceived = false
+        sending = false
+        baselineCaptured = false
+        heartbeatTicks = 0
+        retryTicks = 0
+        sendSequence = 2
+        baselineChecksum = 0
+        publishedChecksum = 0
+        importTotal = 0
+        importReceived = 0
+        importSequence = -1
+        pendingChecksum = 0
+        pendingSequence = 0
+        publicationPending = false
+    }
+
+    Bool send(Int[] words, Int count) {
+        if (!kookie_kutter_sync_send_begin(count)) { return false }
+        for (var index = 0; index < count; index = index + 1) {
+            if (!kookie_kutter_sync_send_word(index, words[index])) {
+                return false
+            }
+        }
+        return kookie_kutter_sync_send_commit()
+    }
+
+    Bool sendHello() {
+        sendWords[0] = 2
+        sendWords[1] = 1
+        sendWords[2] = 1
+        sendWords[3] = 1
+        sendWords[4] = 1
+        sendWords[5] = 1
+        sendWords[6] = 1
+        sendWords[7] = sessionWebMessageChecksum(sendWords, 7)
+        if (!send(sendWords, 8)) { return true }
+        helloSent = true
+        return true
+    }
+
+    Bool sendGet() {
+        sendWords[0] = 2
+        sendWords[1] = 6
+        sendWords[2] = sendSequence
+        sendWords[3] = sessionWebKutterRequestMarker()
+        sendWords[4] = sessionWebKutterGet()
+        sendWords[5] = sessionWebMessageChecksum(sendWords, 5)
+        if (!send(sendWords, 6)) { return true }
+        getSent = true
+        sendSequence = sendSequence + 1
+        return true
+    }
+
+    Bool sendImportChunk(GameShell shell) {
+        if (!sending) {
+            snapshotLength = shell.levelEditor().document().encodedLength()
+            if (snapshotLength < 11 || snapshotLength > snapshotWords.length) {
+                return false
+            }
+            for (var index = 0; index < snapshotLength; index = index + 1) {
+                snapshotWords[index] =
+                    shell.levelEditor().document().encodedWord(index)
+            }
+            sendOffset = 0
+            sending = true
+        }
+        var count = snapshotLength - sendOffset
+        if (count > sessionWebKutterTransferWords()) {
+            count = sessionWebKutterTransferWords()
+        }
+        var sentSequence = sendSequence
+        var wordCount = 8 + count
+        sendWords[0] = 2
+        sendWords[1] = 6
+        sendWords[2] = sendSequence
+        sendWords[3] = sessionWebKutterRequestMarker()
+        sendWords[4] = sessionWebKutterImportChunk()
+        sendWords[5] = snapshotLength
+        sendWords[6] = sendOffset
+        for (var index = 0; index < count; index = index + 1) {
+            sendWords[7 + index] = snapshotWords[sendOffset + index]
+        }
+        sendWords[7 + count] =
+            sessionWebMessageChecksum(sendWords, 7 + count)
+        if (!send(sendWords, wordCount)) { return true }
+        sendOffset = sendOffset + count
+        sendSequence = sendSequence + 1
+        if (sendSequence > 1000000) { sendSequence = 2 }
+        if (sendOffset == snapshotLength) {
+            pendingChecksum = snapshotWords[3]
+            pendingSequence = sentSequence
+            publicationPending = true
+            sending = false
+        }
+        return true
+    }
+
+    Bool applyResponse(GameShell shell, Int count) {
+        if (count < 16 || count > receiveWords.length ||
+            receiveWords[0] != 2 || receiveWords[1] != 6 ||
+            receiveWords[3] != sessionWebKutterResponseMarker() ||
+            receiveWords[count - 1] !=
+                sessionWebMessageChecksum(receiveWords, count - 1)) {
+            return false
+        }
+        if (receiveWords[4] == sessionWebKutterImportChunk() &&
+            publicationPending && receiveWords[2] == pendingSequence) {
+            if (receiveWords[5] == 0) {
+                publishedChecksum = pendingChecksum
+                publicationPending = false
+            } else {
+                publicationPending = false
+                sending = false
+            }
+        }
+        if (receiveWords[5] != 0) {
+            if (receiveWords[4] == sessionWebKutterGet()) {
+                initialReceived = true
+            }
+            if (receiveWords[4] == sessionWebKutterImportChunk()) {
+                sending = false
+                publicationPending = false
+            }
+            return true
+        }
+        var offset = receiveWords[13]
+        var total = receiveWords[14]
+        if (total == 0) {
+            if (receiveWords[4] == sessionWebKutterGet()) {
+                initialReceived = true
+            }
+            return true
+        }
+        var chunkLength = count - 16
+        if (total < 11 || total > remoteWords.length ||
+            offset < 0 || chunkLength < 0 || offset + chunkLength > total) {
+            return false
+        }
+        if (offset == 0 || total != importTotal ||
+            receiveWords[2] != importSequence) {
+            importTotal = total
+            importReceived = 0
+            importValidation = receiveWords[12]
+            importSequence = receiveWords[2]
+        }
+        for (var index = 0; index < chunkLength; index = index + 1) {
+            remoteWords[offset + index] = receiveWords[15 + index]
+        }
+        importReceived = importReceived + chunkLength
+        if (importReceived < importTotal) { return true }
+        initialReceived = true
+        var localChecksum = shell.levelEditor().checksum()
+        var mayApply = false
+        if (publishedChecksum == 0) {
+            mayApply = localChecksum == baselineChecksum
+        } else {
+            mayApply = localChecksum == publishedChecksum
+        }
+        if (mayApply) {
+            if (remoteWords[3] != localChecksum &&
+                !shell.levelEditor().importDocumentWords(
+                    remoteWords, importTotal)) {
+                return false
+            }
+            if (!shell.levelEditor().setPreviewActive(
+                    (importValidation & 8) != 0)) {
+                return false
+            }
+            baselineChecksum = shell.levelEditor().checksum()
+            publishedChecksum = baselineChecksum
+        }
+        return true
+    }
+
+    Bool service(GameShell shell) {
+        var editorActive = shell.screen() == gameShellScreenKutterLevel()
+        if (!editorActive) {
+            if (active || attempted) { kookie_kutter_sync_close() }
+            active = false
+            attempted = false
+            helloSent = false
+            getSent = false
+            initialReceived = false
+            sending = false
+            publishedChecksum = 0
+            publicationPending = false
+            pendingChecksum = 0
+            pendingSequence = 0
+            sendSequence = 2
+            baselineCaptured = false
+            retryTicks = 10
+            return true
+        }
+        if (!baselineCaptured) {
+            baselineChecksum = shell.levelEditor().checksum()
+            baselineCaptured = true
+        }
+        if (!attempted) {
+            if (retryTicks > 0) {
+                retryTicks = retryTicks - 1
+                return true
+            }
+            attempted = true
+            active = kookie_kutter_sync_open()
+            if (!active) {
+                attempted = false
+                retryTicks = 120
+            }
+            return true
+        }
+        var state = kookie_kutter_sync_state()
+        if (state < 0) {
+            kookie_kutter_sync_close()
+            active = false
+            attempted = false
+            helloSent = false
+            getSent = false
+            initialReceived = false
+            sending = false
+            publicationPending = false
+            retryTicks = 120
+            return true
+        }
+        active = state == 2
+        if (!helloSent) { return sendHello() }
+        if (!getSent) { return sendGet() }
+        var received = kookie_kutter_sync_receive_available()
+        if (received > 0) {
+            for (var index = 0; index < received; index = index + 1) {
+                receiveWords[index] =
+                    kookie_kutter_sync_receive_word(index)
+            }
+            if (receiveWords[1] == 6 &&
+                receiveWords[3] == sessionWebKutterResponseMarker() &&
+                !applyResponse(shell, received)) {
+                kookie_kutter_sync_close()
+                active = false
+                attempted = false
+                helloSent = false
+                getSent = false
+                initialReceived = false
+                sending = false
+                publicationPending = false
+                retryTicks = 120
+                return true
+            }
+        }
+        heartbeatTicks = heartbeatTicks + 1
+        if (heartbeatTicks >= 60) {
+            sendWords[0] = 2
+            sendWords[1] = 3
+            sendWords[2] = sendSequence
+            sendWords[3] = sessionWebMessageChecksum(sendWords, 3)
+            if (send(sendWords, 4)) {
+                sendSequence = sendSequence + 1
+                if (sendSequence > 1000000) { sendSequence = 2 }
+                heartbeatTicks = 0
+            }
+        }
+        if (initialReceived &&
+            (sending ||
+                (!publicationPending &&
+                    shell.levelEditor().checksum() != publishedChecksum))) {
+            return sendImportChunk(shell)
+        }
+        return true
+    }
+}
+
 main() {
 
     println("KOOKIE native SDL game shell")
@@ -3258,21 +4187,62 @@ main() {
             "fresh goose gameplay must process and advance one fixed tick")
         var movementStartX = presentation.gameplaySession().fpsPositionX(1)
         var movementStartZ = presentation.gameplaySession().fpsPositionZ(1)
-        for (var movementTick = 0; movementTick < 4;
+        for (var movementTick = 0; movementTick < 10;
              movementTick = movementTick + 1) {
             assert(presentation.advanceGameplayInput(
                     true, network, 1, 0, 0, 0),
                 "WASD movement must advance the authoritative FPS pose")
         }
+        var runSmokeCount = presentation.movementSmokeEmissionCount()
         assert(
             presentation.gameplaySession().fpsPositionX(1) != movementStartX ||
             presentation.gameplaySession().fpsPositionZ(1) != movementStartZ,
             "WASD movement must change the authoritative FPS pose")
+        assert(runSmokeCount > 0,
+            "grounded running must emit native movement flipbook smoke")
+        var jumpSmokeCount = presentation.movementSmokeEmissionCount()
         var jumpStartY = presentation.gameplaySession().fpsPositionY(1)
         assert(presentation.advanceGameplayInput(
                 true, network, 0, 0, 0, 1) &&
-            presentation.gameplaySession().fpsPositionY(1) > jumpStartY,
-            "jump input must move the authoritative FPS pose")
+            presentation.gameplaySession().fpsPositionY(1) > jumpStartY &&
+            presentation.movementSmokeEmissionCount() > jumpSmokeCount,
+            "takeoff must emit smoke and move the authoritative FPS pose")
+        assert(presentation.advanceGameplayInput(
+                true, network, 0, 0, 0, 0),
+            "releasing Space must preserve a valid airborne jump state")
+        var doubleJumpStartY =
+            presentation.gameplaySession().fpsPositionY(1)
+        assert(presentation.advanceGameplayInput(
+                true, network, 0, 0, 0, 1) &&
+            presentation.gameplaySession().fpsPositionY(1) >
+                doubleJumpStartY &&
+            presentation.gameplaySession().fpsAirJumpsUsed(1) == 1 &&
+            presentation.gameplaySession().fpsDoubleJumpAnimationActive(1),
+            "a released second Space press must launch and stage roll animation")
+        assert(presentation.advanceGameplayInput(
+                true, network, 0, 0, 0, 1) &&
+            presentation.gameplaySession().fpsDoubleJumpAnimationActive(1),
+            "SDL must retain per-player double-jump roll while Space stays held")
+        assert(presentation.drawGameFrame(frame, network, shell) &&
+            presentation.animalMeshes.actorIdAt(0) == 1 &&
+            presentation.animalMeshes.actorRollingAt(0) &&
+            presentation.movementSmokeFrame.stagedCount() > 0,
+            "SDL must stage the double-jump roll and smoke flipbook into the GPU pass")
+        frame = frame + 1
+        var landingSmokeBaseline =
+            presentation.movementSmokeEmissionCount()
+        var landingTicks = 0
+        while (!presentation.gameplaySession().fpsGrounded(1) &&
+               landingTicks < 90) {
+            assert(presentation.advanceGameplayInput(
+                    true, network, 0, 0, 0, 0),
+                "airborne movement must advance until landing")
+            landingTicks = landingTicks + 1
+        }
+        assert(presentation.gameplaySession().fpsGrounded(1) &&
+            presentation.movementSmokeEmissionCount() >
+                landingSmokeBaseline,
+            "landing must emit native movement flipbook smoke")
 
         var stagedProjectile = false
         for (var shotTick = 0; shotTick < 40;
@@ -3339,6 +4309,11 @@ main() {
             "presentation smoke must enter kutter and stage an inspector edit")
     }
 
+    var webGame = NativeWebGameClient()
+    var webAppliedSnapshotSequence = 0
+    var webSnapshotBuffer = new Int[sessionWebMaximumWords()]
+
+    var kutterSync = NativeKutterSync()
     var running = true
     var menuFrames = 0
     var smokeQuitQueued = false
@@ -3435,6 +4410,24 @@ main() {
             }
             eventKind = kookie_poll_event()
         }
+        assert(kutterSync.service(shell),
+            "native Kutter synchronization must preserve bounded documents")
+        assert(webGame.service(shell.gameplayVisible()),
+            "native WebSocket game session must remain protocol-bounded")
+        presentation.setWebConnectionStatus(webGame.connected())
+        if (webGame.ready()) {
+            if (webGame.snapshotSequence() != webAppliedSnapshotSequence) {
+                assert(webGame.copySnapshot(webSnapshotBuffer) &&
+                    presentation.setWebSnapshot(
+                        webSnapshotBuffer, webGame.snapshotLengthValue(),
+                        webGame.playerId()),
+                    "authoritative WebSocket snapshots must reach native renderers")
+                webAppliedSnapshotSequence = webGame.snapshotSequence()
+            }
+        } else {
+            presentation.clearWebSnapshot()
+            webAppliedSnapshotSequence = 0
+        }
         if (presentation.consumeScoreboardToggle() != 0 &&
             shell.gameplayVisible()) {
             var scoreboardVisible = presentation.toggleScoreboard()
@@ -3516,23 +4509,38 @@ main() {
             if (shell.networkStatus() == gameShellNetworkConnected()) {
                 hostGameplay = lobby.host()
             }
-            assert(processGamePackets(
-                    presentation.gameplaySession(), network,
-                    presentation.scoreboard(), hostGameplay),
-                "gameplay packets must remain bounded and authenticated")
+            if (!webGame.connected()) {
+                assert(processGamePackets(
+                        presentation.gameplaySession(), network,
+                        presentation.scoreboard(), hostGameplay),
+                    "gameplay packets must remain bounded and authenticated")
+            }
             assert(presentation.applyMouseLook(),
                 "mouse look input must update the deterministic camera")
-            assert(presentation.advanceGameplay(hostGameplay, network),
-                "goose gameplay must advance one fixed tick")
-            assert(presentation.refreshScoreboard(
-                    shell, hostGameplay),
-                "authoritative scoreboard must remain bounded")
-            if (hostGameplay &&
-                shell.networkStatus() == gameShellNetworkConnected()) {
-                assert(sendHostGameState(
-                        presentation.gameplaySession(),
-                        presentation.scoreboard(), network),
-                    "host must publish player, bot and scoreboard snapshots")
+            if (webGame.ready()) {
+                assert(presentation.updateFollowCamera(webGame.playerId()),
+                    "native camera must follow the authoritative local actor")
+                assert(webGame.sendInput(
+                        webGame.snapshotWord(4) + 1,
+                        presentation.webMoveX(), presentation.webMoveZ(),
+                        presentation.consumeWebLookYaw(),
+                        presentation.consumeWebLookPitch(),
+                        presentation.webHeldActions(),
+                        presentation.consumeWebEdgeActions()),
+                    "native gameplay frames must use the authoritative WebSocket input protocol")
+            } else if (!webGame.connected()) {
+                assert(presentation.advanceGameplay(hostGameplay, network),
+                    "goose gameplay must advance one fixed tick")
+                assert(presentation.refreshScoreboard(
+                        shell, hostGameplay),
+                    "authoritative scoreboard must remain bounded")
+                if (hostGameplay &&
+                    shell.networkStatus() == gameShellNetworkConnected()) {
+                    assert(sendHostGameState(
+                            presentation.gameplaySession(),
+                            presentation.scoreboard(), network),
+                        "host must publish player, bot and scoreboard snapshots")
+                }
             }
             assert(presentation.configureIdentity(
                     !hostGameplay &&
@@ -3610,6 +4618,8 @@ main() {
         assert(kookie_window_set_gameplay_mouse_mode(window, 0),
             "gameplay mouse mode must release before shutdown")
     }
+    assert(kookie_kutter_sync_close(),
+        "native Kutter WebSocket worker must stop before SDL shutdown")
     kookie_transport_close()
     if (audio > 0) {
         assert(kookie_audio_close(audio), "live SDL mixer token must close")

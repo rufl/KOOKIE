@@ -7,6 +7,7 @@ Int nativeInputAction(Int key) {
     if (key == 275 || key == 1073741903 || key == 100) { return 4 }
     if (key == 13) { return 5 }
     if (key == 27) { return 6 }
+    if (key == 1073741882) { return 7 }
     return 0
 }
 
@@ -18,6 +19,7 @@ class NativeInputState {
     Int fireValue
     Int jumpValue
     Int crouchValue
+    Int throwableValue
     Int pendingButtonsValue
     Bool scoreboardToggleValue
 
@@ -29,6 +31,7 @@ class NativeInputState {
         fireValue = 0
         jumpValue = 0
         crouchValue = 0
+        throwableValue = 0
         pendingButtonsValue = 0
         scoreboardToggleValue = false
     }
@@ -58,11 +61,13 @@ class NativeInputState {
             if (phase == 1) { return addPendingButton(inputButtonDashRight()) }
         } else if (key == 32) {
             jumpValue = pressed
-        } else if (key == 102) {
+        } else if (key == 102 || key == 98) {
             fireValue = pressed
         } else if (key == 1073742048 || key == 1073742052) {
             crouchValue = pressed
             if (phase == 1) { return addPendingButton(inputButtonRoll()) }
+        } else if (key == 116) {
+            throwableValue = pressed
         }
         if (key == 9 && phase == 1) {
             scoreboardToggleValue = true
@@ -96,6 +101,7 @@ class NativeInputState {
         fireValue = 0
         jumpValue = 0
         crouchValue = 0
+        throwableValue = 0
         pendingButtonsValue = 0
         scoreboardToggleValue = false
         return true
@@ -108,6 +114,7 @@ class NativeInputState {
     Int fireHeld() { return fireValue }
     Int jumpHeld() { return jumpValue }
     Int crouchHeld() { return crouchValue }
+    Int throwableHeld() { return throwableValue }
 
     Int consumeActionButtons() {
         var value = pendingButtonsValue
