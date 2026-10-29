@@ -94,7 +94,7 @@
   "asset_policy": {
     "all_sources_claimed_cc0": false,
     "cc0_assets": "The modular, Brackeys VFX and Classic64 source notices are retained verbatim.",
-    "restricted_assets": ["model.goose", "model.prildarill-cat", "ui.player-hearts"],
+    "restricted_assets": ["model.goose", "model.prildarill-cat", "ui.player-hearts", "ui.player-hearts-blue"],
     "goose_warning": "The source page permits commercial use and editing but prohibits reselling or redistributing the model file. The converted GLB remains prototype-only and must not be treated as CC0.",
     "cat_warning": "The source page permits use in own projects, editing and no-credit use. It does not name a standard license or separately grant standalone raw-file redistribution; keep the cat prototype-only until that boundary is confirmed.",
     "heart_warning": "The Echo Studios page offers the heart sheet as a name-your-own-price download but does not state a standard license or standalone redistribution terms; keep the sheet prototype-only until that boundary is confirmed.",
@@ -109,6 +109,8 @@
       "authored_path": "models/goose/goose.glb",
       "runtime_path": "models/goose/goose.glb",
       "format": "glb",
+      "albedo_runtime_path": "models/goose/goose_albedo.png",
+      "albedo_note": "Project-authored replacement UV albedo; the upstream FBX references uvhusa.png, which was not included with the supplied source.",
       "animations": ["idle", "walk", "run", "attack", "damage_taken", "death", "eat"],
       "license": "upstream-commercial-use-with-no-model-redistribution",
       "cook_status": "swan Unity Asset Store animations retargeted onto existing goose skeleton; wing tracks omitted because current model has no wing bones"
@@ -432,6 +434,17 @@
       "runtime_dimensions": "160x32",
       "license": "upstream-prototype-only",
       "cook_status": "bounded PNG derivative; native atlas samples five nearest-neighbor heart states"
+    },
+    {
+      "id": "ui.player-hearts-blue",
+      "kind": "ui-spritesheet",
+      "source": "ui.player-hearts",
+      "runtime_path": "runtime/ui/hearts_blue.png",
+      "format": "png",
+      "grid": "5x1",
+      "dimensions": "160x32",
+      "license": "upstream-prototype-only",
+      "cook_status": "project-authored blue-hue derivative of the prototype-only red player heart atlas"
     },
     {
       "id": "config.liquid-physics",

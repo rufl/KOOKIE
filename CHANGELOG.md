@@ -3,6 +3,20 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Player camera now follows a damped focus point and derives its horizontal
+  offset from the smoothed character heading, keeping the view behind the
+  character while movement and turns blend smoothly. Manual spectator camera
+  behavior is unchanged.
+
+- Blue-team actors now show blue health hearts; red-team hearts stay red. The
+  player health HUD shows a matching team-colored heart beside the health value.
+
+- Goose rendering now loads a project-authored UV albedo because its supplied GLB
+  has no embedded image and its source FBX's referenced `uvhusa.png` was not
+  included. The standalone web build now bundles this texture.
+
+- Mobile movement and touch camera horizontal controls now match left/right
+  finger direction. Mouse and keyboard axes are unchanged.
 - Web multiplayer includes a Wizard Hat pickup: its owner gets five
   authoritative fireball shots, replicated as distinct projectiles with hit
   damage and fire impacts. The HUD switches from seeds to remaining fireballs.

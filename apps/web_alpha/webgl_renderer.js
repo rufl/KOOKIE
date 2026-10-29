@@ -830,7 +830,7 @@
       value + (second[component] - value) * amount);
   }
 
-  async function loadGlb(url, gl) {
+  async function loadGlb(url, gl, fallbackTexture = null) {
     const response = await fetch(url, { cache: "force-cache" });
     if (!response.ok) throw new Error("GLB HTTP " + response.status + " / " + url);
     const { json, binary } = parseGlb(await response.arrayBuffer());
@@ -1039,7 +1039,8 @@
       const pbr = material?.pbrMetallicRoughness;
       const factor = pbr?.baseColorFactor || [1, 1, 1, 1];
       const textureIndex = pbr?.baseColorTexture?.index;
-      const texture = textureIndex === undefined ? null : await loadTexture(textureIndex);
+      const texture = textureIndex === undefined
+        ? fallbackTexture : await loadTexture(textureIndex);
       return createMesh(
         gl, new Float32Array(positions), normals && new Float32Array(normals),
         uvs && new Float32Array(uvs), indices, factor, texture, localModel,
@@ -1221,7 +1222,9 @@
     const rampMeshes = ARENA_RAMPS.map((ramp) =>
       rampGeometry(gl, ramp.vertices, [1, 1, 1, 1], worldMaterialTexture));
 
-    const assets = { goose: null, cat: null, hearts: null };
+    const assets = {
+      goose: null, cat: null, hearts: null, heartsBlue: null,
+    };
     const vfxTextures = new Array(VFX_ASSETS.length).fill(null);
     const vfxMeshes = new Array(VFX_ASSETS.length).fill(null);
     let playerCameraZoom = 1.5;
@@ -1239,11 +1242,19 @@
       ["goose", assetBase + "goose/goose.glb"],
       ["cat", assetBase + "cat/cat.glb"],
       ["hearts", "assets/prototype/runtime/ui/hearts_0001.png"],
+      ["heartsBlue", "assets/prototype/runtime/ui/hearts_blue.png"],
     ].map(async ([name, url]) => {
       try {
-        assets[name] = name === "hearts"
-          ? await loadTextureUrl(gl, url)
-          : await loadGlb(url, gl);
+        if (name === "hearts" || name === "heartsBlue") {
+          assets[name] = await loadTextureUrl(gl, url);
+        } else if (name === "goose") {
+          const fallbackTexture = await loadTextureUrl(
+            gl, assetBase + "goose/goose_albedo.png",
+          );
+          assets[name] = await loadGlb(url, gl, fallbackTexture);
+        } else {
+          assets[name] = await loadGlb(url, gl);
+        }
       } catch (error) {
         assets[name] = null;
         assetFailures.push(name + ": " + error.message);
@@ -1262,6 +1273,7 @@
     let assetReady = false;
     let contextLost = false;
     let heartMesh = null;
+    let blueHeartMesh = null;
     Promise.all([...assetLoads, ...vfxLoads]).then(() => { assetReady = true; });
     function rendererStatus() {
       if (contextLost) return "WebGL2 / context lost";
@@ -1327,34 +1339,79 @@
     }
 
     let filteredCamera = null;
+    let filteredPlayerFocus = null;
+    let filteredPlayerId = null;
     let lastCameraFrameAt = 0;
     const wrapDegrees = (degrees) =>
       ((degrees + 180) % 360 + 360) % 360 - 180;
-    function smoothCamera(target, time) {
+    function smoothCamera(target, time, scene = null) {
+      const followsPlayer = scene?.playerId > 0;
       if (!filteredCamera) {
         filteredCamera = { ...target };
+        if (followsPlayer) {
+          filteredPlayerFocus = {
+            x: scene.playerX, y: scene.playerY, z: scene.playerZ,
+          };
+          filteredPlayerId = scene.playerId;
+        }
         lastCameraFrameAt = time;
         return filteredCamera;
       }
       const deltaSeconds = Math.max(0, Math.min(0.1,
         (time - lastCameraFrameAt) / 1000));
       lastCameraFrameAt = time;
-      const distance = Math.hypot(
-        target.x - filteredCamera.x,
-        target.y - filteredCamera.y,
-        target.z - filteredCamera.z,
-      );
-      if (distance > 60) {
-        filteredCamera = { ...target };
-        return filteredCamera;
+      const yawBlend = 1 - Math.exp(-deltaSeconds / 0.1);
+      const pitchBlend = 1 - Math.exp(-deltaSeconds / 0.08);
+      filteredCamera.yaw += wrapDegrees(target.yaw - filteredCamera.yaw) * yawBlend;
+      filteredCamera.pitch += (target.pitch - filteredCamera.pitch) * pitchBlend;
+      if (followsPlayer) {
+        if (!filteredPlayerFocus || filteredPlayerId !== scene.playerId) {
+          filteredPlayerFocus = {
+            x: scene.playerX, y: scene.playerY, z: scene.playerZ,
+          };
+          filteredPlayerId = scene.playerId;
+        } else if (Math.hypot(
+          scene.playerX - filteredPlayerFocus.x,
+          scene.playerZ - filteredPlayerFocus.z,
+        ) > 60) {
+          filteredPlayerFocus = {
+            x: scene.playerX, y: scene.playerY, z: scene.playerZ,
+          };
+          filteredCamera = { ...target };
+          return filteredCamera;
+        } else {
+          const followBlend = 1 - Math.exp(-deltaSeconds / 0.09);
+          filteredPlayerFocus.x +=
+            (scene.playerX - filteredPlayerFocus.x) * followBlend;
+          filteredPlayerFocus.y +=
+            (scene.playerY - filteredPlayerFocus.y) * followBlend;
+          filteredPlayerFocus.z +=
+            (scene.playerZ - filteredPlayerFocus.z) * followBlend;
+        }
+        const yaw = filteredCamera.yaw * Math.PI / 180;
+        const followDistance = Math.hypot(
+          target.x - scene.playerX, target.z - scene.playerZ,
+        );
+        filteredCamera.x = filteredPlayerFocus.x - Math.sin(yaw) * followDistance;
+        filteredCamera.y = filteredPlayerFocus.y + target.y - scene.playerY;
+        filteredCamera.z = filteredPlayerFocus.z - Math.cos(yaw) * followDistance;
+      } else {
+        filteredPlayerFocus = null;
+        filteredPlayerId = null;
+        const distance = Math.hypot(
+          target.x - filteredCamera.x,
+          target.y - filteredCamera.y,
+          target.z - filteredCamera.z,
+        );
+        if (distance > 60) {
+          filteredCamera = { ...target };
+          return filteredCamera;
+        }
+        const positionBlend = 1 - Math.exp(-deltaSeconds / 0.1);
+        filteredCamera.x += (target.x - filteredCamera.x) * positionBlend;
+        filteredCamera.y += (target.y - filteredCamera.y) * positionBlend;
+        filteredCamera.z += (target.z - filteredCamera.z) * positionBlend;
       }
-      const positionBlend = 1 - Math.exp(-deltaSeconds / 0.12);
-      const angleBlend = 1 - Math.exp(-deltaSeconds / 0.055);
-      filteredCamera.x += (target.x - filteredCamera.x) * positionBlend;
-      filteredCamera.y += (target.y - filteredCamera.y) * positionBlend;
-      filteredCamera.z += (target.z - filteredCamera.z) * positionBlend;
-      filteredCamera.yaw += wrapDegrees(target.yaw - filteredCamera.yaw) * angleBlend;
-      filteredCamera.pitch += (target.pitch - filteredCamera.pitch) * angleBlend;
       return filteredCamera;
     }
     let vfxKey = null;
@@ -1437,7 +1494,8 @@
       };
     }
     function projectWorld(scene, x, y, z) {
-      const camera = cameraTargetForScene(scene);
+      const camera = scene.playerId > 0 && filteredCamera
+        ? filteredCamera : cameraTargetForScene(scene);
       const yaw = (camera.yaw || 0) * Math.PI / 180;
       const pitch = (camera.pitch || 0) * Math.PI / 180;
       const direction = [
@@ -1487,7 +1545,7 @@
       resize();
       const targetCamera = cameraTargetForScene(scene);
       playerCameraActive = scene.playerId > 0;
-      const camera = smoothCamera(targetCamera, time);
+      const camera = smoothCamera(targetCamera, time, scene);
       const yaw = (camera.yaw || 0) * Math.PI / 180;
       const pitch = (camera.pitch || 0) * Math.PI / 180;
       const direction = [
@@ -1724,8 +1782,13 @@
         ), COLORS.player, time, viewProjection, [0, 0, 1, 1], playerSkinMatrices);
       }
 
-      if (assets.hearts) {
-        if (!heartMesh) heartMesh = planeGeometry(gl, [1, 1, 1, 1], assets.hearts);
+      if (assets.hearts || assets.heartsBlue) {
+        if (assets.hearts && !heartMesh) {
+          heartMesh = planeGeometry(gl, [1, 1, 1, 1], assets.hearts);
+        }
+        if (assets.heartsBlue && !blueHeartMesh) {
+          blueHeartMesh = planeGeometry(gl, [1, 1, 1, 1], assets.heartsBlue);
+        }
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.depthMask(false);
@@ -1735,8 +1798,11 @@
           const heartState = Math.max(0, Math.min(4, Math.floor(health * 4 / 100)));
           const actorLift = actorAnimationLift(actor, scene.tick);
           const heartHeight = actor.kind === 2 ? 9 : 19;
+          const teamHeartMesh = actor.kind === 2 && blueHeartMesh
+            ? blueHeartMesh : heartMesh;
+          if (!teamHeartMesh) continue;
           draw(
-            [heartMesh],
+            [teamHeartMesh],
             transform(
               [actor.x, actor.y + actorLift + heartHeight, actor.z],
               [2.8, 2.8, 1], yaw,
@@ -1746,7 +1812,6 @@
           );
         }
         gl.depthMask(true);
-        gl.disable(gl.BLEND);
       }
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);

@@ -544,10 +544,10 @@ async function main() {
   moveStickBase.listeners.pointerdown({
     pointerId: 4, clientX: 88, clientY: 50, preventDefault() {},
   });
-  assert.ok(sentInputFrames.at(-1).moveX >= 490 &&
-    sentInputFrames.at(-1).moveX <= 510 &&
+  assert.ok(sentInputFrames.at(-1).moveX <= -490 &&
+    sentInputFrames.at(-1).moveX >= -510 &&
     sentInputFrames.at(-1).moveZ === 0,
-  "full touch deflection uses the configured 50% movement speed");
+  "right touch deflection moves right at the configured 50% movement speed");
   const movementCountAtDefault = sentInputFrames.length;
   moveStickBase.listeners.pointermove({
     pointerId: 4, clientX: 99, clientY: 50,
@@ -584,31 +584,6 @@ async function main() {
   assert.equal(sentInputFrames.at(-1).moveX, 0);
   assert.equal(sentInputFrames.at(-1).moveZ, 0);
   moveStickBase.listeners.pointerup({ pointerId: 7 });
-  const sceneCanvas = document.getElementById("kookie-authoritative-scene");
-  const beforeMouseLook = sentGameCommands.length;
-  sceneCanvas.listeners.pointerdown({
-    pointerId: 8, pointerType: "touch", clientX: 50, clientY: 50, preventDefault() {},
-  });
-  sceneCanvas.listeners.pointermove({ pointerId: 8, pointerType: "touch", clientX: 73, clientY: 50 });
-  assert.equal(sentGameCommands.length, beforeMouseLook);
-  assert.equal(sentInputFrames.at(-1).lookYaw, 144);
-  assert.equal(sentInputFrames.at(-1).lookPitch, 0);
-  sceneCanvas.listeners.pointermove({ pointerId: 8, pointerType: "touch", clientX: 74, clientY: 26 });
-  assert.equal(sentGameCommands.length, beforeMouseLook);
-  assert.equal(sentInputFrames.at(-1).lookYaw, 6);
-  assert.equal(sentInputFrames.at(-1).lookPitch, 150);
-  sceneCanvas.listeners.pointerup({ pointerId: 8 });
-  mouseSensitivity.value = "100";
-  mouseSensitivity.listeners.input();
-  assert.equal(savedSettings.at(-1).value.mouseCameraSensitivityPercent, 100);
-  sceneCanvas.listeners.pointerdown({
-    pointerId: 9, pointerType: "touch", clientX: 50, clientY: 50, preventDefault() {},
-  });
-  sceneCanvas.listeners.pointermove({ pointerId: 9, pointerType: "touch", clientX: 62, clientY: 62 });
-  assert.equal(sentInputFrames.at(-1).lookYaw, 150);
-  assert.equal(sentInputFrames.at(-1).lookPitch, -150);
-  sceneCanvas.listeners.pointerup({ pointerId: 9 });
-  assert.equal(savedSettings.at(-1).key, "kookie.browser.settings.v1");
   document.listeners.keydown({
     key: "w", code: "KeyW", repeat: false, preventDefault() {},
   });
@@ -637,6 +612,43 @@ async function main() {
   assert.equal(sentInputFrames.at(-1).moveX, 1000,
     "A moves left in the browser world's mirrored horizontal axis");
   document.listeners.keyup({ key: "a", code: "KeyA", preventDefault() {} });
+  const lookStickBase = sticks[1].children[0];
+  lookStickBase.width = 100;
+  lookStickBase.height = 100;
+  frameCallbacks.splice(0);
+  lookStickBase.listeners.pointerdown({
+    pointerId: 11, clientX: 88, clientY: 50, preventDefault() {},
+  });
+  const lookFrames = frameCallbacks.splice(0);
+  lookFrames[0](1200);
+  assert.ok(sentInputFrames.at(-1).lookYaw < 0,
+    "right touch-stick deflection turns the camera right");
+  lookStickBase.listeners.pointerup({ pointerId: 11 });
+  frameCallbacks.splice(0);
+  const sceneCanvas = document.getElementById("kookie-authoritative-scene");
+  const beforeMouseLook = sentGameCommands.length;
+  sceneCanvas.listeners.pointerdown({
+    pointerId: 8, pointerType: "touch", clientX: 50, clientY: 50, preventDefault() {},
+  });
+  sceneCanvas.listeners.pointermove({ pointerId: 8, pointerType: "touch", clientX: 73, clientY: 50 });
+  assert.equal(sentGameCommands.length, beforeMouseLook);
+  assert.equal(sentInputFrames.at(-1).lookYaw, -144);
+  assert.equal(sentInputFrames.at(-1).lookPitch, 0);
+  sceneCanvas.listeners.pointermove({ pointerId: 8, pointerType: "touch", clientX: 74, clientY: 26 });
+  assert.equal(sentGameCommands.length, beforeMouseLook);
+  assert.equal(sentInputFrames.at(-1).lookYaw, -6);
+  assert.equal(sentInputFrames.at(-1).lookPitch, 150);
+  sceneCanvas.listeners.pointerup({ pointerId: 8 });
+  mouseSensitivity.value = "100";
+  mouseSensitivity.listeners.input();
+  assert.equal(savedSettings.at(-1).value.mouseCameraSensitivityPercent, 100);
+  sceneCanvas.listeners.pointerdown({
+    pointerId: 9, pointerType: "touch", clientX: 50, clientY: 50, preventDefault() {},
+  });
+  sceneCanvas.listeners.pointermove({ pointerId: 9, pointerType: "touch", clientX: 62, clientY: 62 });
+  assert.equal(sentInputFrames.at(-1).lookYaw, -150);
+  sceneCanvas.listeners.pointerup({ pointerId: 9 });
+  assert.equal(savedSettings.at(-1).key, "kookie.browser.settings.v1");
   const beforeLockedLook = sentInputFrames.length;
   document.pointerLockElement = sceneCanvas;
   sceneCanvas.listeners.pointermove({ movementX: 12 });
@@ -770,6 +782,18 @@ async function main() {
       element.attributes["data-stat"] === stat)?.children[1]?.textContent;
     assert.equal(value, expected, "multiplayer snapshot updates " + stat + " HUD");
   }
+  const healthStat = pageElements.find((element) =>
+    element.attributes["data-stat"] === "health");
+  assert.equal(healthStat.dataset.team, "red",
+    "red players retain the original heart palette");
+  const blueTeamSnapshot = extendedMultiplayerWords(16, 16);
+  blueTeamSnapshot[24] = 2;
+  blueTeamSnapshot[blueTeamSnapshot.length - 1] =
+    messageChecksum(blueTeamSnapshot.slice(0, -1));
+  FakeWebSocket.active.emit(encodeFrame(6, 16, blueTeamSnapshot));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(healthStat.dataset.team, "blue",
+    "blue player health HUD selects blue hearts from the actor kind");
   if (frameCallbacks.length > 0) frameCallbacks.shift()(1001);
   const replicatedCombatScene = renderedScenes.find((scene) =>
     scene.tick === 15 && scene.projectiles?.length === 1);
@@ -789,6 +813,8 @@ async function main() {
   FakeWebSocket.active.emit(encodeFrame(
     6, 17, multiplayerPositionWords(17, 17, 33)));
   await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(healthStat.dataset.team, "red",
+    "red player heart palette is restored on the next snapshot");
   monotonicNow = 1035;
   if (frameCallbacks.length > 0) frameCallbacks.shift()(1035);
   assert.ok(document.getElementById("kookie-authoritative-scene")

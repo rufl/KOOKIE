@@ -45,6 +45,8 @@ done < <(
   find "$root_dir/assets/prototype/vfx" -type f -name '*.png' -print0 |
     sort -z
 )
+cp -- "$root_dir/assets/prototype/models/goose/goose_albedo.png" \
+  "$work_dir/build/assets/prototype/models/goose/goose_albedo.png"
 cp -- "$root_dir/apps/web_alpha/webgl_renderer.js" \
   "$work_dir/build/kookie-webgl-renderer.js"
 cp -- "$root_dir/apps/web_alpha/session_transport.js" \
@@ -59,7 +61,7 @@ for required in \
   assets/prototype/greybox_modules.json \
   assets/prototype/runtime/liquid_physics.json \
   assets/prototype/runtime/power_ups/watermelon.json \
-  assets/prototype/runtime/power_ups/wizard_hat.json \
+  assets/prototype/models/goose/goose_albedo.png \
   assets/prototype/runtime/ui/hearts_0001.png \
   assets/prototype/runtime/water_bodies/pool.json \
   assets/prototype/runtime/floatables/crate.json \

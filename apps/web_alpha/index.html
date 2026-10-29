@@ -42,6 +42,9 @@
     .kookie-session-stat { min-width: 92px; padding: 8px 12px; border: 1px solid #ffffff27; border-radius: 12px; background: #111c18dc; backdrop-filter: blur(8px); }
     .kookie-session-stat-label { display: block; color: #bdc9ae; font-size: 10px; letter-spacing: .09em; }
     .kookie-session-stat-value { display: block; margin-top: 2px; color: #fffbe9; font: 700 17px/1.2 ui-monospace, monospace; }
+    .kookie-session-stat[data-stat="health"] .kookie-session-stat-value { display: flex; align-items: center; gap: 6px; }
+    .kookie-session-stat[data-stat="health"] .kookie-session-stat-value::before { content: ""; flex: 0 0 24px; width: 24px; height: 24px; background: url("assets/prototype/runtime/ui/hearts_0001.png") no-repeat -96px 0 / 120px 24px; image-rendering: pixelated; }
+    .kookie-session-stat[data-stat="health"][data-team="blue"] .kookie-session-stat-value::before { background-image: url("assets/prototype/runtime/ui/hearts_blue.png"); }
     .kookie-session-stat[data-stat="tick"], .kookie-session-stat[data-stat="position"], .kookie-session-stat[data-stat="combo"], .kookie-session-stat[data-stat="actors"], .kookie-session-stat[data-stat="projectiles"], .kookie-session-stat[data-stat="ping"], .kookie-session-stat[data-stat="renderer"] { display: none; }
     .kookie-session-stat[data-stat="ping"] { display: block; min-width: 54px; margin-left: auto; }
     .kookie-session-minimap { position: absolute; top: 14px; right: 14px; width: clamp(100px, 17vw, 164px); height: auto; min-height: 0; aspect-ratio: 3/2; border: 1px solid #ffffff35; border-radius: 14px; background: #07100de8; }
@@ -163,6 +166,8 @@
       .kookie-session-stat { min-width: 52px; padding: 4px 6px; border-radius: 8px; }
       .kookie-session-stat-label { font-size: 8px; }
       .kookie-session-stat-value { margin-top: 1px; font-size: 12px; }
+      .kookie-session-stat[data-stat="health"] .kookie-session-stat-value { gap: 4px; }
+      .kookie-session-stat[data-stat="health"] .kookie-session-stat-value::before { flex-basis: 18px; width: 18px; height: 18px; background-size: 90px 18px; background-position: -72px 0; }
       .kookie-session-minimap { top: 44px; right: 6px; width: 66px; border-radius: 8px; }
       .kookie-session-footer { position: absolute; z-index: 5; left: max(6px, env(safe-area-inset-left)); right: max(6px, env(safe-area-inset-right)); bottom: max(5px, env(safe-area-inset-bottom)); min-height: 0; pointer-events: none; }
       .kookie-session-game-controls { pointer-events: none; align-items: end; }

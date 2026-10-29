@@ -425,6 +425,7 @@
   hud.className = "kookie-session-hud";
   const hudValues = {};
   const hudLabels = {};
+  const hudStats = {};
   function addHudStat(key, label, value) {
     const stat = document.createElement("div");
     stat.className = "kookie-session-stat";
@@ -440,6 +441,7 @@
     hud.appendChild(stat);
     hudValues[key] = statValue;
     hudLabels[key] = statLabel;
+    hudStats[key] = stat;
   }
   addHudStat("tick", "TICK", "0");
   addHudStat("position", "PLAYER X / Z", "32 / 52");
@@ -592,7 +594,7 @@
   addAnalogStick("MOVE", movementControls, (vector) => {
     const speed = joinedRole === GAME_ROLE_SPECTATOR ? 1 : movementSpeedScale();
     sendGameplayInput({
-      moveX: Math.round(vector.x * GAME_MAXIMUM_INPUT_AXIS * speed),
+      moveX: Math.round(-vector.x * GAME_MAXIMUM_INPUT_AXIS * speed),
       moveZ: Math.round(-vector.y * GAME_MAXIMUM_INPUT_AXIS * speed),
     });
   }, { initialPulse: true });
@@ -617,7 +619,7 @@
     const sensitivity = clientSettings.mouseCameraSensitivityPercent / 100;
     const degreesPerSecond = 120 * sensitivity;
     sendGameplayInput({
-      lookYaw: lookStickVelocityX * degreesPerSecond * seconds,
+      lookYaw: -lookStickVelocityX * degreesPerSecond * seconds,
       lookPitch: -lookStickVelocityY * degreesPerSecond * seconds,
     });
   }, { continueWhile: lookStickSettling });
@@ -1687,6 +1689,7 @@
     hudValues.stamina.textContent = staminaText + " / 100";
     hudValues.ammo.textContent = ammoText;
     const localActor = scene.actors.find((actor) => actor.id === scene.playerId);
+    hudStats.health.dataset.team = localActor?.kind === 2 ? "blue" : "red";
     const fireballsActive = localActor?.powerUp === 8;
     hudLabels.seeds.textContent = fireballsActive ? "FIREBALLS" : "SEEDS";
     hudValues.seeds.textContent = Number.isInteger(scene.seedAmmo)
@@ -3560,7 +3563,9 @@
         }
       }
       const sensitivity = clientSettings.mouseCameraSensitivityPercent / 100;
-      const lookYaw = Math.max(-180, Math.min(180, deltaX * sensitivity * 1.25));
+      const touchDirection = event.pointerType === "touch" ? -1 : 1;
+      const lookYaw = Math.max(-180, Math.min(180,
+        deltaX * sensitivity * 1.25 * touchDirection));
       const lookPitch = Math.max(-180, Math.min(180, -deltaY * sensitivity * 1.25));
       if (lookYaw !== 0 || lookPitch !== 0) {
         const spectatorDirection = joinedRole === GAME_ROLE_SPECTATOR ? -1 : 1;
