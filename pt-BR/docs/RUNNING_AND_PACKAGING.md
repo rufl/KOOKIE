@@ -189,6 +189,10 @@ Execute o gate end-to-end do servidor Kof:
 ```bash
 bash scripts/verify_kof_web_server.sh
 ```
+O gate escolhe uma porta loopback livre por padrão; assim, um preview já ativo
+não pode responder ao health check no lugar do processo sob teste. Defina
+`KOOKIE_WEB_TEST_PORT` apenas quando precisar fixar a porta.
+
 
 O gateway Python sem dependências continua como fixture legada de compatibilidade
 para qualificação bearer-token e WSS. Ele não é o caminho do servidor Kof nem um

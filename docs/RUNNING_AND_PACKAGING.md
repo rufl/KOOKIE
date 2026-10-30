@@ -96,11 +96,12 @@ game route. Hosted connections use verified `wss://` by default; plain `ws://`
 is accepted only for loopback and requires `KOOKIE_KUTTER_SCHEME=ws`. Optional
 `KOOKIE_KUTTER_TOKEN` supplies the server's bearer subprotocol token. The
 default path `/kutter/session` remains the separate editor route. Native builds
-need libcurl 7.86.0 or newer with WebSocket support; Linux packages use the
-system libcurl runtime, while Windows packaging requires
-`KOOKIE_WINDOWS_CURL_PREFIX`. The native client sends authoritative inputs and
-renders shared snapshot state; its compact throwable/effect markers are not
-the browser's 3D item renderer.
+need libcurl 7.86.0 or newer with WebSocket support; Linux presentation
+packages rely on system libcurl and its transport libraries (including
+`libnghttp2` when required by the host libcurl), while Windows packaging
+requires `KOOKIE_WINDOWS_CURL_PREFIX`.
+The native client sends authoritative inputs and renders shared snapshot state;
+its compact throwable/effect markers are not the browser's 3D item renderer.
 
 Run the canonical local full-scene qualification path through the native Kof
 server. Build it once:
@@ -212,6 +213,7 @@ power-up objects and exact active power-up names/timers are not replicated or
 rendered.
 
 Run the 12-second headless `/b2teams4` smoke check with
+
 `scripts/b2teams4.py "$server_dir/kookie-web-server" 8080 --smoke`. It verifies
 moving snapshots, actual damage, a power-up pickup, each bot's movement/action
 inputs, and observed attack, airborne and roll animation states. Throwable
@@ -291,6 +293,10 @@ Run the Kof server end-to-end gate:
 ```bash
 bash scripts/verify_kof_web_server.sh
 ```
+The gate selects a free loopback port by default, so an already-running preview
+server cannot satisfy the health check in place of the process under test.
+Set `KOOKIE_WEB_TEST_PORT` only when a fixed port is required.
+
 
 The dependency-free Python gateway remains a legacy compatibility fixture for
 bearer-token and WSS qualification. It is not the Kof server path or a

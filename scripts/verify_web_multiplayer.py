@@ -343,8 +343,16 @@ def main():
                 "each Wizard Hat action must replicate one fireball projectile")
         shooter = players[0]
         target = players[2]
-        target_before = actor_record(target.snapshot(8, 4), target.player_id)[4]
-        shooter.input(look_yaw=450, held=32)
+        aim_scene = spectators[0].snapshot(8, 4)
+        shooter_state = actor_record(aim_scene, shooter.player_id)
+        target_state = actor_record(aim_scene, target.player_id)
+        target_before = target_state[4]
+        desired_yaw = round(math.degrees(math.atan2(
+            target_state[1] - shooter_state[1],
+            target_state[3] - shooter_state[3],
+        )))
+        yaw_delta = (desired_yaw - shooter_state[7] + 180) % 360 - 180
+        shooter.input(look_yaw=yaw_delta * 10, held=32)
         _, target_after = wait_for_actor(
             spectators[0], 8, 4, target.player_id,
             lambda state, snapshot: state[4] < target_before)
@@ -550,9 +558,18 @@ def main():
                 assert scene[throwable_cursor + 6] == carried_type, (
                     "thrown record must preserve the picked-up throwable type")
                 break
-            scene = spectators[0].snapshot(8, 4)
+            events = impact_events(scene)
+            if any(event[0] > last_impact_sequence and
+                   event[2] == mover.player_id for event in events):
+                grenade_id = 0
+                break
+            scene = mover.snapshot(8, 4)
         else:
-            raise AssertionError("released charged throwable was not replicated")
+            raise AssertionError(
+                f"released charged throwable was neither replicated nor "
+                f"resolved at tick {scene[4]}: "
+                f"throwable_count={throwable_suffix(scene)[2]}, "
+                f"impacts={impact_events(scene)}")
         resolved_tick = scene[4]
         resolution_deadline = time.monotonic() + 3
         observed_impact_kinds = {
@@ -564,7 +581,7 @@ def main():
         watermelon_descending = False
         watermelon_bounced = False
         last_scene_tick = scene[4]
-        while time.monotonic() < resolution_deadline:
+        while grenade_id != 0 and time.monotonic() < resolution_deadline:
             next_scene = spectators[0].snapshot(8, 4)
             if next_scene[4] <= last_scene_tick:
                 continue
@@ -595,7 +612,7 @@ def main():
             else:
                 resolved_tick = scene[4]
                 break
-        else:
+        if grenade_id != 0 and time.monotonic() >= resolution_deadline:
             raise AssertionError("thrown grenade did not resolve")
         trailer = 18 + scene[17] * 8
         throwable_cursor = trailer + 4 + scene[trailer + 1] * 8
@@ -677,30 +694,57 @@ def main():
             4 <= respawn_suffix[1] <= 316 and 4 <= respawn_suffix[3] <= 276, (
                 "respawn must randomize a valid item type and in-bounds location")
         collision_mover = players[1]
-        collision_target = players[5]
+        collision_scene = spectators[0].snapshot(8, 4)
+        collision_mover_state = actor_record(
+            collision_scene, collision_mover.player_id)
+        alive_targets = [
+            client for client in players
+            if client.player_id != collision_mover.player_id and
+            actor_record(collision_scene, client.player_id)[4] > 0
+        ]
+        collision_target = min(
+            alive_targets,
+            key=lambda client: abs(
+                actor_record(collision_scene, client.player_id)[1] -
+                collision_mover_state[1]) +
+                abs(actor_record(collision_scene, client.player_id)[3] -
+                    collision_mover_state[3]),
+        )
         deadline = time.monotonic() + 2
         minimum_gap = 1000000
         while time.monotonic() < deadline:
-            input_sequence = collision_mover.input(move_z=-1000)
-            collision_scene = wait_for_input_ack(
-                collision_mover, input_sequence)
-            collision_state = actor_record(collision_scene, collision_mover.player_id)
-            collision_target_state = actor_record(collision_scene, collision_target.player_id)
-            gap = abs(collision_state[3] - collision_target_state[3])
+            collision_target_state = actor_record(
+                collision_scene, collision_target.player_id)
+            dx = collision_target_state[1] - collision_mover_state[1]
+            dz = collision_target_state[3] - collision_mover_state[3]
+            gap = round(math.hypot(dx, dz))
             minimum_gap = min(minimum_gap, gap)
             if gap <= 5:
                 break
+            input_sequence = collision_mover.input(
+                move_x=1000 if dx > 0 else -1000 if dx < 0 else 0,
+                move_z=1000 if dz > 0 else -1000 if dz < 0 else 0)
+            collision_scene = wait_for_input_ack(
+                collision_mover, input_sequence)
+            collision_mover_state = actor_record(
+                collision_scene, collision_mover.player_id)
         collision_mover.input()
         assert 4 <= minimum_gap <= 5, (
             "swept player contact did not stop movement at capsule separation; "
-            f"minimum_gap={minimum_gap}, mover={collision_state}, "
+            f"minimum_gap={minimum_gap}, mover={collision_mover_state}, "
             f"target={collision_target_state}")
-        target_health = actor_record(collision_scene, collision_target.player_id)[4]
-        collision_mover.input(look_yaw=1800, edge=64)
+        target_health = collision_target_state[4]
+        desired_yaw = round(math.degrees(math.atan2(
+            collision_target_state[1] - collision_mover_state[1],
+            collision_target_state[3] - collision_mover_state[3],
+        )))
+        yaw_delta = (desired_yaw - collision_mover_state[7] + 180) % 360 - 180
+        collision_mover.input(look_yaw=yaw_delta * 10, edge=64)
         _, melee_target = wait_for_actor(
             spectators[0], 8, 4, collision_target.player_id,
             lambda state, snapshot: state[4] < target_health)
-        assert melee_target[4] < target_health, "melee input did not damage the contacted player"
+        assert melee_target[4] < target_health, (
+            "melee input did not damage the contacted player")
 
         read_only = spectators[1]
         read_only.sequence += 1

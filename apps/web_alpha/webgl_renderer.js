@@ -160,6 +160,54 @@
     },
   ]);
 
+  const ARENA_RAMP_TRIANGLES = Object.freeze([[0, 1, 2], [0, 2, 3]]);
+
+  const arenaGroundSample = { height: 0, slopeX: 0, slopeZ: 0 };
+  function arenaGroundAt(x, z, actorY) {
+    arenaGroundSample.height = 0;
+    arenaGroundSample.slopeX = 0;
+    arenaGroundSample.slopeZ = 0;
+    for (const solid of ARENA_SOLIDS) {
+      const box = solid.box;
+      if (x < box[0] || x > box[3] || z < box[2] || z > box[5] ||
+          box[4] > actorY - 0.5 ||
+          box[4] < arenaGroundSample.height) continue;
+      arenaGroundSample.height = box[4];
+      arenaGroundSample.slopeX = 0;
+      arenaGroundSample.slopeZ = 0;
+    }
+    for (const ramp of ARENA_RAMPS) {
+      const vertices = ramp.vertices;
+      for (const triangle of ARENA_RAMP_TRIANGLES) {
+        const a = vertices[triangle[0]], b = vertices[triangle[1]],
+          c = vertices[triangle[2]];
+        const denominator = (b[2] - c[2]) * (a[0] - c[0]) +
+          (c[0] - b[0]) * (a[2] - c[2]);
+        if (Math.abs(denominator) < 1e-6) continue;
+        const wa = ((b[2] - c[2]) * (x - c[0]) +
+          (c[0] - b[0]) * (z - c[2])) / denominator;
+        const wb = ((c[2] - a[2]) * (x - c[0]) +
+          (a[0] - c[0]) * (z - c[2])) / denominator;
+        const wc = 1 - wa - wb;
+        if (wa < 0 || wb < 0 || wc < 0) continue;
+        const height = wa * a[1] + wb * b[1] + wc * c[1];
+        if (height > actorY - 0.5 ||
+            height < arenaGroundSample.height) continue;
+        const dx1 = b[0] - a[0], dz1 = b[2] - a[2];
+        const dx2 = c[0] - a[0], dz2 = c[2] - a[2];
+        const slopeDenominator = dx1 * dz2 - dx2 * dz1;
+        arenaGroundSample.height = height;
+        arenaGroundSample.slopeX = (
+          (b[1] - a[1]) * dz2 - (c[1] - a[1]) * dz1
+        ) / slopeDenominator;
+        arenaGroundSample.slopeZ = (
+          dx1 * (c[1] - a[1]) - dx2 * (b[1] - a[1])
+        ) / slopeDenominator;
+      }
+    }
+    return arenaGroundSample;
+  }
+
   const VFX_ASSETS = Object.freeze([
     { id: 0, name: "circle", path: "assets/prototype/vfx/particles/circle_01_a.png", columns: 1, rows: 1, frameMs: 260, scale: 7 },
     { id: 1, name: "fire", path: "assets/prototype/vfx/particles/fire_01_a.png", columns: 1, rows: 1, frameMs: 260, scale: 7 },
@@ -516,6 +564,33 @@
     gl.bindTexture(gl.TEXTURE_2D, null);
     return texture;
   }
+  function createBlobShadowTexture(gl) {
+    const size = 64;
+    const pixels = new Uint8Array(size * size * 4);
+    for (let y = 0; y < size; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        const dx = (x + 0.5 - size / 2) / (size / 2);
+        const dy = (y + 0.5 - size / 2) / (size / 2);
+        const radius = Math.min(1, Math.hypot(dx, dy));
+        const edge = 1 - radius;
+        const alpha = Math.round(255 * edge * edge * (1 + 2 * radius));
+        const offset = (y * size + x) * 4;
+        pixels[offset] = pixels[offset + 1] = pixels[offset + 2] = 255;
+        pixels[offset + 3] = alpha;
+      }
+    }
+    const texture = gl.createTexture();
+    if (!texture) return null;
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, size, size, 0,
+      gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    return texture;
+  }
 
   const WORLD_MATERIAL_UVS = Object.freeze([
     [0, 0.5, 0.25, 0.5], [0.25, 0.5, 0.25, 0.5],
@@ -540,7 +615,7 @@
     );
   }
 
-  function horizontalPlaneGeometry(gl, color) {
+  function horizontalPlaneGeometry(gl, color, texture = null) {
     const positions = new Float32Array([
       -0.5, 0, -0.5, 0.5, 0, -0.5, 0.5, 0, 0.5, -0.5, 0, 0.5,
     ]);
@@ -549,7 +624,7 @@
     ]);
     const uvs = new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]);
     return createMesh(
-      gl, positions, normals, uvs, [0, 1, 2, 0, 2, 3], color,
+      gl, positions, normals, uvs, [0, 1, 2, 0, 2, 3], color, texture,
     );
   }
   function rampGeometry(gl, top, color, texture = null) {
@@ -1209,17 +1284,22 @@
       useSkinning: gl.getUniformLocation(program, "uUseSkinning"),
     };
     const worldMaterialTexture = createWorldMaterialTexture(gl);
+    const blobShadowTexture = createBlobShadowTexture(gl);
     const fallbackMeshes = {
       solid: boxGeometry(
         gl, [1, 1, 1], [1, 1, 1, 1], worldMaterialTexture, true,
       ),
       water: horizontalPlaneGeometry(gl, [1, 1, 1, 1]),
-      shadow: horizontalPlaneGeometry(gl, COLORS.shadow),
+      shadow: horizontalPlaneGeometry(gl, COLORS.shadow, blobShadowTexture),
       actor: boxGeometry(gl, [8, 14, 8], COLORS.actor),
       pickup: diamondGeometry(gl, COLORS.pickup),
       projectile: boxGeometry(gl, [2.5, 2.5, 2.5], COLORS.projectile),
       vfx: boxGeometry(gl, [12, 1, 12], COLORS.vfx),
     };
+    const shadowMesh = [fallbackMeshes.shadow];
+    const shadowTint = [
+      COLORS.shadow[0], COLORS.shadow[1], COLORS.shadow[2], COLORS.shadow[3],
+    ];
     const rampMeshes = ARENA_RAMPS.map((ramp) =>
       rampGeometry(gl, ramp.vertices, [1, 1, 1, 1], worldMaterialTexture));
 
@@ -1787,29 +1867,36 @@
       const actors = scene.actors || [];
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      function drawBlobShadow(x, y, z, flinchOffset) {
+        const centerX = x + (flinchOffset ? flinchOffset[0] : 0);
+        const centerZ = z + (flinchOffset ? flinchOffset[1] : 0);
+        const ground = arenaGroundAt(centerX, centerZ, y);
+        const height = Math.max(0, y - ground.height - 1);
+        const airFactor = Math.min(1, height / 24);
+        const sizeFactor = 1 - airFactor * 0.55;
+        const rotationZ = Math.atan(ground.slopeX);
+        const rotationX = Math.atan(-ground.slopeZ * Math.cos(rotationZ));
+        shadowTint[3] = COLORS.shadow[3] * (1 - airFactor * 0.78);
+        draw(
+          shadowMesh,
+          transform(
+            [centerX, ground.height + 0.05, centerZ],
+            [8 * sizeFactor, 1, 6 * sizeFactor], 0, rotationZ, rotationX,
+          ),
+          shadowTint, time, viewProjection,
+        );
+      }
+
       for (const actor of actors) {
         if (actor.health <= 0 || (scene.playerId > 0 && actor.id === scene.playerId)) continue;
-        const flinchOffset = actorHitFlinchOffset(actor.id, time);
-        draw(
-          [fallbackMeshes.shadow],
-          transform([
-            actor.x + (flinchOffset ? flinchOffset[0] : 0),
-            0.04,
-            actor.z + (flinchOffset ? flinchOffset[1] : 0),
-          ], [8, 1, 6]),
-          COLORS.shadow, time, viewProjection,
+        drawBlobShadow(
+          actor.x, actor.y, actor.z, actorHitFlinchOffset(actor.id, time),
         );
       }
       if (scene.playerId === undefined || scene.playerId > 0) {
-        const flinchOffset = actorHitFlinchOffset(scene.playerId, time);
-        draw(
-          [fallbackMeshes.shadow],
-          transform([
-            scene.playerX + (flinchOffset ? flinchOffset[0] : 0),
-            0.04,
-            scene.playerZ + (flinchOffset ? flinchOffset[1] : 0),
-          ], [8, 1, 6]),
-          COLORS.shadow, time, viewProjection,
+        drawBlobShadow(
+          scene.playerX, scene.playerY, scene.playerZ,
+          actorHitFlinchOffset(scene.playerId, time),
         );
       }
       gl.disable(gl.BLEND);

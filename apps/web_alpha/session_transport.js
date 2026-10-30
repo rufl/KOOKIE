@@ -190,6 +190,8 @@
       storedSettings.mouseCameraSensitivityPercent >= 25 &&
       storedSettings.mouseCameraSensitivityPercent <= 150
       ? storedSettings.mouseCameraSensitivityPercent : 50,
+    playerName: typeof storedSettings.playerName === "string"
+      ? storedSettings.playerName.slice(0, 24) : "",
   };
   const settingsMenu = document.createElement("details");
   settingsMenu.className = "kookie-session-settings";
@@ -214,6 +216,7 @@
       clientSettings[key] = input.checked;
       saveStoredSettings();
       if (key === "showMinimap") setMinimapVisibility(input.checked);
+      if (key === "showDamageNumbers" && !input.checked) clearDamageNumberLabels();
       if (key === "reducedMotion") panel.dataset.reducedMotion = input.checked ? "true" : "false";
     });
     label.appendChild(input);
@@ -225,6 +228,20 @@
   addSettingToggle("showDamageNumbers", "Show damage numbers");
   addSettingToggle("pointerLock", "Use pointer lock for mouse look");
   addSettingToggle("reducedMotion", "Reduce interface motion");
+  const playerNameLabel = document.createElement("label");
+  playerNameLabel.textContent = "Player name";
+  const playerNameInput = document.createElement("input");
+  playerNameInput.type = "text";
+  playerNameInput.maxLength = 24;
+  playerNameInput.value = clientSettings.playerName;
+  playerNameInput.setAttribute("aria-label", "Player name");
+  playerNameInput.addEventListener("input", () => {
+    clientSettings.playerName = playerNameInput.value.slice(0, 24);
+    saveStoredSettings();
+    if (sceneState) updateProjectedLabels(sceneState);
+  });
+  playerNameLabel.appendChild(playerNameInput);
+  settingsGrid.appendChild(playerNameLabel);
   function addSettingRange(key, labelText, minimum, maximum) {
     const label = document.createElement("label");
     label.className = "kookie-session-range";
@@ -1510,6 +1527,31 @@
       ].join(";");
       labelOverlay.appendChild(element);
     }
+    const localName = clientSettings.playerName.trim();
+    const localActor = (scene.actors || []).find((actor) =>
+      actor.id === scene.playerId && actor.health > 0
+    );
+    if (!localName || scene.playerId <= 0 || !localActor) return;
+    const headHeight = localActor.kind === 2 ? 16 : 20;
+    const projection = sceneRenderer?.projectWorld?.(
+      scene, localActor.x, localActor.y + headHeight, localActor.z,
+    );
+    if (!projection || projection.x < 0 || projection.x > 1 ||
+        projection.y < 0 || projection.y > 1) return;
+    const element = document.createElement("span");
+    element.className = "kookie-session-player-name";
+    element.textContent = localName + " #" + scene.playerId;
+    element.setAttribute("aria-label", element.textContent);
+    element.style.cssText = [
+      "position:absolute;transform:translate(-50%,-100%)",
+      "padding:2px 5px;border-radius:4px",
+      "background:rgba(4,15,23,.82);color:#f8fafc",
+      "font:600 11px/1.2 monospace;white-space:nowrap",
+      "text-shadow:0 1px 2px #000",
+      `left:${projection.x * bounds.width}px`,
+      `top:${projection.y * bounds.height}px`,
+    ].join(";");
+    labelOverlay.appendChild(element);
   }
   function predictPendingLocalMovement(now) {
     if (!sceneState || pendingInputFrames.size === 0 ||
@@ -1652,7 +1694,8 @@
       const previous = remoteSnapshots[remoteSnapshots.length - 2];
       const latestActor = latest.actors.find((actor) => actor.id === actorId);
       const previousActor = previous?.actors.find((actor) => actor.id === actorId);
-      const span = previous ? latest.receivedAt - previous.receivedAt : 0;
+      const tickSpan = previous ? latest.tick - previous.tick : 0;
+      const span = tickSpan > 0 ? tickSpan * REMOTE_BASE_TICK_MS : 0;
       const ahead = Math.min(
         maxExtrapolationMs,
         Math.max(0, renderAt - latest.receivedAt),
@@ -1788,6 +1831,7 @@
       beginLocalMovementBlend(displayed.playerX, displayed.playerZ, 90, now);
     }
     updateScene(displayed);
+    updateDamageNumbers(displayed, now);
   }
   function updateSpectatorCamera(now) {
     const deltaSeconds = lastSpectatorCameraUpdateAt === 0 ? 0
@@ -3306,6 +3350,20 @@
     previousRemoteArrivalAt = 0;
     previousRemoteTick = -1;
     localMovementBlend = null;
+    if (sceneState) {
+      const disconnectedScene = {
+        ...sceneState,
+        actors: [],
+        projectiles: [],
+        throwables: [],
+        impacts: [],
+        slicePickups: [],
+        labels: [],
+        sceneObjects: [],
+      };
+      updateScene(disconnectedScene);
+      clearDamageNumberLabels();
+    }
     intentionalDisconnect = explicit;
     if (explicit) {
       clearReconnectTimer();
@@ -3558,8 +3616,8 @@
   const movementKeys = new Map([
     ["KeyW", [0, 1]], ["ArrowUp", [0, 1]],
     ["KeyS", [0, -1]], ["ArrowDown", [0, -1]],
-    ["KeyA", [-1, 0]], ["ArrowLeft", [-1, 0]],
-    ["KeyD", [1, 0]], ["ArrowRight", [1, 0]],
+    ["KeyA", [1, 0]], ["ArrowLeft", [1, 0]],
+    ["KeyD", [-1, 0]], ["ArrowRight", [-1, 0]],
   ]);
   function updateKeyboardMovement() {
     let x = 0;
@@ -3686,9 +3744,8 @@
         }
       }
       const sensitivity = clientSettings.mouseCameraSensitivityPercent / 100;
-      const touchDirection = event.pointerType === "touch" ? -1 : 1;
       const lookYaw = Math.max(-180, Math.min(180,
-        deltaX * sensitivity * 1.25 * touchDirection));
+        -deltaX * sensitivity * 1.25));
       const lookPitch = Math.max(-180, Math.min(180, -deltaY * sensitivity * 1.25));
       if (lookYaw !== 0 || lookPitch !== 0) {
         const spectatorDirection = joinedRole === GAME_ROLE_SPECTATOR ? -1 : 1;

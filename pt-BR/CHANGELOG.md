@@ -3,6 +3,22 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- O gate do servidor Kof escolhe uma porta loopback livre por padrão, impedindo
+  que um preview já ativo satisfaça o health check do processo sob teste.
+- A qualificação multiplayer calcula a mira hitscan pelo yaw replicado, aceita
+  arremessáveis cujo impacto chega antes do snapshot do projétil e escolhe um
+  alvo vivo para a verificação de colisão/melee.
+- Builds nativos canônicos da suíte completa agora preparam a biblioteca
+  Box3D no diretório de build antes do link.
+- Pacotes do servidor dedicado Linux agora incluem o módulo transitivo `world`
+  e a biblioteca Box3D, além de configurar a busca da biblioteca ao executar.
+- Sombras WebGL seguem a projeção radial suave da
+  [técnica de sombra de Mario 64](https://www.youtube.com/watch?v=-LGTq9Lgzoc):
+  ficam no chão, acompanham rampas e encolhem/desvanecem nos saltos. Sombras da
+  apresentação nativa também encolhem conforme a altura do personagem.
+- A extrapolação remota no WebGL agora calcula a velocidade pelo intervalo entre
+  ticks autoritativos, não pelo atraso variável dos pacotes; o smoke verifica a
+  interpolação entre snapshots e o limite de extrapolação de 100 ms.
 - Kof foi atualizado para o release oficial 0.6.8
   (`2971d2fe4cc873eb50fcd1b7d7d3e097381281c8`) e translate-c para 2.0.2.
   Zig 0.17.0 e as versões estáveis do SDL3/SDL_mixer já eram atuais; os pins
@@ -14,9 +30,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   partida; bots 4v4 do navegador/CLI começam com 300 de vida.
 - Jogadores e bonecos de treino atingidos recuam brevemente. Personagens remotos
   piscam; dano no jogador local causa flash vermelho e indicador direcional.
-- Números de dano de jogadores/bonecos podem ser ocultados em Configurações.
-  Números do HUD usam ThaleahFat; balas, sementes e bolas de fogo compartilham
-  um contêiner de munição.
+- Números de dano de jogadores/bonecos aparecem imediatamente; Configurações
+  oculta os números ativos na hora e persiste a opção. Números do HUD usam
+  ThaleahFat; munição, sementes e bolas de fogo compartilham um contêiner.
 - Corações do time azul são azuis; os do time vermelho continuam vermelhos. O
   ganso agora carrega a textura UV autorada, incluída no build web independente.
 - Eixos horizontais de movimento/câmera touch agora correspondem à direção do

@@ -1650,38 +1650,48 @@ class G1NativePresentation {
             if (!animalMeshes.actorCurrentAt(index)) { continue }
             var centerX = animalMeshes.actorXAt(index)
             var centerZ = animalMeshes.actorZAt(index)
+            var height = animalMeshes.actorYAt(index) - 1
+            var scale = 1000
+            if (height > 0) {
+                scale = 1000 - height * 10
+                if (scale < 500) { scale = 500 }
+            }
+            var outerX = 4 * scale / 1000
+            var innerX = 3 * scale / 1000
+            var outerZ = 3 * scale / 1000
+            var innerZ = 2 * scale / 1000
             if (!pushBlobShadowTriangle(
                     centerX, centerZ,
-                    centerX - 4, centerZ, 0, 50,
-                    centerX - 3, centerZ - 2, 15, 20) ||
+                    centerX - outerX, centerZ, 0, 50,
+                    centerX - innerX, centerZ - innerZ, 15, 20) ||
                 !pushBlobShadowTriangle(
                     centerX, centerZ,
-                    centerX - 3, centerZ - 2, 15, 20,
-                    centerX, centerZ - 3, 50, 0) ||
+                    centerX - innerX, centerZ - innerZ, 15, 20,
+                    centerX, centerZ - outerZ, 50, 0) ||
                 !pushBlobShadowTriangle(
                     centerX, centerZ,
-                    centerX, centerZ - 3, 50, 0,
-                    centerX + 3, centerZ - 2, 85, 20) ||
+                    centerX, centerZ - outerZ, 50, 0,
+                    centerX + innerX, centerZ - innerZ, 85, 20) ||
                 !pushBlobShadowTriangle(
                     centerX, centerZ,
-                    centerX + 3, centerZ - 2, 85, 20,
-                    centerX + 4, centerZ, 100, 50) ||
+                    centerX + innerX, centerZ - innerZ, 85, 20,
+                    centerX + outerX, centerZ, 100, 50) ||
                 !pushBlobShadowTriangle(
                     centerX, centerZ,
-                    centerX + 4, centerZ, 100, 50,
-                    centerX + 3, centerZ + 2, 85, 80) ||
+                    centerX + outerX, centerZ, 100, 50,
+                    centerX + innerX, centerZ + innerZ, 85, 80) ||
                 !pushBlobShadowTriangle(
                     centerX, centerZ,
-                    centerX + 3, centerZ + 2, 85, 80,
-                    centerX, centerZ + 3, 50, 100) ||
+                    centerX + innerX, centerZ + innerZ, 85, 80,
+                    centerX, centerZ + outerZ, 50, 100) ||
                 !pushBlobShadowTriangle(
                     centerX, centerZ,
-                    centerX, centerZ + 3, 50, 100,
-                    centerX - 3, centerZ + 2, 15, 80) ||
+                    centerX, centerZ + outerZ, 50, 100,
+                    centerX - innerX, centerZ + innerZ, 15, 80) ||
                 !pushBlobShadowTriangle(
                     centerX, centerZ,
-                    centerX - 3, centerZ + 2, 15, 80,
-                    centerX - 4, centerZ, 0, 50)) {
+                    centerX - innerX, centerZ + innerZ, 15, 80,
+                    centerX - outerX, centerZ, 0, 50)) {
                 return false
             }
         }
@@ -2290,6 +2300,7 @@ class G1NativePresentation {
                 var actorId = webSnapshotWords[offset]
                 var kind = webSnapshotWords[offset + 6]
                 var state = webSnapshotWords[offset + 5]
+                var animation = webSnapshotWords[offset + 4]
                 if (kind == 3 || actorId <= 0) { continue }
                 if (!animalMeshes.setActor(
                         actorId, kind,
@@ -3583,6 +3594,7 @@ class NativeWebGameClient {
     Int[] validationWords
     Int validationWordCount
     Int[] snapshotWords
+    Int playerIdValue
     Int sendSequence
     Int pendingEdgeActionsValue
     Int snapshotLength

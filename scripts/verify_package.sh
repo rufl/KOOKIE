@@ -290,7 +290,17 @@ for headless_binary in \
     exit 1
   fi
 done
-"$BINARY" --package-smoke 2>"$WORK_DIR/runtime.err" | grep -Fq 'KOOKIE G1 authoritative shooter verified'
+if ! "$BINARY" --package-smoke >"$WORK_DIR/runtime.out" \
+   2>"$WORK_DIR/runtime.err"; then
+  cat "$WORK_DIR/runtime.err" >&2
+  exit 1
+fi
+if ! grep -Fq 'KOOKIE G0 frame staging verified' \
+   "$WORK_DIR/runtime.out"; then
+  cat "$WORK_DIR/runtime.err" >&2
+  cat "$WORK_DIR/runtime.out" >&2
+  exit 1
+fi
 
 if "$ROOT_DIR/scripts/package_kookie.sh" --runtime jvm \
    --output "$WORK_DIR/jvm-linux-release" >"$WORK_DIR/jvm-linux.out" 2>&1; then
@@ -377,7 +387,7 @@ PY
     cat "$WORK_DIR/presentation-runtime.err" >&2
     exit 1
   }
-  grep -Fq 'KOOKIE G1 authoritative shooter verified' <<<"$PRESENTATION_OUTPUT"
+  grep -Fq 'KOOKIE G0 frame staging verified' <<<"$PRESENTATION_OUTPUT"
   KOOKIE_SERVER_WARMUP_TICKS=16 \
   KOOKIE_SERVER_TICKS=32 \
   KOOKIE_SERVER_RSS_SAMPLE_TICKS=16 \

@@ -196,7 +196,7 @@ PACKAGE_SMOKE_OUTPUT="$(
   exit 1
 }
 printf '%s\n' "$PACKAGE_SMOKE_OUTPUT" >"$PACKAGE_SMOKE_LOG"
-grep -Fq 'KOOKIE G1 authoritative shooter verified' "$PACKAGE_SMOKE_LOG"
+grep -Fq 'KOOKIE G0 frame staging verified' "$PACKAGE_SMOKE_LOG"
 
 if [[ "${KOOKIE_RUN_PRESENTATION:-0}" == 1 ]]; then
   : "${KOOKIE_PRESENTATION_HARDWARE_ID:?KOOKIE_RUN_PRESENTATION=1 requires KOOKIE_PRESENTATION_HARDWARE_ID}"

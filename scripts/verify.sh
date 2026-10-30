@@ -89,10 +89,20 @@ fi
 if (( canonical_cache_valid == 0 )); then
   rm -rf -- "$canonical_build_dir"
   mkdir -p "$canonical_jvm_build" "$canonical_native_build"
+  (
+    cd "$root_dir"
+    zig build -Drelease=true --prefix "$canonical_build_dir/zig-prefix"
+  )
+  mkdir -p "$canonical_build_dir/lib"
+  cp "$canonical_build_dir/zig-prefix/lib/libkookie_box3d.so" \
+    "$canonical_build_dir/lib/libkookie_box3d.so"
   kookie_kof_observed canonical-jvm kof build src --target jvm \
     --output "$canonical_jvm_build"
-  kookie_kof_observed canonical-native kof build src --target native \
-    --output "$canonical_native_build"
+  (
+    cd "$canonical_build_dir"
+    kookie_kof_observed canonical-native kof build "$root_dir/src" \
+      --target native --output "$canonical_native_build"
+  )
   bash scripts/write_build_identity.sh jvm \
     "$canonical_jvm_build" "$canonical_jvm_manifest"
   bash scripts/write_build_identity.sh native \

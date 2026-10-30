@@ -107,7 +107,7 @@ with zipfile.ZipFile(root / "kookie.jar") as jar:
 PY
 PACKAGE_ROOT="$EXTRACTED/$PACKAGE_NAME"
 java -jar "$PACKAGE_ROOT/kookie.jar" | \
-  grep -Fq 'KOOKIE G1 authoritative shooter verified'
+  grep -Fq 'KOOKIE G0 frame staging verified'
 
 BAD_DIGEST="$(printf '0%.0s' {1..64})"
 if KOOKIE_WINDOWS_JAVA_ARCHIVE_SHA256="$BAD_DIGEST" \

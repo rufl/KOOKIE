@@ -3,7 +3,24 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
-- Upgraded the Kof pin to official 0.6.8 (`2971d2fe4cc873eb50fcd1b7d7d3e097381281c8`) and translate-c to 2.0.2. Zig 0.17.0 and the stable SDL3/SDL_mixer versions were already current, so their pins remain unchanged.
+- The Kof web-server qualification now selects a free loopback port unless
+  `KOOKIE_WEB_TEST_PORT` is explicitly set, preventing tests from silently
+  talking to an already-running preview server.
+- Multiplayer qualification now aims hitscan tests from replicated actor yaw,
+  accepts a throwable whose impact is replicated before its projectile snapshot,
+  and selects a living collision target for melee coverage.
+- Full-suite canonical native builds stage the Box3D shared library in their
+  own build directory before linking.
+- Linux dedicated-server packages now stage the transitive world module and
+  Box3D shared library, and add the packaged library directory to runtime
+  lookup.
+- WebGL shadows follow the soft radial projection in
+  [Mario 64's blob-shadow technique](https://www.youtube.com/watch?v=-LGTq9Lgzoc):
+  they stay on arena ground, follow ramps, and shrink/fade as characters jump.
+  Native presentation shadows also shrink with character height.
+- Remote WebGL extrapolation now derives actor velocity from authoritative tick
+  gaps instead of jittered packet-arrival spacing; the transport smoke now checks
+  interpolation within snapshot endpoints and the 100 ms extrapolation cap.
 - Damaged players and training dummies recoil briefly away from attackers.
   Impact flashes now use a defined neutral tint.
 - Non-controlled characters briefly flash when hit. Local-player hits trigger a
@@ -14,8 +31,8 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   during the fight instead of rejecting snapshots when the count changes.
 - The 4v4 smoke check no longer fails completed battles when bots do not reach
   the randomly positioned shared throwable pickup before elimination.
-- Floating damage numbers now appear for positive hits against players and
-  dummies. Added a persistent Settings toggle to hide or show them.
+- Floating damage numbers now appear immediately for positive hits against players
+  and dummies; Settings hides existing labels immediately and persists the choice.
 - HUD values now use the ThaleahFat damage-number typeface. Ammo, seed, and
   fireball counts share one HUD card that changes its label and count with the
   active weapon; the compact HUD stays clear of the minimap on desktop and

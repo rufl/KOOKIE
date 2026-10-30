@@ -89,9 +89,10 @@ Set `KOOKIE_KOF_ARCHIVE` to that regular archive and set
 `KOOKIE_KOF_ARCHIVE_SHA256` and `KOOKIE_KOF_SOURCE_COMMIT` to its verified
 identity. The archive is hashed again before the compiler is packaged.
 Linux presentation packaging requires libcurl 7.86.0 or later at build and
-runtime. Its libcurl runtime is a system dependency and is not bundled; the
-runtime host must provide it. `.kookie-deps/sdl3-mixer-3.2.4` is discovered
-automatically; run `bash scripts/bootstrap_sdl3_mixer.sh` if SDL_mixer is absent.
+runtime. libcurl and its networking transport dependencies are system
+dependencies and are not bundled; the runtime host must provide them.
+`.kookie-deps/sdl3-mixer-3.2.4` is discovered automatically; run
+`bash scripts/bootstrap_sdl3_mixer.sh` if SDL_mixer is absent.
 Windows native/presentation packaging additionally requires
 `KOOKIE_WINDOWS_FREETYPE_PREFIX`, `KOOKIE_WINDOWS_HARFBUZZ_PREFIX`, and
 `KOOKIE_WINDOWS_CURL_PREFIX` with libcurl 7.86.0+ headers/import library and
@@ -780,7 +781,7 @@ bundle_linux_native() {
   chmod 755 "$PACKAGE_ROOT/kookie.bin"
   strip_linux_native_debug "$PACKAGE_ROOT/kookie.bin"
   if [[ "$presentation_package" == 1 ]]; then
-    mkdir "$PACKAGE_ROOT/lib"
+    mkdir -p "$PACKAGE_ROOT/lib"
     local found_freetype=0
     local found_harfbuzz=0
     local found_sdl=0
@@ -808,7 +809,7 @@ bundle_linux_native() {
           libcurl.so*)
             found_curl=1
             ;;
-          ld-linux-x86-64.so*|libc.so*|libm.so*|libdl.so*|libpthread.so*|librt.so*|libgcc_s.so*|libz.so*|libbz2.so*|libglib-2.0.so*|libgraphite2.so*|libpng16.so*|libbrotlidec.so*|libbrotlicommon.so*|libpcre2-8.so*)
+          ld-linux-x86-64.so*|libc.so*|libm.so*|libdl.so*|libpthread.so*|librt.so*|libgcc_s.so*|libz.so*|libbz2.so*|libglib-2.0.so*|libgraphite2.so*|libpng16.so*|libbrotlienc.so*|libbrotlidec.so*|libbrotlicommon.so*|libpcre2-8.so*|libnghttp2.so*|libnghttp3.so*|libngtcp2*.so*|libidn2.so*|libunistring.so*|libssh2.so*|libpsl.so*|libssl.so*|libcrypto.so*|libgssapi_krb5.so*|libkrb5.so*|libk5crypto.so*|libkrb5support.so*|libcom_err.so*|libkeyutils.so*|libresolv.so*|libzstd.so*)
             ;;
           *)
             echo "package_kookie: unreviewed Linux runtime dependency: $(basename "$library")" >&2
@@ -840,10 +841,12 @@ exec "$root/kookie.bin" "$@"
 EOF
     } >"$PACKAGE_ROOT/kookie"
   else
-    cat > "$PACKAGE_ROOT/kookie" <<'EOF'
+    cat >"$PACKAGE_ROOT/kookie" <<'EOF'
 #!/usr/bin/env sh
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+cd "$root"
+export LD_LIBRARY_PATH="$root/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 exec "$root/kookie.bin" "$@"
 EOF
   fi
@@ -852,14 +855,25 @@ EOF
 
 bundle_linux_server() {
   local server_root="$WORK_DIR/server-source"
+  local box3d_root="$WORK_DIR/server-zig"
   local server_build="$WORK_DIR/server-build"
   if [[ -n "$PACKAGE_AUX_BUILD_CACHE_DIR" ]]; then
     mkdir -p "$PACKAGE_AUX_BUILD_CACHE_DIR"
     server_build="$PACKAGE_AUX_BUILD_CACHE_DIR/server"
   fi
-  mkdir -p "$server_root"/{core,content,session,lib} "$PACKAGE_ROOT/lib"
+  mkdir -p "$server_root"/{core,content,session,world,ui,lib} \
+    "$PACKAGE_ROOT/lib"
+  (
+    cd "$ROOT_DIR"
+    zig build check-box3d-adapter
+    zig build -Drelease=true --prefix "$box3d_root"
+  )
+  cp -- "$box3d_root/lib/libkookie_box3d.so" \
+    "$server_root/lib/libkookie_box3d.so"
+  cp -- "$box3d_root/lib/libkookie_box3d.so" \
+    "$PACKAGE_ROOT/lib/libkookie_box3d.so"
   cp -- "$ROOT_DIR/apps/server/main.kf" "$server_root/main.kf"
-  for module in core content session; do
+  for module in core content session world ui; do
     for source in "$ROOT_DIR/src/$module/"*.kf; do
       ln -s -- "$source" "$server_root/$module/$(basename "$source")"
     done
@@ -900,6 +914,7 @@ if [ "$#" -ne 0 ]; then
   echo "Usage: kookie-server" >&2
   exit 2
 fi
+export LD_LIBRARY_PATH="$root/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 cd "$root"
 exec ./kookie-server.bin
 EOF
@@ -1348,8 +1363,19 @@ elif [[ "$RUNTIME" == native ]]; then
   if [[ -n "$PREBUILT_NATIVE_BUILD" ]]; then
     BINARY="$PREBUILT_NATIVE_BUILD/Default/Main"
   else
-    kookie_kof_observed package-native kof build "$ROOT_DIR/src" \
-      --target native --output "$WORK_DIR/build"
+    mkdir -p "$WORK_DIR/lib"
+    (
+      cd "$ROOT_DIR"
+      zig build check-box3d-adapter
+      zig build -Drelease=true --prefix "$WORK_DIR/zig-prefix"
+    )
+    cp -- "$WORK_DIR/zig-prefix/lib/libkookie_box3d.so" \
+      "$WORK_DIR/lib/libkookie_box3d.so"
+    (
+      cd "$WORK_DIR"
+      kookie_kof_observed package-native kof build "$ROOT_DIR/src" \
+        --target native --output "$WORK_DIR/build"
+    )
     BINARY="$WORK_DIR/build/Default/Main"
   fi
   test -x "$BINARY" || { echo "package_kookie: native executable missing: $BINARY" >&2; exit 1; }
@@ -1367,6 +1393,14 @@ else
   done
   cp -- "$ROOT_DIR/probes/shared/gpu_scene_batch.kf" \
     "$PRESENTATION_ROOT/core/gpu_scene_batch.kf"
+  mkdir -p "$PACKAGE_ROOT/lib"
+  (
+    cd "$ROOT_DIR"
+    zig build check-box3d-adapter
+    zig build -Drelease=true --prefix "$WORK_DIR/presentation-zig-prefix"
+  )
+  cp -- "$WORK_DIR/presentation-zig-prefix/lib/libkookie_box3d.so" \
+    "$PACKAGE_ROOT/lib/libkookie_box3d.so"
   IFS=' ' read -r -a SDL_FLAGS <<<"$(pkg-config --cflags --libs sdl3 sdl3-mixer freetype2 harfbuzz libcurl)"
   python3 "$ROOT_DIR/scripts/shader_pipeline.py" \
     --root "$ROOT_DIR" --output "$PACKAGE_ROOT/build" --target linux
@@ -1393,9 +1427,12 @@ else
   if [[ -n "$PREBUILT_NATIVE_BUILD" ]]; then
     SMOKE_BINARY="$PREBUILT_NATIVE_BUILD/Default/Main"
   else
-    kookie_kof_observed package-presentation-smoke \
-      kof build "$ROOT_DIR/src" --target native \
-      --output "$WORK_DIR/smoke-build"
+    (
+      cd "$PACKAGE_ROOT"
+      kookie_kof_observed package-presentation-smoke \
+        kof build "$ROOT_DIR/src" --target native \
+        --output "$WORK_DIR/smoke-build"
+    )
     SMOKE_BINARY="$WORK_DIR/smoke-build/Default/Main"
   fi
   test -x "$SMOKE_BINARY" || {

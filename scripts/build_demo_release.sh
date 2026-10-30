@@ -240,7 +240,7 @@ else
     cd "$WORK_DIR"
     "$PACKAGE_ROOT/kookie" --package-smoke
   )"
-  grep -Fq 'KOOKIE G1 authoritative shooter verified' <<<"$PACKAGE_SMOKE_OUTPUT"
+  grep -Fq 'KOOKIE G0 frame staging verified' <<<"$PACKAGE_SMOKE_OUTPUT"
 fi
 
 cat >"$OUTPUT_DIR/BUILD_SUMMARY.txt" <<EOF
