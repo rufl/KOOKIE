@@ -7,11 +7,8 @@ Status: **PROPOSTO**. Este plano é o documento de execução da decisão
 
 Fronteira normativa e ABI batch: [Fronteira nativa Kof e ABI batch síncrona](KOF_NATIVE_BOUNDARY_SPEC.md).
 
-Pin de fonte atual: Kof `0.6.6` no commit
-`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`. A qualificação deste pin está em
-andamento; a prova local anterior era do commit
-`f42ed91dfbceae09880b7d0619d98f67490149d1` e não se transfere
-automaticamente.
+Pin de fonte atual: Kof oficial `0.6.8` no commit
+`2971d2fe4cc873eb50fcd1b7d7d3e097381281c8`.
 
 ## 1. Resumo da decisão
 
@@ -48,24 +45,22 @@ A composição medida por `scripts/report_code_mix.py` na working tree atual é:
 
 Isso é composição física de fonte, não uma afirmação de performance.
 
-Com a fonte Kof `0.6.6` pinada no commit
-`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`, o instalador registrou o SHA-256
-do archive
-`300e4200386b53d8e64796e110946340a6fe74ea9b2145af9aac8ade4caa86ef`
-e terminou em 173,76 segundos. Os gates abaixo passaram:
+O archive Linux oficial do Kof `0.6.8` tem SHA-256
+`8da8f9efc7c55b6e5314248b90a0ac62d900117f4a3503af8dadf6ce82a20577`.
+O gate de identidade do archive passou. A verificação estática passou: 181
+arquivos Kof no lint, diagnósticos LSP em 145 arquivos e 164 testes JVM.
+Passaram também os gates de exceções, SIMD Buffer limitado, LAN externo,
+interações, save durável, gameplay goose, save PE e servidor/rede dedicados.
+O `scripts/verify.sh` completo chega a `verify_kof_web_server.sh`, mas falha na
+asserção de replicação da coleta de café; portanto, a matriz completa não está
+verde. As provas de sintaxe cross-target passaram, mas runtime cross-target e
+hardware continuam sem qualificação.
 
-- static/JVM: 170 arquivos-fonte Kof, 140 testes, 0 falhas, 65 segundos;
-- dispatch SIMD/nativo: paridade escalar/SIMD, prova de sintaxe AArch64 e o
-  fixture P1 de `buffer.poke8`/C-INOUT, 10 segundos.
-O gate completo native/package para `a14a7cd` falhou após 968 segundos com
-exit 143 enquanto o build native do Kof ainda executava; nenhum passe
-native/package é alegado. O build LAN externo native separadamente excedeu o
-limite local de 600 segundos. A tentativa anterior no `f42` também excedeu
-900 segundos e não qualifica esta fonte.
-
-**Resultado local atual:** P0 passou para a árvore atual e o archive exato
-`0.6.6`. O limite de qualificação restante é evidência específica de alvo e
-hardware, não o gate local Linux de fonte/empacotamento.
+**Resultado local atual:** identidade do archive oficial Kof `0.6.8` e gates
+locais de static/JVM, SIMD, exceções, native, pacote e servidor dedicado
+passaram. A matriz completa continua bloqueada pela asserção de replicação da
+coleta de café no multiplayer web; runtime cross-target e hardware também
+continuam sem qualificação.
 
 ## 3. Escopo
 

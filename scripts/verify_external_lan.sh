@@ -77,7 +77,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
-mkdir -p "$runtime_dir/build" "$source_dir/content" "$source_dir/core" "$source_dir/session" "$source_dir/world"
+mkdir -p "$runtime_dir/build" "$runtime_dir/lib" \
+  "$source_dir/content" "$source_dir/core" "$source_dir/session" \
+  "$source_dir/world" "$source_dir/ui"
 mkdir -p "$runtime_dir/config/g3"
 cp "$root_dir/config/g3/external_lan.json" "$runtime_dir/config/g3/external_lan.json"
 cp "$root_dir/config/g3/demo.json" "$runtime_dir/config/g3/demo.json"
@@ -93,6 +95,9 @@ done
 for world_file in "$root_dir"/src/world/*.kf; do
   ln -s "$world_file" "$source_dir/world/$(basename "$world_file")"
 done
+for ui_file in "$root_dir"/src/ui/*.kf; do
+  ln -s "$ui_file" "$source_dir/ui/$(basename "$ui_file")"
+done
 {
   sed -n '1,4p' "$root_dir/probes/g0_external_transport/main.kf"
   cat "$root_dir/probes/g0_external_transport_backends/transport_${target}.kf"
@@ -101,13 +106,25 @@ done
 if [[ "$target" == native ]]; then
   python3 "$root_dir/scripts/shader_pipeline.py" \
     --root "$root_dir" --output "$runtime_dir/build" --target linux
+  zig_bin="${ZIG:-zig}"
+  (
+    cd "$root_dir"
+    "$zig_bin" build check-box3d-adapter
+    "$zig_bin" build -Drelease=true --prefix "$build_dir/zig-prefix"
+  )
+  cp "$build_dir/zig-prefix/lib/libkookie_box3d.so" \
+    "$runtime_dir/lib/libkookie_box3d.so"
   gcc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
     -I"$runtime_dir/build" \
     native/kookie_sdl_adapter.c \
     native/kookie_ui_renderer.c \
     native/kookie_transport.c \
     native/kookie_kutter_sync.c \
+    -o "$runtime_dir/build/libkookie_sdl_adapter.so" \
     $(pkg-config --cflags --libs sdl3 sdl3-mixer freetype2 harfbuzz libcurl) -lm -pthread
+  gcc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
+    native/kookie_persistence_adapter.c \
+    -o "$runtime_dir/build/libkookie_persistence_adapter.so"
 fi
 run_build() {
   local role="$1"
@@ -140,8 +157,8 @@ if [[ "$lan_mode" == "processes" ]]; then
     export KOOKIE_EXTERNAL_LAN_ROLE="$role"
     if [[ "$target" == native ]]; then
       (
-        cd "$runtime_dir"
-        "$build_dir/$target-$role/Default/Main"
+        LD_LIBRARY_PATH="$runtime_dir/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+          "$build_dir/$target-$role/Default/Main"
       ) >"$log" 2>&1 &
     else
       java -cp "$build_dir/$target-$role" Default.Main >"$log" 2>&1 &
@@ -184,8 +201,7 @@ else
   set +e
   if [[ "$target" == native ]]; then
     (
-      cd "$runtime_dir"
-      "$binary"
+      LD_LIBRARY_PATH="$runtime_dir/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" "$binary"
     ) >"$probe_log" 2>&1
   else
     java -cp "$build_dir/$target" Default.Main >"$probe_log" 2>&1

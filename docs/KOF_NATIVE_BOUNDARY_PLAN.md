@@ -55,16 +55,14 @@ CI separately builds the exact pinned source commit after normalizing
 toolchain metadata. Earlier qualification records below retain their original
 toolchain identities and results; they are not evidence for the current pin.
 
-**Current local qualification:** `kof check src/main.kf --target jvm` and
-`kof check src/main.kf --target native` passed. The focused JVM/native test
-suite reports 160 passes and one pre-existing third-person-camera failure.
-The Kof UI library JVM/native and JS verification passed. The focused SIMD
-dispatch gate passed with fixture sums `809` and `1231`, scalar/SIMD totals
-`16844324864`, selected SIMD routing, and AArch64 Linux, RISC-V Linux,
-x86-64 macOS and AArch64 macOS syntax proofs. The exception semantics gate
-passed. Browser-alpha build, native Kof web-server gate, and the tailnet
-health/WebSocket handshake smoke passed. The full `scripts/verify.sh` release
-matrix and target-specific cross-platform/hardware gates have not been run.
+**Current local qualification:** the official Kof `0.6.8` archive passed package
+identity preflight. Static verification passed: 181 Kof files linted, 145-file
+LSP diagnostics, and all 164 JVM tests. Exception, bounded Buffer SIMD,
+external-LAN, interaction, durable-save, goose, PE durable-save and dedicated
+server/network gates passed. The full `scripts/verify.sh` run reaches
+`verify_kof_web_server.sh` but fails its coffee-pickup replication assertion;
+therefore the full matrix is not green. Cross-target syntax proofs passed, but
+cross-target runtime and hardware qualification remain outstanding.
 
 ## 3. Scope
 
@@ -107,14 +105,16 @@ matrix and target-specific cross-platform/hardware gates have not been run.
 5. Refresh active documentation only after the new baseline is green or its
    limits are explicitly recorded.
 
-**Exit gate:** all active pin references name
-`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd` and the exact qualification
-results and remaining native/package limit are recorded. No migration claims
+**Exit gate:** active pin references name
+`2971d2fe4cc873eb50fcd1b7d7d3e097381281c8` and exact qualification results
+and remaining native/package limits are recorded. No migration claims
 “latest” before this gate.
 
-**Current local result:** P0 passed for the current tree and exact `0.6.6`
-archive. The remaining qualification boundary is target-specific CI and
-hardware evidence, not the local Linux source/package gate.
+**Current local result:** the official Kof `0.6.8` archive identity and local
+static/JVM, SIMD, exception, native, package, and dedicated-server gates passed.
+The full matrix remains blocked by the web multiplayer coffee-pickup
+replication assertion; cross-target runtime and hardware gates are also
+unqualified.
 
 ### P1 — Batch ABI qualification
 
@@ -138,14 +138,14 @@ C fixtures.
 zero/maximum cases and scalar parity. A source comment or an upstream claim is
 not sufficient.
 
-**Current status:** the focused `scripts/verify_simd_dispatch.sh` gate passed
-with the exact pinned Kof `0.6.6` archive on JVM and native x86-64. The fixture
-reported `buffer-fixture-sum=809`, `buffer-inout-sum=1231`, equal scalar/SIMD
-totals and selected SIMD routing. The same gate now adds freestanding syntax
-proofs for AArch64 Linux, RISC-V Linux and x86-64/AArch64 macOS when Clang is
-available. This qualifies bounded synchronous producer/copy-back plus target
-compilation only; cross-target runtime and generic asynchronous or retained-
-payload ownership remain unqualified.
+**Current status:** `scripts/verify_simd_dispatch.sh` passed with the official
+Kof `0.6.8` archive on JVM and native x86-64. It reported
+`buffer-fixture-sum=809`, `buffer-inout-sum=1231`, equal scalar/SIMD totals
+`16844324864`, and selected SIMD routing. Freestanding syntax proofs passed
+for AArch64 Linux, RISC-V Linux and x86-64/AArch64 macOS. This qualifies
+bounded synchronous producer/copy-back plus target compilation only;
+cross-target runtime and generic asynchronous or retained-payload ownership
+remain unqualified.
 
 
 ### P2 — Transport semantic extraction

@@ -11,7 +11,8 @@ cleanup() {
   rm -rf "$WORK_DIR"
 }
 trap cleanup EXIT INT TERM
-mkdir -p "$WORK_DIR/core" "$WORK_DIR/content" "$WORK_DIR/session" "$WORK_DIR/lib" "$WORK_DIR/native"
+mkdir -p "$WORK_DIR/core" "$WORK_DIR/content" "$WORK_DIR/session" \
+  "$WORK_DIR/world" "$WORK_DIR/ui" "$WORK_DIR/lib" "$WORK_DIR/native"
 for source_file in "$ROOT_DIR/src/core/"*.kf; do
   ln -s "$source_file" "$WORK_DIR/core/$(basename "$source_file")"
 done
@@ -21,12 +22,25 @@ done
 for source_file in "$ROOT_DIR/src/session/"*.kf; do
   ln -s "$source_file" "$WORK_DIR/session/$(basename "$source_file")"
 done
+for module in world ui; do
+  for source_file in "$ROOT_DIR/src/$module/"*.kf; do
+    ln -s "$source_file" "$WORK_DIR/$module/$(basename "$source_file")"
+  done
+done
 cp -- "$ROOT_DIR/probes/g5_durable_save/main.kf" "$WORK_DIR/main.kf"
 cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared \
   "$ROOT_DIR/native/kookie_persistence_adapter.c" \
   -o "$WORK_DIR/lib/libkookie_persistence_adapter.so"
+zig_bin="${ZIG:-zig}"
+(
+  cd "$ROOT_DIR"
+  "$zig_bin" build check-box3d-adapter
+  "$zig_bin" build -Drelease=true --prefix "$WORK_DIR/zig-prefix"
+)
+cp "$WORK_DIR/zig-prefix/lib/libkookie_box3d.so" "$WORK_DIR/lib/"
 (
   cd "$WORK_DIR"
+  export LD_LIBRARY_PATH="$WORK_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
   kookie_kof_observed durable-save kof build main.kf \
     --target native --output native
   env -u KOOKIE_DURABLE_FAULT ./native/Default/Main >baseline.log

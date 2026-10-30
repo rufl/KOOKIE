@@ -225,6 +225,6 @@ curl --fail --silent "http://$tailnet_ip:$tailnet_port/bugfeed/healthz" \
   echo 'run_tailnet_web_preview: Bugfeed tailnet proxy check failed' >&2
   exit 1
 }
-printf 'KOOKIE Kof 0.6.6 tailnet preview: https://%s/?kookie_ws=wss%%3A%%2F%%2F%s%%2Fsession\n' \
+printf 'KOOKIE Kof 0.6.8 tailnet preview: https://%s/?kookie_ws=wss%%3A%%2F%%2F%s%%2Fsession\n' \
   "$magic_dns" "$magic_dns"
 wait "$caddy_pid"

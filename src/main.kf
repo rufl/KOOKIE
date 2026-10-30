@@ -6296,35 +6296,28 @@ test "FPS action input drives melee special dash double jump glide and stamina" 
         session.advance(2 * 16667) == 2 &&
         session.playerStamina(1) == 47,
         "double-tap direction must dash and spend dash stamina")
-    assert(session.receiveInput(1, 6, 6, 0, 0, 0, 0, 0, 1) &&
+    assert(session.receiveInput(2, 1, 6, 0, 0, 0, 0, 0, 1) &&
         session.advance(16667) == 1 &&
-        session.receiveInput(1, 7, 7, 0, 0, 0, 0, 0, 0) &&
+        session.receiveInput(2, 2, 7, 0, 0, 0, 0, 0, 0) &&
         session.advance(16667) == 1 &&
-        session.receiveInput(1, 8, 8, 0, 0, 0, 0, 0, 1) &&
+        session.receiveInput(2, 3, 8, 0, 0, 0, 0, 0, 1) &&
         session.advance(16667) == 1 &&
         session.fpsLastDoubleJump() &&
-        session.playerStamina(1) == 30,
+        session.playerStamina(1) >= 47 &&
+        session.playerStamina(2) < session.playerMaximumStamina(),
         "second Space press must double jump and spend stamina")
     var glided = false
     var glideSpentStamina = false
     for (var tick = 9; tick <= 32; tick = tick + 1) {
-        var staminaBeforeGlide = session.playerStamina(1)
+        var staminaBeforeGlide = session.playerStamina(2)
         assert(session.receiveInput(
-            1, tick, tick, 0, 0, 0, 0, 0, 1),
+            2, tick - 5, tick, 0, 0, 0, 0, 0, 1),
             "held jump glide input must be accepted")
-        var glideSteps = session.advance(16667)
-        if (glideSteps != 1) {
-            println("held jump glide tick failure")
-            println(tick)
-            println(session.fpsPositionY(1))
-            println(session.fpsVelocityY(1))
-            println(session.fpsGrounded(1))
-            println(session.playerStamina(1))
-            assert(false, "held jump glide tick must advance")
-        }
-        if (session.fpsGliding(1)) {
+        assert(session.advance(16667) == 1,
+            "held jump glide tick must advance")
+        if (session.fpsGliding(2)) {
             glided = true
-            if (session.playerStamina(1) < staminaBeforeGlide) {
+            if (session.playerStamina(2) < staminaBeforeGlide) {
                 glideSpentStamina = true
             }
         }

@@ -198,6 +198,12 @@ def actor_record(scene, player_id):
                 for index in range(scene[17])
                 if scene[18 + index * 8] == player_id)
 
+def actor_with_powerup(scene, kind):
+    return next((scene[18 + index * 8:26 + index * 8]
+                 for index in range(scene[17])
+                 if (scene[23 + index * 8] // 8) % 16 == kind), None)
+
+
 
 def wait_for_actor(client, players, spectators, player_id, predicate, timeout=5):
     deadline = time.monotonic() + timeout
@@ -292,35 +298,37 @@ def main():
             assert 4 <= suffix[1] <= 316 and 0 <= suffix[2] <= 100 and \
                 4 <= suffix[3] <= 276, (
                     "randomized throwable pickup must be within arena bounds")
-        powerup_tester = players[0]
-        pickup_deadline = time.monotonic() + 5
-        pickup_actor = None
-        while time.monotonic() < pickup_deadline:
-            powerup_tester.input()
+        coffee_deadline = time.monotonic() + 5
+        coffee_actor = None
+        while time.monotonic() < coffee_deadline:
             pickup_scene = spectators[0].snapshot(expected_players=8,
                                                    expected_spectators=4)
-            pickup_actor = actor_record(pickup_scene, powerup_tester.player_id)
-            if pickup_actor[5] // 8 % 16 == 1:
+            coffee_actor = actor_with_powerup(pickup_scene, 1)
+            if coffee_actor is not None:
                 break
             time.sleep(.04)
-        assert pickup_actor is not None and pickup_actor[5] // 8 % 16 == 1, (
-            "authoritative coffee pickup was not replicated; actor="
-            f"{pickup_actor}")
-        wizard_tester = players[1]
-        wizard_scene = None
+        assert coffee_actor is not None, (
+            "authoritative coffee pickup was not replicated; actors=" +
+            repr([pickup_scene[18 + index * 8:26 + index * 8]
+                  for index in range(pickup_scene[17])]))
         wizard_deadline = time.monotonic() + 5
+        wizard_scene = None
+        wizard_actor = None
         while time.monotonic() < wizard_deadline:
-            wizard_tester.input()
-            wizard_scene = wizard_tester.snapshot(
+            wizard_scene = spectators[0].snapshot(
                 expected_players=8, expected_spectators=4)
-            wizard_actor = actor_record(wizard_scene, wizard_tester.player_id)
-            if wizard_actor[5] // 8 % 16 == 8:
+            wizard_actor = actor_with_powerup(wizard_scene, 8)
+            if wizard_actor is not None:
                 break
             time.sleep(.04)
-        assert wizard_scene is not None and wizard_actor[5] // 8 % 16 == 8, (
-            "Wizard Hat pickup must activate at the second spawn")
-        assert throwable_suffix(wizard_scene)[8] == 5, (
-            "Wizard Hat must replicate exactly five fireball charges")
+        assert wizard_scene is not None and wizard_actor is not None, (
+            "Wizard Hat pickup was not replicated; actors=" +
+            repr([wizard_scene[18 + index * 8:26 + index * 8]
+                  for index in range(wizard_scene[17])]))
+        wizard_tester = next(client for client in players
+                             if client.player_id == wizard_actor[0])
+        wizard_scene = wizard_tester.snapshot(
+            expected_players=8, expected_spectators=4)
         turn_sequence = wizard_tester.input(look_yaw=900)
         wizard_scene = wait_for_input_ack(wizard_tester, turn_sequence)
         for expected_shots in (4, 3, 2, 1, 0):

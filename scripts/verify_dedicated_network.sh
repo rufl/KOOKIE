@@ -24,12 +24,19 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-mkdir -p "$SOURCE_DIR"/{core,content,session,lib}
-for module in core content session; do
+mkdir -p "$SOURCE_DIR"/{core,content,session,ui,world,lib}
+for module in core content session ui world; do
   for source_file in "$ROOT_DIR/src/$module/"*.kf; do
     ln -s "$source_file" "$SOURCE_DIR/$module/$(basename "$source_file")"
   done
 done
+zig_bin="${ZIG:-zig}"
+(
+  cd "$ROOT_DIR"
+  "$zig_bin" build check-box3d-adapter
+  "$zig_bin" build -Drelease=true --prefix "$WORK_DIR/zig-prefix"
+)
+cp "$WORK_DIR/zig-prefix/lib/libkookie_box3d.so" "$SOURCE_DIR/lib/"
 cp -- "$ROOT_DIR/probes/g5_dedicated_network/main.kf" "$SOURCE_DIR/main.kf"
 cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared \
   "$ROOT_DIR/native/kookie_transport.c" \
@@ -44,6 +51,7 @@ if ldd "$SOURCE_DIR/lib/libkookie_headless_adapter.so" 2>/dev/null | \
   exit 1
 fi
 
+export LD_LIBRARY_PATH="$SOURCE_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export KOOKIE_TRANSPORT_KEY_HEX=00000001000000020000000300000004
 export KOOKIE_EXTERNAL_LAN_HOST_IPV4=127.0.0.1
 export KOOKIE_EXTERNAL_LAN_TIMEOUT_MILLISECONDS=10000

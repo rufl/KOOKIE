@@ -1,6 +1,7 @@
 package world
 
 import core
+import ui
 Int kutterScenePreviewVerticesPerNode() { return 36 }
 Int kutterScenePreviewRotationStep() { return 15000 }
 Int kutterScenePreviewRotationSteps() { return 24 }

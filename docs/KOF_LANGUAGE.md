@@ -16,8 +16,10 @@ without rerunning their gates.
   `scripts/kof-as/as` wrapper. The wrapper uses Clang's integrated assembler
   for Kof's `as -o OBJECT FILE.s` calls and delegates other assembler command
   lines to system `as`.
-- `scripts/verify_simd_dispatch.sh` is the Buffer qualification gate. Its recorded
-  JVM/native x86-64 pass is for Kof `0.6.6`; it must be rerun for `0.6.8`.
+- `scripts/verify_simd_dispatch.sh` now passes on Kof `0.6.8` for JVM/native
+  x86-64; it reports fixture sums `809`/`1231`, equal scalar/SIMD totals and
+  selected SIMD routing. Freestanding syntax proofs pass for AArch64 Linux,
+  RISC-V Linux and x86-64/AArch64 macOS; these are not runtime qualification.
 - The 0.4.9 and 0.5.0 material below is retained as historical research.
 
 
@@ -156,24 +158,23 @@ Source-verified scalar set: `Int`, `Long`, `Float`, `Double`, `Bool`/`Boolean`,
 `String`; `void` additionally allowed as a return. Native requires a library
 string and links by use with a direct ABI call, not runtime `dlopen`.
 
-Current `0.6.6` also has a byte-only `Buffer(U8)` contract with
-`buffer.alloc`, `buffer.peek8/32/64`, `buffer.poke8/32/64` and `Buffer.bytes()`.
-The pinned implementation maps it to the `B` FFI token and a synchronous
-payload pointer; the local gate proves Kof `buffer.poke8` producer data,
-copy-in/copy-back and an INOUT reduction on JVM and native x86-64. The pinned source comments claim
-the same surface for native riscv64/aarch64, but KOOKIE has not rerun that
-runtime matrix. `scripts/verify_simd_dispatch.sh` additionally performs
-freestanding syntax-only proofs for AArch64 Linux, RISC-V Linux and
-x86-64/AArch64 macOS when Clang is available. Those proofs cover target
-compilation only; cross-target runtime support remains unqualified.
+Kof `0.6.8` has a byte-only `Buffer(U8)` contract with `buffer.alloc`,
+`buffer.peek8/32/64`, `buffer.poke8/32/64` and `Buffer.bytes()`. The pinned
+implementation maps it to the `B` FFI token and a synchronous payload pointer;
+the local gate proves producer data, copy-in/copy-back and an INOUT reduction
+on JVM and native x86-64. Pinned-source comments claim the same surface for
+native riscv64/aarch64, but KOOKIE has not rerun that runtime matrix. The
+freestanding syntax proofs cover AArch64 Linux, RISC-V Linux and x86-64/AArch64
+macOS when Clang is available. Cross-target runtime support remains
+unqualified.
 
 The older 0.4.9 probe rejected `extern ... upload(Float[] values): void` on JVM
-and native. That result remains historical; current 0.6.6 array/record binding
-is target-specific and does not establish a portable engine upload ABI.
+and native. That result remains historical; current Kof `0.6.8` array/record
+binding is target-specific and does not establish a portable engine upload ABI.
 
 Returning SDL pointers as `Long` is never a supported substitute.
 
-The pinned `0.6.6` source implements synchronous, non-escaping FFI callbacks
+The pinned `0.6.8` source implements synchronous, non-escaping FFI callbacks
 on JVM, the host JS runner and Native x86-64/riscv64/aarch64 for scalar and
 `String` arguments with primitive or `void` returns. KOOKIE has not yet run a
 local callback probe against this source build, so it is not promoted as an
@@ -199,13 +200,13 @@ Consequences:
    initialization proof. A version query does not prove allocator/TLS/thread-
    heavy library paths.
 
-Sources: [pinned Kof4j source](https://github.com/KofLang/Kof4j/tree/7c237861a9035d84b1f7ec4cfddd89daef4c6ddd),
-[KofBuffer.java](https://github.com/KofLang/Kof4j/blob/7c237861a9035d84b1f7ec4cfddd89daef4c6ddd/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java),
-[CompilerFfiBinding.java](https://github.com/KofLang/Kof4j/blob/7c237861a9035d84b1f7ec4cfddd89daef4c6ddd/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java),
+Sources: [pinned Kof4j source](https://github.com/KofLang/Kof4j/tree/2971d2fe4cc873eb50fcd1b7d7d3e097381281c8),
+[KofBuffer.java](https://github.com/KofLang/Kof4j/blob/2971d2fe4cc873eb50fcd1b7d7d3e097381281c8/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java),
+[CompilerFfiBinding.java](https://github.com/KofLang/Kof4j/blob/2971d2fe4cc873eb50fcd1b7d7d3e097381281c8/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java),
 [local Buffer gate](../scripts/verify_simd_dispatch.sh),
-[runtime ABI](https://github.com/KofLang/Kof4j/blob/7c237861a9035d84b1f7ec4cfddd89daef4c6ddd/docs/runtime/RUNTIME_ABI.md).
+[runtime ABI](https://github.com/KofLang/Kof4j/blob/2971d2fe4cc873eb50fcd1b7d7d3e097381281c8/docs/runtime/RUNTIME_ABI.md).
 
-### Current 0.6.6 ABI boundary
+### Current 0.6.8 ABI boundary
 `bytes()` returns a managed copy; a native FFI payload is valid only for the
 downcall. The qualified source path now uses a bounded `Buffer(U8)` directly
 for `GPU_SCENE_VERTEX_V1`: Kof encodes six `i32_le` fields, C validates and

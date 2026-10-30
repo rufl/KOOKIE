@@ -282,9 +282,9 @@ descriptor metadata separate from the bounded native queue and applies
 registered UI spatial gains in SDL_mixer. The 14 supplied JDSherbert OGG files
 remain license-blocked for redistribution until provenance is confirmed.
 [`docs/KOF4J_UI_MIGRATION.md`](docs/KOF4J_UI_MIGRATION.md) records the Kof4j
-UI/FFI work. Its detailed `Buffer(U8)` results were measured on Kof `0.6.6`
-and remain unqualified on active pin `0.6.8`; cross support is also
-unqualified, and `Buffer(U8)` is not a portable typed/asynchronous upload ABI.
+UI/FFI work. The bounded `Buffer(U8)` fixture now passes on active Kof `0.6.8`
+for JVM/native x86-64; cross runtime support remains unqualified, and
+`Buffer(U8)` is not a portable typed/asynchronous upload ABI.
 `bash scripts/verify_package.sh` validates the `none` package profile and
 `bash scripts/verify_prototype_package.sh` validates the `prototype` profile;
 `bash scripts/verify_goose_game.sh` covers the bounded gameplay path. The

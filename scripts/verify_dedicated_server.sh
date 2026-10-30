@@ -14,8 +14,16 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-mkdir -p "$WORK_DIR/core" "$WORK_DIR/content" "$WORK_DIR/session"
-for module in core content session; do
+mkdir -p "$WORK_DIR/core" "$WORK_DIR/content" "$WORK_DIR/session" \
+  "$WORK_DIR/ui" "$WORK_DIR/world" "$WORK_DIR/lib"
+zig_bin="${ZIG:-zig}"
+(
+  cd "$ROOT_DIR"
+  "$zig_bin" build check-box3d-adapter
+  "$zig_bin" build -Drelease=true --prefix "$WORK_DIR/zig-prefix"
+)
+cp "$WORK_DIR/zig-prefix/lib/libkookie_box3d.so" "$WORK_DIR/lib/"
+for module in core content session ui world; do
   for source_file in "$ROOT_DIR/src/$module/"*.kf; do
     ln -s "$source_file" "$WORK_DIR/$module/$(basename "$source_file")"
   done
@@ -24,14 +32,18 @@ ln -s "$ROOT_DIR/probes/g5_dedicated_server/main.kf" "$WORK_DIR/main.kf"
 
 jvm_output="$(kookie_kof_observed dedicated-server-jvm \
   kof run "$WORK_DIR/main.kf" --target jvm)"
-native_output="$(kookie_kof_observed dedicated-server-native \
-  kof run "$WORK_DIR/main.kf" --target native)"
+native_output="$(cd "$WORK_DIR" && \
+  LD_LIBRARY_PATH="$WORK_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+  kookie_kof_observed dedicated-server-native \
+  kof run main.kf --target native)"
 [[ "$jvm_output" == "$native_output" ]]
 
 SERVER_ROOT="$WORK_DIR/server"
 mkdir -p "$SERVER_ROOT/core" "$SERVER_ROOT/content" \
-  "$SERVER_ROOT/session" "$SERVER_ROOT/lib"
-for module in core content session; do
+  "$SERVER_ROOT/session" "$SERVER_ROOT/ui" "$SERVER_ROOT/world" \
+  "$SERVER_ROOT/lib"
+cp "$WORK_DIR/zig-prefix/lib/libkookie_box3d.so" "$SERVER_ROOT/lib/"
+for module in core content session ui world; do
   for source_file in "$ROOT_DIR/src/$module/"*.kf; do
     ln -s "$source_file" "$SERVER_ROOT/$module/$(basename "$source_file")"
   done
@@ -41,12 +53,14 @@ cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared \
   "$ROOT_DIR/native/kookie_transport.c" \
   -o "$SERVER_ROOT/lib/libkookie_headless_adapter.so"
 SERVER_BUILD="$WORK_DIR/server-build"
-(cd "$SERVER_ROOT" && kookie_kof_observed dedicated-server \
+(cd "$SERVER_ROOT" && LD_LIBRARY_PATH="$SERVER_ROOT/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+  kookie_kof_observed dedicated-server \
   kof build main.kf --target native --output "$SERVER_BUILD")
 server_status=0
 p95_budget_us="${KOOKIE_SERVER_P95_BUDGET_US:-4000}"
 server_output="$(
   cd "$SERVER_ROOT"
+  LD_LIBRARY_PATH="$SERVER_ROOT/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
   KOOKIE_SERVER_WARMUP_TICKS=128 \
   KOOKIE_SERVER_TICKS=512 \
   KOOKIE_SERVER_RSS_SAMPLE_TICKS=32 \

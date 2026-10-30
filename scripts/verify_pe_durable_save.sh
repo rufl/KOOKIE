@@ -23,8 +23,8 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 cp -- "$ROOT_DIR/probes/g7_pe_durable_save/main.kf" "$WORK_DIR/main.kf"
-mkdir -p "$WORK_DIR"/{content,core,session,ui,lib,build}
-for module in content core session ui; do
+mkdir -p "$WORK_DIR"/{content,core,session,ui,world,lib,build}
+for module in content core session ui world; do
   for source in "$ROOT_DIR/src/$module/"*.kf; do
     ln -s -- "$source" "$WORK_DIR/$module/$(basename "$source")"
   done

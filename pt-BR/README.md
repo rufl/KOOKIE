@@ -266,10 +266,9 @@ manifesto de assets publicados. O adaptador de sound cues mantém metadados
 registrados no SDL_mixer. Os 14 OGG JDSherbert fornecidos
 continuam bloqueados para redistribuição até a procedência/licença ser
 confirmada. [`docs/KOF4J_UI_MIGRATION.md`](docs/KOF4J_UI_MIGRATION.md) registra
-o trabalho de UI/FFI do Kof4j. As evidências de `Buffer(U8)` foram medidas no
-Kof `0.6.6` e não estão qualificadas no pin ativo `0.6.8`. O suporte cross
-também não está qualificado, e `Buffer(U8)` não é uma ABI portátil de upload
-tipada/assíncrona.
+o trabalho de UI/FFI do Kof4j. A fixture limitada `Buffer(U8)` agora passa no
+Kof ativo `0.6.8` para JVM/native x86-64; o runtime cross continua sem
+qualificação, e `Buffer(U8)` não é uma ABI portátil de upload tipada/assíncrona.
 `bash scripts/verify_package.sh` valida o perfil `none` do pacote;
 `bash scripts/verify_prototype_package.sh` valida o perfil `prototype`; e
 `bash scripts/verify_goose_game.sh` cobre o caminho de gameplay limitado. O gate
