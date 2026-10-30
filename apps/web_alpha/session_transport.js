@@ -90,7 +90,7 @@
   const GAME_WORLD_MAXIMUM_Z = 276;
   const GAME_MAXIMUM_TICK = 10000000;
   const GAME_MAXIMUM_THROWABLE_FUSE_TICKS = 36;
-  const GAME_MAXIMUM_HEALTH = 100;
+  const GAME_MAXIMUM_HEALTH = 300;
   const GAME_MAXIMUM_STAMINA = 100;
   const GAME_MAXIMUM_AMMO = 99;
   const GAME_MAXIMUM_COMBO = 1000000;
@@ -386,6 +386,16 @@
   damageNumberLayer.className = "kookie-damage-number-layer";
   damageNumberLayer.setAttribute("aria-hidden", "true");
   sceneCanvasWrap.appendChild(damageNumberLayer);
+  const hitFeedbackLayer = document.createElement("div");
+  hitFeedbackLayer.className = "kookie-hit-feedback-layer";
+  hitFeedbackLayer.setAttribute("aria-hidden", "true");
+  const hitFeedbackFlash = document.createElement("div");
+  hitFeedbackFlash.className = "kookie-hit-feedback-flash";
+  const hitDirectionIndicator = document.createElement("div");
+  hitDirectionIndicator.className = "kookie-hit-direction";
+  hitFeedbackLayer.appendChild(hitFeedbackFlash);
+  hitFeedbackLayer.appendChild(hitDirectionIndicator);
+  sceneCanvasWrap.appendChild(hitFeedbackLayer);
   const throwPrompt = document.createElement("span");
   throwPrompt.className = "kookie-throw-prompt";
   throwPrompt.hidden = true;
@@ -1064,6 +1074,11 @@
   const seenDamageImpactKeys = new Set();
   const damageImpactKeyOrder = [];
   let lastDamageNumberSceneTick = null;
+  const seenLocalHitImpactKeys = new Set();
+  const localHitImpactKeyOrder = [];
+  let localHitFeedbackReady = false;
+  let lastLocalHitSceneTick = null;
+  let localHitFeedback = null;
   const remoteSnapshots = [];
   const REMOTE_SNAPSHOT_HISTORY = 16;
   const REMOTE_BASE_TICK_MS = 1000 / 60;
@@ -1682,6 +1697,7 @@
       camera: { ...scene.camera },
       actors: scene.actors.map((actor) => ({ ...actor })),
     };
+    updateLocalHitFeedback(scene, performance.now());
     updateProjectedLabels(scene);
     drawMinimap(scene);
     hudValues.tick.textContent = String(scene.tick);
@@ -1689,7 +1705,7 @@
     const healthText = Number.isFinite(scene.health) ? String(scene.health) : "--";
     const staminaText = Number.isFinite(scene.stamina) ? String(scene.stamina) : "--";
     const ammoText = Number.isFinite(scene.ammo) ? String(scene.ammo) : "--";
-    hudValues.health.textContent = healthText + " / 100";
+    hudValues.health.textContent = healthText + " / " + GAME_MAXIMUM_HEALTH;
     hudValues.stamina.textContent = staminaText + " / 100";
     const localActor = scene.actors.find((actor) => actor.id === scene.playerId);
     hudStats.health.dataset.team = localActor?.kind === 2 ? "blue" : "red";
@@ -1811,6 +1827,86 @@
       removeDamageNumberLabel(entry.element);
     }
     damageNumberLabels.clear();
+  }
+  function rememberLocalHitImpact(key) {
+    seenLocalHitImpactKeys.add(key);
+    localHitImpactKeyOrder.push(key);
+    if (localHitImpactKeyOrder.length > 32) {
+      seenLocalHitImpactKeys.delete(localHitImpactKeyOrder.shift());
+    }
+  }
+  function updateLocalHitFeedback(scene, now) {
+    if (lastLocalHitSceneTick !== null &&
+        scene.tick < lastLocalHitSceneTick) {
+      seenLocalHitImpactKeys.clear();
+      localHitImpactKeyOrder.length = 0;
+      localHitFeedbackReady = false;
+      localHitFeedback = null;
+    }
+    lastLocalHitSceneTick = scene.tick;
+    const impacts = scene.impacts || [];
+    if (!localHitFeedbackReady) {
+      for (const impact of impacts) {
+        if (impact.targetId === scene.playerId && impact.damage > 0) {
+          rememberLocalHitImpact([impact.sequence, impact.sourceId,
+            impact.targetId, impact.kind, impact.x, impact.y, impact.z,
+            impact.damage].join(":"));
+        }
+      }
+      localHitFeedbackReady = true;
+      return;
+    }
+    if (!(scene.playerId > 0)) return;
+    const player = scene.actors.find((actor) => actor.id === scene.playerId);
+    for (const impact of impacts) {
+      if (impact.targetId !== scene.playerId || impact.damage <= 0) continue;
+      const key = [impact.sequence, impact.sourceId, impact.targetId,
+        impact.kind, impact.x, impact.y, impact.z, impact.damage].join(":");
+      if (seenLocalHitImpactKeys.has(key)) continue;
+      rememberLocalHitImpact(key);
+      const source = scene.actors.find((actor) => actor.id === impact.sourceId);
+      let directionAngle = null;
+      if (source) {
+        const playerX = player ? player.x : scene.playerX;
+        const playerZ = player ? player.z : scene.playerZ;
+        const directionX = source.x - playerX;
+        const directionZ = source.z - playerZ;
+        if (Math.hypot(directionX, directionZ) > 0.01) {
+          directionAngle = Math.atan2(directionX, directionZ) -
+            (Number.isFinite(scene.yaw) ? scene.yaw : 0) * Math.PI / 180;
+        }
+      }
+      localHitFeedback = { startedAt: now, directionAngle };
+    }
+  }
+  function updateHitFeedbackOverlay(now) {
+    if (!localHitFeedback) {
+      hitFeedbackFlash.style.opacity = "0";
+      hitDirectionIndicator.hidden = true;
+      return;
+    }
+    const elapsed = now - localHitFeedback.startedAt;
+    const flashDuration = 220;
+    const flashAlpha = clientSettings.reducedMotion ? 0.14 : 0.28;
+    const flashProgress = Math.max(0, 1 - elapsed / flashDuration);
+    hitFeedbackFlash.style.opacity = String(flashAlpha * flashProgress);
+    const directionDuration = 700;
+    if (localHitFeedback.directionAngle === null ||
+        elapsed >= directionDuration) {
+      hitDirectionIndicator.hidden = true;
+      return;
+    }
+    const angle = localHitFeedback.directionAngle;
+    const radius = 40;
+    hitDirectionIndicator.hidden = false;
+    hitDirectionIndicator.style.left =
+      (50 + Math.sin(angle) * radius) + "%";
+    hitDirectionIndicator.style.top =
+      (50 - Math.cos(angle) * radius) + "%";
+    hitDirectionIndicator.style.transform =
+      "translate(-50%, -50%) rotate(" + (angle * 180 / Math.PI) + "deg)";
+    hitDirectionIndicator.style.opacity =
+      String(1 - elapsed / directionDuration);
   }
   function updateDamageNumbers(scene, now) {
     if (lastDamageNumberSceneTick !== null &&
@@ -1968,6 +2064,7 @@
       renderSceneState.camera.z += position.z - sceneState.playerZ;
     }
     updateRemoteRenderActors(now);
+    updateHitFeedbackOverlay(now);
     try {
       sceneRenderer.render(renderSceneState, time);
       updateDamageNumbers(renderSceneState, now);

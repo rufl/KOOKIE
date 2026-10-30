@@ -154,7 +154,7 @@ Int sessionWebGameWorldMaximumY() { return 100 }
 Int sessionWebGameWorldMinimumZ() { return 4 }
 Int sessionWebGameWorldMaximumZ() { return 276 }
 Int sessionWebGameMaximumTick() { return 10000000 }
-Int sessionWebGameMaximumHealth() { return 100 }
+Int sessionWebGameMaximumHealth() { return 300 }
 Int sessionWebGameMaximumStamina() { return 100 }
 Int sessionWebGameMaximumAmmo() { return 99 }
 Int sessionWebGameMaximumCombo() { return 1000000 }

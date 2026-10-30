@@ -57,6 +57,12 @@
     .kookie-session-touch-look { position: absolute; right: 16px; bottom: 16px; z-index: 2; padding: 7px 10px; border: 1px solid #ffffff38; border-radius: 999px; background: #111c18b8; color: #f5f4e8; font: 700 10px/1 system-ui, sans-serif; letter-spacing: .08em; pointer-events: none; opacity: .8; transition: opacity 250ms ease; }
     .kookie-damage-number-layer { position: absolute; z-index: 5; inset: 0; pointer-events: none; overflow: hidden; }
     .kookie-damage-number { position: absolute; transform: translate(-50%, -50%); color: #fff4a6; font: 30px/1 "ThaleahFat", "Pixand", sans-serif; letter-spacing: .02em; -webkit-text-stroke: .35px #160d00; text-shadow: 0 2px 4px #160d00, 0 0 10px #f08a12; will-change: transform, opacity; }
+    .kookie-hit-feedback-layer { position: absolute; z-index: 6; inset: 0; overflow: hidden; pointer-events: none; }
+    .kookie-hit-feedback-flash { position: absolute; inset: 0; background: rgba(190, 20, 30, .28); opacity: 0; }
+    .kookie-hit-direction { position: absolute; width: 26px; height: 38px; background: #ff6069; clip-path: polygon(50% 0, 100% 100%, 50% 78%, 0 100%); filter: drop-shadow(0 2px 5px #260006); opacity: 0; }
+    @media (max-width: 700px) {
+      .kookie-hit-direction { width: 20px; height: 30px; }
+    }
     .kookie-session-canvas-wrap[data-touch-look-started="true"] .kookie-session-touch-look { opacity: 0; }
     .kookie-session-footer { display: flex; align-items: center; min-height: 124px; }
     .kookie-session-game-controls { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px; }

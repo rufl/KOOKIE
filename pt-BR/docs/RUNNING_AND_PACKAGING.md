@@ -62,10 +62,11 @@ velocidade e sensibilidade do mouse, além de servidor, token, reconexão e
 diagnósticos.
 
 O cliente envia mensagens WebSocket limitadas de hello/ack/heartbeat, solicita
-a cena autoritativa, desenha os snapshots e envia ações de teclado, ponteiro e
-toque. O renderer WebGL2 desenha o jogador, três atores limitados, barras de
-vida, VFX e projéteis sem dependência de Three.js. WebGL2 é obrigatório; o
-cliente falha fechado quando indisponível.
+a cena autoritativa, desenha snapshots e envia ações de teclado, ponteiro e
+toque. O renderer WebGL2 desenha o jogador, até oito jogadores/dummies, vida,
+VFX, projéteis e objetos arremessáveis sem dependência de Three.js. WebGL2 é
+obrigatório; o cliente falha fechado quando indisponível.
+
 
 Execute o caminho canônico local da cena completa pelo servidor native do Kof.
 Faça o build uma vez:
@@ -98,12 +99,84 @@ Abra
 atirar, `M` corpo a corpo, `X` especial, `R` reset). Clique no canvas para
 capturar pointer lock e usar o mouse. A admissão pede o snapshot de cena
 autoritativo completo antes de habilitar os controles de ação. O servidor Kof
-mantém tick, posição/câmera 3D, stamina, munição, combo, VFX, quatro estados de
-atores, um projétil e um pickup dentro dos limites. O cliente WebGL2 carrega os
-GLBs staged de ganso, gato, chão e parede, exibe HUD acessível e minimapa
-superior, persiste configurações limitadas e reconecta até cinco vezes quando
-habilitado. WebGL2 é obrigatório para a cena 3D; o cliente falha fechado quando
-não está disponível.
+mantém tick, posição/câmera 3D, stamina, munição, combate, saúde e estado
+autoritativo de até oito jogadores e quatro espectadores. O cliente WebGL2
+carrega os GLBs staged de ganso, gato, chão e parede, exibe HUD acessível e
+minimapa superior, persiste configurações limitadas e reconecta até cinco vezes
+quando habilitado. WebGL2 é obrigatório para a cena 3D; o cliente falha fechado
+quando não está disponível.
+
+## Console de batalha ao vivo 4v4
+
+Compile o servidor e inicie o console interativo de batalha:
+
+```bash
+server_dir="$(mktemp -d -t kookie-web-server-XXXXXX)"
+bash scripts/build_web_server.sh --output "$server_dir"
+scripts/b2teams4.py "$server_dir/kookie-web-server" 8080
+```
+
+No navegador, abra **Configurações → Abrir console do jogo**, selecione
+**Espectador** e conecte a `ws://SERVER_HOST:8080`. Execute `/b2teams4` para
+criar quatro gansos no time vermelho e quatro gatos no azul, e assistir à
+batalha nessa página; `/stop` desconecta os bots. A partida termina quando um
+time é eliminado ou após dois minutos. O console exige um espectador conectado,
+mas não exige um processo CLI separado. Os bots procuram power-ups elegíveis
+quando não têm efeito ativo e voltam ao combate; usam pulo, rolamento, dash,
+voo/deslizamento, melee, tiro, especial e arremessáveis conforme distância e
+separação vertical.
+
+Os bots do navegador e do CLI começam com 300 de vida (três vezes o antigo
+limite de 100); o HUD mostra o máximo de 300. O HUD usa corações azuis para o
+time azul e vermelhos para o vermelho, uma única caixa de munição para balas,
+sementes e bolas de fogo, e a fonte ThaleahFat para números. Dano flutuante pode
+ser ativado/desativado em Configurações. Acertos causam breve recuo e flash nos
+outros personagens; dano no jogador local causa um flash vermelho e indicador
+direcional. Estrelas orbitam personagens atordoados.
+
+O pickup compartilhado de arremessáveis surge em posições seguras aleatórias e
+seleciona entre caixa, pedregulho, bomba, pacote de farinha ou melancia.
+Pressione a ação perto do item para pegá-lo, segure a mesma ação para carregar
+força e solte para arremessar; o HUD mostra força e uma previsão parabólica de
+queda. Bombas explodem e pacotes de farinha criam uma nuvem ao contato. Outros
+itens atingem o alvo; melancias quicam uma vez e espalham quatro fatias, cada
+uma recuperando um pouco de vida e munição de sementes. Arremessáveis não
+explosivos podem deixar jogadores tontos brevemente. A fumaça de pulo, aterrissagem
+e corrida é branca. Botões de ação touch podem ser reposicionados
+individualmente; os eixos de teclado e mouse não mudam.
+
+O modo CLI também está disponível. No prompt `kookie>`, `/b2teams4` inicia os
+mesmos oito bots e transmite tick autoritativo, jogadores vivos e snapshots de
+movimento por até dois minutos. O monitor CLI permite que espectadores do
+navegador entrem antes ou durante a batalha. `/quit` ou Ctrl+C encerra o console.
+Passe `--log CAMINHO` ao iniciar para gravar um snapshot JSON
+`kookie-battle-v1` por tick observado; analise-o com:
+
+```bash
+scripts/b2teams4.py "$server_dir/kookie-web-server" 8080 --log batalha.ndjson
+scripts/analyze_battle_log.py batalha.ndjson --format text
+```
+
+Execute o smoke headless de 12 segundos com
+`scripts/b2teams4.py "$server_dir/kookie-web-server" 8080 --smoke`. Ele verifica
+movimento, dano, coleta de power-up, ações dos bots e animações de ataque/voo/
+rolamento. A coleta/arremesso de itens é verificada separadamente por
+`scripts/verify_web_multiplayer.py`; os bots podem não chegar ao pickup
+compartilhado antes do fim de uma rodada curta.
+
+O servidor carrega sete power-ups autoritativos: Coffee Mug, Jetpack, Megaphone,
+Scuba Kit, Wool Ball, Coffee multiplayer e Wizard Hat. Coffee Mug aumenta a
+velocidade; Wizard Hat concede cinco bolas de fogo. Sementes de melancia são
+outro tipo de munição, obtido das fatias. A coleta e a expiração dos efeitos
+são autoritativas e baseadas em ticks. Scuba reduz o consumo de oxigênio, mas a
+simulação web não aplica dano por falta de oxigênio nem replica esse valor; por
+isso, o efeito não aparece no HUD. Objetos de power-up não coletados e nomes/
+temporizadores exatos de efeitos ativos não são replicados nem renderizados.
+
+**Limite da evidência:** o gate `scripts/verify_kof_web_server.sh` qualifica o
+servidor local; nem ele nem partidas somente com bots comprovam latência
+WAN/tailnet ou equilíbrio de partidas humanas.
+
 
 Clique em `CHECK GATEWAY` para consultar a rota configurada `GET /healthz`. Ela
 informa transporte, protocolo, modo de admissão bearer e sessões ativas.

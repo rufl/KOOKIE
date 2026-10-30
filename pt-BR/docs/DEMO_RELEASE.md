@@ -17,24 +17,19 @@ construído a partir do commit de fonte
 assinado para Linux/Windows x86-64. Candidatos novos continuam tendo como
 autoridade somente o `RELEASE_QUALIFICATION.json` assinado de cada um.
 
-O commit base do repositório para este trabalho de qualificação é
-`285fc927c265e9ff0ae25fd01a15035cb6972ad2`. A última execução registrada do
-Verify KOOKIE
-[`38978943862`](https://github.com/rufl/KOOKIE/actions/runs/38978943862)
-passou pelo build do Kof pinado, verificações estática/JVM, verificações
-native/package, verificações do backend PE e pacote JVM Windows no commit
-candidato anterior.
+A execução Verify KOOKIE mais recente de `main` é
+[`40979623886`](https://github.com/rufl/KOOKIE/actions/runs/40979623886)
+(run 339, commit de fonte `7cef7aeff3f8507d9c9b201dfe09729619d1bd3f`); terminou
+com **falha** em 2026-10-30. Essa execução é o sinal atual de CI do repositório,
+não um registro de qualificação de release.
 
-O candidato `0.1.0-dogfood.64` foi despachado em
-[`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223) a
-partir desse commit, com os dois smokes de apresentação native habilitados. O
-toolchain Kof e o pacote Linux passaram; o job de apresentação Windows rodou no
-`kookie-windows-01` e falhou antes de gerar artefatos porque o runner não
-encontrou o comando `powershell`. A correção do workflow agora declara
-`shell: bash` para esse passo do pin Kof. Nenhuma release `.64` foi publicada.
-A publicação ainda exige uma nova execução a partir da fonte commitada, os
-dois registros de evidência de apresentação com sucesso e a aprovação do
-ambiente `kookie-demo-release`.
+A release pública mais recente continua sendo `0.1.0-dogfood.63`. Nenhuma
+release posterior foi publicada. A tentativa `.64` anterior é histórica: o job
+de apresentação Windows falhou antes de gerar artefatos porque `powershell`
+não estava disponível; o passo do workflow foi alterado para `shell: bash`, mas
+a tentativa com falha não qualifica nem publica `.64`. Um novo candidato deve
+passar pelo workflow commitado, gerar evidências de apresentação específicas
+dos alvos e receber aprovação de publicação.
 
 
 Novos candidatos usam o Kof `0.6.6` construído a partir da branch `lab`, no

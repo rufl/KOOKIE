@@ -1422,6 +1422,7 @@
     const movementSmokeEffects = new Map();
     const actorMovementStates = new Map();
     const actorHitFlinches = new Map();
+    const actorHitFlashStarts = new Map();
     const seenHitImpactKeys = new Set();
     const hitImpactKeyOrder = [];
     const actorAnimationStarts = new Map();
@@ -1494,8 +1495,12 @@
             }
           }
         }
+        if (!target || !Number.isInteger(target.id)) continue;
+        if (target.id !== scene.playerId) {
+          actorHitFlashStarts.set(target.id, time);
+        }
         const source = actors.find((actor) => actor.id === impact.sourceId);
-        if (!target || !source || !Number.isInteger(target.id)) continue;
+        if (!source) continue;
         let directionX = target.x - source.x;
         let directionZ = target.z - source.z;
         let distance = Math.hypot(directionX, directionZ);
@@ -1514,6 +1519,9 @@
       for (const [actorId, flinch] of actorHitFlinches) {
         if (time - flinch.startedAt >= 160) actorHitFlinches.delete(actorId);
       }
+      for (const [actorId, startedAt] of actorHitFlashStarts) {
+        if (time - startedAt >= 120) actorHitFlashStarts.delete(actorId);
+      }
     }
     function actorHitFlinchOffset(actorId, time) {
       const flinch = actorHitFlinches.get(actorId);
@@ -1525,6 +1533,22 @@
       }
       const distance = Math.sin(Math.max(0, progress) * Math.PI) * 1.5;
       return [flinch.x * distance, flinch.z * distance];
+    }
+    function actorHitFlashTint(color, actorId, time) {
+      const startedAt = actorHitFlashStarts.get(actorId);
+      if (startedAt === undefined) return color;
+      const progress = (time - startedAt) / 120;
+      if (progress >= 1) {
+        actorHitFlashStarts.delete(actorId);
+        return color;
+      }
+      const brightness = Math.max(0, 1 - progress) * 0.9;
+      return [
+        color[0] + (1 - color[0]) * brightness,
+        color[1] + (1 - color[1]) * brightness,
+        color[2] + (1 - color[2]) * brightness,
+        color[3],
+      ];
     }
     function actorAnimationElapsed(actor, time) {
       const id = Number.isInteger(actor.id) ? actor.id : 0;
@@ -1600,6 +1624,7 @@
           movementSmokeEffects.clear();
           actorMovementStates.clear();
           actorHitFlinches.clear();
+          actorHitFlashStarts.clear();
           seenHitImpactKeys.clear();
           hitImpactKeyOrder.length = 0;
         }
@@ -1801,12 +1826,16 @@
           const x = actor.x + (flinchOffset ? flinchOffset[0] : 0);
           const y = actor.y;
           const z = actor.z + (flinchOffset ? flinchOffset[1] : 0);
-          const straw = actor.health > 0 ? [0.92, 0.64, 0.2, 1] : COLORS.damaged;
+          const straw = actorHitFlashTint(
+            actor.health > 0 ? [0.92, 0.64, 0.2, 1] : COLORS.damaged,
+            actor.id, time,
+          );
           const dummyScale = DUMMY_RENDER_SCALE;
           draw([fallbackMeshes.solid],
             transform([x, y + 6 * dummyScale, z],
               [1.2 * dummyScale, 12 * dummyScale, 1.2 * dummyScale]),
-            [0.28, 0.19, 0.1, 1], time, viewProjection);
+            actorHitFlashTint([0.28, 0.19, 0.1, 1], actor.id, time),
+            time, viewProjection);
           draw([fallbackMeshes.solid],
             transform([x, y + 9 * dummyScale, z],
               [6 * dummyScale, 5 * dummyScale, 3 * dummyScale]),
@@ -1814,17 +1843,21 @@
           draw([fallbackMeshes.solid],
             transform([x, y + 14 * dummyScale, z],
               [4 * dummyScale, 4 * dummyScale, 4 * dummyScale]),
-            [0.96, 0.78, 0.4, 1], time, viewProjection);
+            actorHitFlashTint([0.96, 0.78, 0.4, 1], actor.id, time),
+            time, viewProjection);
           draw([fallbackMeshes.solid],
             transform([x, y + 10 * dummyScale, z],
               [13 * dummyScale, 2 * dummyScale, 2 * dummyScale]),
             straw, time, viewProjection);
           continue;
         }
-        const tint = actor.health <= 0 ? COLORS.damaged
-          : actor.powerUp > 0 ? COLORS.pickup
-          : actor.health < 50 ? COLORS.damaged
-          : actor.kind === 2 ? COLORS.actorAlt : COLORS.actor;
+        const tint = actorHitFlashTint(
+          actor.health <= 0 ? COLORS.damaged
+            : actor.powerUp > 0 ? COLORS.pickup
+            : actor.health < 50 ? COLORS.damaged
+            : actor.kind === 2 ? COLORS.actorAlt : COLORS.actor,
+          actor.id, time,
+        );
         const scale = actor.kind === 2
           ? [CAT_RENDER_SCALE, CAT_RENDER_SCALE, CAT_RENDER_SCALE]
           : [GOOSE_RENDER_SCALE, GOOSE_RENDER_SCALE, GOOSE_RENDER_SCALE];

@@ -151,6 +151,27 @@ jump, roll, dash, glide/fly, melee, ranged fire, special attacks, and throwables
 based on range and vertical separation. The battle ends when one team is
 eliminated or after two minutes. The console requires an active spectator join;
 it does not require a separate CLI process.
+Browser and CLI battle bots spawn with 300 health (three times the former
+100-health pool); the browser HUD displays the 300-point maximum.
+
+The Web multiplayer HUD shows 300 maximum health, team-colored hearts (blue for
+blue players; red for red), and one shared ammo card for bullets, watermelon
+seeds, or Wizard Hat fireballs. HUD values use ThaleahFat; damage numbers have
+a Settings toggle. Confirmed hits briefly flinch and flash remote players; hits
+on the local player briefly flash the screen red with a direction indicator.
+Dizzy players show orbiting cartoon stars.
+
+The shared throwable pickup spawns at randomized safe arena locations and
+randomly selects a crate, boulder, bomb, flour package, or watermelon. Press the
+throw action near an item to pick it up, hold the same action to charge, then
+release to throw; the HUD shows charge power and a parabolic landing preview.
+Bombs explode and flour bursts on contact. Other throws impact their target;
+watermelons bounce once and scatter four slices, each restoring a little health
+and seed ammo. Non-explosive throws can briefly dizzy players. Ground smoke from
+jumps, landings, and running is white.
+
+Action buttons on touch layouts can be repositioned independently. Desktop
+keyboard and mouse controls keep their existing axes.
 
 The CLI mode is also available. At the `kookie>` prompt, `/b2teams4` spawns
 four goose bots on red and four cat bots on blue, then streams authoritative
@@ -161,9 +182,9 @@ based on target range and vertical separation. The CLI reads the authored
 waypoints from `assets/prototype/runtime/power_ups/*.json`; the server remains
 authoritative for pickups, damage, and collisions. Same-team targets are ignored
 by direct targeting and projectile/throwable damage. A round returns to the
-prompt when one team is eliminated or the timer expires. The CLI keeps an
-additional spectator connection open for its live state monitor. Enter `/quit`
-or press Ctrl+C to stop it.
+prompt when one team is eliminated or the timer expires. The CLI monitor accepts
+browser spectators joining before or during a battle. Enter `/quit` or press
+Ctrl+C to stop it.
 
 Pass `--log PATH` when launching the CLI to write one `kookie-battle-v1` JSON
 snapshot per newly observed server tick during each battle. Analyze the result:
@@ -180,27 +201,26 @@ minimum increase over its early lead (`--min-growth`, default `0.1`). The
 result is a heuristic from periodic snapshots, not causal proof; bot-only
 matches do not establish human-match balance.
 
-The web multiplayer server loads the seven shared powerup definitions plus an
-eighth multiplayer coffee pickup from `config/runtime/power_ups/`. Pickups are
-authoritative and one-use; effect expiry is tick-based. Coffee increases
-movement speed, jetpack increases jump impulse, megaphone special produces a
-nearby honk, watermelon special fires a cooldown-limited seed, wool ball boosts
-melee, and flour conceals its carrier from target selection. The client marks
-an actor with an active powerup using the pickup tint.
-
-Scuba reduces the authoritative oxygen drain while its timed effect is active.
-The web simulation currently does not apply oxygen-depletion damage or
-replicate oxygen values to clients, so scuba has no visible HUD effect yet.
-Uncollected powerup objects and exact active powerup names/timers are not
-replicated or rendered.
+The web server loads seven authoritative power-up definitions: Coffee Mug,
+Jetpack, Megaphone, Scuba Kit, Wool Ball, multiplayer Coffee, and Wizard Hat.
+Coffee Mug increases movement speed; the Wizard Hat grants five fireballs.
+Watermelon seeds are another ammo type, acquired from watermelon slices. Pickup
+effects and expiry are server-authoritative and tick-based. Scuba currently
+reduces oxygen drain, but the web simulation does not apply oxygen-depletion
+damage or replicate oxygen, so scuba has no visible HUD effect yet. Uncollected
+power-up objects and exact active power-up names/timers are not replicated or
+rendered.
 
 Run the 12-second headless `/b2teams4` smoke check with
 `scripts/b2teams4.py "$server_dir/kookie-web-server" 8080 --smoke`. It verifies
 moving snapshots, actual damage, a power-up pickup, each bot's movement/action
-inputs, and observed attack, airborne and roll animation states. Floor/arena
-projectile collision prevents out-of-bounds snapshots; projectile and blast
-damage use Kof's authoritative area-damage service after collision and team
-checks. Walk/run transition coverage is deterministic in
+inputs, and observed attack, airborne and roll animation states. Throwable
+pickup and throw behavior is covered separately by
+`scripts/verify_web_multiplayer.py`; bots may not reach the shared throwable
+pickup before a short smoke round ends. Floor/arena projectile collision
+prevents out-of-bounds snapshots; projectile and blast damage use Kof's
+authoritative area-damage service after collision and team checks. Walk/run
+transition coverage is deterministic in
 `scripts/verify_kof_web_server.sh`. The bot routes (`/session/goose` and
 `/session/cat`) remain benchmark-only spawn selectors; regular `/session` joins
 keep default goose/free-for-all behavior.

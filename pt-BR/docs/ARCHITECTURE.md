@@ -403,53 +403,47 @@ continua usando WSS para sessões de navegador hospedadas; o gateway Python
 abaixo fica apenas como fixture de compatibilidade bearer/WSS sem dependências
 até existir a fronteira hospedada de identidade/sessão.
 
-A saída web atual é uma UI KofJS limitada e um cliente de navegador completo.
-Inclui handshake/heartbeat binário WebSocket, eco de protocolo, sonda de cena
-autoritativa completa, entrada por teclado/botão/mouse, look com pointer lock,
-snapshots limitados validados, HUD acessível com minimapa superior e renderer
-WebGL2 direto em `apps/web_alpha/webgl_renderer.js`. O snapshot completo padrão
-tem 185 palavras no estado padrão com pickup ativo: a base de 69 palavras
-leva câmera/estado do jogador, quatro atores com vida/estado/tipo/direção, um
-projétil limitado, um pickup e um evento VFX posicionado; uma cauda variável de
-entradas de 9 palavras leva portas, objetos flutuantes, power-ups e o feixe de
-loot ativo. Quatro registros de label projetado, de 6 palavras cada, seguem a
-cauda de objetos. O limite de 272 palavras admite até 17 objetos e 8 labels.
-usa os GLBs staged de ganso, gato, chão, parede e cobertura sem dependência de
-Three.js, incluindo imagens base-color embutidas/anexas, transforms de nós
-autorados e materiais em bandas toon; os 16 assets nativos de partículas,
-flipbooks e predrawn são publicados e os IDs 5/6/8 mapeiam melee/tiro/especial.
-Nativo e web compartilham deliberadamente o subconjunto material base-color; o
-renderer também aplica elevação procedural determinística orientada por estado
-e animação esquelética limitada para atores parados, em movimento e atacando.
-Os GLBs autorados de ganso/gato usam `JOINTS_0`/`WEIGHTS_0`, paletas inverse-bind
-limitadas a 32 juntas e clipes TRS `LINEAR`/`STEP` com fallback explícito. Ele
-segue a câmera autoritativa e redimensiona para pixels do dispositivo.
-Os sólidos e as rampas da arena também usam os mesmos oito tiles de material
-de mundo gerados e o mesmo mapeamento recurso→tile de
-`BoundedWorldTextureAsset` nativo; a arena do navegador não depende mais apenas
-de superfícies com cor plana.
-Isso é paridade semântica de renderização, não uma afirmação de equivalência
-pixel a pixel. Os atores do navegador usam deformação esquelética autorada dos
-GLBs e clipes de animação `LINEAR`/`STEP` amostrados; a apresentação nativa
-envia a geometria GLB compartilhada, amostra clipes autorados nomeados e aplica
-deformação de pose limitada em CPU ponderada por
-`JOINTS_0`/`WEIGHTS_0`, usando a elevação procedural anterior somente como
-fallback explícito quando o clipe não está disponível. A cauda de objetos do
-navegador desenha portas, objetos flutuantes, power-ups e o feixe de loot ativo.
-O gateway emite o feixe tipo 4 enquanto o pickup autoritativo está ativo e o
-remove após coleta ou reset. Quatro registros limitados de label carregam IDs
-de texto determinísticos e posições dos atores; o navegador projeta os registros
-visíveis no overlay do canvas. O navegador mantém a folha autorada de cinco
-estados de coração, sombras voltadas para a câmera e pickup diamante quando há
-dados autoritativos suficientes. O smoke visual do navegador exercita o runtime
-WebGL2 e o caminho de captura; a paridade visual continua não certificada
-porque o alvo é paridade semântica, não equivalência pixel a pixel.
-O cliente bloqueia os controles de gameplay até receber a cena completa,
-oferece reconexão automática limitada com estados visíveis de
-carregamento/falha e persiste localmente as preferências de minimapa, pointer
-lock e movimento reduzido. O navegador exige WebGL2 para a cena 3D e falha
-fechado quando esse renderer está indisponível. O gateway Python de qualificação
-legado suporta terminação WSS opcional, admissão limitada por bearer e rotas
+A saída do navegador é uma UI KofJS limitada e um cliente WebGL2 direto em
+`apps/web_alpha/webgl_renderer.js`. Usa handshake WebSocket binário, snapshots
+autoritativos, entrada por teclado/botão/mouse, pointer lock e HUD acessível.
+O snapshot completo tem base de 19 palavras, até oito registros de jogador/
+boneco de 8 palavras, trailer de estado variável de 4 palavras e estado limitado
+de projéteis, arremessáveis, impactos, pickup, munição de sementes e fatias de
+melancia. O limite de 320 palavras cobre a cena máxima configurada (305
+palavras: oito atores, 12 projéteis, quatro arremessáveis, oito impactos e
+quatro fatias).
+
+Os GLBs de ganso/gato usam `JOINTS_0`/`WEIGHTS_0`, paletas inverse-bind
+limitadas a 32 juntas e clipes TRS autorados `LINEAR`/`STEP`. Snapshots carregam
+postura, vida, time e animação do ator; o navegador amostra os clipes autorados
+quando disponíveis e usa rolamento procedural sem clipe. O servidor deriva
+natação do estado submerso e usa caminhada para movimento comum. O navegador
+carrega o albedo UV autorado do ganso e exibe corações de vida por time, números
+de dano, feedback de acerto e efeitos de arremesso/tontura. A exibição de
+números de dano é uma opção persistente em Configurações. Valores do HUD e
+números de dano usam ThaleahFat; ela não é a fonte de corpo nem a fonte display
+padrão.
+
+O servidor autoritativo admite oito jogadores e quatro espectadores. Ele possui
+movimento, times, vida (máximo 300), combate, efeitos de power-up, arremessáveis
+compartilhados aleatórios, decisões dos bots e replicação. Carrega sete
+definições de power-up: Coffee Mug, Jetpack, Megaphone, Scuba Kit, Wool Ball,
+Coffee multiplayer e Wizard Hat. Um pickup compartilhado escolhe aleatoriamente
+bomba, pacote de farinha, melancia, caixa ou pedregulho. Melancias quicam uma
+vez e geram quatro fatias coletáveis de vida/sementes. SDL native e WebGL
+consomem os mesmos snapshots; não executam simulações online independentes.
+Isso é paridade semântica de renderização, não equivalência pixel a pixel.
+
+O cliente bloqueia os controles de gameplay até receber a cena completa, oferece
+reconexão automática limitada com estados visíveis de carregamento/falha e
+persiste localmente preferências de minimapa, pointer lock, movimento reduzido,
+visibilidade de números de dano e layout touch. Cada botão de ação pode ser
+reposicionado separadamente; os eixos de teclado e mouse permanecem inalterados.
+O navegador exige WebGL2 para a cena 3D e falha fechado quando esse renderer
+está indisponível.
+
+O gateway Python de qualificação legado suporta terminação WSS opcional, admissão
+limitada por bearer e rotas
 `GET /healthz` e `GET /metrics`:
 `--auth-token` exige o subprotocolo WebSocket `bearer.<token>` do navegador
 junto com `kookie.v1` e rejeita tokens ausentes ou incorretos antes da admissão.

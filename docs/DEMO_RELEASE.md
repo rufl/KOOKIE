@@ -17,22 +17,18 @@ built from source commit
 x86-64 pre-release pair. New candidate versions remain authoritative only
 through their signed `RELEASE_QUALIFICATION.json`.
 
-The repository base commit for this qualification work is
-`285fc927c265e9ff0ae25fd01a15035cb6972ad2`. The last recorded Verify KOOKIE
-run
-[`38978943862`](https://github.com/rufl/KOOKIE/actions/runs/38978943862)
-passed the pinned Kof build, static/JVM checks, native/package checks, PE
-backend checks and Windows JVM package checks on its earlier candidate commit.
+The latest `main` Verify KOOKIE run is
+[`40979623886`](https://github.com/rufl/KOOKIE/actions/runs/40979623886)
+(run 339, source commit `7cef7aeff3f8507d9c9b201dfe09729619d1bd3f`); it
+completed with **failure** on 2026-10-30. The run is the current repository CI
+signal, not a release qualification record.
 
-Candidate `0.1.0-dogfood.64` was dispatched in
-[`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223)
-from that commit with both native presentation smokes enabled. Its Kof
-toolchain and Linux package passed; the Windows presentation job ran on
-`kookie-windows-01` and failed before artifact work because the runner could
-not find the `powershell` command. The workflow fix now declares `shell: bash`
-for that Kof-pin step. No `.64` release was published. Publication still
-requires a rerun from the committed source, both passed presentation evidence
-records and approval of the `kookie-demo-release` environment.
+The latest public release remains `0.1.0-dogfood.63`. No later release is
+published. The earlier `.64` attempt is historical: its Windows presentation
+job failed before artifact work because `powershell` was unavailable; that
+workflow step was changed to `shell: bash`, but the failed attempt does not
+qualify or publish `.64`. Any new candidate must pass the committed workflow,
+produce target-specific presentation evidence and receive publication approval.
 
 
 New release candidates use Kof `0.6.6`, pinned to official release tag

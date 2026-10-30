@@ -5,6 +5,14 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 ## Unreleased
 - Damaged players and training dummies recoil briefly away from attackers.
   Impact flashes now use a defined neutral tint.
+- Non-controlled characters briefly flash when hit. Local-player hits trigger a
+  short red screen flash and a directional attacker indicator.
+- Web multiplayer players spawn with 300 health, extending bot battles to three
+  times the previous health pool for longer combat and effect observation.
+- The CLI 4v4 battle monitor accepts additional spectators joining before or
+  during the fight instead of rejecting snapshots when the count changes.
+- The 4v4 smoke check no longer fails completed battles when bots do not reach
+  the randomly positioned shared throwable pickup before elimination.
 - Floating damage numbers now appear for positive hits against players and
   dummies. Added a persistent Settings toggle to hide or show them.
 - HUD values now use the ThaleahFat damage-number typeface. Ammo, seed, and

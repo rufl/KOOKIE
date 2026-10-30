@@ -794,7 +794,7 @@ async function main() {
   assert.equal(document.getElementById("kookie-scene-labels"), null,
     "multiplayer players never get text or UID nameplates");
   for (const [stat, expected] of [
-    ["health", "100 / 100"], ["stamina", "100 / 100"],
+    ["health", "100 / 300"], ["stamina", "100 / 100"],
     ["ammo", "30"], ["combo", "--"],
   ]) {
     const value = pageElements.find((element) =>

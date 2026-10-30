@@ -332,6 +332,7 @@ class WebMultiplayerSimulation {
         projectileItemTypes = new Int[16]
         watermelonGroundBounces = new Int[16]
         projectileActive = new Bool[16]
+        impactSequence = new Int[8]
         impactTick = new Int[8]
         impactKind = new Int[8]
         impactSource = new Int[8]
@@ -608,7 +609,7 @@ class WebMultiplayerSimulation {
             if (moved) { movementActorInitialized[slot] = true }
         }
         if (!moved || !movement.configureAnimalActor(actor, animal) ||
-            !combat.addActor(externalId, 100, 0) ||
+            !combat.addActor(externalId, sessionWebGameMaximumHealth(), 0) ||
             !combat.equipWeapon(externalId, 1) ||
             !combat.setSpatialPosition(externalId, x, y, z)) { return false }
         for (var other = 0; other < 8; other = other + 1) {
@@ -635,7 +636,7 @@ class WebMultiplayerSimulation {
         animationUntilTicks[slot] = tickValue
         playerIds[slot] = externalId
         animals[slot] = animal
-        healthValues[slot] = 100
+        healthValues[slot] = sessionWebGameMaximumHealth()
         ammoValues[slot] = 30
         playerInputSequences[slot] = 0
         yawValues[slot] = 0
@@ -1093,7 +1094,10 @@ class WebMultiplayerSimulation {
         firedCountValue = firedCountValue + 1
         healthValues[target] = healthValues[target] - result.applied()
         if (healthValues[target] < 0) { healthValues[target] = 0 }
-        return pushImpact(1, playerIds[slot], playerIds[target], movement.positionX(target + 1), movement.positionY(target + 1), movement.positionZ(target + 1), result.applied())
+        return pushImpact(
+            1, playerIds[slot], playerIds[target],
+            movement.positionX(target + 1), movement.positionY(target + 1),
+            movement.positionZ(target + 1), result.applied())
     }
     Bool meleeAtNearest(Int slot) {
         var target = nearestTarget(slot, 5)

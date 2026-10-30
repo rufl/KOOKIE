@@ -487,52 +487,42 @@ therefore remains WSS for hosted browser sessions; the Python gateway below is
 retained only as a dependency-free bearer/WSS compatibility fixture until the
 hosted identity/session boundary exists.
 
-The current web output is a bounded KofJS UI and browser client. It includes a
-binary WebSocket handshake/heartbeat, protocol echo, full authoritative scene
-probe, keyboard/button/mouse input, pointer-lock look, validated bounded scene
-snapshots, an accessible HUD with a top-down minimap, and a direct WebGL2
-renderer in `apps/web_alpha/webgl_renderer.js`. The default full scene snapshot
-has 185 words in the default active-pickup state: the 69-word base carries
-player/camera state, four actors with health/state/kind/facing, one bounded
-projectile, one pickup and a positioned VFX event; a variable 9-word
-scene-object tail carries the authoritative door, floatable, power-up and
-active loot-beam fields. Four 6-word projected-label records follow the object
-tail. The 272-word bound admits up to 17 objects and 8 labels.
-ground, wall and cover GLBs without a Three.js dependency, including embedded
-or attached base-color images, authored node transforms and toon-banded
-materials; all 16 native-registered particle, flipbook and predrawn VFX sheets
-are staged, with event IDs 5/6/8 currently mapped to melee/fire/special. Native
-and web intentionally share the base-color-only material subset; the renderer
-also applies a deterministic, state-driven procedural lift and bounded
-skeletal animation for idle, moving and attack actor states. Goose/cat GLBs use
-`JOINTS_0`/`WEIGHTS_0`, inverse-bind palettes capped at 32 joints, and
-`LINEAR`/`STEP` TRS clips. Network snapshots pack posture, power-up and action
-animation independently: idle, run, attack, death, damage, eat, airborne, roll,
-swim and walk. The browser selects each authored clip where available. The
-server derives swim from underwater state and uses walk for ordinary movement.
-Shipped goose/cat GLBs have no swim/fly clips, so those states sample walk;
-roll is procedural because neither asset has a roll clip. Native SDL derives
-the equivalent actor actions from its local simulation.
-Arena solids and ramps also sample the same eight generated world-material
-tiles and resource-to-tile mapping as native `BoundedWorldTextureAsset`; the
-browser arena no longer relies on flat-color-only surfaces.
-This is semantic rendering parity, not pixel equivalence. The browser actor
-shader deforms authored `JOINTS_0`/`WEIGHTS_0` skinning using the sampled clip;
-the native presentation uses bounded CPU skin-weight pose deformation.
-The browser scene-object tail renders the authoritative door, floatable,
-power-up and active loot-beam fields.
-The gateway emits the kind-4 loot beam while the authoritative pickup is active
-and removes it after collection or reset. Four bounded label records carry
-deterministic text IDs and actor positions; the browser projects visible records
-into the canvas overlay. The browser adds the authored five-state heart sheet,
-camera-facing actor shadows and diamond pickup where the snapshot has enough
-authoritative data. The browser visual smoke exercises the WebGL2 runtime and
-capture path; visual parity remains uncertified because the target is semantic
-parity rather than pixel equivalence.
-The client gates gameplay controls until the full scene arrives, exposes bounded
-automatic reconnect with visible loading/failure states, and persists minimap,
-pointer-lock and reduced-motion preferences locally. The browser requires
+The browser output is a bounded KofJS UI and direct WebGL2 client in
+`apps/web_alpha/webgl_renderer.js`. It uses the binary WebSocket handshake,
+authoritative snapshots, keyboard/button/mouse input, pointer-lock look, and an
+accessible HUD. The full-scene snapshot has a 19-word base, up to eight
+8-word player/dummy records, a 4-word variable-state trailer, and bounded
+projectile, throwable, impact, pickup, seed-ammo, and watermelon-slice state.
+The 320-word protocol limit covers the maximum configured scene (305 words:
+eight actors, 12 projectiles, four throwables, eight impacts, and four slices).
+
+Goose and cat GLBs use `JOINTS_0`/`WEIGHTS_0`, inverse-bind palettes capped at
+32 joints, and authored `LINEAR`/`STEP` TRS clips. Snapshots carry actor
+posture, health, team and animation state; the browser samples authored clips
+where available and uses procedural roll where no clip exists. The server
+derives swim from underwater state and walk for ordinary movement. The browser
+loads the authored goose albedo and shows team-colored health hearts, damage
+numbers, hit feedback, and throwable/dizzy effects. Damage-number visibility is
+a persistent Settings option. HUD numbers and damage numbers use ThaleahFat;
+it is not the body or default display typeface.
+
+The authoritative server admits eight players and four spectators. It owns
+movement, teams, health (maximum 300), combat, power-up effects, randomized
+shared throwables, bot decisions and replication. Seven power-up definitions
+are loaded: Coffee Mug, Jetpack, Megaphone, Scuba Kit, Wool Ball, multiplayer
+Coffee and Wizard Hat. A shared randomized throwable pickup selects a bomb,
+flour package, watermelon, crate or boulder. Watermelons bounce once and spawn
+four collectible health/seed slices. Native SDL and WebGL consume the same
+snapshots; they do not run independent online simulations. This is semantic
+rendering parity, not pixel equivalence.
+
+The client gates gameplay controls until the full scene arrives, exposes
+bounded automatic reconnect with visible loading/failure states, and persists
+minimap, pointer-lock, reduced-motion, damage-number and touch-layout
+preferences locally. Touch controls can reposition each action button
+independently; keyboard and mouse axes remain unchanged. The browser requires
 WebGL2 for its 3D scene and fails closed when that renderer is unavailable.
+
 The legacy Python qualification gateway supports optional WSS termination,
 bounded bearer-token admission plus `GET /healthz` and `GET /metrics` routes:
 `--auth-token` requires the browser's `bearer.<token>` WebSocket subprotocol

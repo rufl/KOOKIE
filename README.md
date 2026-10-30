@@ -198,20 +198,26 @@ with atlas-frame animation; the native presentation triggers projectile sparks,
 hit/death effects and liquid-transition splashes while retaining procedural VFX
 when the optional model/content path is unavailable.
 
+The separate browser multiplayer slice runs an authoritative 4v4 battle with
+spectators. Eight bots start with 300 health; randomized throwables, watermelon
+seed ammo, Wizard Hat fireballs, team-colored hearts, hit feedback and movable
+touch action buttons are replicated/rendered in WebGL. See
+[Running and packaging](docs/RUNNING_AND_PACKAGING.md#live-4v4-battle-console)
+for the launch steps, controls and evidence limits. This is not the native
+two-player lobby described above.
+
 
 ## Current demo and release status
 
 The latest published dogfood artifact is
 [`0.1.0-dogfood.63`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.63),
-built from source commit `3bd382a072817fe545ae9a80abfd1dd344878ada`. For every
-new candidate, `RELEASE_QUALIFICATION.json` is the signed authority:
-deterministic artifact gates may pass while target-specific presentation
-evidence and publication approval remain required.
-
-Candidate `0.1.0-dogfood.64` uses source commit
-`e8cad301b566607a3b8095a219d05441de3240e5`; Verify passed, but its Windows
-self-hosted presentation job is queued because `kookie-windows-01` is offline.
-It is not public yet.
+built from source commit `3bd382a072817fe545ae9a80abfd1dd344878ada`; it remains
+the latest release listed by GitHub. The latest `main` Verify KOOKIE run is
+[run 339](https://github.com/rufl/KOOKIE/actions/runs/40979623886) on
+`7cef7aeff3f8507d9c9b201dfe09729619d1bd3f`; it completed with **failure**.
+Do not treat the current source tree or a passing focused probe as a published
+release. New release candidates require signed `RELEASE_QUALIFICATION.json`,
+target-specific evidence and publication approval.
 
 The current source tree has a bounded player-facing slice:
 

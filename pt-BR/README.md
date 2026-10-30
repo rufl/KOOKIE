@@ -185,20 +185,24 @@ textura PNG embutida em uma região própria do atlas limitado; os UVs do modelo
 selecionam a região do ganso ou do gato, mantendo tiles procedurais apenas como
 fallback.
 
-## Estado atual da demo e da release
+A fatia multiplayer separada no navegador executa uma batalha autoritativa 4v4
+com espectadores. Oito bots começam com 300 de vida; arremessáveis aleatórios,
+sementes de melancia, bolas de fogo do Wizard Hat, corações por time, feedback
+de acerto e botões touch reposicionáveis são replicados/renderizados em WebGL.
+Consulte [Execução e empacotamento](docs/RUNNING_AND_PACKAGING.md#console-de-batalha-ao-vivo-4v4)
+para iniciar, ver controles e limites das evidências. Isso não é o lobby nativo
+de dois jogadores descrito acima.
 
 O dogfood público mais recente é
 [`0.1.0-dogfood.63`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.63),
 construído a partir do commit de fonte
-`3bd382a072817fe545ae9a80abfd1dd344878ada`. Para cada candidato novo,
-`RELEASE_QUALIFICATION.json` é a autoridade assinada: os gates determinísticos
-do artefato podem passar enquanto a evidência de apresentação específica do
-alvo e a aprovação da publicação continuam necessárias.
-
-O candidato `0.1.0-dogfood.64` usa o commit
-`e8cad301b566607a3b8095a219d05441de3240e5`; o Verify passou, mas o job de
-apresentação Windows self-hosted está na fila porque `kookie-windows-01` está
-offline. Ele ainda não é público.
+`3bd382a072817fe545ae9a80abfd1dd344878ada`; ele continua sendo a release mais
+recente listada pelo GitHub. A execução Verify KOOKIE mais recente de `main` é
+a [run 339](https://github.com/rufl/KOOKIE/actions/runs/40979623886), no commit
+`7cef7aeff3f8507d9c9b201dfe09729619d1bd3f`; terminou com **falha**. Não trate
+a árvore atual nem um probe focado aprovado como release publicada. Novos
+candidatos exigem `RELEASE_QUALIFICATION.json` assinado, evidência específica
+dos alvos e aprovação da publicação.
 
 A árvore de fontes atual contém uma fatia limitada voltada ao jogador:
 

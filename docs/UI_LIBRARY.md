@@ -109,8 +109,10 @@ The shipped roles are:
 - body: `Pixand`, `fonts/pixand.ttf`;
 - display: `Jared Lite`, `fonts/jared-lite.ttf`.
 
-`ThaleahFat` is used for WebGL training damage numbers
-(`fonts/ThaleahFat.ttf`); it is not a body or default display font.
+`ThaleahFat` renders WebGL training damage numbers and numeric HUD values
+(`fonts/ThaleahFat.ttf`); it is not a body or default display font. The
+uploaded archive supplied no license terms; verify licensing before
+redistribution.
 
 Load `assets/ui/kookie-ui.css` in the KofJS host before the generated module.
 Its relative font URLs work with the source tree (`assets/fonts`) and with a

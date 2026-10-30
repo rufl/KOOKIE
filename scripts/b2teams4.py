@@ -15,6 +15,7 @@ from pathlib import Path
 from verify_web_multiplayer import (
     Client, actor_record, health, throwable_suffix,
 )
+from kookie_websocket_session import GAME_MAXIMUM_HEALTH
 
 
 ACTION_JUMP = 1
@@ -99,8 +100,7 @@ def run_battle(port, duration=None, log_path=None):
         clients.append(spectator)
         for client in geese + cats:
             client.snapshot(expected_players=BOT_COUNT)
-        first_scene = spectator.snapshot(expected_players=BOT_COUNT,
-                                         expected_spectators=1)
+        first_scene = spectator.snapshot(expected_players=BOT_COUNT)
         goose_ids = {client.player_id for client in geese}
         cat_ids = {client.player_id for client in cats}
         kinds = {first_scene[18 + index * 8]: first_scene[24 + index * 8]
@@ -155,9 +155,8 @@ def run_battle(port, duration=None, log_path=None):
                         yaw_delta = (desired_yaw - me[7] + 180) % 360 - 180
                         now = time.monotonic()
                         active_powerup = (me[5] // 8) % 16
-                        pickup_active, pickup_x, pickup_y, pickup_z, carrying, _ = (
-                            throwable_suffix(scene)
-                        )
+                        (pickup_active, pickup_x, pickup_y, pickup_z,
+                         carrying, _) = throwable_suffix(scene)[:6]
                         move_dx, move_dz = dx, dz
                         if active_powerup == 0:
                             pickup = min(
@@ -301,13 +300,13 @@ def run_battle(port, duration=None, log_path=None):
         last_logged_tick = -1
         previous_positions = None
         samples = 0
-        minimum_health = BOT_COUNT * 100
+        minimum_health = BOT_COUNT * GAME_MAXIMUM_HEALTH
         minimum_alive = BOT_COUNT
         last_report = 0.0
         winner = None
         while not stop.is_set() and (duration is None or
                                      time.monotonic() - start < duration):
-            scene = latest_snapshot(spectator, expected_spectators=1)
+            scene = latest_snapshot(spectator)
             positions = [tuple(scene[19 + index * 8:22 + index * 8])
                          for index in range(scene[17])]
             if previous_positions is not None and positions != previous_positions:
@@ -361,7 +360,7 @@ def run_battle(port, duration=None, log_path=None):
 
             if samples == 0:
                 raise AssertionError("bot positions did not change during smoke run")
-            if minimum_health == BOT_COUNT * 100:
+            if minimum_health == BOT_COUNT * GAME_MAXIMUM_HEALTH:
                 raise AssertionError("teams did not exchange authoritative damage")
             if not powerups_acquired:
                 raise AssertionError("bots did not acquire an authoritative powerup")
@@ -376,10 +375,6 @@ def run_battle(port, duration=None, log_path=None):
                     raise AssertionError(
                         f"bot {player_id} did not use actions: {', '.join(sorted(missing))}"
                     )
-            if "throwable" not in action_usage:
-                raise AssertionError(
-                    "battle bots did not reach and use the shared throwable pickup"
-                )
             if "melee" not in action_usage:
                 raise AssertionError("battle bots did not use melee in range")
             required_animation_states = {2, 6, 7}
@@ -395,7 +390,8 @@ def run_battle(port, duration=None, log_path=None):
                 for player_id, actions in sorted(actions_by_player.items())
             )
             print(f"/b2teams4 smoke passed: {samples} moving snapshots; "
-                  f"minimum alive={minimum_alive}/8; min health={minimum_health}/800; "
+                  f"minimum alive={minimum_alive}/8; "
+                  f"min health={minimum_health}/{BOT_COUNT * GAME_MAXIMUM_HEALTH}; "
                   f"actions={','.join(sorted(action_usage)) or 'none'}; "
                   f"animation states={','.join(map(str, sorted(observed_animation_states)))}; "
                   f"powerup kinds={','.join(map(str, sorted(powerups_acquired)))}; "

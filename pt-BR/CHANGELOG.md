@@ -3,6 +3,37 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+
+- O smoke 4v4 não falha mais uma partida concluída quando os bots não alcançam
+  o arremessável compartilhado aleatório antes da eliminação.
+- O monitor CLI aceita espectadores do navegador entrando antes ou durante a
+  partida; bots 4v4 do navegador/CLI começam com 300 de vida.
+- Jogadores e bonecos de treino atingidos recuam brevemente. Personagens remotos
+  piscam; dano no jogador local causa flash vermelho e indicador direcional.
+- Números de dano de jogadores/bonecos podem ser ocultados em Configurações.
+  Números do HUD usam ThaleahFat; balas, sementes e bolas de fogo compartilham
+  um contêiner de munição.
+- Corações do time azul são azuis; os do time vermelho continuam vermelhos. O
+  ganso agora carrega a textura UV autorada, incluída no build web independente.
+- Eixos horizontais de movimento/câmera touch agora correspondem à direção do
+  dedo; teclado/mouse não mudam. Cada botão de ação touch pode ser reposicionado
+  separadamente.
+- Wizard Hat concede cinco bolas de fogo replicadas. O bônus de velocidade da
+  Coffee Mug é aplicado e expira conforme programado.
+- Clientes SDL native compartilham com WebGL o estado WebSocket autoritativo,
+  incluindo arremessáveis, vida, munição, impactos e estrelas de tontura.
+- Melancias giram, quicam uma vez e se partem em quatro fatias coletáveis que
+  recuperam vida e munição de sementes. Mecânica inspirada no
+  [pacote de melancia de Koppikuoriainen](https://koppikuoriainen.itch.io/watermelon);
+  nenhum asset de referência foi importado.
+- Arremessáveis compartilhados e aleatórios incluem bombas, pacotes de farinha,
+  melancias, caixas e pedregulhos. Pressione para pegar, segure para carregar e
+  solte para arremessar; o HUD mostra força e trajetória parabólica. Bombas
+  explodem e pacotes de farinha criam uma nuvem ao contato; outros acertos podem
+  deixar o alvo tonto, indicado por estrelas.
+- A fumaça de pulo, aterrissagem e corrida agora é branca.
+- Layouts touch movem cada botão de ação separadamente e migram layouts antigos
+  agrupados. Ganso e bonecos agora têm tamanhos mais próximos do gato.
 - Adicionamos um adaptador limitado de varredura de cápsula Box3D com os
   fontes 0.1.0 fixados do DINX; passam os testes isolados de aterrissagem,
   geometria inválida e malha de rampa. A sondagem diferencial real da rampa G1

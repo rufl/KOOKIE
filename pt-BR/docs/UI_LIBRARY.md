@@ -110,6 +110,12 @@ Os papéis distribuídos são:
 - corpo: `Pixand`, `fonts/pixand.ttf`;
 - display: `Jared Lite`, `fonts/jared-lite.ttf`.
 
+
+`ThaleahFat` renderiza números de dano no treino WebGL e valores numéricos do
+HUD (`fonts/ThaleahFat.ttf`); não é fonte de corpo nem de display padrão. O
+arquivo enviado não incluía termos de licença; confirme a licença antes de
+redistribuir.
+
 Carregue `assets/ui/kookie-ui.css` no host KofJS antes do módulo gerado. As
 URLs relativas das fontes funcionam na árvore-fonte (`assets/fonts`) e em um
 host de pacote que mantenha o CSS em `assets/ui` e as fontes empacotadas em
