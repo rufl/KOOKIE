@@ -8,11 +8,10 @@ Status: **PROPOSED**. This plan is the execution document for decision
 Normative boundary and batch ABI: [Kof native-boundary and synchronous batch
 ABI](KOF_NATIVE_BOUNDARY_SPEC.md).
 
-Current source pin: Kof `0.6.6` at
-`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`. Qualification of this pin is in
-progress; the previous local proof was for
-`f42ed91dfbceae09880b7d0619d98f67490149d1` and does not transfer
-automatically.
+Current source pin: official Kof `0.6.8` at
+`2971d2fe4cc873eb50fcd1b7d7d3e097381281c8`. The previous local proof was for
+`f42ed91dfbceae09880b7d0619d98f67490149d1`; that proof does not transfer
+automatically. Requalification is in progress.
 
 ## 1. Decision summary
 
@@ -49,9 +48,9 @@ is:
 
 This is physical source composition, not a performance claim.
 
-The official Kof 0.6.6 Linux release archive
-`kof-0.6.6-linux-x86_64.tar.gz` has SHA-256
-`96dd0d804c02e1e0f066dc0b53a4b1c385595d32820d97aeb77bb5dc772296f6`.
+The official Kof 0.6.8 Linux release archive
+`kof-0.6.8-linux-x86_64.tar.gz` has SHA-256
+`8da8f9efc7c55b6e5314248b90a0ac62d900117f4a3503af8dadf6ce82a20577`.
 CI separately builds the exact pinned source commit after normalizing
 toolchain metadata. Earlier qualification records below retain their original
 toolchain identities and results; they are not evidence for the current pin.
@@ -101,8 +100,8 @@ matrix and target-specific cross-platform/hardware gates have not been run.
 1. Re-run `python3 scripts/update_kof_lab.py --check` immediately before the
    change.
 2. If adopting the candidate, apply it with
-   `--expected-commit 7c237861a9035d84b1f7ec4cfddd89daef4c6ddd` and
-   `--expected-version 0.6.6`; do not update a moving `lab` ref implicitly.
+   `--expected-commit 2971d2fe4cc873eb50fcd1b7d7d3e097381281c8` and
+   `--expected-version 0.6.8`; do not update a moving `lab` ref implicitly.
 3. Build the exact source archive and record source commit and archive hash.
 4. Re-run static/JVM, SIMD and the native/package gate with the exact source.
 5. Refresh active documentation only after the new baseline is green or its

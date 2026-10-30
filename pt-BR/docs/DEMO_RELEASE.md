@@ -32,10 +32,12 @@ passar pelo workflow commitado, gerar evidências de apresentação específicas
 dos alvos e receber aprovação de publicação.
 
 
-Novos candidatos usam o Kof `0.6.6` construído a partir da branch `lab`, no
-commit `7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`; o workflow constrói a
-distribuição a partir da fonte porque o pin não usa archive público do 0.6.6.
-O digest do patch de release é
+Novos candidatos usam o release oficial Kof `0.6.8`, tag
+`kof-0.6.8-linux-x86_64`, no commit
+`2971d2fe4cc873eb50fcd1b7d7d3e097381281c8`. O SHA-256 do archive Linux é
+`8da8f9efc7c55b6e5314248b90a0ac62d900117f4a3503af8dadf6ce82a20577`;
+o CI constrói a fonte fixada no artefato de toolchain normalizado. O digest do
+patch de release permanece
 `4898952c8f4130d1b5a9e8effb56b0dd7a58d228596b50f69427639c15843664`.
 
 ### Qualificação de engenharia da working tree atual

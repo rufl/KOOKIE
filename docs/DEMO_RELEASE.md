@@ -31,12 +31,12 @@ qualify or publish `.64`. Any new candidate must pass the committed workflow,
 produce target-specific presentation evidence and receive publication approval.
 
 
-New release candidates use Kof `0.6.6`, pinned to official release tag
-`kof-0.6.6-linux-x86_64` at commit
-`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`. The upstream Linux archive SHA-256
-is `96dd0d804c02e1e0f066dc0b53a4b1c385595d32820d97aeb77bb5dc772296f6`;
-release CI builds the exact pinned source into its own normalized toolchain
-artifact. The release patch digest is
+New release candidates use the official Kof `0.6.8` release tag
+`kof-0.6.8-linux-x86_64` at commit
+`2971d2fe4cc873eb50fcd1b7d7d3e097381281c8`. Its Linux archive SHA-256 is
+`8da8f9efc7c55b6e5314248b90a0ac62d900117f4a3503af8dadf6ce82a20577`;
+release CI builds the exact pinned source into its normalized toolchain
+artifact. The release patch digest remains
 `4898952c8f4130d1b5a9e8effb56b0dd7a58d228596b50f69427639c15843664`.
 
 ### Current working-tree engineering qualification

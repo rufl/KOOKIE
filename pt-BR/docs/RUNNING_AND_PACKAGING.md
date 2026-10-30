@@ -8,13 +8,12 @@ de evidência limitados, não uma promessa de suporte de produção.
 
 ## Execução de fonte/desenvolvimento
 
-Instale [Kof 0.6.6](https://github.com/KofLang/Kof4j) para executar o
-entrypoint autoritativo da fonte na raiz do repositório:
-
-Use a distribuição construída a partir da fonte na branch `lab` do Kof, no
-`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`. O build de release executa
-`scripts/prepare_kof_source.sh` antes do Maven; ele verifica a guarda de GC
-native upstream e normaliza os metadados do compilador.
+Instale o release oficial [Kof 0.6.8](https://github.com/KofLang/Kof4j), tag
+`kof-0.6.8-linux-x86_64`, no commit
+`2971d2fe4cc873eb50fcd1b7d7d3e097381281c8`. O SHA-256 do archive Linux é
+`8da8f9efc7c55b6e5314248b90a0ac62d900117f4a3503af8dadf6ce82a20577`.
+O build de release executa `scripts/prepare_kof_source.sh` antes do Maven;
+verifica a guarda de GC native upstream e normaliza os metadados do compilador.
 
 Para atualizar este ambiente a partir do head atual da lab do Kof, execute
 `bash scripts/install_kof_lab.sh`. Ele constrói o commit atual da lab, verifica
@@ -42,7 +41,7 @@ validação de evidências e tooling de rendezvous.
 
 ## Cliente de jogo no navegador (não WASM)
 
-O Kof 0.6.6 oferece os alvos `jvm`, `native` e `js`; não oferece WASM. O
+O Kof 0.6.8 oferece os alvos `jvm`, `native` e `js`; não oferece WASM. O
 entrypoint completo de `src` depende de APIs nativas de SDL/GPU e filesystem
 indisponíveis no alvo JS. Por isso, `apps/web_alpha` empacota um cliente
 responsivo em HTML/WebGL2, não um build do jogo native nem WASM:

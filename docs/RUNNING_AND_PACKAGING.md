@@ -20,16 +20,16 @@ not gameplay tuning.
 
 ## Developer/source run
 
-Install the official Kof 0.6.6 Linux release distribution, matching source tag
-`kof-0.6.6-linux-x86_64` and commit
-`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`. Its published archive SHA-256 is
-`96dd0d804c02e1e0f066dc0b53a4b1c385595d32820d97aeb77bb5dc772296f6`.
+Install the official Kof 0.6.8 Linux release distribution, matching source tag
+`kof-0.6.8-linux-x86_64` and commit
+`2971d2fe4cc873eb50fcd1b7d7d3e097381281c8`. Its published archive SHA-256 is
+`8da8f9efc7c55b6e5314248b90a0ac62d900117f4a3503af8dadf6ce82a20577`.
 The release workflow builds the pinned source commit for its reproducible
 toolchain artifact; it does not consume that upstream archive.
 
 `scripts/install_kof_lab.sh` is a separate rolling-upgrade workflow. It follows
 the moving `lab` branch and updates the repository pin; do not use it when you
-need the fixed 0.6.6 release baseline.
+need the fixed 0.6.8 release baseline.
 
 To refresh this environment from the current Kof lab head, run
 `bash scripts/install_kof_lab.sh`. It builds the current lab commit, checks that
@@ -57,7 +57,7 @@ validation and rendezvous tooling.
 
 ## Browser game client (not WASM)
 
-Kof 0.6.6 has `jvm`, `native`, and `js` targets; it has no WASM target. The
+Kof 0.6.8 has `jvm`, `native`, and `js` targets; it has no WASM target. The
 full `src` entrypoint depends on native SDL/GPU and filesystem APIs unavailable
 to the JS target. `apps/web_alpha` therefore packages a standalone responsive
 HTML/WebGL2 client, not a native-game or WASM build:

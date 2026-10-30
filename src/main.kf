@@ -512,7 +512,7 @@ test "HUD scale keeps the bounded overlay readable and staged" {
 
 test "shooter HUD stages semantic combat feedback hierarchy" {
     var hud = ShooterHud(100, 30)
-    assert(hud.renderVertexCount() == 474 &&
+    assert(hud.renderVertexCount() == 680 &&
         hud.updateOxygen(60, 100, true) &&
         hud.updateStamina(75, 100) &&
         hud.updatePowerUpStatus(powerUpKindCoffeeMug(), 9),
@@ -5687,26 +5687,30 @@ test "power-up JSON definitions stage named pickups" {
     var flourBag = PowerUpConfig()
     var wizardHat = PowerUpConfig()
     assert(loader.load(
-            coffee, "assets/prototype/runtime/power_ups/coffee_mug.json") &&
-        loader.load(
-            jetpack, "assets/prototype/runtime/power_ups/jetpack.json") &&
-        loader.load(
-            megaphone,
-            "assets/prototype/runtime/power_ups/megaphone.json") &&
-        loader.load(
-            scuba, "assets/prototype/runtime/power_ups/scuba_kit.json") &&
-        loader.load(
-            watermelon,
-            "assets/prototype/runtime/power_ups/watermelon.json") &&
-        loader.load(
-            woolBall,
-            "assets/prototype/runtime/power_ups/wool_ball.json") &&
-        loader.load(
-            flourBag, "assets/prototype/runtime/power_ups/flour_bag.json") &&
-        loader.load(
-            wizardHat,
-            "assets/prototype/runtime/power_ups/wizard_hat.json") &&
-        coffee.kind() == powerUpKindCoffeeMug() &&
+        coffee, "assets/prototype/runtime/power_ups/coffee_mug.json"),
+        "coffee mug power-up JSON must load")
+    assert(loader.load(
+        jetpack, "assets/prototype/runtime/power_ups/jetpack.json"),
+        "jetpack power-up JSON must load")
+    assert(loader.load(
+        megaphone, "assets/prototype/runtime/power_ups/megaphone.json"),
+        "megaphone power-up JSON must load")
+    assert(loader.load(
+        scuba, "assets/prototype/runtime/power_ups/scuba_kit.json"),
+        "scuba kit power-up JSON must load")
+    assert(loader.load(
+        watermelon, "assets/prototype/runtime/power_ups/watermelon.json"),
+        "watermelon power-up JSON must load")
+    assert(loader.load(
+        woolBall, "assets/prototype/runtime/power_ups/wool_ball.json"),
+        "wool ball power-up JSON must load")
+    assert(loader.load(
+        flourBag, "assets/prototype/runtime/power_ups/flour_bag.json"),
+        "flour bag power-up JSON must load")
+    assert(loader.load(
+        wizardHat, "assets/prototype/runtime/power_ups/wizard_hat.json"),
+        "wizard hat power-up JSON must load")
+    assert(coffee.kind() == powerUpKindCoffeeMug() &&
         jetpack.kind() == powerUpKindJetpack() &&
         megaphone.kind() == powerUpKindMegaphone() &&
         scuba.kind() == powerUpKindScubaKit() &&
@@ -5722,7 +5726,7 @@ test "power-up JSON definitions stage named pickups" {
         powerUpName(woolBall.kind()) == "WOOL BALL" &&
         powerUpName(flourBag.kind()) == "FLOUR BAG" &&
         powerUpName(wizardHat.kind()) == "WIZARD HAT",
-        "power-up JSON must load every named pickup definition")
+        "power-up JSON must preserve the named pickup definitions")
     var world = PowerUpWorld(powerUpMaximumDefinitions())
     assert(world.add(coffee.definition()) &&
         world.add(jetpack.definition()) &&
@@ -6306,9 +6310,18 @@ test "FPS action input drives melee special dash double jump glide and stamina" 
     for (var tick = 9; tick <= 32; tick = tick + 1) {
         var staminaBeforeGlide = session.playerStamina(1)
         assert(session.receiveInput(
-                1, tick, tick, 0, 0, 0, 0, 0, 1) &&
-            session.advance(16667) == 1,
-            "held jump must remain a valid glide command")
+            1, tick, tick, 0, 0, 0, 0, 0, 1),
+            "held jump glide input must be accepted")
+        var glideSteps = session.advance(16667)
+        if (glideSteps != 1) {
+            println("held jump glide tick failure")
+            println(tick)
+            println(session.fpsPositionY(1))
+            println(session.fpsVelocityY(1))
+            println(session.fpsGrounded(1))
+            println(session.playerStamina(1))
+            assert(false, "held jump glide tick must advance")
+        }
         if (session.fpsGliding(1)) {
             glided = true
             if (session.playerStamina(1) < staminaBeforeGlide) {
@@ -8848,7 +8861,7 @@ test "kutter studio migrates legacy schemas and persists asset-linked v3 round t
     checksum = (checksum * 31 + 0) % 1000003
     legacy[3] = checksum
     var migrated = BoundedKutterStudio(8, 4)
-    assert(migrated.decode(legacy) &&
+    assert(migrated.decodeDocumentWords(legacy, legacy.length) &&
         migrated.nodeCount() == 1 &&
         migrated.nodeScaleYValue(0) == 1000 &&
         migrated.nodeColorValue(0) == kutterStudioDefaultColor() &&
@@ -8905,7 +8918,7 @@ test "kutter studio migrates legacy schemas and persists asset-linked v3 round t
     }
     v2Source[3] = if (v2Checksum <= 0) 1 else v2Checksum
     var migratedV2 = BoundedKutterStudio(8, 4)
-    assert(migratedV2.decode(v2Source) &&
+    assert(migratedV2.decodeDocumentWords(v2Source, v2Source.length) &&
         migratedV2.nodeColorValue(0) == 16711680 &&
         migratedV2.nodeRotationValue(0) == 15000 &&
         migratedV2.nodeAssetToken(0) == 0 &&

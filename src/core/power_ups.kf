@@ -30,6 +30,7 @@ String powerUpName(Int kind) {
     if (kind == powerUpKindScubaKit()) { return "SCUBA KIT" }
     if (kind == powerUpKindWatermelon()) { return "WATERMELON" }
     if (kind == powerUpKindWoolBall()) { return "WOOL BALL" }
+    if (kind == powerUpKindFlourBag()) { return "FLOUR BAG" }
     if (kind == powerUpKindWizardHat()) { return "WIZARD HAT" }
     return ""
 }

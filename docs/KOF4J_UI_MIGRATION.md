@@ -24,12 +24,12 @@ semantic sound-cue/queue adapter over the existing bounded `QueuedAudio`
 contract. It does not duplicate `kof.ui`, decode media, or create another
 renderer.
 
-## Current pinned Kof 0.6.6 ABI boundary
+## Measured Kof 0.6.6 ABI boundary (historical)
 
-The active KOOKIE qualification baseline is Kof4j source
-[`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`](https://github.com/KofLang/Kof4j/tree/7c237861a9035d84b1f7ec4cfddd89daef4c6ddd).
-The qualification CLI reports `kof 0.6.6`; the focused Buffer qualification
-below passes on JVM and native x86-64 with this pin.
+The active KOOKIE source pin is Kof4j
+[`2971d2fe4cc873eb50fcd1b7d7d3e097381281c8`](https://github.com/KofLang/Kof4j/tree/2971d2fe4cc873eb50fcd1b7d7d3e097381281c8) (`0.6.8`).
+The Buffer qualification below was run with Kof `0.6.6`; do not treat it as
+evidence for the active pin until rerun.
 
 The pinned implementation and the latest upstream documentation are not
 identical:

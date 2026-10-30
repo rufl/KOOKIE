@@ -2,21 +2,22 @@
 
 Research date: 2026-09-22. This is a working reference, not a claim of complete language conformance.
 
-The active KOOKIE qualification baseline is the official Kof `0.6.6` release
-tag `kof-0.6.6-linux-x86_64` at commit
-[`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`](https://github.com/KofLang/Kof4j/tree/7c237861a9035d84b1f7ec4cfddd89daef4c6ddd).
-The upstream Linux archive SHA-256 is
-`96dd0d804c02e1e0f066dc0b53a4b1c385595d32820d97aeb77bb5dc772296f6`.
+The active source/CI baseline is the official Kof `0.6.8` release tag
+`kof-0.6.8-linux-x86_64` at commit
+[`2971d2fe4cc873eb50fcd1b7d7d3e097381281c8`](https://github.com/KofLang/Kof4j/tree/2971d2fe4cc873eb50fcd1b7d7d3e097381281c8).
+Its Linux archive SHA-256 is
+`8da8f9efc7c55b6e5314248b90a0ac62d900117f4a3503af8dadf6ce82a20577`.
 CI independently builds this pinned source after verifying the upstream
-native-GC cycle guard and normalizing compiler metadata.
+native-GC cycle guard and normalizing compiler metadata. ABI measurements
+below retain their stated Kof versions; 0.6.6 measurements do not transfer
+without rerunning their gates.
 
 - Source gates must run `source scripts/kof_pin.sh`; it prepends the tracked
   `scripts/kof-as/as` wrapper. The wrapper uses Clang's integrated assembler
   for Kof's `as -o OBJECT FILE.s` calls and delegates other assembler command
   lines to system `as`.
-- `scripts/verify_simd_dispatch.sh` is the active Buffer qualification gate; it
-  passes on JVM and native x86-64 with Kof `0.6.6`. The detailed ABI
-  measurements below retain their original toolchain labels where stated.
+- `scripts/verify_simd_dispatch.sh` is the Buffer qualification gate. Its recorded
+  JVM/native x86-64 pass is for Kof `0.6.6`; it must be rerun for `0.6.8`.
 - The 0.4.9 and 0.5.0 material below is retained as historical research.
 
 

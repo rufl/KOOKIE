@@ -3,6 +3,10 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Kof foi atualizado para o release oficial 0.6.8
+  (`2971d2fe4cc873eb50fcd1b7d7d3e097381281c8`) e translate-c para 2.0.2.
+  Zig 0.17.0 e as versões estáveis do SDL3/SDL_mixer já eram atuais; os pins
+  desses componentes não mudaram.
 
 - O smoke 4v4 não falha mais uma partida concluída quando os bots não alcançam
   o arremessável compartilhado aleatório antes da eliminação.

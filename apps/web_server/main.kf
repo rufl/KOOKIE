@@ -77,10 +77,14 @@ Bool webHeaderContainsToken(Int[] source, Int requestLength, String name, String
     var end = packed % 100000
     var cursor = start
     while (cursor < end) {
-        while (cursor < end && (source[cursor] == 32 || source[cursor] == 9 || source[cursor] == 44)) { cursor = cursor + 1 }
+        while (cursor < end && (source[cursor] == 32 || source[cursor] == 9 || source[cursor] == 44)) {
+            cursor = cursor + 1
+        }
         var tokenEnd = cursor
         while (tokenEnd < end && source[tokenEnd] != 44) { tokenEnd = tokenEnd + 1 }
-        while (tokenEnd > cursor && (source[tokenEnd - 1] == 32 || source[tokenEnd - 1] == 9)) { tokenEnd = tokenEnd - 1 }
+        while (tokenEnd > cursor && (source[tokenEnd - 1] == 32 || source[tokenEnd - 1] == 9)) {
+            tokenEnd = tokenEnd - 1
+        }
         if (webRangeEqualsIgnoreCase(source, cursor, tokenEnd, expected)) { return true }
         cursor = tokenEnd + 1
     }
@@ -300,7 +304,9 @@ class WebServerMetrics {
             kutterImportTotal = 0
             kutterImportReceived = 0
         }
-        if (connectionJoined[slot] && !connectionSpectators[slot]) { simulation.removePlayer(connectionPlayerIds[slot]) }
+        if (connectionJoined[slot] && !connectionSpectators[slot]) {
+            simulation.removePlayer(connectionPlayerIds[slot])
+        }
         connectionUsed[slot] = false; connectionIds[slot] = 0
         connectionJoined[slot] = false; connectionWebSocket[slot] = false
         return true
@@ -308,24 +314,34 @@ class WebServerMetrics {
     Int playerCount() { return simulation.playerCount() }
     Int spectatorCount() {
         var count = 0
-        for (var i = 0; i < 12; i = i + 1) { if (connectionUsed[i] && connectionJoined[i] && connectionSpectators[i]) { count = count + 1 } }
+        for (var i = 0; i < 12; i = i + 1) {
+            if (connectionUsed[i] && connectionJoined[i] && connectionSpectators[i]) {
+                count = count + 1
+            }
+        }
         return count
     }
     Int activeSessions() {
         var count = 0
-        for (var i = 0; i < 12; i = i + 1) { if (connectionUsed[i] && connectionWebSocket[i]) { count = count + 1 } }
+        for (var i = 0; i < 12; i = i + 1) {
+            if (connectionUsed[i] && connectionWebSocket[i]) { count = count + 1 }
+        }
         return count
     }
     String healthBody() {
-        return "{\"status\":\"ok\",\"protocol\":\"kookie.v1\",\"transport\":\"tcp\",\"auth_required\":false,\"active_sessions\":" + activeSessions() + "}\n"
+        return "{\"status\":\"ok\",\"protocol\":\"kookie.v1\",\"transport\":\"tcp\",\"auth_required\":false," +
+            "\"active_sessions\":" + activeSessions() + "}\n"
     }
     String metricsBody() {
         return "# TYPE kookie_gateway_active_sessions gauge\nkookie_gateway_active_sessions " + activeSessions() +
             "\n# TYPE kookie_gateway_rejections_total counter\nkookie_gateway_rejections_total " + rejectionCountValue +
             "\n# TYPE kookie_gateway_frames_total counter\nkookie_gateway_frames_total " + frameCountValue +
             "\n# TYPE kookie_gateway_upgrades_total counter\nkookie_gateway_upgrades_total " + upgradeCountValue +
-            "\n# TYPE kookie_gateway_health_requests_total counter\nkookie_gateway_health_requests_total " + healthCountValue +
-            "\n# TYPE kookie_gateway_metrics_requests_total counter\nkookie_gateway_metrics_requests_total " + metricsCountValue + "\n"
+            "\n# TYPE kookie_gateway_health_requests_total counter\n" +
+            "kookie_gateway_health_requests_total " + healthCountValue +
+            "\n# TYPE kookie_gateway_metrics_requests_total counter\n" +
+            "kookie_gateway_metrics_requests_total " + metricsCountValue +
+            "\n"
     }
 }
 Int[] webKutterResponse(
@@ -538,10 +554,14 @@ Int webOutputSequence(WebServerMetrics metrics, Int slot) {
     return sequence
 }
 Bool webSendHelloAck(WebServerMetrics metrics, Int slot, Int sequence) {
-    return webSendSessionWords(metrics.connectionIds[slot], sessionWebAckKind(), sequence, newSessionWebAck(sequence, true))
+    return webSendSessionWords(
+        metrics.connectionIds[slot], sessionWebAckKind(), sequence,
+        newSessionWebAck(sequence, true))
 }
 Bool webSendPong(WebServerMetrics metrics, Int slot, Int sequence) {
-    return webSendSessionWords(metrics.connectionIds[slot], sessionWebPongKind(), sequence, newSessionWebPing(sessionWebPongKind(), sequence))
+    return webSendSessionWords(
+        metrics.connectionIds[slot], sessionWebPongKind(), sequence,
+        newSessionWebPing(sessionWebPongKind(), sequence))
 }
 Int webActorYaw(Int yaw) {
     var value = yaw % 360
@@ -569,7 +589,8 @@ Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot) {
             metrics.simulation.trainingDummyCount()) * 8]
     var cursor = 0
     for (var actorSlot = 0; actorSlot < 12; actorSlot = actorSlot + 1) {
-        if (metrics.connectionUsed[actorSlot] && metrics.connectionJoined[actorSlot] && !metrics.connectionSpectators[actorSlot]) {
+        if (metrics.connectionUsed[actorSlot] && metrics.connectionJoined[actorSlot] &&
+            !metrics.connectionSpectators[actorSlot]) {
             var actor = metrics.simulation.playerState(metrics.connectionPlayerIds[actorSlot])
             if (actor.active) {
                 actors[cursor] = actor.playerId; actors[cursor + 1] = actor.x
@@ -652,7 +673,8 @@ Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot) {
     extended[cursor + 6] =
         if (!spectator) metrics.simulation.playerThrowableChargeTicks(id) else 0
     extended[cursor + 7] =
-        if (!spectator && metrics.simulation.playerCarriesThrowable(id)) metrics.simulation.playerThrowableType(id) else 0
+        if (!spectator && metrics.simulation.playerCarriesThrowable(id))
+            metrics.simulation.playerThrowableType(id) else 0
     extended[cursor + 8] =
         if (!spectator) metrics.simulation.playerSeedAmmo(id) else 0
     extended[cursor + 9] = sliceCount
@@ -788,7 +810,9 @@ Bool webHandleGame(WebServerMetrics metrics, Int slot, WebSessionFrame frame) {
         return webHandleKutter(metrics, slot, frame)
     }
     if (!metrics.connectionJoined[slot]) {
-        if (words.length > 3 && words[3] == sessionWebGameJoinRequestMarker()) { return webHandleJoin(metrics, slot, words) }
+        if (words.length > 3 && words[3] == sessionWebGameJoinRequestMarker()) {
+            return webHandleJoin(metrics, slot, words)
+        }
         return false
     }
     if (metrics.connectionSpectators[slot]) { return false }
@@ -807,7 +831,10 @@ Bool webHandleGame(WebServerMetrics metrics, Int slot, WebSessionFrame frame) {
         metrics.connectionEdgeActions[slot] = metrics.connectionEdgeActions[slot] | words[10]
         return true
     }
-    if (validSessionWebGameProbe(words)) { return webSendSessionWords(metrics.connectionIds[slot], sessionWebGameKind(), frame.sequence(), words) }
+    if (validSessionWebGameProbe(words)) {
+        return webSendSessionWords(
+            metrics.connectionIds[slot], sessionWebGameKind(), frame.sequence(), words)
+    }
     if (validSessionWebGameCommand(words)) {
         if (words[4] == sessionWebGameResetCommand()) {
             var id = metrics.connectionPlayerIds[slot]
@@ -826,7 +853,9 @@ Bool webHandleWebSocketEvent(WebServerMetrics metrics, Int slot) {
     var length = kookie_web_server_event_payload_length()
     if (length < 0 || length > webMaximumWebSocketPayloadBytes()) { return false }
     var payload = webEventBytes(length)
-    if (opcode == webWebSocketOpcodePing()) { return webSendWsFrame(metrics.connectionIds[slot], webWebSocketOpcodePong(), payload) }
+    if (opcode == webWebSocketOpcodePing()) {
+        return webSendWsFrame(metrics.connectionIds[slot], webWebSocketOpcodePong(), payload)
+    }
     if (opcode == webWebSocketOpcodePong()) { return true }
     if (opcode == webWebSocketOpcodeClose()) {
         webSendWsFrame(metrics.connectionIds[slot], webWebSocketOpcodeClose(), payload)
@@ -854,12 +883,18 @@ Bool webHandleHttp(WebServerMetrics metrics, Int slot, Int[] request, Int length
     var id = metrics.connectionIds[slot]
     if (webRequestLine(request, length, "GET", "/healthz")) {
         metrics.healthCountValue = metrics.healthCountValue + 1
-        if (!webSendTextResponse(id, "200 OK", "application/json; charset=utf-8", metrics.healthBody())) { return false }
+        if (!webSendTextResponse(
+            id, "200 OK", "application/json; charset=utf-8", metrics.healthBody())) {
+            return false
+        }
         return kookie_web_server_close_client_after_output(id)
     }
     if (webRequestLine(request, length, "GET", "/metrics")) {
         metrics.metricsCountValue = metrics.metricsCountValue + 1
-        if (!webSendTextResponse(id, "200 OK", "text/plain; version=0.0.4; charset=utf-8", metrics.metricsBody())) { return false }
+        if (!webSendTextResponse(
+            id, "200 OK", "text/plain; version=0.0.4; charset=utf-8", metrics.metricsBody())) {
+            return false
+        }
         return kookie_web_server_close_client_after_output(id)
     }
     var spectator = webRequestLine(request, length, "GET", "/spectate")

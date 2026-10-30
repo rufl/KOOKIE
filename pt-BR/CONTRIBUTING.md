@@ -77,7 +77,7 @@ Windows. Quando o diretório do arquivo contiver `SHA256SUMS` e
 `SOURCE_COMMIT`, configure o shell atual antes do gate completo:
 
 ```bash
-source scripts/configure_kof_archive.sh /path/to/kof-0.6.5-linux-x86_64.tar.gz
+source scripts/configure_kof_archive.sh /path/to/kof-0.6.8-linux-x86_64.tar.gz
 export KOOKIE_ZIG_VERSION=0.17.0
 export KOOKIE_ZIG_ARCHIVE_SHA256=1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026
 bash scripts/verify.sh

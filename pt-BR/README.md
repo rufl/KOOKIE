@@ -7,7 +7,7 @@
   <a href="https://github.com/rufl/KOOKIE/releases"><img alt="Release dogfood mais recente do KOOKIE" src="https://img.shields.io/github/v/release/rufl/KOOKIE?include_prereleases&amp;sort=semver&amp;label=dogfood&amp;color=38bdf8"></a>
   <img alt="Estado do projeto: experimental" src="https://img.shields.io/badge/estado-experimental-f59e0b">
   <a href="../LICENSE"><img alt="Licença MIT" src="https://img.shields.io/github/license/rufl/KOOKIE?color=22c55e"></a>
-  <img alt="Kof 0.6.6" src="https://img.shields.io/badge/Kof-0.6.6-64748b">
+  <img alt="Kof 0.6.8" src="https://img.shields.io/badge/Kof-0.6.8-64748b">
 </p>
 
 <p align="center">
@@ -90,13 +90,12 @@ com artefatos Linux e Windows x86-64; o updater seleciona o asset do alvo.
 
 ### Executar a qualificação a partir da fonte
 
-Instale [Kof 0.6.6](https://github.com/KofLang/Kof4j) para o entrypoint
-de fonte:
-
-Use a distribuição construída a partir da branch `lab` do Kof no commit
-`7c237861a9035d84b1f7ec4cfddd89daef4c6ddd`. `scripts/prepare_kof_source.sh`
-verifica que a guarda de ciclos do GC native upstream está presente e depois
-normaliza os metadados do compilador antes do empacotamento Maven.
+Instale o release oficial [Kof 0.6.8](https://github.com/KofLang/Kof4j),
+tag `kof-0.6.8-linux-x86_64`, no commit
+`2971d2fe4cc873eb50fcd1b7d7d3e097381281c8`. O SHA-256 do archive Linux é
+`8da8f9efc7c55b6e5314248b90a0ac62d900117f4a3503af8dadf6ce82a20577`.
+`scripts/prepare_kof_source.sh` verifica a guarda de ciclos do GC native
+upstream e normaliza metadados do compilador antes do empacotamento Maven.
 
 Para atualizar o ambiente local a partir do head atual da `lab`, execute:
 
@@ -267,10 +266,10 @@ manifesto de assets publicados. O adaptador de sound cues mantém metadados
 registrados no SDL_mixer. Os 14 OGG JDSherbert fornecidos
 continuam bloqueados para redistribuição até a procedência/licença ser
 confirmada. [`docs/KOF4J_UI_MIGRATION.md`](docs/KOF4J_UI_MIGRATION.md) registra
-a fronteira atual de UI/FFI do Kof4j `0.6.6`. A qualificação síncrona de
-`Buffer(U8)` passa na JVM e no native x86-64 com o pin ativo; o suporte cross
-continua não qualificado e `Buffer(U8)` não é uma ABI portátil
-tipada/assíncrona de upload.
+o trabalho de UI/FFI do Kof4j. As evidências de `Buffer(U8)` foram medidas no
+Kof `0.6.6` e não estão qualificadas no pin ativo `0.6.8`. O suporte cross
+também não está qualificado, e `Buffer(U8)` não é uma ABI portátil de upload
+tipada/assíncrona.
 `bash scripts/verify_package.sh` valida o perfil `none` do pacote;
 `bash scripts/verify_prototype_package.sh` valida o perfil `prototype`; e
 `bash scripts/verify_goose_game.sh` cobre o caminho de gameplay limitado. O gate

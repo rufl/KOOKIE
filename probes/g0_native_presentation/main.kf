@@ -1060,8 +1060,8 @@ class G1NativePresentation {
             playerId <= 0) { return false }
         for (var index = 0; index < length; index = index + 1) {
             webSnapshotWords[index] = words[index]
+        }
         webSnapshotLength = length
-        webLocalPlayerId = playerId
         webSharedMode = true
         hud.setWebAuthoritative(true)
         return true

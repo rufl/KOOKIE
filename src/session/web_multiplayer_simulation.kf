@@ -502,7 +502,7 @@ class WebMultiplayerSimulation {
             kookie_box3d_destroy_arena()
             return false
         }
- 
+
         if (!combat.defineWeapon(1, 30, 90, 20, 1) ||
             !combat.setWeaponRange(1, 120) ||
             !combat.setWeaponCooldown(1, 0)) { return false }
@@ -1123,7 +1123,10 @@ class WebMultiplayerSimulation {
         meleeCountValue = meleeCountValue + 1
         healthValues[target] = healthValues[target] - result.applied()
         if (healthValues[target] < 0) { healthValues[target] = 0 }
-        return pushImpact(2, playerIds[slot], playerIds[target], movement.positionX(target + 1), movement.positionY(target + 1), movement.positionZ(target + 1), result.applied())
+        return pushImpact(
+            2, playerIds[slot], playerIds[target],
+            movement.positionX(target + 1), movement.positionY(target + 1),
+            movement.positionZ(target + 1), result.applied())
     }
     Bool activateSpecial(Int slot) {
         var effect = effectAt(slot)
@@ -1540,7 +1543,11 @@ class WebMultiplayerSimulation {
                         throwableRespawnTick = tickValue + 180
                     }
                     projectileActive[index] = false
-                    if (!pushImpact(5, projectileOwners[index], 0, projectileX[index], projectileY[index], projectileZ[index], 0)) { return false }
+                    if (!pushImpact(
+                        5, projectileOwners[index], 0, projectileX[index], projectileY[index],
+                        projectileZ[index], 0)) {
+                        return false
+                    }
                 }
             }
         }
@@ -1548,7 +1555,10 @@ class WebMultiplayerSimulation {
     }
     WebMultiplayerPlayerState playerState(Int externalId) {
         var slot = playerSlot(externalId)
-        if (slot < 0) { return WebMultiplayerPlayerState(false, externalId, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false, false, 0) }
+        if (slot < 0) {
+            return WebMultiplayerPlayerState(
+                false, externalId, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false, false, 0)
+        }
         var actor = slot + 1
         var grounded = movement.grounded(actor)
         var gliding = movement.gliding(actor)
@@ -1621,7 +1631,9 @@ class WebMultiplayerSimulation {
         return WebMultiplayerProjectileState(false, 0, 0, 0, 0, 0, 0, 0, 0)
     }
     WebMultiplayerThrowableState throwableAt(Int index) {
-        if (index < 0 || index >= webMultiplayerThrowableCapacity()) { return WebMultiplayerThrowableState(false, 0, 0, 0, 0, 0, 0, 0, 0) }
+        if (index < 0 || index >= webMultiplayerThrowableCapacity()) {
+            return WebMultiplayerThrowableState(false, 0, 0, 0, 0, 0, 0, 0, 0)
+        }
         var seen = 0
         for (var slot = 0; slot < 16; slot = slot + 1) {
             if (projectileActive[slot] && projectileKinds[slot] == 2) {
@@ -1642,7 +1654,10 @@ class WebMultiplayerSimulation {
     Int impactCount() { return impactCountValue }
     WebMultiplayerImpactEvent impactAt(Int index) {
         if (index < 0 || index >= impactCountValue) { return WebMultiplayerImpactEvent(0, 0, 0, 0, 0, 0, 0, 0, 0) }
-        return WebMultiplayerImpactEvent(impactSequence[index], impactTick[index], impactKind[index], impactSource[index], impactTarget[index], impactX[index], impactY[index], impactZ[index], impactDamage[index])
+        return WebMultiplayerImpactEvent(
+            impactSequence[index], impactTick[index], impactKind[index],
+            impactSource[index], impactTarget[index], impactX[index], impactY[index],
+            impactZ[index], impactDamage[index])
     }
 
 }

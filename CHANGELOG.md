@@ -3,6 +3,7 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Upgraded the Kof pin to official 0.6.8 (`2971d2fe4cc873eb50fcd1b7d7d3e097381281c8`) and translate-c to 2.0.2. Zig 0.17.0 and the stable SDL3/SDL_mixer versions were already current, so their pins remain unchanged.
 - Damaged players and training dummies recoil briefly away from attackers.
   Impact flashes now use a defined neutral tint.
 - Non-controlled characters briefly flash when hit. Local-player hits trigger a
