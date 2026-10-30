@@ -38,15 +38,16 @@
     .kookie-session-stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; border: 1px solid #56664d; border-radius: 22px; background: #0a1210; box-shadow: 0 22px 70px #0008; }
     .kookie-session-canvas-wrap { position: absolute; inset: 0; }
     .kookie-session-panel canvas#kookie-authoritative-scene { display: block; width: 100%; height: 100%; min-height: 0; aspect-ratio: auto; border: 0; border-radius: inherit; background: #07100d; touch-action: none; }
-    .kookie-session-hud { position: absolute; z-index: 2; top: 14px; left: 14px; display: flex; gap: 8px; pointer-events: none; }
+    .kookie-session-hud { position: absolute; z-index: 2; top: 14px; left: 14px; right: calc(clamp(100px, 17vw, 164px) + 36px); display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; pointer-events: none; }
     .kookie-session-stat { min-width: 92px; padding: 8px 12px; border: 1px solid #ffffff27; border-radius: 12px; background: #111c18dc; backdrop-filter: blur(8px); }
     .kookie-session-stat-label { display: block; color: #bdc9ae; font-size: 10px; letter-spacing: .09em; }
-    .kookie-session-stat-value { display: block; margin-top: 2px; color: #fffbe9; font: 700 17px/1.2 ui-monospace, monospace; }
+    .kookie-session-stat-value { display: block; margin-top: 2px; color: #fffbe9; font: 700 22px/1 "ThaleahFat", "Pixand", sans-serif; letter-spacing: .02em; }
     .kookie-session-stat[data-stat="health"] .kookie-session-stat-value { display: flex; align-items: center; gap: 6px; }
     .kookie-session-stat[data-stat="health"] .kookie-session-stat-value::before { content: ""; flex: 0 0 24px; width: 24px; height: 24px; background: url("assets/prototype/runtime/ui/hearts_0001.png") no-repeat -96px 0 / 120px 24px; image-rendering: pixelated; }
     .kookie-session-stat[data-stat="health"][data-team="blue"] .kookie-session-stat-value::before { background-image: url("assets/prototype/runtime/ui/hearts_blue.png"); }
+    .kookie-session-stat[data-stat="ammo"] { min-width: 112px; margin-left: auto; }
     .kookie-session-stat[data-stat="tick"], .kookie-session-stat[data-stat="position"], .kookie-session-stat[data-stat="combo"], .kookie-session-stat[data-stat="actors"], .kookie-session-stat[data-stat="projectiles"], .kookie-session-stat[data-stat="ping"], .kookie-session-stat[data-stat="renderer"] { display: none; }
-    .kookie-session-stat[data-stat="ping"] { display: block; min-width: 54px; margin-left: auto; }
+    .kookie-session-stat[data-stat="ping"] { display: block; min-width: 54px; }
     .kookie-session-minimap { position: absolute; top: 14px; right: 14px; width: clamp(100px, 17vw, 164px); height: auto; min-height: 0; aspect-ratio: 3/2; border: 1px solid #ffffff35; border-radius: 14px; background: #07100de8; }
     .kookie-session-minimap[hidden] { display: none; }
     .kookie-session-runtime { position: absolute; z-index: 3; left: 14px; bottom: 14px; padding: 7px 10px; border: 1px solid #ffffff26; border-radius: 10px; background: #111c18dc; color: #dce8cc; font-size: 12px; }
@@ -54,8 +55,8 @@
     .kookie-session-status:empty { display: none; }
     .kookie-session-help { position: absolute; right: 14px; bottom: 14px; color: #e5e9d8; font-size: 12px; text-shadow: 0 1px 5px #000; }
     .kookie-session-touch-look { position: absolute; right: 16px; bottom: 16px; z-index: 2; padding: 7px 10px; border: 1px solid #ffffff38; border-radius: 999px; background: #111c18b8; color: #f5f4e8; font: 700 10px/1 system-ui, sans-serif; letter-spacing: .08em; pointer-events: none; opacity: .8; transition: opacity 250ms ease; }
-    .kookie-training-damage-layer { position: absolute; z-index: 5; inset: 0; pointer-events: none; overflow: hidden; }
-    .kookie-training-damage { position: absolute; transform: translate(-50%, -50%); color: #fff4a6; font: 30px/1 "ThaleahFat", "Pixand", sans-serif; letter-spacing: .02em; -webkit-text-stroke: .35px #160d00; text-shadow: 0 2px 4px #160d00, 0 0 10px #f08a12; will-change: transform, opacity; }
+    .kookie-damage-number-layer { position: absolute; z-index: 5; inset: 0; pointer-events: none; overflow: hidden; }
+    .kookie-damage-number { position: absolute; transform: translate(-50%, -50%); color: #fff4a6; font: 30px/1 "ThaleahFat", "Pixand", sans-serif; letter-spacing: .02em; -webkit-text-stroke: .35px #160d00; text-shadow: 0 2px 4px #160d00, 0 0 10px #f08a12; will-change: transform, opacity; }
     .kookie-session-canvas-wrap[data-touch-look-started="true"] .kookie-session-touch-look { opacity: 0; }
     .kookie-session-footer { display: flex; align-items: center; min-height: 124px; }
     .kookie-session-game-controls { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px; }
@@ -162,12 +163,13 @@
       .kookie-session-settings summary { width: 44px; min-width: 44px; max-width: 44px; min-height: 44px; padding: 0 3px; overflow: hidden; white-space: nowrap; font-size: 8px; }
       .kookie-session-stage { border-radius: 12px; }
       .kookie-touch-layout-toggle { display: inline-flex; align-items: center; justify-content: center; }
-      .kookie-session-hud { top: 56px; left: 6px; right: 6px; gap: 4px; }
+      .kookie-session-hud { top: 56px; left: max(6px, env(safe-area-inset-left)); right: max(78px, calc(72px + env(safe-area-inset-right))); gap: 4px; }
       .kookie-session-stat { min-width: 52px; padding: 4px 6px; border-radius: 8px; }
       .kookie-session-stat-label { font-size: 8px; }
-      .kookie-session-stat-value { margin-top: 1px; font-size: 12px; }
+      .kookie-session-stat-value { margin-top: 1px; font-size: 16px; }
       .kookie-session-stat[data-stat="health"] .kookie-session-stat-value { gap: 4px; }
       .kookie-session-stat[data-stat="health"] .kookie-session-stat-value::before { flex-basis: 18px; width: 18px; height: 18px; background-size: 90px 18px; background-position: -72px 0; }
+      .kookie-session-stat[data-stat="ammo"] { min-width: 72px; }
       .kookie-session-minimap { top: 44px; right: 6px; width: 66px; border-radius: 8px; }
       .kookie-session-footer { position: absolute; z-index: 5; left: max(6px, env(safe-area-inset-left)); right: max(6px, env(safe-area-inset-right)); bottom: max(5px, env(safe-area-inset-bottom)); min-height: 0; pointer-events: none; }
       .kookie-session-game-controls { pointer-events: none; align-items: end; }

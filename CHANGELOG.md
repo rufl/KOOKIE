@@ -3,6 +3,14 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Damaged players and training dummies recoil briefly away from attackers.
+  Impact flashes now use a defined neutral tint.
+- Floating damage numbers now appear for positive hits against players and
+  dummies. Added a persistent Settings toggle to hide or show them.
+- HUD values now use the ThaleahFat damage-number typeface. Ammo, seed, and
+  fireball counts share one HUD card that changes its label and count with the
+  active weapon; the compact HUD stays clear of the minimap on desktop and
+  mobile.
 - Player camera now follows a damped focus point and derives its horizontal
   offset from the smoothed character heading, keeping the view behind the
   character while movement and turns blend smoothly. Manual spectator camera

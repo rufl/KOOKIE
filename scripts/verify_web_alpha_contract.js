@@ -772,6 +772,25 @@ async function main() {
     .attributes["aria-label"].includes("tick 15"),
   document.getElementById("kookie-session-status").textContent);
   if (frameCallbacks.length > 0) frameCallbacks.shift()(1001);
+  const damageNumbersToggle = pageElements.find((element) =>
+    element.attributes["aria-label"] === "Show damage numbers");
+  assert.ok(damageNumbersToggle?.checked,
+    "damage numbers are enabled by default");
+  assert.deepEqual(
+    collectElements(document.body)
+      .filter((element) => element.className === "kookie-damage-number")
+      .map((element) => element.textContent),
+    ["-20"],
+    "positive player damage produces one floating damage number",
+  );
+  damageNumbersToggle.checked = false;
+  damageNumbersToggle.listeners.change();
+  assert.equal(savedSettings.at(-1).value.showDamageNumbers, false,
+    "damage-number visibility persists in browser settings");
+  if (frameCallbacks.length > 0) frameCallbacks.shift()(1002);
+  assert.equal(collectElements(document.body)
+    .filter((element) => element.className === "kookie-damage-number").length, 0,
+  "disabling damage numbers removes active labels");
   assert.equal(document.getElementById("kookie-scene-labels"), null,
     "multiplayer players never get text or UID nameplates");
   for (const [stat, expected] of [

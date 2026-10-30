@@ -180,6 +180,7 @@
     reconnectDelayMs: [250, 500, 1000, 2000].includes(storedSettings.reconnectDelayMs)
       ? storedSettings.reconnectDelayMs : 500,
     showMinimap: storedSettings.showMinimap !== false,
+    showDamageNumbers: storedSettings.showDamageNumbers !== false,
     pointerLock: storedSettings.pointerLock !== false,
     reducedMotion: storedSettings.reducedMotion === true ||
       (typeof window.matchMedia === "function" &&
@@ -221,6 +222,7 @@
   }
   addSettingToggle("autoReconnect", "Reconnect automatically");
   addSettingToggle("showMinimap", "Show small arena map");
+  addSettingToggle("showDamageNumbers", "Show damage numbers");
   addSettingToggle("pointerLock", "Use pointer lock for mouse look");
   addSettingToggle("reducedMotion", "Reduce interface motion");
   function addSettingRange(key, labelText, minimum, maximum) {
@@ -380,10 +382,10 @@
   labelOverlay.className = "kookie-session-labels";
   labelOverlay.setAttribute("aria-label", "Visible player and animal labels");
   sceneCanvasWrap.appendChild(labelOverlay);
-  const trainingDamageLayer = document.createElement("div");
-  trainingDamageLayer.className = "kookie-training-damage-layer";
-  trainingDamageLayer.setAttribute("aria-hidden", "true");
-  sceneCanvasWrap.appendChild(trainingDamageLayer);
+  const damageNumberLayer = document.createElement("div");
+  damageNumberLayer.className = "kookie-damage-number-layer";
+  damageNumberLayer.setAttribute("aria-hidden", "true");
+  sceneCanvasWrap.appendChild(damageNumberLayer);
   const throwPrompt = document.createElement("span");
   throwPrompt.className = "kookie-throw-prompt";
   throwPrompt.hidden = true;
@@ -448,7 +450,6 @@
   addHudStat("health", "HEALTH", "100");
   addHudStat("stamina", "STAMINA", "100");
   addHudStat("ammo", "AMMO", "24");
-  addHudStat("seeds", "SEEDS", "0");
   addHudStat("combo", "COMBO", "0");
   addHudStat("actors", "ACTORS", "4");
   addHudStat("projectiles", "PROJECTILES", "0");
@@ -1059,7 +1060,10 @@
   let sceneRenderer = null;
   let renderFrameHandle = 0;
   let renderSceneState = null;
-  const trainingDamageLabels = new Map();
+  const damageNumberLabels = new Map();
+  const seenDamageImpactKeys = new Set();
+  const damageImpactKeyOrder = [];
+  let lastDamageNumberSceneTick = null;
   const remoteSnapshots = [];
   const REMOTE_SNAPSHOT_HISTORY = 16;
   const REMOTE_BASE_TICK_MS = 1000 / 60;
@@ -1687,13 +1691,17 @@
     const ammoText = Number.isFinite(scene.ammo) ? String(scene.ammo) : "--";
     hudValues.health.textContent = healthText + " / 100";
     hudValues.stamina.textContent = staminaText + " / 100";
-    hudValues.ammo.textContent = ammoText;
     const localActor = scene.actors.find((actor) => actor.id === scene.playerId);
     hudStats.health.dataset.team = localActor?.kind === 2 ? "blue" : "red";
     const fireballsActive = localActor?.powerUp === 8;
-    hudLabels.seeds.textContent = fireballsActive ? "FIREBALLS" : "SEEDS";
-    hudValues.seeds.textContent = Number.isInteger(scene.seedAmmo)
-      ? String(scene.seedAmmo) : "--";
+    const seedAmmoAvailable = Number.isInteger(scene.seedAmmo) &&
+      scene.seedAmmo > 0;
+    const specialAmmoActive = fireballsActive || seedAmmoAvailable;
+    hudLabels.ammo.textContent = fireballsActive ? "FIREBALLS"
+      : seedAmmoAvailable ? "SEEDS" : "AMMO";
+    hudValues.ammo.textContent = specialAmmoActive
+      ? Number.isInteger(scene.seedAmmo) ? String(scene.seedAmmo) : "--"
+      : ammoText;
     hudValues.combo.textContent = String(scene.combo ?? 0);
     hudValues.actors.textContent = String(
       scene.actors.filter((actor) => actor.health > 0).length
@@ -1793,40 +1801,58 @@
         spectatorCameraPosition.y + vertical * speed));
   }
 
-  function removeTrainingDamageLabel(element) {
-    if (element.parentNode === trainingDamageLayer) {
-      trainingDamageLayer.removeChild(element);
+  function removeDamageNumberLabel(element) {
+    if (element.parentNode === damageNumberLayer) {
+      damageNumberLayer.removeChild(element);
     }
   }
-  function updateTrainingDamageNumbers(scene, now) {
-    if (!scene.training) {
-      for (const entry of trainingDamageLabels.values()) {
-        removeTrainingDamageLabel(entry.element);
-      }
-      trainingDamageLabels.clear();
-      return;
+  function clearDamageNumberLabels() {
+    for (const entry of damageNumberLabels.values()) {
+      removeDamageNumberLabel(entry.element);
     }
+    damageNumberLabels.clear();
+  }
+  function updateDamageNumbers(scene, now) {
+    if (lastDamageNumberSceneTick !== null &&
+        scene.tick < lastDamageNumberSceneTick) {
+      clearDamageNumberLabels();
+      seenDamageImpactKeys.clear();
+      damageImpactKeyOrder.length = 0;
+    }
+    lastDamageNumberSceneTick = scene.tick;
     for (const impact of scene.impacts || []) {
-      if (impact.kind !== 2 || impact.damage <= 0 ||
-          trainingDamageLabels.has(impact.sequence)) continue;
+      if (impact.damage <= 0) continue;
+      const key = [impact.sequence, impact.sourceId, impact.targetId,
+        impact.kind, impact.x, impact.y, impact.z, impact.damage].join(":");
+      if (seenDamageImpactKeys.has(key)) continue;
+      seenDamageImpactKeys.add(key);
+      damageImpactKeyOrder.push(key);
+      if (damageImpactKeyOrder.length > 32) {
+        seenDamageImpactKeys.delete(damageImpactKeyOrder.shift());
+      }
+      if (!clientSettings.showDamageNumbers) continue;
       const element = document.createElement("span");
-      element.className = "kookie-training-damage";
+      element.className = "kookie-damage-number";
       element.textContent = "-" + impact.damage;
-      trainingDamageLayer.appendChild(element);
-      trainingDamageLabels.set(impact.sequence, {
+      damageNumberLayer.appendChild(element);
+      damageNumberLabels.set(key, {
         element, impact, startedAt: now,
       });
-      if (trainingDamageLabels.size > 24) {
-        const oldest = trainingDamageLabels.keys().next().value;
-        removeTrainingDamageLabel(trainingDamageLabels.get(oldest).element);
-        trainingDamageLabels.delete(oldest);
+      if (damageNumberLabels.size > 24) {
+        const oldest = damageNumberLabels.keys().next().value;
+        removeDamageNumberLabel(damageNumberLabels.get(oldest).element);
+        damageNumberLabels.delete(oldest);
       }
     }
-    for (const [sequence, entry] of trainingDamageLabels) {
+    if (!clientSettings.showDamageNumbers) {
+      clearDamageNumberLabels();
+      return;
+    }
+    for (const [key, entry] of damageNumberLabels) {
       const progress = (now - entry.startedAt) / 950;
       if (progress >= 1) {
-        removeTrainingDamageLabel(entry.element);
-        trainingDamageLabels.delete(sequence);
+        removeDamageNumberLabel(entry.element);
+        damageNumberLabels.delete(key);
         continue;
       }
       const projected = sceneRenderer.projectWorld(
@@ -1944,7 +1970,7 @@
     updateRemoteRenderActors(now);
     try {
       sceneRenderer.render(renderSceneState, time);
-      updateTrainingDamageNumbers(renderSceneState, now);
+      updateDamageNumbers(renderSceneState, now);
       if (typeof sceneRenderer.getStatus === "function") {
         const rendererStatus = sceneRenderer.getStatus();
         if (hudValues.renderer.textContent !== rendererStatus) {

@@ -91,6 +91,7 @@
     damaged: [0.28, 0.32, 0.38, 1],
     projectile: [1.0, 0.88, 0.20, 1],
     fireball: [1.0, 0.24, 0.035, 1],
+    vfx: [1, 1, 1, 1],
     pickup: [0.30, 1.0, 0.58, 1],
     shadow: [0.015, 0.020, 0.025, 0.42],
     water: [0.05, 0.34, 0.45, 0.72],
@@ -1420,6 +1421,9 @@
     const impactEffects = new Map();
     const movementSmokeEffects = new Map();
     const actorMovementStates = new Map();
+    const actorHitFlinches = new Map();
+    const seenHitImpactKeys = new Set();
+    const hitImpactKeyOrder = [];
     const actorAnimationStarts = new Map();
     const rollDurationMs = 12 * (1000 / 60);
 
@@ -1463,6 +1467,64 @@
       for (const [actorId, state] of actorMovementStates) {
         if (time - state.lastSeenAt > 2500) actorMovementStates.delete(actorId);
       }
+    }
+    function updateActorHitFlinches(scene, time) {
+      const actors = scene.actors || [];
+      for (const impact of scene.impacts || []) {
+        if (impact.damage <= 0) continue;
+        const key = [impact.sequence, impact.sourceId, impact.targetId,
+          impact.kind, impact.x, impact.y, impact.z, impact.damage].join(":");
+        if (seenHitImpactKeys.has(key)) continue;
+        seenHitImpactKeys.add(key);
+        hitImpactKeyOrder.push(key);
+        if (hitImpactKeyOrder.length > 32) {
+          seenHitImpactKeys.delete(hitImpactKeyOrder.shift());
+        }
+        let target = actors.find((actor) => actor.id === impact.targetId);
+        if (!target && impact.targetId === 0) {
+          let closestDistanceSquared = 25;
+          for (const actor of actors) {
+            if (actor.kind !== 3) continue;
+            const dx = actor.x - impact.x;
+            const dz = actor.z - impact.z;
+            const distanceSquared = dx * dx + dz * dz;
+            if (distanceSquared < closestDistanceSquared) {
+              target = actor;
+              closestDistanceSquared = distanceSquared;
+            }
+          }
+        }
+        const source = actors.find((actor) => actor.id === impact.sourceId);
+        if (!target || !source || !Number.isInteger(target.id)) continue;
+        let directionX = target.x - source.x;
+        let directionZ = target.z - source.z;
+        let distance = Math.hypot(directionX, directionZ);
+        if (distance < 0.001) {
+          const yaw = (source.yaw || 0) * Math.PI / 180;
+          directionX = Math.sin(yaw);
+          directionZ = Math.cos(yaw);
+          distance = 1;
+        }
+        actorHitFlinches.set(target.id, {
+          x: directionX / distance,
+          z: directionZ / distance,
+          startedAt: time,
+        });
+      }
+      for (const [actorId, flinch] of actorHitFlinches) {
+        if (time - flinch.startedAt >= 160) actorHitFlinches.delete(actorId);
+      }
+    }
+    function actorHitFlinchOffset(actorId, time) {
+      const flinch = actorHitFlinches.get(actorId);
+      if (!flinch) return null;
+      const progress = (time - flinch.startedAt) / 160;
+      if (progress >= 1) {
+        actorHitFlinches.delete(actorId);
+        return null;
+      }
+      const distance = Math.sin(Math.max(0, progress) * Math.PI) * 1.5;
+      return [flinch.x * distance, flinch.z * distance];
     }
     function actorAnimationElapsed(actor, time) {
       const id = Number.isInteger(actor.id) ? actor.id : 0;
@@ -1537,10 +1599,14 @@
           impactEffects.clear();
           movementSmokeEffects.clear();
           actorMovementStates.clear();
+          actorHitFlinches.clear();
+          seenHitImpactKeys.clear();
+          hitImpactKeyOrder.length = 0;
         }
         lastImpactSceneTick = scene.tick;
       }
       updateMovementSmoke(scene.actors || [], time);
+      updateActorHitFlinches(scene, time);
       if (contextLost || (typeof gl.isContextLost === "function" && gl.isContextLost())) return;
       resize();
       const targetCamera = cameraTargetForScene(scene);
@@ -1698,16 +1764,26 @@
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       for (const actor of actors) {
         if (actor.health <= 0 || (scene.playerId > 0 && actor.id === scene.playerId)) continue;
+        const flinchOffset = actorHitFlinchOffset(actor.id, time);
         draw(
           [fallbackMeshes.shadow],
-          transform([actor.x, 0.04, actor.z], [8, 1, 6]),
+          transform([
+            actor.x + (flinchOffset ? flinchOffset[0] : 0),
+            0.04,
+            actor.z + (flinchOffset ? flinchOffset[1] : 0),
+          ], [8, 1, 6]),
           COLORS.shadow, time, viewProjection,
         );
       }
       if (scene.playerId === undefined || scene.playerId > 0) {
+        const flinchOffset = actorHitFlinchOffset(scene.playerId, time);
         draw(
           [fallbackMeshes.shadow],
-          transform([scene.playerX, 0.04, scene.playerZ], [8, 1, 6]),
+          transform([
+            scene.playerX + (flinchOffset ? flinchOffset[0] : 0),
+            0.04,
+            scene.playerZ + (flinchOffset ? flinchOffset[1] : 0),
+          ], [8, 1, 6]),
           COLORS.shadow, time, viewProjection,
         );
       }
@@ -1720,10 +1796,11 @@
       for (const actor of actors) {
         const model = modelForActor(actor);
         if (scene.playerId > 0 && actor.id === scene.playerId) continue;
+        const flinchOffset = actorHitFlinchOffset(actor.id, time);
         if (actor.kind === 3) {
-          const x = actor.x;
+          const x = actor.x + (flinchOffset ? flinchOffset[0] : 0);
           const y = actor.y;
-          const z = actor.z;
+          const z = actor.z + (flinchOffset ? flinchOffset[1] : 0);
           const straw = actor.health > 0 ? [0.92, 0.64, 0.2, 1] : COLORS.damaged;
           const dummyScale = DUMMY_RENDER_SCALE;
           draw([fallbackMeshes.solid],
@@ -1759,12 +1836,14 @@
           actorAnimation, actorAnimationTime,
         );
         draw(model?.meshes || [fallbackMeshes.actor], transform(
-          [actor.x, actor.y + actorLift, actor.z], scale, actorYaw, 0,
-          actorRollAngle(actor, time),
+          [actor.x + (flinchOffset ? flinchOffset[0] : 0),
+            actor.y + actorLift,
+            actor.z + (flinchOffset ? flinchOffset[1] : 0)], scale, actorYaw, 0,
         ), tint, time, viewProjection, [0, 0, 1, 1], skinMatrices);
       }
       const playerActor = actors.find((actor) => actor.id === scene.playerId) ||
         { id: scene.playerId, kind: 1, animation: 0 };
+      const playerFlinchOffset = actorHitFlinchOffset(playerActor.id, time);
       const playerModel = modelForActor(playerActor);
       const playerScale = playerActor.kind === 2
         ? [CAT_RENDER_SCALE, CAT_RENDER_SCALE, CAT_RENDER_SCALE]
@@ -1776,8 +1855,10 @@
       );
       if (scene.playerId === undefined || scene.playerId > 0) {
         draw(playerModel?.meshes || [fallbackMeshes.actor], transform(
-          [scene.playerX, scene.playerY + playerLift, scene.playerZ], playerScale,
-          renderYawForActor(playerActor, yaw), 0,
+          [scene.playerX + (playerFlinchOffset ? playerFlinchOffset[0] : 0),
+            scene.playerY + playerLift,
+            scene.playerZ + (playerFlinchOffset ? playerFlinchOffset[1] : 0)],
+          playerScale,
           actorRollAngle(playerActor, time),
         ), COLORS.player, time, viewProjection, [0, 0, 1, 1], playerSkinMatrices);
       }
@@ -1794,6 +1875,7 @@
         gl.depthMask(false);
         for (const actor of actors) {
           if (actor.health <= 0 || actor.id === scene.playerId) continue;
+          const flinchOffset = actorHitFlinchOffset(actor.id, time);
           const health = Math.max(0, Math.min(100, actor.health));
           const heartState = Math.max(0, Math.min(4, Math.floor(health * 4 / 100)));
           const actorLift = actorAnimationLift(actor, scene.tick);
@@ -1804,7 +1886,9 @@
           draw(
             [teamHeartMesh],
             transform(
-              [actor.x, actor.y + actorLift + heartHeight, actor.z],
+              [actor.x + (flinchOffset ? flinchOffset[0] : 0),
+                actor.y + actorLift + heartHeight,
+                actor.z + (flinchOffset ? flinchOffset[1] : 0)],
               [2.8, 2.8, 1], yaw,
             ),
             [1, 1, 1, 1], time, viewProjection,
