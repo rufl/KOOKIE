@@ -232,6 +232,7 @@ class WebServerMetrics {
     Int upgradeCountValue
     Int healthCountValue
     Int metricsCountValue
+    Int tickScheduleOverrunsValue
 
     public constructor() {
         simulation = WebMultiplayerSimulation()
@@ -269,6 +270,7 @@ class WebServerMetrics {
         upgradeCountValue = 0
         healthCountValue = 0
         metricsCountValue = 0
+        tickScheduleOverrunsValue = 0
         for (var i = 0; i < 12; i = i + 1) { connectionUsed[i] = false }
     }
     Int find(Int id) {
@@ -341,6 +343,9 @@ class WebServerMetrics {
             "kookie_gateway_health_requests_total " + healthCountValue +
             "\n# TYPE kookie_gateway_metrics_requests_total counter\n" +
             "kookie_gateway_metrics_requests_total " + metricsCountValue +
+            "\n# TYPE kookie_gateway_tick_schedule_overruns_total counter\n" +
+            "kookie_gateway_tick_schedule_overruns_total " +
+            tickScheduleOverrunsValue +
             "\n"
     }
 }
@@ -979,9 +984,20 @@ main() {
             metrics.release(connectionId)
         }
         now = kookie_web_server_monotonic_nanoseconds()
-        while (webTickDue(metrics, now)) {
-            if (!webTick(metrics)) { println("KOOKIE authoritative tick failed"); process.exit(1) }
-            metrics.nextTickNanosecondsValue = metrics.nextTickNanosecondsValue + metrics.simulation.tickNanoseconds()
+        if (webTickDue(metrics, now)) {
+            var scheduledDeadline = metrics.nextTickNanosecondsValue
+            if (!webTick(metrics)) {
+                println("KOOKIE authoritative tick failed")
+                process.exit(1)
+            }
+            metrics.nextTickNanosecondsValue =
+                scheduledDeadline + metrics.simulation.tickNanoseconds()
+            if (webTickDue(metrics, now)) {
+                metrics.tickScheduleOverrunsValue =
+                    metrics.tickScheduleOverrunsValue + 1
+                metrics.nextTickNanosecondsValue =
+                    now + metrics.simulation.tickNanoseconds()
+            }
         }
     }
 }

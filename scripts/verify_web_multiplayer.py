@@ -308,7 +308,8 @@ def main():
                 break
             time.sleep(.04)
         assert coffee_actor is not None, (
-            "authoritative coffee pickup was not replicated; actors=" +
+            f"authoritative coffee pickup was not replicated at tick "
+            f"{pickup_scene[4]}; actors=" +
             repr([pickup_scene[18 + index * 8:26 + index * 8]
                   for index in range(pickup_scene[17])]))
         wizard_deadline = time.monotonic() + 5
