@@ -83,6 +83,7 @@ def latest_snapshot(client, expected_spectators=None):
 
 def run_battle(port, duration=None, log_path=None):
     clients = []
+    drivers = []
     battle_log = None
     stop = threading.Event()
     action_usage = set()
@@ -279,10 +280,11 @@ def run_battle(port, duration=None, log_path=None):
                         if powerup_kind:
                             powerups_acquired.add(powerup_kind)
                     stop.wait(.045)
-                except (OSError, EOFError, TimeoutError) as error:
-                    driver_errors.append(
-                        f"bot {client.player_id}: {type(error).__name__}: {error}")
-                    stop.set()
+                except Exception as error:
+                    if not stop.is_set():
+                        driver_errors.append(
+                            f"bot {client.player_id}: {type(error).__name__}: {error}")
+                        stop.set()
         goose_team = set(goose_ids)
         cat_team = set(cat_ids)
         drivers = [threading.Thread(target=drive, args=(client, goose_team),
@@ -354,6 +356,11 @@ def run_battle(port, duration=None, log_path=None):
                       flush=True)
                 last_report = now
             stop.wait(.05)
+        stop.set()
+        for client in clients:
+            client.close()
+        for thread in drivers:
+            thread.join()
         if duration is not None:
             if driver_errors:
                 raise RuntimeError("bot driver failed: " + "; ".join(driver_errors))
@@ -364,9 +371,7 @@ def run_battle(port, duration=None, log_path=None):
                 raise AssertionError("teams did not exchange authoritative damage")
             if not powerups_acquired:
                 raise AssertionError("bots did not acquire an authoritative powerup")
-            for player_id, expected_animal in (
-                    [(player_id, 1) for player_id in goose_ids] +
-                    [(player_id, 2) for player_id in cat_ids]):
+            for player_id in goose_ids | cat_ids:
                 expected_actions = {
                     "jump", "double_jump", "roll", "dash", "shoot", "special",
                 }
@@ -399,13 +404,14 @@ def run_battle(port, duration=None, log_path=None):
         else:
             print(f"Battle finished: {winner} win." if winner else
                   "Battle timer elapsed.")
-        stop.set()
     finally:
         stop.set()
         if battle_log is not None:
             battle_log.close()
         for client in clients:
             client.close()
+        for thread in drivers:
+            thread.join()
 
 
 def main():
