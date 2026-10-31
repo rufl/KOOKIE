@@ -435,22 +435,40 @@ vez e geram quatro fatias coletáveis de vida/sementes. SDL native e WebGL
 consomem os mesmos snapshots; não executam simulações online independentes.
 Isso é paridade semântica de renderização, não equivalência pixel a pixel.
 
-O servidor WebSocket do jogo oferece chat global, do mesmo time e sussurros
-privados, com histórico limitado a 32 mensagens. Os IDs numéricos de sessão não
-são identidades autenticadas; a rota `/session` continua sem autenticação e
-sem TLS no backend. `/admin` oferece RCON desativado por padrão: exige
-`KOOKIE_RCON_SECRET` de 32–128 caracteres ASCII seguros, compara o subprotocolo
-`rcon.<segredo>` em tempo constante e só pode ser acessado pelo listener
-vinculado ao loopback. Comandos: status, expulsão, atribuição de time, anúncio
-e `/mapvote start`, que abre o intervalo de votação. O lobby em processo não
-expõe comandos de bots nem minijogos aos clientes WebSocket. A partida registra
-G1 Central Pool e G2 Ruins com colisão no servidor e geometria de renderização
-compartilhada com o navegador. Após 2.400 ticks ativos (120 segundos a 20 Hz),
-ou início administrativo, um intervalo de 300 ticks (15 segundos) aceita um
-voto por jogador conectado. Votos e contagens são replicados; empate mantém o
-mapa atual. O servidor reconstrói a arena vencedora, reposiciona os jogadores e
-reinicia o estado da partida. É uma rotação limitada a dois mapas, não um lobby
-persistente, fila ranqueada ou registro geral de mapas.
+O servidor WebSocket do jogo oferece chat global, de time e sussurros privados,
+seleção opcional de time e histórico em memória limitado a 32 mensagens, com
+filtragem autoritativa por destinatário. Mensagens aceitam 1–80 caracteres
+ASCII imprimíveis e são limitadas a uma por remetente a cada seis ticks de
+simulação. O histórico é reproduzido apenas para destinatários autorizados pelo
+canal atual e não é persistente. Global chega a jogadores e espectadores
+conectados; Team chega a jogadores dos times Red/Blue selecionados; Whisper
+chega somente ao remetente e ao jogador ativo escolhido. Espectadores só podem
+usar Global. O navegador exibe IDs numéricos temporários, não identidades
+autenticadas. Não há contas, bloqueio/edição de mensagens ou moderação separada.
+
+A rota `/session` permanece sem autenticação e não verifica o token opcional do
+navegador. `/admin` é um RCON separado e desativado por padrão: exige
+`KOOKIE_RCON_SECRET` com 32–128 caracteres de `[A-Za-z0-9._~-]`, compara o
+subprotocolo WebSocket `rcon.<segredo>` em tempo constante e só está disponível
+pelo listener vinculado ao loopback. O papel **Remote administrator** abre
+`/admin`; o console aceita `/help`, `/status`, `/say <texto>`,
+`/team <id-jogador> <free|red|blue>`, `/kick <id-jogador>` e `/mapvote start`.
+`/say` anuncia texto global de 1–80 caracteres ASCII imprimíveis; `/status`
+mostra tick e contagens de jogadores/espectadores; `/team` atribui free-for-all,
+Red ou Blue; `/kick` remove um jogador; `/mapvote start` inicia o intervalo de
+votação. Os comandos não diferenciam maiúsculas de minúsculas. RCON usa um único
+segredo compartilhado, sem permissões por operador, limite de tentativas ou
+auditoria. Acesso remoto exige proxy reverso TLS/WSS autenticado; o backend não
+termina TLS nem protege `/session`. Os comandos `addbot`/`delbot` e minijogos
+do lobby em processo não são expostos a clientes WebSocket.
+
+A partida registra G1 Central Pool e G2 Ruins com colisão no servidor e
+renderização compartilhada com o navegador. Após 2.400 ticks ativos (120
+segundos a 20 Hz), ou início administrativo, um intervalo de 300 ticks (15
+segundos) aceita um voto por jogador conectado. Votos e contagens são
+replicados; empate mantém o mapa atual. O servidor reconstrói a arena vencedora,
+reposiciona jogadores e reinicia o estado da partida. É uma rotação limitada a
+dois mapas, não um lobby persistente, fila ranqueada ou registro geral de mapas.
 
 O cliente bloqueia os controles de gameplay até receber a cena completa, oferece
 reconexão automática limitada com estados visíveis de carregamento/falha e

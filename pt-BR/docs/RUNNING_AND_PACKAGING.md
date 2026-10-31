@@ -105,29 +105,70 @@ minimapa superior, persiste configurações limitadas e reconecta até cinco vez
 quando habilitado. WebGL2 é obrigatório para a cena 3D; o cliente falha fechado
 quando não está disponível.
 
-### Administração remota somente pelo loopback
+### Chat multiplayer e administração remota
+
+#### Chat dos jogadores
+
+Depois de entrar e receber a cena autoritativa, abra **LOBBY CHAT**. Selecione
+**Global**, **Team** ou **Whisper**, escreva a mensagem e clique em **Send**.
+O limite é de 1–80 caracteres ASCII imprimíveis. O servidor aceita no máximo
+uma mensagem por jogador a cada seis ticks de simulação (300 ms a 20 Hz). As
+mensagens mostram o canal e o ID numérico da sessão; IDs são temporários e não
+representam contas verificadas nem apelidos autenticados.
+
+- **Global** entrega a mensagem a todos os jogadores e espectadores conectados.
+- **Team** entrega a jogadores do time Red ou Blue selecionado na entrada.
+  Jogadores em free-for-all e espectadores não podem enviar mensagens de time.
+- **Whisper** entrega a mensagem somente ao remetente e ao jogador ativo
+  selecionado. A lista vem do snapshot autoritativo; não é possível sussurrar
+  para si mesmo. Espectadores não podem enviar nem receber sussurros.
+
+O servidor mantém em memória as 32 mensagens mais recentes e reproduz apenas as
+visíveis ao destinatário que acabou de entrar. O histórico não é persistente; a
+filtragem por time/destinatário é autoritativa no servidor. Não há identidade de
+conta, edição ou bloqueio de mensagens nem sistema de moderação separado;
+administradores podem remover jogadores com `/kick`.
+
+#### Configuração e comandos RCON
 
 O servidor Kof habilita `/admin` somente quando `KOOKIE_RCON_SECRET` contém
-32–128 caracteres de `[A-Za-z0-9._~-]`. Armazene o segredo em um gerenciador de
-segredos; não o coloque no código-fonte, em URLs ou logs. No navegador, selecione
-**Administrador remoto** e informe o segredo. Comandos:
-`/status`, `/say <texto>`, `/team <id-jogador> <free|red|blue>`,
-`/kick <id-jogador>` e `/mapvote start`.
+32–128 caracteres de `[A-Za-z0-9._~-]`. Gere e armazene o segredo em um gerenciador
+de segredos. Nunca o registre no repositório, URL ou log. No navegador, selecione
+**Remote administrator**, informe o segredo e conecte. O cliente administrador
+abre `/admin` e oferece os subprotocolos WebSocket `kookie.v1` e `rcon.<segredo>`.
 
-O listener aceita conexões somente pelo loopback. Para acesso remoto, use proxy
-reverso TLS/WSS com autenticação própria e encaminhe apenas `/admin`; o backend
-não termina TLS. O segredo RCON é enviado no subprotocolo WebSocket, portanto
-nunca use `ws://` em rede não confiável. O segredo protege somente `/admin`;
-entradas normais em `/session` continuam sem autenticação.
+Digite os comandos no console do jogo; `/help` os lista:
 
-`/admin` responde HTTP `401` quando o segredo está ausente, malformado ou
-incorreto. `/mapvote start` inicia imediatamente o intervalo de votação de 15
-segundos; os jogadores votam no painel `NEXT MATCH`. Sem início administrativo,
-há um intervalo após 120 segundos de jogo ativo. Os mapas disponíveis são G1
-Central Pool e G2 Ruins; empate mantém o mapa atual. Cada transição reposiciona
-os jogadores e reinicia o estado da partida. Não há limitação por IP para
-falhas, níveis de permissão por usuário ou log de auditoria; restrinja o proxy
-e altere o segredo se houver exposição.
+| Comando | Efeito |
+|---|---|
+| `/status` | Informa tick autoritativo, quantidade de jogadores e espectadores conectados. |
+| `/say <texto>` | Anuncia a mensagem a jogadores e espectadores; exige 1–80 caracteres ASCII imprimíveis. |
+| `/team <id-jogador> <free|red|blue>` | Define o time do jogador ativo: free-for-all, Red (`red`) ou Blue (`blue`). Exemplo: `/team 7 blue`. |
+| `/kick <id-jogador>` | Remove o jogador ativo com esse ID numérico de sessão. Exemplo: `/kick 7`. |
+| `/mapvote start` | Inicia o intervalo de votação durante uma partida que não seja training. Os jogadores votam em **NEXT MATCH**. |
+
+Os comandos não diferenciam maiúsculas de minúsculas. `/kick` e `/team` exigem
+um ID numérico positivo. Sintaxe inválida retorna erro de comando; ID inexistente
+retorna erro de jogador não encontrado. `/mapvote start` falha se não for
+possível iniciar o intervalo (por exemplo, se já estiver ocorrendo ou se a
+sessão for training).
+
+`/admin` responde HTTP `401` se o segredo estiver ausente, malformado ou
+incorreto. O listener aceita apenas loopback; o backend não termina TLS. Para
+acesso remoto, coloque um proxy reverso TLS/WSS com autenticação própria diante
+do listener e encaminhe somente `/admin`. Nunca envie o segredo por `ws://` em
+rede não confiável: ele segue no subprotocolo WebSocket, fora da proteção do
+protocolo de jogo. O RCON usa um único segredo compartilhado; não tem funções
+por operador, limitação de tentativas nem log de auditoria. Restrinja o proxy e
+troque o segredo se houver exposição.
+
+A rota normal `/session` continua sem autenticação e não verifica o token
+opcional do navegador. O RCON protege apenas `/admin`. Comandos do lobby em
+processo, como `addbot` e `delbot`, são separados e não estão disponíveis via
+RCON WebSocket. O intervalo entre partidas dura 15 segundos; sem início
+administrativo, começa após 120 segundos de jogo ativo. Os mapas disponíveis
+são G1 Central Pool e G2 Ruins; empate mantém o mapa atual. Cada transição
+reposiciona os jogadores e reinicia o estado da partida.
 
 ## Console de batalha ao vivo 4v4
 

@@ -257,29 +257,194 @@ HUD and top-down minimap, persists bounded settings, and reconnects up to five
 times when enabled. WebGL2 is required for the browser's 3D scene; the client
 fails closed when unavailable.
 
-### Loopback-only remote administration
+### Multiplayer chat and remote administration
 
-The native Kof server exposes `/admin` only when `KOOKIE_RCON_SECRET` is set to
-32–128 characters from `[A-Za-z0-9._~-]`. Keep it in a deployment secret
-manager; do not put it in source, URLs, or logs. Connect using the browser's
-`Remote administrator` role and the secret field. Available commands:
-`/status`, `/say <text>`, `/team <player-id> <free|red|blue>`,
-`/kick <player-id>`, and `/mapvote start`.
+#### Player chat
 
-The listener binds to loopback. For remote access, place a TLS/WSS reverse proxy
-in front of it with its own operator authentication and route `/admin` only;
-the backend does not terminate TLS. The RCON secret is sent as a WebSocket
-subprotocol, so never use `ws://` across an untrusted network. This secret
-protects only `/admin`; regular `/session` joins remain unauthenticated.
+After joining and receiving the authoritative scene, open **LOBBY CHAT**. Choose
+**Global**, **Team**, or **Whisper**, enter a message, and select **Send**.
+Messages are limited to 1–80 printable ASCII characters. The server accepts at
+most one message per player every six simulation ticks (300 ms at 20 Hz).
+Messages appear with their channel and numeric session player ID; player IDs
+are temporary connection identities, not verified accounts or nicknames.
 
-`/admin` returns HTTP `401` when the secret is absent, malformed, or incorrect.
-`/mapvote start` immediately opens the 15-second map intermission; players vote
-in the in-game `NEXT MATCH` panel. Otherwise, matches rotate to an intermission
-after 120 seconds of active play. G1 Central Pool and G2 Ruins are the available
-maps; a tie keeps the current map. Every transition respawns players and resets
-their match state. The implementation has no per-IP failed-login throttling,
-user roles, or command audit log; restrict proxy access and rotate the shared
+- **Global** reaches all joined players and spectators.
+- **Team** reaches joined players on the selected Red or Blue team. Choose a
+  team when joining; free-for-all players and spectators cannot send team chat.
+- **Whisper** is private to the sender and the selected active player. The
+  recipient list is populated from the current authoritative player snapshot;
+  the sender cannot whisper to themself. Spectators cannot whisper.
+
+The server keeps the latest 32 chat messages in memory and replays only messages
+visible to a newly joined recipient. History is not persistent. Team/whisper
+delivery filtering is server-authoritative. There is no account identity,
+message editing, blocking, or separate moderation system; administrators can
+remove a player with `/kick`.
+
+#### RCON setup and commands
+
+The native Kof server enables `/admin` only when `KOOKIE_RCON_SECRET` is set to
+32–128 characters from `[A-Za-z0-9._~-]`. Generate and store it in a deployment
+secret manager. Never commit it or place it in a URL or log. In the browser,
+select **Remote administrator**, enter the secret, and connect. The admin
+client opens `/admin` and offers both `kookie.v1` and `rcon.<secret>` WebSocket
+subprotocols.
+
+Enter commands in the admin game console; `/help` lists them:
+
+| Command | Effect |
+|---|---|
+| `/status` | Reports authoritative server tick, joined player count and spectator count. |
+| `/say <text>` | Broadcasts an announcement to all joined players and spectators; text must be 1–80 printable ASCII characters. |
+| `/team <player-id> <free|red|blue>` | Assigns an active player to free-for-all, Red (`red`) or Blue (`blue`). Example: `/team 7 blue`. |
+| `/kick <player-id>` | Removes the active player with that numeric session ID. Example: `/kick 7`. |
+| `/mapvote start` | Starts the map-vote intermission immediately during a non-training match. Players vote in **NEXT MATCH**. |
+
+Commands are case-insensitive. `/kick` and `/team` require a positive numeric
+player ID. Successful commands return a completion response; status reports
+tick/player/spectator counts. Invalid syntax returns an invalid-command error;
+unknown player IDs return a player-not-found error. `/mapvote start` fails if
+the session cannot enter intermission (for example, it is already in
+intermission or is training).
+
+`/admin` returns HTTP `401` when the secret is missing, malformed or incorrect.
+The listener binds to loopback; the backend does not terminate TLS. For remote
+access, put an authenticated TLS/WSS reverse proxy in front of the listener and
+forward only `/admin`. Never send the RCON secret over untrusted `ws://`: the
+secret is carried in the WebSocket subprotocol, not protected by the game
+protocol. RCON authenticates one shared secret; it has no per-operator roles,
+failed-login throttling, or audit log. Restrict proxy access and rotate the
 secret if exposed.
+
+The regular `/session` route remains unauthenticated and does not verify the
+optional browser session token. RCON protects `/admin` only. In-process lobby
+commands such as `addbot` and `delbot` are separate and are not WebSocket RCON
+commands. Map intermission is 15 seconds; otherwise it starts after 120 seconds
+of active play. The available maps are G1 Central Pool and G2 Ruins; ties keep
+the current map. Each transition respawns players and resets match state.
+
+### In-process `DedicatedLobbyServer`
+
+`src/session/lobby_server.kf` defines a Kof-owned lobby model for a host
+application to instantiate and drive. It is **not** a standalone process,
+network listener, browser lobby, or WebSocket backend. The current web server
+does not use this object: its player admission, chat, RCON and gameplay state
+are separate. This class has no renderer or client transport, so callers must
+provide admission, input, tick scheduling, presentation and persistence.
+`room` is an integer room label in this model, not a network room/endpoint.
+
+Typical lifecycle:
+
+1. Construct `DedicatedLobbyServer()`.
+2. Start with `start(roomId, ownerName, trustedIdentity)`; the two-argument
+   `start(roomId, ownerName)` overload creates an owner without a stable
+   identity. The host receives `ownerId()`.
+3. Admit human participants with `joinPlayer(identity, name)` and read-only
+   spectators with `joinSpectator(identity, name)`.
+4. Drive `advanceTick()` from the host's fixed-tick loop; call `movePlayer`,
+   `performMinigameAction`, team/chat APIs and read roster/score/chat accessors
+   as needed.
+5. Call `stop()` to close the room. `leavePlayer(ownerId)` transfers ownership
+   to the first remaining human player; if no human remains, it stops the room.
+
+| Capacity / validation | Limit |
+|---|---|
+| Active player slots | 8 total, including owner and bots |
+| Read-only spectator slots | 4 additional; spectators are not players |
+| Player/spectator names | 1–16 ASCII letters, digits, `_` or `-`; unique case-insensitively across both rosters |
+| Stable identity | 1–64 ASCII letters, digits, `_`, `-` or `:`; supplied by a trusted caller, not authenticated by this class |
+| Remembered identity-to-name bindings | 256 per object; survive `stop()`/`start()` on that object, but not process restart |
+| Chat ring | 32 messages, 1–80 printable ASCII characters; no persistence |
+| Room ID | Integer from 0 to 1,000,000 |
+| Lobby simulation tick | `advanceTick()` increments to a hard limit of 10,000,000 |
+
+Identity-aware admission rejects active duplicate identities, duplicate names
+ignoring ASCII case, malformed names/IDs, and a stable ID claiming a different
+previously registered nickname. The same stable identity can reclaim its
+nickname after leaving or restarting the room. Player IDs are generated
+positive integers shared by players and spectators; they are not account IDs
+and are not reset on room restart within the same object. A fresh process/object
+does not restore the registry.
+
+Spectators use their separate roster/accessors and cannot move, chat, act in
+minigames, leave through `leavePlayer`, or issue owner commands. They count
+against the separate four-spectator cap, not the eight-player cap. Bots occupy
+ordinary player slots and do count toward the eight.
+
+#### Ownership and bot commands
+
+The room owner is the only issuer accepted by `addBot`, `removeBotSlot`,
+`setPlayerTeam` and `executeAdminCommand`. Ownership moves to the first
+remaining non-bot participant if the owner leaves. The in-process command
+parser accepts lowercase commands (no leading slash), at most 96 characters:
+
+| Command | Result |
+|---|---|
+| `addbot NAME` | Adds an unteamed bot. |
+| `addbot NAME red` / `blue` / `yellow` / `green` | Adds a bot on team 1 / 2 / 3 / 4. Team words are lowercase; names follow the 1–16 character name rule. |
+| `delbot SLOT` | Removes the bot in one-based slot 1–8; `SLOT` is **not** a player ID. |
+
+Teams are `0` free-for-all, `1` red, `2` blue, `3` yellow and `4` green.
+`setPlayerTeam(ownerId, oneBasedSlot, team)` changes an occupied slot. The
+roster getters such as `playerNameAt` and `playerTeamAt` instead use zero-based
+slot indexes. The owner can also call the direct bot APIs; they enforce the same
+owner check. Bots cannot be removed with `leavePlayer`; use `delbot` or
+`removeBotSlot`.
+
+`executeAdminCommand` returns `lobbyServerCommandOk()` (0), `Offline` (1),
+`PermissionDenied` (2), `Invalid` (3), `Full` (4), or `NotBot` (5). `addbot`
+reports `Full` at capacity; malformed names/team arguments return `Invalid`.
+`delbot` on a valid slot that is empty or contains a human returns `NotBot`.
+This is an in-process owner check, **not RCON authentication**; these commands
+are not available through WebSocket `/admin`.
+
+#### Game modes and authoritative tick behavior
+
+`setGameMode(mode)` accepts the constants
+`lobbyServerGameFreeRoam()` (0), `lobbyServerGameRace()` (1),
+`lobbyServerGameTargetPractice()` (2), and `lobbyServerGameTag()` (3).
+Changing mode clears scores, race checkpoints and action cooldown state, but
+keeps player positions. Humans move with
+`movePlayer(playerId, deltaX, deltaZ)`: each delta must be in `[-4, 4]`; the
+resulting integer X/Z coordinates clamp to `[-100, 100]`. Bots are moved by
+`advanceTick()` and cannot be moved through this human-input method.
+
+| Mode | Rules |
+|---|---|
+| Free roam | Humans move within the bounded X/Z plane. Bots wander one X unit each tick, alternating direction from tick and bot ID. No score action. |
+| Race | Four checkpoints, in order: `(-30,0)`, `(0,30)`, `(30,0)`, `(0,-30)`. Reaching within Manhattan distance 5 advances a checkpoint; completing the circuit scores one point. Race bots navigate toward the next checkpoint one coordinate unit per tick. |
+| Target practice | Three stationary target IDs: 1 at `(-20,0)`, 2 at `(0,20)`, 3 at `(20,0)`. A human `performMinigameAction(playerId, targetId)` scores within Manhattan distance 8. Bots choose targets on a tick/ID cycle, move toward them and score on arrival. |
+| Tag | A human action names another player ID and scores within Manhattan distance 4; the target is returned to its slot's spawn. Tag bots pursue the nearest human and score within distance 2. |
+
+Human minigame actions require at least 10 lobby ticks since that actor's
+previous action. Invalid targets, wrong mode, out-of-range actions, bots used as
+human actors and spectators are rejected. Bot AI is intentionally small
+deterministic lobby behavior, not the WebSocket battle AI or full gameplay
+simulation.
+
+#### In-process chat API
+
+`sendChat(playerId, message)` is global; `sendTeamChat` sends to the sender's
+team; `sendWhisper(playerId, recipientId, message)` is visible only to sender
+and recipient. The 32-entry ring stores a global sequence, sender, tick,
+channel, target and text. Read via `chatCount()`, then chronological indexes
+`0..chatCount()-1` with `chatSequenceAt`, `chatChannelAt`, `chatSenderAt` and
+`chatMessageAt`, passing the viewer's player ID. Inaccessible/out-of-range
+reads return `-1`, `0` or `""` as appropriate; `chatVisibleTo` explicitly checks
+visibility.
+
+Channel IDs are 0 global, 1 team and 2 whisper. Team chat requires a nonzero
+team (1–4); whisper requires another active human player, not a bot or self.
+Spectators are not valid chat viewers or senders in this model. Messages reject
+empty text, control characters and non-ASCII characters. Unlike network chat,
+this in-process API does **not** rate-limit sends; the caller owns rate policy.
+New messages overwrite the oldest ring entries after 32; sequence numbers stop
+at 1,000,000.
+
+This implementation is covered by the `src/main.kf` lobby tests for admission,
+identity/name binding, capacity, ownership, team/whisper visibility, ring
+wraparound and all three scored minigames. It remains an isolated model until a
+host application supplies transport, UI and persistence integration.
 
 Click `CHECK GATEWAY` to query the configured `GET /healthz` route. It reports
 transport, protocol, bearer-admission mode and active sessions. `GET /metrics`

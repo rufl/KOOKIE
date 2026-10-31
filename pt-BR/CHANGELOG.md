@@ -3,11 +3,20 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
-- O chat WebSocket oferece mensagens globais, do mesmo time e sussurros
-  privados com filtragem por destinatário, texto ASCII limitado a 80
-  caracteres, histórico em memória de 32 mensagens e seleção opcional de time.
-  IDs de sessão não são identidades autenticadas; entradas em `/session`
-  continuam sem autenticação.
+- O chat WebSocket oferece Global, Team e Whisper com filtragem autoritativa
+  por destinatário. Mensagens aceitam 1–80 caracteres ASCII imprimíveis,
+  têm limite de frequência por remetente e usam histórico em memória de 32
+  mensagens, reproduzido apenas a destinatários autorizados. A escolha do time
+  é opcional; espectadores só usam Global. IDs de sessão não são identidades
+  autenticadas e `/session` continua sem autenticação. Veja
+  [chat multiplayer e RCON](docs/RUNNING_AND_PACKAGING.md).
+- Adicionamos RCON `/admin` desativado por padrão. `KOOKIE_RCON_SECRET` exige
+  32–128 caracteres ASCII seguros; a autorização compara em tempo constante o
+  subprotocolo WebSocket `rcon.<segredo>` e o listener aceita somente loopback.
+  Comandos: `/help`, `/status`, `/say <texto>`,
+  `/team <id-jogador> <free|red|blue>`, `/kick <id-jogador>` e
+  `/mapvote start`. Acesso remoto exige proxy reverso TLS/WSS autenticado; o
+  backend não oferece TLS.
 - Adicionamos rotação multiplayer autoritativa entre G1 Central Pool e G2
   Ruins. A partida abre um intervalo de votação de 15 segundos após 120
   segundos ativos ou `/mapvote start`; jogadores conectados votam, as contagens

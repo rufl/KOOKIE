@@ -201,26 +201,42 @@ and tag activities. Its identity registry requires a trusted stable player ID,
 enforces case-insensitive unique nicknames, and keeps up to 256 identities in
 memory across lobby stop/start; it is not persistent.
 
-The WebSocket game server separately supports room-wide, same-team and private
-whisper chat, optional player team selection, a 32-message in-memory history,
-and recipient filtering in its authoritative fixed-capacity session. These chat
-messages use numeric session player IDs; admission has no authenticated identity
-binding. The regular `/session` endpoint remains plain WebSocket and does not
-verify the optional browser token. `/admin` is a separate, disabled-by-default
-RCON route: it requires `KOOKIE_RCON_SECRET` (32–128 safe ASCII characters),
-compares the `rcon.<secret>` WebSocket subprotocol in constant time, and is
-available only through the loopback-bound listener. Operators must expose it
-only through an authenticated TLS/WSS reverse proxy; the server itself does not
-provide TLS or protect the regular game-session route. Admin commands cover
-status, kick, team assignment, room announcement and `/mapvote start`, which
-opens the map intermission. The in-process lobby's bot commands and minigames
-are not exposed to WebSocket clients. The WebSocket match registers G1 Central
-Pool and G2 Ruins in shared server collision/browser rendering; after 2,400
-active ticks (120 seconds at 20 Hz), or an admin start, a 300-tick (15-second)
-intermission accepts one map vote per joined player. Votes and counts replicate
-to clients; ties retain the current map. The server rebuilds the winning arena,
-respawns players and resets match state before play resumes. This is a bounded
-two-map rotation, not a persistent lobby, ranked queue or general map registry.
+The WebSocket game server supports room-wide, same-team and private whisper
+chat, optional player team selection, a 32-message in-memory history, and
+recipient filtering in its authoritative fixed-capacity session. Messages are
+1–80 printable ASCII characters, rate-limited to one per sender per six
+simulation ticks, and replayed only to recipients allowed by the current
+channel. Global chat reaches joined players and spectators; team chat reaches
+players assigned to the selected Red/Blue team; whispers reach only sender and
+active target. Spectators can use global chat only. Browser chat displays
+temporary numeric session IDs, not authenticated identities. The history is
+not persistent; there are no account identities, message blocking/editing or
+standalone moderation tools.
+
+The regular `/session` endpoint remains unauthenticated and does not verify the
+optional browser token. `/admin` is a separate, disabled-by-default RCON route:
+it requires `KOOKIE_RCON_SECRET` (32–128 characters from
+`[A-Za-z0-9._~-]`), compares the `rcon.<secret>` WebSocket subprotocol in
+constant time, and is available only through the loopback-bound listener. The
+browser Remote administrator role opens `/admin`; its console accepts
+`/help`, `/status`, `/say <text>`, `/team <player-id> <free|red|blue>`,
+`/kick <player-id>`, and `/mapvote start`. `/say` is a global 1–80 printable
+ASCII announcement; `/status` reports tick/player/spectator counts; `/team`
+assigns a player to free-for-all, Red or Blue; `/kick` removes a player;
+`/mapvote start` opens the map intermission. Admin commands are case-insensitive.
+RCON has one shared secret, no per-operator roles, failed-login throttling or
+audit log. Operators must use an authenticated TLS/WSS reverse proxy for remote
+access; the backend provides no TLS and does not protect `/session`. The
+in-process lobby's `addbot`/`delbot` commands and minigames are not exposed to
+WebSocket clients.
+
+The WebSocket match registers G1 Central Pool and G2 Ruins in shared server
+collision/browser rendering; after 2,400 active ticks (120 seconds at 20 Hz),
+or an admin start, a 300-tick (15-second) intermission accepts one map vote per
+joined player. Votes and counts replicate to clients; ties retain the current
+map. The server rebuilds the winning arena, respawns players and resets match
+state before play resumes. This is a bounded two-map rotation, not a persistent
+lobby, ranked queue or general map registry.
 
 Server systems read approved state, emit bounded commands and commit mutations at
 defined tick phases. Stable IDs and declared ordering break ties.
