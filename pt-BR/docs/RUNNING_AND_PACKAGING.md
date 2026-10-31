@@ -105,6 +105,26 @@ minimapa superior, persiste configurações limitadas e reconecta até cinco vez
 quando habilitado. WebGL2 é obrigatório para a cena 3D; o cliente falha fechado
 quando não está disponível.
 
+### Administração remota somente pelo loopback
+
+O servidor Kof habilita `/admin` somente quando `KOOKIE_RCON_SECRET` contém
+32–128 caracteres de `[A-Za-z0-9._~-]`. Armazene o segredo em um gerenciador de
+segredos; não o coloque no código-fonte, em URLs ou logs. No navegador, selecione
+**Administrador remoto** e informe o segredo. Comandos disponíveis:
+`/status`, `/say <texto>`, `/team <id-jogador> <free|red|blue>` e
+`/kick <id-jogador>`.
+
+O listener aceita conexões somente pelo loopback. Para acesso remoto, use proxy
+reverso TLS/WSS com autenticação própria e encaminhe apenas `/admin`; o backend
+não termina TLS. O segredo RCON é enviado no subprotocolo WebSocket, portanto
+nunca use `ws://` em rede não confiável. O segredo protege somente `/admin`;
+entradas normais em `/session` continuam sem autenticação.
+
+`/admin` responde HTTP `401` quando o segredo está ausente, malformado ou
+incorreto. Não há limitação por IP para falhas, níveis de permissão por usuário
+ou log de auditoria; restrinja o acesso no proxy e altere o segredo se houver
+exposição. Votação de mapas e transições entre partidas ainda não existem.
+
 ## Console de batalha ao vivo 4v4
 
 Compile o servidor e inicie o console interativo de batalha:

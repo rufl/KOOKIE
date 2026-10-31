@@ -9,6 +9,7 @@ extern "./lib/libkookie_web_server.so" kookie_web_server_event_opcode(): Int
 extern "./lib/libkookie_web_server.so" kookie_web_server_event_payload_length(): Int
 extern "./lib/libkookie_web_server.so" kookie_web_server_event_payload_byte(Int index): Int
 extern "./lib/libkookie_web_server.so" kookie_web_server_upgrade_websocket(Int connectionId): Bool
+extern "./lib/libkookie_web_server.so" kookie_web_server_rcon_authorized(): Bool
 extern "./lib/libkookie_web_server.so" kookie_web_server_output_begin(Int connectionId, Int length): Bool
 extern "./lib/libkookie_web_server.so" kookie_web_server_output_write_byte(Int index, Int value): Bool
 extern "./lib/libkookie_web_server.so" kookie_web_server_output_commit(): Bool
@@ -206,6 +207,7 @@ class WebServerMetrics {
     Int[] connectionIds
     Bool[] connectionUsed
     Bool[] connectionWebSocket
+    Bool[] connectionAdmin
     Bool[] connectionSpectatorRoute
     Bool[] connectionKutter
     Bool[] connectionHello
@@ -248,6 +250,7 @@ class WebServerMetrics {
         connectionIds = new Int[12]
         connectionUsed = new Bool[12]
         connectionWebSocket = new Bool[12]
+        connectionAdmin = new Bool[12]
         connectionSpectatorRoute = new Bool[12]
         connectionHello = new Bool[12]
         connectionJoined = new Bool[12]
@@ -294,6 +297,7 @@ class WebServerMetrics {
             if (!connectionUsed[i]) {
                 connectionUsed[i] = true; connectionIds[i] = id
                 connectionWebSocket[i] = false; connectionSpectatorRoute[i] = false
+                connectionAdmin[i] = false
                 connectionHello[i] = false; connectionJoined[i] = false
                 connectionSpectators[i] = false; connectionPlayerIds[i] = 0
                 connectionAnimal[i] = 1; connectionTeam[i] = 0
@@ -938,8 +942,109 @@ Bool webHandleJoin(WebServerMetrics metrics, Int slot, Int[] words) {
     }
     return true
 }
+Bool webSendAdminResponse(
+    WebServerMetrics metrics, Int slot, Int sequence, Int operation, Int result
+) {
+    var outgoingSequence = webOutputSequence(metrics, slot)
+    var words = new Int[10]
+    words[0] = sessionWebGameProtocolVersion()
+    words[1] = sessionWebGameKind()
+    words[2] = outgoingSequence
+    words[3] = sessionWebGameAdminResponseMarker()
+    words[4] = operation
+    words[5] = result
+    words[6] = metrics.simulation.tick()
+    words[7] = metrics.playerCount()
+    words[8] = metrics.spectatorCount()
+    words[9] = sessionWebMessageChecksum(words, 9)
+    return webSendSessionWords(metrics.connectionIds[slot],
+        sessionWebGameKind(), outgoingSequence, words)
+}
+
+Bool webHandleAdmin(
+    WebServerMetrics metrics, Int slot, WebSessionFrame frame
+) {
+    var words = frame.words()
+    if (!metrics.connectionAdmin[slot] ||
+        words.length < 6 ||
+        words[0] != sessionWebGameProtocolVersion() ||
+        words[1] != sessionWebGameKind() ||
+        words[2] != frame.sequence() ||
+        words[3] != sessionWebGameAdminMarker() ||
+        words[words.length - 1] !=
+            sessionWebMessageChecksum(words, words.length - 1) ||
+        frame.sequence() <= metrics.connectionLastSequence[slot]) {
+        return false
+    }
+    var operation = words[4]
+    var result = 1
+    if (operation == sessionWebGameAdminStatus() && words.length == 6) {
+        result = 0
+    } else if (operation == sessionWebGameAdminKick() &&
+        words.length == 7 && words[5] > 0 && words[5] <= 1000000) {
+        var targetSlot = -1
+        for (var client = 0; client < 12; client = client + 1) {
+            if (metrics.connectionUsed[client] &&
+                metrics.connectionJoined[client] &&
+                !metrics.connectionSpectators[client] &&
+                metrics.connectionPlayerIds[client] == words[5]) {
+                targetSlot = client
+                break
+            }
+        }
+        if (targetSlot >= 0 &&
+            metrics.simulation.removePlayer(words[5])) {
+            metrics.connectionJoined[targetSlot] = false
+            kookie_web_server_close_client_after_output(
+                metrics.connectionIds[targetSlot])
+            result = 0
+        } else { result = 2 }
+    } else if (operation == sessionWebGameAdminSetTeam() &&
+        words.length == 8 && words[5] > 0 && words[5] <= 1000000 &&
+        words[6] >= 0 && words[6] <= 2) {
+        if (metrics.simulation.setPlayerTeam(words[5], words[6])) {
+            for (var client = 0; client < 12; client = client + 1) {
+                if (metrics.connectionUsed[client] &&
+                    metrics.connectionJoined[client] &&
+                    metrics.connectionPlayerIds[client] == words[5]) {
+                    metrics.connectionTeam[client] = words[6]
+                }
+            }
+            result = 0
+        } else { result = 2 }
+    } else if (operation == sessionWebGameAdminSay() &&
+        words.length >= 8 && words[5] >= 1 && words[5] <= 80 &&
+        words.length == 7 + words[5]) {
+        var message = new Int[9 + words[5]]
+        message[0] = sessionWebGameProtocolVersion()
+        message[1] = sessionWebGameKind()
+        message[2] = frame.sequence()
+        message[3] = sessionWebGameChatMarker()
+        message[4] = sessionWebChatGlobal()
+        message[5] = 0
+        message[6] = words[5]
+        message[7] = 1000000
+        var validText = true
+        for (var index = 0; index < words[5]; index = index + 1) {
+            var character = words[6 + index]
+            if (character < 32 || character > 126) { validText = false }
+            message[8 + index] = character
+        }
+        if (validText) {
+            message[message.length - 1] =
+                sessionWebMessageChecksum(message, message.length - 1)
+            if (webDistributeChat(metrics, message)) { result = 0 }
+        }
+    }
+    metrics.connectionLastSequence[slot] = frame.sequence()
+    return webSendAdminResponse(metrics, slot, frame.sequence(), operation, result)
+}
+
 Bool webHandleGame(WebServerMetrics metrics, Int slot, WebSessionFrame frame) {
     var words = frame.words()
+    if (metrics.connectionAdmin[slot]) {
+        return webHandleAdmin(metrics, slot, frame)
+    }
     if (words.length > 3 &&
         words[3] == sessionWebKutterRequestMarker()) {
         return webHandleKutter(metrics, slot, frame)
@@ -1041,10 +1146,17 @@ Bool webHandleHttp(WebServerMetrics metrics, Int slot, Int[] request, Int length
         }
         return kookie_web_server_close_client_after_output(id)
     }
+    var adminRoute = webRequestLine(request, length, "GET", "/admin")
     var spectator = webRequestLine(request, length, "GET", "/spectate")
     var gooseBot = webRequestLine(request, length, "GET", "/session/goose")
     var catBot = webRequestLine(request, length, "GET", "/session/cat")
-    if (!spectator && !gooseBot && !catBot &&
+    if (adminRoute && !kookie_web_server_rcon_authorized()) {
+        metrics.rejectionCountValue = metrics.rejectionCountValue + 1
+        webSendTextResponse(id, "401 Unauthorized",
+            "text/plain; charset=utf-8", "admin authentication required\n")
+        return kookie_web_server_close_client_after_output(id)
+    }
+    if (!adminRoute && !spectator && !gooseBot && !catBot &&
         !webRequestLine(request, length, "GET", "/session")) {
         webSendTextResponse(id, "404 Not Found", "text/plain; charset=utf-8", "not found\n")
         return kookie_web_server_close_client_after_output(id)
@@ -1067,6 +1179,7 @@ Bool webHandleHttp(WebServerMetrics metrics, Int slot, Int[] request, Int length
     if (version < 0 || !webRangeEquals(request, version / 100000, version % 100000, "13")) { return false }
     if (!kookie_web_server_upgrade_websocket(id)) { return false }
     metrics.connectionWebSocket[slot] = true
+    metrics.connectionAdmin[slot] = adminRoute
     metrics.connectionSpectatorRoute[slot] = spectator
     metrics.upgradeCountValue = metrics.upgradeCountValue + 1
     return true

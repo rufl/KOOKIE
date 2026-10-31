@@ -3,14 +3,16 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
-- The WebSocket game session now supports global, same-team, and private
-  whispers with recipient filtering, bounded 80-character ASCII messages, a
-  32-message in-memory history, and optional player team selection. These
-  messages use numeric session IDs; they do not add authenticated identities.
-  transport still uses plain WebSocket and does not verify the optional token.
-  WebSocket RCON, map voting, multiple authored maps, and between-match flow
-  remain unimplemented; the existing in-process lobby admin/minigame commands
-  are still not exposed over the network.
+- WebSocket chat supports global, same-team, and private whispers with
+  recipient filtering, bounded 80-character ASCII messages, a 32-message
+  in-memory history, and optional team selection. Session IDs are not
+  authenticated identities. Regular `/session` joins remain unauthenticated.
+- Added disabled-by-default `/admin` RCON for status, kick, team assignment,
+  and announcements. It requires a 32–128-character `KOOKIE_RCON_SECRET`,
+  constant-time token comparison, and the loopback-bound listener. Remote
+  deployments require a separately authenticated TLS/WSS reverse proxy.
+  Map voting, multiple multiplayer maps, and between-match transitions remain
+  unimplemented.
 
 - The Kof web-server qualification now selects a free loopback port unless
   `KOOKIE_WEB_TEST_PORT` is explicitly set, preventing tests from silently

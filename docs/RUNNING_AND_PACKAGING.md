@@ -257,6 +257,26 @@ HUD and top-down minimap, persists bounded settings, and reconnects up to five
 times when enabled. WebGL2 is required for the browser's 3D scene; the client
 fails closed when unavailable.
 
+### Loopback-only remote administration
+
+The native Kof server exposes `/admin` only when `KOOKIE_RCON_SECRET` is set to
+32–128 characters from `[A-Za-z0-9._~-]`. Keep it in a deployment secret
+manager; do not put it in source, URLs, or logs. Connect using the browser's
+`Remote administrator` role and the secret field. Available commands:
+`/status`, `/say <text>`, `/team <player-id> <free|red|blue>`, and
+`/kick <player-id>`.
+
+The listener binds to loopback. For remote access, place a TLS/WSS reverse proxy
+in front of it with its own operator authentication and route `/admin` only;
+the backend does not terminate TLS. The RCON secret is sent as a WebSocket
+subprotocol, so never use `ws://` across an untrusted network. This secret
+protects only `/admin`; regular `/session` joins remain unauthenticated.
+
+`/admin` returns HTTP `401` when the secret is absent, malformed, or incorrect.
+The implementation has no per-IP failed-login throttling, user roles, or
+command audit log; restrict proxy access and rotate the shared secret if
+exposed. Map voting and match transitions are not implemented.
+
 Click `CHECK GATEWAY` to query the configured `GET /healthz` route. It reports
 transport, protocol, bearer-admission mode and active sessions. `GET /metrics`
 exposes bounded counters for upgrades, rejections, frames, commands and health

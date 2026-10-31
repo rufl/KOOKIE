@@ -34,6 +34,7 @@ int kookie_web_server_event_opcode(void);
 int kookie_web_server_event_payload_length(void);
 int kookie_web_server_event_payload_byte(int index);
 bool kookie_web_server_upgrade_websocket(int connection_id);
+bool kookie_web_server_rcon_authorized(void);
 bool kookie_web_server_output_begin(int connection_id, int length);
 bool kookie_web_server_output_write_byte(int index, int value);
 bool kookie_web_server_output_commit(void);

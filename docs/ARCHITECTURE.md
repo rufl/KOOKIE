@@ -205,12 +205,18 @@ The WebSocket game server separately supports room-wide, same-team and private
 whisper chat, optional player team selection, a 32-message in-memory history,
 and recipient filtering in its authoritative fixed-capacity session. These chat
 messages use numeric session player IDs; admission has no authenticated identity
-binding. The WebSocket endpoint is plain and currently checks only the
-`kookie.v1` subprotocol; it does not verify the optional browser token. The
-in-process lobby's bot commands and minigames are not exposed to
-WebSocket clients. Map voting, multiple authored multiplayer maps,
-inter-match transitions, and remote admin/RCON are not implemented. The
-current WebSocket match remains one continuously running arena simulation.
+binding. The regular `/session` endpoint remains plain WebSocket and does not
+verify the optional browser token. `/admin` is a separate, disabled-by-default
+RCON route: it requires `KOOKIE_RCON_SECRET` (32–128 safe ASCII characters),
+compares the `rcon.<secret>` WebSocket subprotocol in constant time, and is
+available only through the loopback-bound listener. Operators must expose it
+only through an authenticated TLS/WSS reverse proxy; the server itself does not
+provide TLS or protect the regular game-session route. Admin commands currently
+cover status, kick, team assignment and room announcement. They do not provide
+map/restart/ban/pause commands. The in-process lobby's bot commands and
+minigames are not exposed to WebSocket clients. Map voting, multiple authored
+multiplayer maps and inter-match transitions are not implemented; the current
+WebSocket match remains one continuously running arena simulation.
 
 Server systems read approved state, emit bounded commands and commit mutations at
 defined tick phases. Stable IDs and declared ordering break ties.

@@ -47,18 +47,22 @@ def decode(wire):
 
 class Client:
     def __init__(self, port, spectator=False, accepted=True, path=None,
-                 role=None, team=0):
+                 role=None, team=0, admin_token=None):
         self.sock = socket.create_connection(("127.0.0.1", port), timeout=5)
         self.sock.settimeout(5)
         self.closed = False
         self.sequence = 1
         role = (2 if spectator else 1) if role is None else role
-        path = path or ("/spectate" if spectator else "/session")
+        path = path or ("/admin" if admin_token is not None else
+                        "/spectate" if spectator else "/session")
         key = base64.b64encode(os.urandom(16)).decode("ascii")
+        protocols = "kookie.v1"
+        if admin_token is not None:
+            protocols += ", rcon." + admin_token
         request = (f"GET {path} HTTP/1.1\r\nHost: localhost\r\n"
                    "Upgrade: websocket\r\nConnection: Upgrade\r\n"
                    f"Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n"
-                   "Sec-WebSocket-Protocol: kookie.v1\r\n\r\n")
+                   f"Sec-WebSocket-Protocol: {protocols}\r\n\r\n")
         self.sock.sendall(request.encode("ascii"))
         headers = bytearray()
         while b"\r\n\r\n" not in headers:
@@ -77,17 +81,22 @@ class Client:
         ack = self.receive()
         assert ack[1:4] == [2, 1, 1] and ack[3] == 1, ack
         self.sequence = 2
-        join = [2, 6, self.sequence, 5, role]
-        if role == 1:
-            join.append(team)
-        join.append(checksum(join))
-        self.send(6, join)
-        response = self.receive()
-        assert response[3] == 6 and response[5] == role, response
-        assert response[4] == (1 if accepted else 0), response
-        self.role = role
-        self.player_id = response[6]
-        self.join_response = response
+        if admin_token is not None:
+            self.role = 4
+            self.player_id = 0
+            self.join_response = None
+        else:
+            join = [2, 6, self.sequence, 5, role]
+            if role == 1:
+                join.append(team)
+            join.append(checksum(join))
+            self.send(6, join)
+            response = self.receive()
+            assert response[3] == 6 and response[5] == role, response
+            assert response[4] == (1 if accepted else 0), response
+            self.role = role
+            self.player_id = response[6]
+            self.join_response = response
         self.inbox = queue.Queue()
         self.reader = threading.Thread(target=self._read_loop, daemon=True)
         self.reader.start()
@@ -122,6 +131,25 @@ class Client:
             if len(words) >= 10 and words[3] == 10:
                 return words
         raise TimeoutError("timed out waiting for lobby chat")
+
+    def rcon(self, operation, *payload):
+        self.sequence += 1
+        words = [2, 6, self.sequence, 11, operation, *payload]
+        words.append(checksum(words))
+        self.send(6, words)
+
+    def receive_admin(self, timeout=5):
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            try:
+                words = self.inbox.get(timeout=deadline - time.monotonic())
+            except queue.Empty as error:
+                raise TimeoutError("timed out waiting for admin response") from error
+            if isinstance(words, BaseException):
+                raise words
+            if len(words) == 10 and words[3] == 12:
+                return words
+        raise TimeoutError("timed out waiting for admin response")
 
     def send(self, kind, words):
         data = encode(kind, words[2], words)
@@ -212,9 +240,30 @@ class Client:
 
 
 
+RCON_TEST_SECRET = "KOOKIE_TEST_RCON_SECRET_0123456789ABC"
+
+
 def health(port):
     with urllib.request.urlopen(f"http://127.0.0.1:{port}/healthz", timeout=3) as response:
         return json.loads(response.read())
+
+def assert_admin_rejected(port, protocol):
+    sock = socket.create_connection(("127.0.0.1", port), timeout=3)
+    key = base64.b64encode(os.urandom(16)).decode("ascii")
+    request = (b"GET /admin HTTP/1.1\r\nHost: localhost\r\n"
+               b"Upgrade: websocket\r\nConnection: Upgrade\r\n"
+               + f"Sec-WebSocket-Key: {key}\r\n".encode("ascii")
+               + b"Sec-WebSocket-Version: 13\r\n"
+               + f"Sec-WebSocket-Protocol: {protocol}\r\n\r\n".encode("ascii"))
+    sock.sendall(request)
+    response = bytearray()
+    while b"\r\n\r\n" not in response:
+        part = sock.recv(1)
+        if not part:
+            break
+        response.extend(part)
+    sock.close()
+    assert response.startswith(b"HTTP/1.1 401"), bytes(response)
 
 
 def actor_record(scene, player_id):
@@ -285,7 +334,8 @@ def wait_for_input_ack(client, input_sequence, timeout=5):
 def main():
     binary, port_text = os.path.abspath(sys.argv[1]), sys.argv[2]
     port = int(port_text)
-    env = dict(os.environ, KOOKIE_WEB_PORT=port_text)
+    env = dict(os.environ, KOOKIE_WEB_PORT=port_text,
+               KOOKIE_RCON_SECRET=RCON_TEST_SECRET)
     process = subprocess.Popen([binary], cwd=os.path.dirname(binary), env=env,
                                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     clients = []
@@ -303,6 +353,8 @@ def main():
         else:
             raise AssertionError("server did not become healthy")
 
+        assert_admin_rejected(port, "kookie.v1")
+        assert_admin_rejected(port, "kookie.v1, rcon.wrong")
         players = [Client(port, team=1 if index < 2 else 2)
                    for index in range(8)]
         clients.extend(players)
@@ -320,6 +372,7 @@ def main():
         red_message = players[1].receive_chat()
         assert red_message[3] == 10 and red_message[4] == 1 and \
             red_message[5] == 1 and red_message[7] == players[0].player_id
+        assert players[0].receive_chat()[4:6] == [1, 1]
         try:
             players[4].receive_chat(timeout=0.15)
             raise AssertionError("team chat leaked to another team")
@@ -331,11 +384,31 @@ def main():
         assert private_message[3] == 10 and private_message[4] == 2 and \
             private_message[5] == players[4].player_id and \
             private_message[7] == players[0].player_id
+        assert players[0].receive_chat()[4:6] == [2, players[4].player_id]
         try:
             players[1].receive_chat(timeout=0.15)
             raise AssertionError("private whisper leaked to a bystander")
         except TimeoutError:
             pass
+        admin = Client(port, admin_token=RCON_TEST_SECRET)
+        clients.append(admin)
+        admin.rcon(1)
+        admin_state = admin.receive_admin()
+        assert admin_state[4] == 1 and admin_state[5] == 0 and \
+            admin_state[7:9] == [8, 0], admin_state
+        admin.rcon(3, players[1].player_id, 1)
+        team_response = admin.receive_admin()
+        assert team_response[4:6] == [3, 0], team_response
+        admin_text = b"admin-check"
+        admin.rcon(4, len(admin_text), *admin_text)
+        say_response = admin.receive_admin()
+        assert say_response[4:6] == [4, 0], say_response
+        for player in players:
+            message = player.receive_chat()
+            assert message[4] == 0 and message[7] == 1000000
+            assert bytes(message[8:-1]).decode("ascii") == "admin-check"
+        admin.close()
+        clients.remove(admin)
 
         spectators = [Client(port, spectator=True) for _ in range(4)]
         clients.extend(spectators)
@@ -840,6 +913,22 @@ def main():
         assert all(scene[18 + index * 8] != departed.player_id
                    for index in range(scene[17])), (
             f"disconnected player {departed.player_id} remained in actor snapshots")
+
+        admin = Client(port, admin_token=RCON_TEST_SECRET)
+        clients.append(admin)
+        kicked = players[1]
+        admin.rcon(2, kicked.player_id)
+        kick_result = admin.receive_admin()
+        assert kick_result[4:6] == [2, 0], kick_result
+        kicked.wait_closed()
+        clients.remove(kicked)
+        scene = replacements[0].snapshot(
+            expected_players=6, expected_spectators=4)
+        assert all(scene[18 + index * 8] != kicked.player_id
+                   for index in range(scene[17])), (
+            f"kicked player {kicked.player_id} remained in actor snapshots")
+        admin.close()
+        clients.remove(admin)
         for client in clients:
             client.close()
         clients.clear()

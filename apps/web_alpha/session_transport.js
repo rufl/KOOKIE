@@ -36,6 +36,14 @@
   const GAME_PROBE_PAYLOAD = 7127;
   const WEBSOCKET_SUBPROTOCOL = "kookie.v1";
   const AUTH_SUBPROTOCOL_PREFIX = "bearer.";
+  const RCON_SUBPROTOCOL_PREFIX = "rcon.";
+  const RCON_SECRET_MINIMUM_LENGTH = 32;
+  const GAME_ADMIN_MARKER = 11;
+  const GAME_ADMIN_RESPONSE_MARKER = 12;
+  const GAME_ADMIN_STATUS = 1;
+  const GAME_ADMIN_KICK = 2;
+  const GAME_ADMIN_SET_TEAM = 3;
+  const GAME_ADMIN_SAY = 4;
   const AUTH_TOKEN_MINIMUM_LENGTH = 8;
   const AUTH_TOKEN_MAXIMUM_LENGTH = 128;
   const GAME_COMMAND_MARKER = 1;
@@ -53,6 +61,7 @@
   const GAME_ROLE_PLAYER = 1;
   const GAME_ROLE_SPECTATOR = 2;
   const GAME_ROLE_TRAINING = 3;
+  const GAME_ROLE_ADMIN = 4;
   const GAME_MOVE_LEFT = 1;
   const GAME_MOVE_RIGHT = 2;
   const GAME_MELEE = 3;
@@ -141,6 +150,7 @@
     ["player", "Player"],
     ["spectator", "Spectator"],
     ["training", "Training · Goose vs combat dolls"],
+    ["admin", "Remote administrator"],
   ]) {
     const option = document.createElement("option");
     option.value = value;
@@ -148,7 +158,7 @@
     roleSelect.appendChild(option);
   }
   const roleParam = params.get("kookie_role");
-  roleSelect.value = ["player", "spectator", "training"].includes(roleParam)
+  roleSelect.value = ["player", "spectator", "training", "admin"].includes(roleParam)
     ? roleParam : "player";
   roleLabel.appendChild(roleSelect);
   const teamLabel = document.createElement("label");
@@ -163,13 +173,26 @@
   }
   teamLabel.appendChild(teamSelect);
   const tokenLabel = document.createElement("label");
-  tokenLabel.textContent = "Session token (optional)";
+  const tokenLabelText = document.createElement("span");
+  tokenLabelText.textContent = "Session token (optional)";
+  tokenLabel.appendChild(tokenLabelText);
   const authToken = document.createElement("input");
   authToken.type = "password";
   authToken.value = params.get("kookie_token") || "";
   authToken.setAttribute("aria-label", "Session authentication token");
   authToken.setAttribute("autocomplete", "off");
   authToken.placeholder = "8-128 safe ASCII characters";
+  function updateRoleCredentialLabel() {
+    const admin = roleSelect.value === "admin";
+    tokenLabelText.textContent = admin ? "Remote admin secret (required)"
+      : "Session token (optional)";
+    authToken.setAttribute("aria-label", admin
+      ? "Remote administrator secret" : "Session authentication token");
+    authToken.placeholder = admin ? "32-128 safe ASCII characters"
+      : "8-128 safe ASCII characters";
+  }
+  roleSelect.addEventListener("change", updateRoleCredentialLabel);
+  updateRoleCredentialLabel();
   tokenLabel.appendChild(authToken);
 
   const SETTINGS_STORAGE_KEY = "kookie.browser.settings.v1";
@@ -1260,7 +1283,7 @@
   gameConsoleHeading.textContent = "Game console";
   const gameConsoleDescription = document.createElement("p");
   gameConsoleDescription.textContent =
-    "Spectator commands: /b2teams4 starts four goose bots vs four cat bots; /stop ends the battle.";
+    "Spectator bot commands, or remote admin commands after connecting as Remote administrator.";
   const gameConsoleOutput = document.createElement("pre");
   gameConsoleOutput.className = "kookie-console-output";
   gameConsoleOutput.setAttribute("role", "log");
@@ -1269,7 +1292,7 @@
   gameConsoleForm.className = "kookie-console-form";
   const gameConsoleInput = document.createElement("input");
   gameConsoleInput.type = "text";
-  gameConsoleInput.maxLength = 64;
+  gameConsoleInput.maxLength = 96;
   gameConsoleInput.setAttribute("aria-label", "Game console command");
   gameConsoleInput.placeholder = "/b2teams4";
   const gameConsoleSubmit = document.createElement("button");
@@ -2307,6 +2330,14 @@
       return words.length === 4 && words[3] === messageChecksum(words.slice(0, 3));
     }
     if (kind === GAME) {
+      if (words.length === 10 && words[3] === GAME_ADMIN_RESPONSE_MARKER) {
+        return words[4] >= GAME_ADMIN_STATUS && words[4] <= GAME_ADMIN_SAY &&
+          words[5] >= 0 && words[5] <= 2 &&
+          words[6] >= 0 && words[6] <= GAME_MAXIMUM_TICK &&
+          words[7] >= 0 && words[7] <= 8 &&
+          words[8] >= 0 && words[8] <= 4 &&
+          words[9] === messageChecksum(words.slice(0, 9));
+      }
       if (words.length >= 10 && words.length <= 89 &&
           (words[3] === GAME_CHAT_MARKER || words[3] === GAME_CHAT_RESPONSE_MARKER) &&
           words[4] >= CHAT_GLOBAL && words[4] <= CHAT_WHISPER &&
@@ -3022,13 +3053,66 @@
     }, 50);
     logGameConsole("Battle live: 4 red geese vs 4 blue cats. Spectate from this page.");
   }
+  function runRemoteAdminCommand(command) {
+    const normalized = command.toLowerCase();
+    if (normalized === "/help") {
+      logGameConsole("Remote commands: /status, /say <text>, /team <id> <free|red|blue>, /kick <id>");
+      return;
+    }
+    if (normalized === "/status") {
+      sendAdminCommand(GAME_ADMIN_STATUS);
+      return;
+    }
+    if (normalized.startsWith("/say ")) {
+      const text = command.slice(5).trim();
+      if (!text || text.length > 80 ||
+          Array.from(text).some((character) => {
+            const code = character.charCodeAt(0);
+            return code < 32 || code > 126;
+          })) {
+        throw new Error("say requires 1-80 printable ASCII characters");
+      }
+      sendAdminCommand(GAME_ADMIN_SAY,
+        [text.length, ...Array.from(text, (character) => character.charCodeAt(0))]);
+      return;
+    }
+    const fields = normalized.split(/\s+/);
+    if (fields.length === 2 && fields[0] === "/kick") {
+      const playerId = Number(fields[1]);
+      if (!Number.isInteger(playerId) || playerId < 1 || playerId > MAX_SEQUENCE) {
+        throw new Error("kick requires a numeric player ID");
+      }
+      sendAdminCommand(GAME_ADMIN_KICK, [playerId]);
+      return;
+    }
+    if (fields.length === 3 && fields[0] === "/team") {
+      const playerId = Number(fields[1]);
+      const teams = { free: 0, red: 1, blue: 2 };
+      if (!Number.isInteger(playerId) || playerId < 1 || playerId > MAX_SEQUENCE ||
+          !Object.prototype.hasOwnProperty.call(teams, fields[2])) {
+        throw new Error("team syntax: /team <player-id> <free|red|blue>");
+      }
+      sendAdminCommand(GAME_ADMIN_SET_TEAM, [playerId, teams[fields[2]]]);
+      return;
+    }
+    throw new Error("unknown remote command; use /help");
+  }
   async function runGameConsoleCommand(command) {
-    if (command === "/help") {
+    if (joinedRole === GAME_ROLE_ADMIN) {
+      try {
+        runRemoteAdminCommand(command);
+      } catch (error) {
+        logGameConsole("Remote command rejected: " + error.message);
+      }
+      return;
+    }
+    const normalized = command.toLowerCase();
+    if (normalized === "/help") {
       logGameConsole("Commands: /b2teams4, /stop, /help");
-    } else if (command === "/stop") {
+    } else if (normalized === "/stop") {
       if (browserBattleBots.length === 0) logGameConsole("No battle bots are running.");
       else stopBrowserBotBattle("Battle stopped by console command.");
-    } else if (command === "/b2teams4") {
+    } else if (normalized === "/b2teams4") {
       try {
         await startBrowserBotBattle();
       } catch (error) {
@@ -3040,7 +3124,7 @@
   }
   gameConsoleForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    const command = gameConsoleInput.value.trim().toLowerCase();
+    const command = gameConsoleInput.value.trim();
     if (!command) return;
     logGameConsole("> " + command);
     gameConsoleInput.value = "";
@@ -3063,6 +3147,17 @@
     setRuntimeState("joining as " +
       (requestedRole === GAME_ROLE_SPECTATOR ? "spectator"
         : requestedRole === GAME_ROLE_TRAINING ? "training" : "player"));
+  }
+  function sendAdminCommand(operation, payload = []) {
+    if (!connected || joinedRole !== GAME_ROLE_ADMIN || !socket ||
+        socket.readyState !== WebSocket.OPEN) {
+      throw new Error("connect as remote administrator first");
+    }
+    const frameSequence = nextSequence();
+    const words = [NETCODE_PROTOCOL_VERSION, GAME, frameSequence,
+      GAME_ADMIN_MARKER, operation, ...payload];
+    words.push(messageChecksum(words));
+    socket.send(encodeFrame(GAME, frameSequence, words));
   }
   let joinedPlayerId = 0;
   function appendLobbyChat(channel, target, sender, text) {
@@ -3580,6 +3675,7 @@
       }
       requestedRole = roleSelect.value === "spectator" ? GAME_ROLE_SPECTATOR
         : roleSelect.value === "training" ? GAME_ROLE_TRAINING
+        : roleSelect.value === "admin" ? GAME_ROLE_ADMIN
         : GAME_ROLE_PLAYER;
       if (!isReconnect) {
         spectatorLookYawOffset = 0;
@@ -3590,11 +3686,16 @@
         spectatorVerticalKeys.clear();
         lastSpectatorCameraUpdateAt = 0;
       }
-      const expectedPath = requestedRole === GAME_ROLE_SPECTATOR
-        ? "/spectate" : "/session";
+      const expectedPath = requestedRole === GAME_ROLE_ADMIN ? "/admin"
+        : requestedRole === GAME_ROLE_SPECTATOR ? "/spectate" : "/session";
       url.pathname = expectedPath;
       token = authToken.value.trim();
-      if (token && !validAuthToken(token)) {
+      if (requestedRole === GAME_ROLE_ADMIN) {
+        if (token.length < RCON_SECRET_MINIMUM_LENGTH || token.length > 128 ||
+            !/^[A-Za-z0-9._~-]+$/.test(token)) {
+          throw new Error("remote admin secret must be 32-128 safe ASCII characters");
+        }
+      } else if (token && !validAuthToken(token)) {
         throw new Error("session token must be 8-128 safe ASCII characters");
       }
     } catch (error) {
@@ -3604,7 +3705,8 @@
       return;
     }
     const protocols = [WEBSOCKET_SUBPROTOCOL];
-    if (token) protocols.push(AUTH_SUBPROTOCOL_PREFIX + token);
+    if (token) protocols.push(requestedRole === GAME_ROLE_ADMIN
+      ? RCON_SUBPROTOCOL_PREFIX + token : AUTH_SUBPROTOCOL_PREFIX + token);
     try {
       socket = new WebSocket(url.href, protocols);
     } catch (error) {
@@ -3635,7 +3737,15 @@
           setGameControlsEnabled(false);
           if (pingTimer !== null) window.clearInterval(pingTimer);
           pingTimer = window.setInterval(sendPing, 2000);
-          sendJoinRequest();
+          if (requestedRole === GAME_ROLE_ADMIN) {
+            joinedRole = GAME_ROLE_ADMIN;
+            authoritativeReady = true;
+            setAsyncButtonState(connectButton, "success", "LEAVE");
+            setRuntimeState("remote administrator connected", "#4ade80");
+            setStatus("");
+          } else {
+            sendJoinRequest();
+          }
         } else if (frame.kind === PONG) {
           const sentAt = pingSentTimes.get(frame.sequence);
           if (sentAt !== undefined) {
@@ -3655,7 +3765,20 @@
             }, 450);
           }
         } else if (frame.kind === GAME) {
-          if (frame.words[3] === GAME_CHAT_RESPONSE_MARKER) {
+          if (frame.words[3] === GAME_ADMIN_RESPONSE_MARKER) {
+            const operation = frame.words[4];
+            const result = frame.words[5];
+            if (result !== 0) {
+              logGameConsole("Remote command failed: " +
+                (result === 2 ? "player not found" : "invalid command"));
+            } else if (operation === GAME_ADMIN_STATUS) {
+              logGameConsole("tick=" + frame.words[6] +
+                " players=" + frame.words[7] +
+                " spectators=" + frame.words[8]);
+            } else {
+              logGameConsole("Remote command completed.");
+            }
+          } else if (frame.words[3] === GAME_CHAT_RESPONSE_MARKER) {
             const message = String.fromCharCode(...frame.words.slice(8, 8 + frame.words[6]));
             appendLobbyChat(frame.words[4], frame.words[5], frame.words[7], message);
           } else if (frame.words[3] === GAME_JOIN_RESPONSE_MARKER) {

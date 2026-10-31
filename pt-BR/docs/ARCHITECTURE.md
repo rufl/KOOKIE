@@ -435,6 +435,18 @@ vez e geram quatro fatias coletáveis de vida/sementes. SDL native e WebGL
 consomem os mesmos snapshots; não executam simulações online independentes.
 Isso é paridade semântica de renderização, não equivalência pixel a pixel.
 
+O servidor WebSocket do jogo oferece chat global, do mesmo time e sussurros
+privados, com histórico limitado a 32 mensagens. Os IDs numéricos de sessão não
+são identidades autenticadas; a rota `/session` continua sem autenticação e
+sem TLS no backend. `/admin` oferece RCON desativado por padrão: exige
+`KOOKIE_RCON_SECRET` de 32–128 caracteres ASCII seguros, compara o subprotocolo
+`rcon.<segredo>` em tempo constante e só pode ser acessado pelo listener
+vinculado ao loopback. Comandos atuais: status, expulsão, atribuição de time e
+anúncio. Para acesso remoto, use proxy TLS/WSS com autenticação própria; o
+servidor não termina TLS. Votação de mapas, vários mapas multiplayer e
+transições entre partidas não estão implementados. O jogo permanece em uma
+simulação contínua da arena G1.
+
 O cliente bloqueia os controles de gameplay até receber a cena completa, oferece
 reconexão automática limitada com estados visíveis de carregamento/falha e
 persiste localmente preferências de minimapa, pointer lock, movimento reduzido,

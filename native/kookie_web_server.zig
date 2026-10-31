@@ -329,6 +329,45 @@ fn acceptKey(key: *const [24]u8) [28]u8 {
     }
     return out;
 }
+fn requestHeader(request: []const u8, name: []const u8) ?[]const u8 {
+    var lines = std.mem.splitSequence(u8, request, "\r\n");
+    _ = lines.next();
+    while (lines.next()) |line| {
+        if (line.len == 0) break;
+        const colon = std.mem.indexOfScalar(u8, line, ':') orelse continue;
+        if (!std.ascii.eqlIgnoreCase(line[0..colon], name)) continue;
+        return std.mem.trim(u8, line[colon + 1 ..], " \t");
+    }
+    return null;
+}
+
+export fn kookie_web_server_rcon_authorized() callconv(.c) bool {
+    if (current.kind != 2 or current.len <= 0) return false;
+    const secret_ptr = c.getenv("KOOKIE_RCON_SECRET") orelse return false;
+    const secret = std.mem.span(secret_ptr);
+    if (secret.len < 32 or secret.len > 128) return false;
+    for (secret) |byte| {
+        if (!(std.ascii.isAlphanumeric(byte) or byte == '-' or byte == '_' or
+            byte == '.' or byte == '~'))
+        {
+            return false;
+        }
+    }
+    const request = current.data[0..@intCast(current.len)];
+    const protocols = requestHeader(request, "sec-websocket-protocol") orelse return false;
+    var candidates = std.mem.splitScalar(u8, protocols, ',');
+    while (candidates.next()) |candidate_raw| {
+        const candidate = std.mem.trim(u8, candidate_raw, " \t");
+        if (!std.mem.startsWith(u8, candidate, "rcon.")) continue;
+        const provided = candidate[5..];
+        if (provided.len != secret.len) continue;
+        var difference: u8 = 0;
+        for (secret, provided) |expected, actual| difference |= expected ^ actual;
+        if (difference == 0) return true;
+    }
+    return false;
+}
+
 export fn kookie_web_server_upgrade_websocket(id: c_int) callconv(.c) bool {
     lock(); defer unlock();
     const index = locate(id) orelse return false; const conn = &connections[index];

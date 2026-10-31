@@ -53,6 +53,12 @@ Int sessionWebGameJoinResponseMarker() { return 6 }
 Int sessionWebGameMultiplayerSnapshotMarker() { return 7 }
 Int sessionWebGameChatMarker() { return 9 }
 Int sessionWebGameChatResponseMarker() { return 10 }
+Int sessionWebGameAdminMarker() { return 11 }
+Int sessionWebGameAdminResponseMarker() { return 12 }
+Int sessionWebGameAdminStatus() { return 1 }
+Int sessionWebGameAdminKick() { return 2 }
+Int sessionWebGameAdminSetTeam() { return 3 }
+Int sessionWebGameAdminSay() { return 4 }
 Int sessionWebChatGlobal() { return 0 }
 Int sessionWebChatTeam() { return 1 }
 Int sessionWebChatWhisper() { return 2 }
