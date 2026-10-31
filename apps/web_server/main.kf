@@ -97,36 +97,6 @@ Bool webRequestLine(Int[] source, Int requestLength, String method, String path)
     return webRangeEquals(source, 0, lineEnd, method + " " + path + " HTTP/1.1")
 }
 
-Int webWireChecksum(Int[] wire) {
-    if (wire.length < 16) { return -1 }
-    var result = 0
-    for (var index = 0; index < wire.length; index = index + 1) {
-        var value = wire[index]
-        if (index == 14 || index == 15) { value = 0 }
-        result = (result + value * (index + 1)) % 65536
-    }
-    return result
-}
-Int[] webEncodeSessionFrame(Int kind, Int sequence, Int[] words) {
-    if (sequence <= 0 || sequence > 1000000 || words.length <= 0 ||
-        words.length > sessionWebMaximumWords() || words[0] != sessionWebGameProtocolVersion() ||
-        words[1] != kind || words[2] != sequence) { return new Int[0] }
-    var wire = new Int[16 + words.length * 4]
-    wire[0] = 75; wire[1] = 87; wire[2] = 83; wire[3] = 49
-    wire[4] = sessionWebFrameVersion(); wire[5] = kind; wire[6] = 0; wire[7] = 0
-    wire[8] = (sequence >>> 24) & 255; wire[9] = (sequence >>> 16) & 255
-    wire[10] = (sequence >>> 8) & 255; wire[11] = sequence & 255
-    wire[12] = (words.length >>> 8) & 255; wire[13] = words.length & 255
-    for (var index = 0; index < words.length; index = index + 1) {
-        var value = words[index]
-        var offset = 16 + index * 4
-        wire[offset] = (value >>> 24) & 255; wire[offset + 1] = (value >>> 16) & 255
-        wire[offset + 2] = (value >>> 8) & 255; wire[offset + 3] = value & 255
-    }
-    var checksum = webWireChecksum(wire)
-    wire[14] = (checksum >>> 8) & 255; wire[15] = checksum & 255
-    return wire
-}
 Bool webSendBytes(Int connectionId, Int[] bytes) {
     if (bytes.length <= 0 || bytes.length > webMaximumResponseBytes() ||
         !kookie_web_server_output_begin(connectionId, bytes.length)) { return false }
@@ -157,8 +127,48 @@ Bool webSendWsFrame(Int connectionId, Int opcode, Int[] payload) {
     return webSendBytes(connectionId, frame)
 }
 Bool webSendSessionWords(Int connectionId, Int kind, Int sequence, Int[] words) {
-    var wire = webEncodeSessionFrame(kind, sequence, words)
-    return wire.length > 0 && webSendWsFrame(connectionId, webWebSocketOpcodeBinary(), wire)
+    if (sequence <= 0 || sequence > 1000000 || words.length <= 0 ||
+        words.length > sessionWebMaximumWords() ||
+        words[0] != sessionWebGameProtocolVersion() ||
+        words[1] != kind || words[2] != sequence) { return false }
+    var payloadLength = 16 + words.length * 4
+    if (payloadLength > webMaximumWebSocketPayloadBytes()) { return false }
+    var headerLength = if (payloadLength < 126) 2 else 4
+    var frame = new Int[headerLength + payloadLength]
+    frame[0] = 128 | webWebSocketOpcodeBinary()
+    if (payloadLength < 126) { frame[1] = payloadLength }
+    else {
+        frame[1] = 126
+        frame[2] = (payloadLength >>> 8) & 255
+        frame[3] = payloadLength & 255
+    }
+    var base = headerLength
+    frame[base] = 75; frame[base + 1] = 87; frame[base + 2] = 83
+    frame[base + 3] = 49; frame[base + 4] = sessionWebFrameVersion()
+    frame[base + 5] = kind; frame[base + 6] = 0; frame[base + 7] = 0
+    frame[base + 8] = (sequence >>> 24) & 255
+    frame[base + 9] = (sequence >>> 16) & 255
+    frame[base + 10] = (sequence >>> 8) & 255
+    frame[base + 11] = sequence & 255
+    frame[base + 12] = (words.length >>> 8) & 255
+    frame[base + 13] = words.length & 255
+    for (var index = 0; index < words.length; index = index + 1) {
+        var value = words[index]
+        var offset = base + 16 + index * 4
+        frame[offset] = (value >>> 24) & 255
+        frame[offset + 1] = (value >>> 16) & 255
+        frame[offset + 2] = (value >>> 8) & 255
+        frame[offset + 3] = value & 255
+    }
+    var checksum = 0
+    for (var index = 0; index < payloadLength; index = index + 1) {
+        var value = frame[base + index]
+        if (index == 14 || index == 15) { value = 0 }
+        checksum = (checksum + value * (index + 1)) % 65536
+    }
+    frame[base + 14] = (checksum >>> 8) & 255
+    frame[base + 15] = checksum & 255
+    return webSendBytes(connectionId, frame)
 }
 
 class WebSessionFrame {
