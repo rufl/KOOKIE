@@ -3,6 +3,9 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Hardened the 4v4 battle harness: bot-worker exceptions now fail the run,
+  workers are stopped and joined before result checks, and full-session output
+  no longer mislabels every run as a smoke test.
 - WebSocket chat supports global, same-team, and private whispers with
   server-side recipient filtering. Messages allow 1–80 printable ASCII
   characters, are rate-limited per sender, and use a 32-message in-memory

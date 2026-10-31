@@ -3,6 +3,9 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Endurecemos o runner de batalha 4v4: falhas dos workers dos bots agora
+  reprovam a execução, os workers são parados e aguardados antes das
+  verificações, e sessões completas não são mais rotuladas como smoke test.
 - O chat WebSocket oferece Global, Team e Whisper com filtragem autoritativa
   por destinatário. Mensagens aceitam 1–80 caracteres ASCII imprimíveis,
   têm limite de frequência por remetente e usam histórico em memória de 32

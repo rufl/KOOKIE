@@ -361,9 +361,9 @@ def run_battle(port, duration=None, log_path=None):
             client.close()
         for thread in drivers:
             thread.join()
+        if driver_errors:
+            raise RuntimeError("bot driver failed: " + "; ".join(driver_errors))
         if duration is not None:
-            if driver_errors:
-                raise RuntimeError("bot driver failed: " + "; ".join(driver_errors))
 
             if samples == 0:
                 raise AssertionError("bot positions did not change during smoke run")
@@ -394,7 +394,7 @@ def run_battle(port, duration=None, log_path=None):
                 f"/anim={','.join(map(str, sorted(animation_states_by_player[player_id])))}"
                 for player_id, actions in sorted(actions_by_player.items())
             )
-            print(f"/b2teams4 smoke passed: {samples} moving snapshots; "
+            print(f"/b2teams4 checks passed: {samples} moving snapshots; "
                   f"minimum alive={minimum_alive}/8; "
                   f"min health={minimum_health}/{BOT_COUNT * GAME_MAXIMUM_HEALTH}; "
                   f"actions={','.join(sorted(action_usage)) or 'none'}; "
