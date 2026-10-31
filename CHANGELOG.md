@@ -7,12 +7,12 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   recipient filtering, bounded 80-character ASCII messages, a 32-message
   in-memory history, and optional team selection. Session IDs are not
   authenticated identities. Regular `/session` joins remain unauthenticated.
-- Added disabled-by-default `/admin` RCON for status, kick, team assignment,
-  and announcements. It requires a 32–128-character `KOOKIE_RCON_SECRET`,
-  constant-time token comparison, and the loopback-bound listener. Remote
-  deployments require a separately authenticated TLS/WSS reverse proxy.
-  Map voting, multiple multiplayer maps, and between-match transitions remain
-  unimplemented.
+- Added server-authoritative multiplayer rotation between G1 Central Pool and
+  G2 Ruins. Matches enter a 15-second map-vote intermission after 120 seconds
+  of active play or `/mapvote start`; joined players may vote, counts replicate,
+  ties retain the current map, and transitions respawn players with reset match
+  state. Native multiplayer qualification and the browser contract exercise
+  voting, G2 transition, replicated metadata, and map selection.
 
 - The Kof web-server qualification now selects a free loopback port unless
   `KOOKIE_WEB_TEST_PORT` is explicitly set, preventing tests from silently

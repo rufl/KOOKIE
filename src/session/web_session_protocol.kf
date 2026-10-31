@@ -618,7 +618,12 @@ Bool validSessionWebGameMultiplayerSnapshot(Int[] words) {
                 (suffixLength - 10) % 4 == 0) ||
             (suffixLength >= actorCount + 10 &&
                 suffixLength <= actorCount + 26 &&
-                (suffixLength - actorCount - 10) % 4 == 0)
+                (suffixLength - actorCount - 10) % 4 == 0) ||
+            (suffixLength >= 16 && suffixLength <= 32 &&
+                (suffixLength - 16) % 4 == 0) ||
+            (suffixLength >= actorCount + 16 &&
+                suffixLength <= actorCount + 32 &&
+                (suffixLength - actorCount - 16) % 4 == 0)
         if (words[trailer] < 0 || words[trailer] > 1000000 ||
             projectileCount < 0 || projectileCount > 12 ||
             throwableCount < 0 || throwableCount > 4 ||

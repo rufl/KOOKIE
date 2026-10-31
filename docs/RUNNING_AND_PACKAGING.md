@@ -263,8 +263,8 @@ The native Kof server exposes `/admin` only when `KOOKIE_RCON_SECRET` is set to
 32–128 characters from `[A-Za-z0-9._~-]`. Keep it in a deployment secret
 manager; do not put it in source, URLs, or logs. Connect using the browser's
 `Remote administrator` role and the secret field. Available commands:
-`/status`, `/say <text>`, `/team <player-id> <free|red|blue>`, and
-`/kick <player-id>`.
+`/status`, `/say <text>`, `/team <player-id> <free|red|blue>`,
+`/kick <player-id>`, and `/mapvote start`.
 
 The listener binds to loopback. For remote access, place a TLS/WSS reverse proxy
 in front of it with its own operator authentication and route `/admin` only;
@@ -273,9 +273,13 @@ subprotocol, so never use `ws://` across an untrusted network. This secret
 protects only `/admin`; regular `/session` joins remain unauthenticated.
 
 `/admin` returns HTTP `401` when the secret is absent, malformed, or incorrect.
-The implementation has no per-IP failed-login throttling, user roles, or
-command audit log; restrict proxy access and rotate the shared secret if
-exposed. Map voting and match transitions are not implemented.
+`/mapvote start` immediately opens the 15-second map intermission; players vote
+in the in-game `NEXT MATCH` panel. Otherwise, matches rotate to an intermission
+after 120 seconds of active play. G1 Central Pool and G2 Ruins are the available
+maps; a tie keeps the current map. Every transition respawns players and resets
+their match state. The implementation has no per-IP failed-login throttling,
+user roles, or command audit log; restrict proxy access and rotate the shared
+secret if exposed.
 
 Click `CHECK GATEWAY` to query the configured `GET /healthz` route. It reports
 transport, protocol, bearer-admission mode and active sessions. `GET /metrics`

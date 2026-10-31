@@ -221,10 +221,24 @@ function multiplayerPositionWords(sequence, tick, localX) {
   words.push(messageChecksum(words));
   return words;
 }
+function mapVoteSceneWords(sequence) {
+  const words = extendedMultiplayerWords(sequence, 15);
+  const trailer = 18 + words[17] * 8;
+  const impactOffset = trailer + 4 + words[trailer + 1] * 8 +
+    words[trailer + 2] * 8;
+  words[trailer + 3] = 0;
+  words.splice(impactOffset, 8);
+  const suffix = impactOffset;
+  words.splice(suffix, 0, 0, 32, 1, 52, 0, 0, 0, 0, 30, 0,
+    2, 1, 250, 1, 3, 4);
+  words[words.length - 1] = messageChecksum(words.slice(0, -1));
+  return words;
+}
 
 
 let fullSceneSent = false;
 const sentGameCommands = [];
+const sentMapVotes = [];
 const sentInputFrames = [];
 
 function collectElements(root) {
@@ -304,6 +318,10 @@ class FakeWebSocket {
           value: view.getInt32(16 + 5 * 4, false),
         });
       }
+    }
+    if (kind === 6 && view.getInt32(16 + 3 * 4, false) === 13) {
+      sentMapVotes.push(view.getInt32(16 + 4 * 4, false));
+      return;
     }
     if (kind === 3) {
       const words = [2, 4, sequence];
@@ -416,6 +434,12 @@ async function main() {
   assert.equal(typeof window.KookieWebRenderer?.create, "function");
   assert.equal(typeof window.KookieWebRenderer?.encodeScreenshot, "function");
   const arenaGeometry = window.KookieArenaGeometry;
+  assert.deepEqual(Object.keys(arenaGeometry.maps).sort(), ["1", "2"]);
+  assert.notDeepEqual(
+    arenaGeometry.maps[1].solids.map((entry) => entry.box),
+    arenaGeometry.maps[2].solids.map((entry) => entry.box),
+    "registered multiplayer maps expose different collision/render layouts",
+  );
   const overlaps = (a, b) =>
     a[0] < b[3] && a[3] > b[0] && a[2] < b[5] && a[5] > b[2];
   for (let left = 0; left < arenaGeometry.solids.length; left += 1) {
@@ -475,6 +499,21 @@ async function main() {
   if (frameCallbacks.length > 0) frameCallbacks.shift()(800);
   assert.equal(renderedActorXs.at(-1), cappedExtrapolation,
     "long snapshot gaps do not extend the extrapolation horizon");
+  const mapVoteScene = mapVoteSceneWords(5);
+  FakeWebSocket.active.emit(encodeFrame(6, 5, mapVoteScene));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.ok(document.getElementById("kookie-authoritative-scene")
+    .attributes["aria-label"].includes("tick 15"),
+  document.getElementById("kookie-session-status").textContent);
+  const votePanel = collectElements(document.body).find((element) =>
+    element.className === "kookie-map-vote");
+  assert.equal(votePanel.hidden, false, "authoritative intermission opens map voting");
+  assert.match(votePanel.children[1].textContent, /1 \/ 3 votes/);
+  const ruinsVote = collectElements(votePanel).find((element) =>
+    element.dataset.mapId === "2");
+  assert.ok(ruinsVote);
+  ruinsVote.listeners.click();
+  assert.deepEqual(sentMapVotes, [2], "map vote button sends the selected map ID");
 
 
   monotonicNow = 800;

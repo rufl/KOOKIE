@@ -441,11 +441,16 @@ são identidades autenticadas; a rota `/session` continua sem autenticação e
 sem TLS no backend. `/admin` oferece RCON desativado por padrão: exige
 `KOOKIE_RCON_SECRET` de 32–128 caracteres ASCII seguros, compara o subprotocolo
 `rcon.<segredo>` em tempo constante e só pode ser acessado pelo listener
-vinculado ao loopback. Comandos atuais: status, expulsão, atribuição de time e
-anúncio. Para acesso remoto, use proxy TLS/WSS com autenticação própria; o
-servidor não termina TLS. Votação de mapas, vários mapas multiplayer e
-transições entre partidas não estão implementados. O jogo permanece em uma
-simulação contínua da arena G1.
+vinculado ao loopback. Comandos: status, expulsão, atribuição de time, anúncio
+e `/mapvote start`, que abre o intervalo de votação. O lobby em processo não
+expõe comandos de bots nem minijogos aos clientes WebSocket. A partida registra
+G1 Central Pool e G2 Ruins com colisão no servidor e geometria de renderização
+compartilhada com o navegador. Após 2.400 ticks ativos (120 segundos a 20 Hz),
+ou início administrativo, um intervalo de 300 ticks (15 segundos) aceita um
+voto por jogador conectado. Votos e contagens são replicados; empate mantém o
+mapa atual. O servidor reconstrói a arena vencedora, reposiciona os jogadores e
+reinicia o estado da partida. É uma rotação limitada a dois mapas, não um lobby
+persistente, fila ranqueada ou registro geral de mapas.
 
 O cliente bloqueia os controles de gameplay até receber a cena completa, oferece
 reconexão automática limitada com estados visíveis de carregamento/falha e

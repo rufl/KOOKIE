@@ -8,12 +8,12 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   caracteres, histórico em memória de 32 mensagens e seleção opcional de time.
   IDs de sessão não são identidades autenticadas; entradas em `/session`
   continuam sem autenticação.
-- Adicionamos RCON `/admin` desativado por padrão para status, expulsão,
-  atribuição de time e anúncios. Exige `KOOKIE_RCON_SECRET` com 32–128
-  caracteres, comparação de token em tempo constante e listener vinculado ao
-  loopback. Acesso remoto exige proxy reverso TLS/WSS com autenticação própria.
-  Votação de mapas, vários mapas multiplayer e transições entre partidas ainda
-  não foram implementados.
+- Adicionamos rotação multiplayer autoritativa entre G1 Central Pool e G2
+  Ruins. A partida abre um intervalo de votação de 15 segundos após 120
+  segundos ativos ou `/mapvote start`; jogadores conectados votam, as contagens
+  são replicadas, empate mantém o mapa atual e a transição reposiciona os
+  jogadores com estado de partida reiniciado. A qualificação nativa e o
+  contrato do navegador verificam votos, transição para G2 e metadados.
 
 - O gate do servidor Kof escolhe uma porta loopback livre por padrão, impedindo
   que um preview já ativo satisfaça o health check do processo sob teste.

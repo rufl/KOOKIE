@@ -730,16 +730,6 @@ Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot) {
         extended[cursor + 3] + extended[cursor + 4]
     extended[extended.length - 1] = sessionWebMessageChecksum(extended, extended.length - 1)
     if (!validSessionWebGameMultiplayerSnapshot(extended)) {
-        println("invalid snapshot len=" + extended.length +
-            " tick=" + metrics.serverTickValue +
-            " players=" + metrics.playerCount() +
-            " actors=" + extended[17] +
-            " map=" + extended[extended.length - 7] +
-            " phase=" + extended[extended.length - 6] +
-            " remaining=" + extended[extended.length - 5] +
-            " votes1=" + extended[extended.length - 4] +
-            " votes2=" + extended[extended.length - 3] +
-            " total=" + extended[extended.length - 2])
         return new Int[0]
     }
     return extended

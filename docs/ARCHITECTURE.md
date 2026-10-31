@@ -211,12 +211,16 @@ RCON route: it requires `KOOKIE_RCON_SECRET` (32–128 safe ASCII characters),
 compares the `rcon.<secret>` WebSocket subprotocol in constant time, and is
 available only through the loopback-bound listener. Operators must expose it
 only through an authenticated TLS/WSS reverse proxy; the server itself does not
-provide TLS or protect the regular game-session route. Admin commands currently
-cover status, kick, team assignment and room announcement. They do not provide
-map/restart/ban/pause commands. The in-process lobby's bot commands and
-minigames are not exposed to WebSocket clients. Map voting, multiple authored
-multiplayer maps and inter-match transitions are not implemented; the current
-WebSocket match remains one continuously running arena simulation.
+provide TLS or protect the regular game-session route. Admin commands cover
+status, kick, team assignment, room announcement and `/mapvote start`, which
+opens the map intermission. The in-process lobby's bot commands and minigames
+are not exposed to WebSocket clients. The WebSocket match registers G1 Central
+Pool and G2 Ruins in shared server collision/browser rendering; after 2,400
+active ticks (120 seconds at 20 Hz), or an admin start, a 300-tick (15-second)
+intermission accepts one map vote per joined player. Votes and counts replicate
+to clients; ties retain the current map. The server rebuilds the winning arena,
+respawns players and resets match state before play resumes. This is a bounded
+two-map rotation, not a persistent lobby, ranked queue or general map registry.
 
 Server systems read approved state, emit bounded commands and commit mutations at
 defined tick phases. Stable IDs and declared ordering break ties.

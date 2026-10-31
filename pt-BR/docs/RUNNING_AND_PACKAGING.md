@@ -110,9 +110,9 @@ quando não está disponível.
 O servidor Kof habilita `/admin` somente quando `KOOKIE_RCON_SECRET` contém
 32–128 caracteres de `[A-Za-z0-9._~-]`. Armazene o segredo em um gerenciador de
 segredos; não o coloque no código-fonte, em URLs ou logs. No navegador, selecione
-**Administrador remoto** e informe o segredo. Comandos disponíveis:
-`/status`, `/say <texto>`, `/team <id-jogador> <free|red|blue>` e
-`/kick <id-jogador>`.
+**Administrador remoto** e informe o segredo. Comandos:
+`/status`, `/say <texto>`, `/team <id-jogador> <free|red|blue>`,
+`/kick <id-jogador>` e `/mapvote start`.
 
 O listener aceita conexões somente pelo loopback. Para acesso remoto, use proxy
 reverso TLS/WSS com autenticação própria e encaminhe apenas `/admin`; o backend
@@ -121,9 +121,13 @@ nunca use `ws://` em rede não confiável. O segredo protege somente `/admin`;
 entradas normais em `/session` continuam sem autenticação.
 
 `/admin` responde HTTP `401` quando o segredo está ausente, malformado ou
-incorreto. Não há limitação por IP para falhas, níveis de permissão por usuário
-ou log de auditoria; restrinja o acesso no proxy e altere o segredo se houver
-exposição. Votação de mapas e transições entre partidas ainda não existem.
+incorreto. `/mapvote start` inicia imediatamente o intervalo de votação de 15
+segundos; os jogadores votam no painel `NEXT MATCH`. Sem início administrativo,
+há um intervalo após 120 segundos de jogo ativo. Os mapas disponíveis são G1
+Central Pool e G2 Ruins; empate mantém o mapa atual. Cada transição reposiciona
+os jogadores e reinicia o estado da partida. Não há limitação por IP para
+falhas, níveis de permissão por usuário ou log de auditoria; restrinja o proxy
+e altere o segredo se houver exposição.
 
 ## Console de batalha ao vivo 4v4
 
