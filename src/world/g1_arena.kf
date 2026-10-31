@@ -7,19 +7,43 @@ Int g1ArenaMaxY() { return 24 }
 Int g1ArenaMaxZ() { return 280 }
 Int g1ArenaWallThickness() { return 4 }
 
+Int multiplayerArenaMapOne() { return 1 }
+Int multiplayerArenaMapTwo() { return 2 }
+Int multiplayerArenaMapCount() { return 2 }
+Bool validMultiplayerArenaMap(Int mapId) {
+    return mapId == multiplayerArenaMapOne() ||
+        mapId == multiplayerArenaMapTwo()
+}
+
 class G1Arena {
     BoundedAuthoredCollision authoredValue
     BoundedTriangleCollection collisionValue
     BoundedTriangleContactController contactValue
     Bool readyValue
+    Int mapIdValue
 
     public constructor() {
+        mapIdValue = multiplayerArenaMapOne()
+        initializeGeometry()
+    }
+
+    Bool initializeGeometry() {
         authoredValue = BoundedAuthoredCollision(160, 192)
         collisionValue = BoundedTriangleCollection(192, 64)
         contactValue = BoundedTriangleContactController(
             collisionValue, 1, 64, 60, 2)
         readyValue = buildArena()
+        return readyValue
     }
+
+    Bool selectMap(Int mapId) {
+        if (!validMultiplayerArenaMap(mapId)) { return false }
+        if (mapId == mapIdValue) { return readyValue }
+        mapIdValue = mapId
+        return initializeGeometry()
+    }
+
+    Int mapId() { return mapIdValue }
 
 
     Bool appendQuad(
@@ -106,51 +130,46 @@ class G1Arena {
             return false
         }
 
-        // Two raised crossings turn the central pool into a four-way combat
-        // junction instead of a dead zone.
-        if (!appendBox(92, 6, 146, 228, 9, 158, 5) ||
-            !appendBox(154, 6, 92, 166, 9, 212, 5) ||
-            // The east channel has a second route above the water.
-            !appendBox(228, 6, 66, 308, 9, 78, 5)) {
-            return false
-        }
-
-        // Upper side lanes create height changes without sealing the ground
-        // loop. Their open undersides preserve alternate escape routes.
-        if (!appendBox(36, 8, 64, 96, 11, 216, 6) ||
-            !appendBox(224, 8, 64, 284, 11, 216, 6)) {
-            return false
-        }
-
-        // Covered galleries contrast with the open central sky court.
-        if (!appendBox(48, 16, 16, 272, 18, 48, 7) ||
-            !appendBox(48, 16, 232, 272, 18, 264, 7)) {
-            return false
-        }
-
-        // Tall colored towers provide vertical cover and readable landmarks.
-        if (!appendBox(64, 0, 112, 88, 14, 136, 4) ||
-            !appendBox(232, 0, 144, 256, 14, 168, 4)) {
-            return false
-        }
-
-        // Low center cover breaks long sight lines while leaving four exits.
-        if (!appendBox(112, 0, 72, 132, 5, 92, 3) ||
-            !appendBox(188, 0, 184, 208, 5, 204, 3)) {
-            return false
-        }
-
-        // Short ramps and ledges make the upper lanes reachable and keep
-        // vertical combat readable from the open court.
-        if (!appendQuad(
-                20, 0, 56, 20, 0, 80, 40, 8, 80, 40, 8, 56, 6) ||
-            !appendQuad(
-                280, 8, 200, 280, 8, 224, 300, 0, 224, 300, 0, 200, 6) ||
-            !appendQuad(
-                116, 5, 76, 140, 5, 76, 140, 5, 96, 116, 5, 96, 4) ||
-            !appendQuad(
-                180, 5, 184, 204, 5, 184, 204, 5, 204, 180, 5, 204, 4)) {
-            return false
+        if (mapIdValue == multiplayerArenaMapOne()) {
+            // Raised crossings and elevated galleries shape the G1 central pool.
+            if (!appendBox(92, 6, 146, 228, 9, 158, 5) ||
+                !appendBox(154, 6, 92, 166, 9, 212, 5) ||
+                !appendBox(228, 6, 66, 308, 9, 78, 5) ||
+                !appendBox(36, 8, 64, 96, 11, 216, 6) ||
+                !appendBox(224, 8, 64, 284, 11, 216, 6) ||
+                !appendBox(48, 16, 16, 272, 18, 48, 7) ||
+                !appendBox(48, 16, 232, 272, 18, 264, 7) ||
+                !appendBox(64, 0, 112, 88, 14, 136, 4) ||
+                !appendBox(232, 0, 144, 256, 14, 168, 4) ||
+                !appendBox(112, 0, 72, 132, 5, 92, 3) ||
+                !appendBox(188, 0, 184, 208, 5, 204, 3) ||
+                !appendQuad(
+                    20, 0, 56, 20, 0, 80, 40, 8, 80, 40, 8, 56, 6) ||
+                !appendQuad(
+                    280, 8, 200, 280, 8, 224, 300, 0, 224, 300, 0, 200, 6) ||
+                !appendQuad(
+                    116, 5, 76, 140, 5, 76, 140, 5, 96, 116, 5, 96, 4) ||
+                !appendQuad(
+                    180, 5, 184, 204, 5, 184, 204, 5, 204, 180, 5, 204, 4)) {
+                return false
+            }
+        } else {
+            // G2 Ruins: separated pillars and opposing raised lanes replace
+            // G1's connected crossings and covered galleries.
+            if (!appendBox(48, 0, 56, 76, 16, 84, 4) ||
+                !appendBox(244, 0, 196, 272, 16, 224, 4) ||
+                !appendBox(112, 4, 36, 208, 7, 52, 5) ||
+                !appendBox(112, 4, 228, 208, 7, 244, 5) ||
+                !appendBox(84, 8, 104, 100, 11, 176, 6) ||
+                !appendBox(220, 8, 104, 236, 11, 176, 6) ||
+                !appendBox(128, 0, 128, 192, 4, 152, 3) ||
+                !appendBox(128, 0, 184, 192, 4, 208, 3) ||
+                !appendQuad(
+                    76, 0, 60, 100, 0, 60, 100, 8, 104, 76, 8, 104, 6) ||
+                !appendQuad(
+                    220, 0, 220, 244, 0, 220, 244, 8, 176, 220, 8, 176, 6)) {
+                return false
+            }
         }
 
         return authoredValue.seal() && authoredValue.validate() &&

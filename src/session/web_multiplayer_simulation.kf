@@ -491,6 +491,13 @@ class WebMultiplayerSimulation {
                 actor, startX, startY, startZ, wasGrounded, jumpHeld)
     }
 
+
+    Bool selectArenaMap(Int mapId) {
+        if (configuredValue) { return false }
+        return arena.selectMap(mapId)
+    }
+    Int mapId() { return arena.mapId() }
+
     Bool configure() {
         if (!arena.ready() ||
             !movement.configure(arena.authoredCollision())) { return false }

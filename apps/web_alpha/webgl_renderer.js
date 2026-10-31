@@ -160,14 +160,50 @@
     },
   ]);
 
+  const ARENA_MAPS = Object.freeze({
+    1: Object.freeze({ solids: ARENA_SOLIDS, ramps: ARENA_RAMPS }),
+    2: Object.freeze({
+      solids: Object.freeze([
+        { box: [0, 0, 0, 4, 24, 280], material: 8, color: COLORS.wall },
+        { box: [316, 0, 0, 320, 24, 280], material: 8, color: COLORS.wall },
+        { box: [4, 0, 0, 316, 24, 4], material: 8, color: COLORS.wall },
+        { box: [4, 0, 276, 316, 24, 280], material: 8, color: COLORS.wall },
+        { box: [48, 0, 56, 76, 16, 84], material: 4, color: [0.48, 0.18, 0.22, 1] },
+        { box: [244, 0, 196, 272, 16, 224], material: 4, color: [0.48, 0.18, 0.22, 1] },
+        { box: [112, 4, 36, 208, 7, 52], material: 5, color: [0.24, 0.30, 0.38, 1] },
+        { box: [112, 4, 228, 208, 7, 244], material: 5, color: [0.24, 0.30, 0.38, 1] },
+        { box: [84, 8, 104, 100, 11, 176], material: 6, color: [0.30, 0.36, 0.28, 1] },
+        { box: [220, 8, 104, 236, 11, 176], material: 6, color: [0.30, 0.36, 0.28, 1] },
+        { box: [128, 0, 128, 192, 4, 152], material: 3, color: COLORS.cover },
+        { box: [128, 0, 184, 192, 4, 208], material: 3, color: COLORS.cover },
+      ]),
+      ramps: Object.freeze([
+        {
+          vertices: [[76, 0, 60], [100, 0, 60], [100, 8, 104], [76, 8, 104]],
+          material: 6,
+          color: [0.30, 0.38, 0.32, 1],
+        },
+        {
+          vertices: [[220, 8, 176], [244, 8, 176], [244, 0, 220], [220, 0, 220]],
+          material: 6,
+          color: [0.30, 0.38, 0.32, 1],
+        },
+      ]),
+    }),
+  });
+  function arenaMap(mapId) {
+    return ARENA_MAPS[mapId] || ARENA_MAPS[1];
+  }
+
   const ARENA_RAMP_TRIANGLES = Object.freeze([[0, 1, 2], [0, 2, 3]]);
 
   const arenaGroundSample = { height: 0, slopeX: 0, slopeZ: 0 };
-  function arenaGroundAt(x, z, actorY) {
+  function arenaGroundAt(x, z, actorY, mapId = 1) {
     arenaGroundSample.height = 0;
     arenaGroundSample.slopeX = 0;
     arenaGroundSample.slopeZ = 0;
-    for (const solid of ARENA_SOLIDS) {
+    const geometry = arenaMap(mapId);
+    for (const solid of geometry.solids) {
       const box = solid.box;
       if (x < box[0] || x > box[3] || z < box[2] || z > box[5] ||
           box[4] > actorY - 0.5 ||
@@ -176,7 +212,7 @@
       arenaGroundSample.slopeX = 0;
       arenaGroundSample.slopeZ = 0;
     }
-    for (const ramp of ARENA_RAMPS) {
+    for (const ramp of geometry.ramps) {
       const vertices = ramp.vertices;
       for (const triangle of ARENA_RAMP_TRIANGLES) {
         const a = vertices[triangle[0]], b = vertices[triangle[1]],
@@ -1300,8 +1336,13 @@
     const shadowTint = [
       COLORS.shadow[0], COLORS.shadow[1], COLORS.shadow[2], COLORS.shadow[3],
     ];
-    const rampMeshes = ARENA_RAMPS.map((ramp) =>
-      rampGeometry(gl, ramp.vertices, [1, 1, 1, 1], worldMaterialTexture));
+    const rampMeshes = Object.fromEntries(
+      Object.entries(ARENA_MAPS).map(([mapId, map]) => [
+        mapId,
+        map.ramps.map((ramp) =>
+          rampGeometry(gl, ramp.vertices, [1, 1, 1, 1], worldMaterialTexture)),
+      ]),
+    );
 
     const assets = {
       goose: null, cat: null, hearts: null, heartsBlue: null,
@@ -1780,7 +1821,9 @@
         transform([160, -0.5, 140], [320, 1, 280]),
         [1, 1, 1, 1], time, viewProjection, worldMaterialUv(1),
       );
-      for (const entry of ARENA_SOLIDS) {
+      const mapGeometry = arenaMap(scene.mapId);
+      const mapRamps = rampMeshes[scene.mapId] || rampMeshes[1];
+      for (const entry of mapGeometry.solids) {
         const [left, bottom, front, right, top, back] = entry.box;
         draw(
           [fallbackMeshes.solid],
@@ -1791,12 +1834,12 @@
           [1, 1, 1, 1], time, viewProjection, worldMaterialUv(entry.material),
         );
       }
-      for (let index = 0; index < ARENA_RAMPS.length; index += 1) {
+      for (let index = 0; index < mapGeometry.ramps.length; index += 1) {
         draw(
-          [rampMeshes[index]],
+          [mapRamps[index]],
           identity(),
           [1, 1, 1, 1], time, viewProjection,
-          worldMaterialUv(ARENA_RAMPS[index].material),
+          worldMaterialUv(mapGeometry.ramps[index].material),
         );
       }
 
@@ -1870,7 +1913,7 @@
       function drawBlobShadow(x, y, z, flinchOffset) {
         const centerX = x + (flinchOffset ? flinchOffset[0] : 0);
         const centerZ = z + (flinchOffset ? flinchOffset[1] : 0);
-        const ground = arenaGroundAt(centerX, centerZ, y);
+        const ground = arenaGroundAt(centerX, centerZ, y, scene.mapId);
         const height = Math.max(0, y - ground.height - 1);
         const airFactor = Math.min(1, height / 24);
         const sizeFactor = 1 - airFactor * 0.55;
@@ -2242,8 +2285,7 @@
           ...Object.values(fallbackMeshes),
           ...Object.values(assets).flatMap((value) => value?.meshes || []),
           ...Object.values(vfxMeshes).filter(Boolean),
-          ...rampMeshes,
-
+          ...Object.values(rampMeshes).flat(),
         ];
         const textures = new Set();
         for (const mesh of meshes) {
