@@ -3,6 +3,12 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- O chat da sala dedicada em processo agora oferece mensagens para a sala,
+  para o mesmo time e sussurros privados entre participantes, no buffer limitado
+  a 32 mensagens. A atribuição de time autorizada pelo host e a visibilidade
+  por destinatário têm cobertura. A sala não está conectada ao servidor/cliente
+  WebSocket; não alegamos votação de mapas, RCON ou fluxo entre partidas.
+
 - O gate do servidor Kof escolhe uma porta loopback livre por padrão, impedindo
   que um preview já ativo satisfaça o health check do processo sob teste.
 - A qualificação multiplayer calcula a mira hitscan pelo yaw replicado, aceita
@@ -29,7 +35,8 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - O monitor CLI aceita espectadores do navegador entrando antes ou durante a
   partida; bots 4v4 do navegador/CLI começam com 300 de vida.
 - Jogadores e bonecos de treino atingidos recuam brevemente. Personagens remotos
-  piscam; dano no jogador local causa flash vermelho e indicador direcional.
+  piscam; dano local causa flash vermelho e indicador direcional. A opção de
+  movimento reduzido suprime o flash e mantém o indicador estático.
 - Números de dano de jogadores/bonecos aparecem imediatamente; Configurações
   oculta os números ativos na hora e persiste a opção. Números do HUD usam
   ThaleahFat; munição, sementes e bolas de fogo compartilham um contêiner.

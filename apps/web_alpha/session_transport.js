@@ -217,7 +217,10 @@
       saveStoredSettings();
       if (key === "showMinimap") setMinimapVisibility(input.checked);
       if (key === "showDamageNumbers" && !input.checked) clearDamageNumberLabels();
-      if (key === "reducedMotion") panel.dataset.reducedMotion = input.checked ? "true" : "false";
+      if (key === "reducedMotion") {
+        panel.dataset.reducedMotion = input.checked ? "true" : "false";
+        updateHitFeedbackOverlay(performance.now());
+      }
     });
     label.appendChild(input);
     label.appendChild(document.createTextNode(labelText));
@@ -1740,7 +1743,9 @@
       camera: { ...scene.camera },
       actors: scene.actors.map((actor) => ({ ...actor })),
     };
-    updateLocalHitFeedback(scene, performance.now());
+    const now = performance.now();
+    updateLocalHitFeedback(scene, now);
+    updateHitFeedbackOverlay(now);
     updateProjectedLabels(scene);
     drawMinimap(scene);
     hudValues.tick.textContent = String(scene.tick);
@@ -1931,7 +1936,7 @@
     }
     const elapsed = now - localHitFeedback.startedAt;
     const flashDuration = 220;
-    const flashAlpha = clientSettings.reducedMotion ? 0.14 : 0.28;
+    const flashAlpha = clientSettings.reducedMotion ? 0 : 0.28;
     const flashProgress = Math.max(0, 1 - elapsed / flashDuration);
     hitFeedbackFlash.style.opacity = String(flashAlpha * flashProgress);
     const directionDuration = 700;
@@ -1949,8 +1954,8 @@
       (50 - Math.cos(angle) * radius) + "%";
     hitDirectionIndicator.style.transform =
       "translate(-50%, -50%) rotate(" + (angle * 180 / Math.PI) + "deg)";
-    hitDirectionIndicator.style.opacity =
-      String(1 - elapsed / directionDuration);
+    hitDirectionIndicator.style.opacity = clientSettings.reducedMotion
+      ? "1" : String(1 - elapsed / directionDuration);
   }
   function updateDamageNumbers(scene, now) {
     if (lastDamageNumberSceneTick !== null &&

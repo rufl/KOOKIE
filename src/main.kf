@@ -261,8 +261,8 @@ test "dedicated lobby owns chat, minigames, and admin bot commands" {
             lobbyServerCommandOk(),
         "race bot must complete the course and remain removable by its admin")
     assert(lobby.sendChat(host, "ready when you are") &&
-        lobby.chatCount() == 1 && lobby.chatSenderAt(0) == host &&
-        lobby.chatMessageAt(0) == "ready when you are" &&
+        lobby.chatCount() == 1 && lobby.chatSenderAt(0, host) == host &&
+        lobby.chatMessageAt(0, host) == "ready when you are" &&
         !lobby.sendChat(guest, "bad\nmessage"),
         "lobby chat must retain bounded authored text and reject controls")
     for (var index = 0; index < 35; index = index + 1) {
@@ -271,7 +271,7 @@ test "dedicated lobby owns chat, minigames, and admin bot commands" {
     }
     assert(lobby.chatCount() == lobbyServerMaximumChatMessages() &&
         lobby.chatSequenceAt(0) == 5 &&
-        lobby.chatSenderAt(0) == guest,
+        lobby.chatSenderAt(0, guest) == guest,
         "chat history must retain the newest bounded ordered messages")
     assert(lobby.setGameMode(lobbyServerGameTargetPractice()) &&
         lobby.movePlayer(host, 4, 0) &&
@@ -296,6 +296,47 @@ test "dedicated lobby owns chat, minigames, and admin bot commands" {
         lobby.running() && lobby.leavePlayer(guest) &&
         !lobby.running() && lobby.playerCount() == 0,
         "lobby owner departure must transfer ownership, then shut down empty rooms")
+}
+
+test "dedicated lobby scopes team chat and private whispers" {
+    var lobby = DedicatedLobbyServer()
+    assert(lobby.start(90, "Host", "test:chat-host"),
+        "team chat room must start")
+    var host = lobby.ownerId()
+    var blue = lobby.joinPlayer("test:chat-blue", "Blue")
+    var red = lobby.joinPlayer("test:chat-red", "Red")
+    assert(blue > 0 && red > 0 &&
+        lobby.setPlayerTeam(host, 1, 1) &&
+        lobby.setPlayerTeam(host, 2, 2) &&
+        lobby.setPlayerTeam(host, 3, 1),
+        "only the owner may assign a valid team to an occupied slot")
+    assert(!lobby.setPlayerTeam(blue, 2, 1) &&
+        !lobby.setPlayerTeam(host, 2, 5) &&
+        lobby.sendTeamChat(host, "red team only") &&
+        lobby.chatVisibleTo(0, host) &&
+        !lobby.chatVisibleTo(0, blue) &&
+        lobby.chatChannelAt(0, host) == 1 &&
+        lobby.chatChannelAt(0, blue) == -1 &&
+        lobby.chatMessageAt(0, blue) == "" &&
+        lobby.chatSenderAt(0, blue) == 0,
+        "team chat must be visible only to members of the sender's team")
+    assert(lobby.sendWhisper(host, blue, "private") &&
+        lobby.chatVisibleTo(1, host) &&
+        lobby.chatVisibleTo(1, blue) &&
+        !lobby.chatVisibleTo(1, red) &&
+        lobby.chatChannelAt(1, blue) == 2 &&
+        lobby.chatMessageAt(1, blue) == "private" &&
+        lobby.chatMessageAt(1, red) == "" &&
+        !lobby.sendWhisper(host, host, "self") &&
+        !lobby.sendWhisper(host, 999, "missing"),
+        "whispers must be private to the two connected human participants")
+    assert(lobby.sendChat(host, "room wide") &&
+        lobby.chatChannelAt(2, host) == 0 &&
+        lobby.chatVisibleTo(2, host) &&
+        lobby.chatVisibleTo(2, blue) &&
+        lobby.chatVisibleTo(2, red) &&
+        lobby.chatMessageAt(2, red) == "room wide",
+        "existing lobby chat remains room-wide")
 }
 
 test "dedicated lobby bots compete in target practice and tag" {

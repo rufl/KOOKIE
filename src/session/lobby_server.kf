@@ -47,6 +47,8 @@ class DedicatedLobbyServer {
     Int[] chatSenders
     Int[] chatTicks
     String[] chatMessages
+    Int[] chatChannels
+    Int[] chatTargets
     public constructor() {
         runningValue = false
         roomValue = 0
@@ -75,6 +77,8 @@ class DedicatedLobbyServer {
         chatSenders = new Int[lobbyServerMaximumChatMessages()]
         chatTicks = new Int[lobbyServerMaximumChatMessages()]
         chatMessages = new String[lobbyServerMaximumChatMessages()]
+        chatChannels = new Int[lobbyServerMaximumChatMessages()]
+        chatTargets = new Int[lobbyServerMaximumChatMessages()]
         spectatorCountValue = 0
         for (var index = 0; index < lobbyServerMaximumPlayers(); index = index + 1) {
             clearSlot(index)
@@ -88,6 +92,8 @@ class DedicatedLobbyServer {
             chatSenders[index] = 0
             chatTicks[index] = 0
             chatMessages[index] = ""
+            chatChannels[index] = 0
+            chatTargets[index] = 0
         }
         for (var index = 0; index < 256; index = index + 1) {
             registeredIdentities[index] = ""
@@ -316,6 +322,8 @@ class DedicatedLobbyServer {
             chatSenders[index] = 0
             chatTicks[index] = 0
             chatMessages[index] = ""
+            chatChannels[index] = 0
+            chatTargets[index] = 0
         }
         return true
     }
@@ -562,6 +570,18 @@ class DedicatedLobbyServer {
         return true
     }
 
+    Bool setPlayerTeam(Int issuerId, Int slotNumberValue, Int team) {
+        if (!runningValue || issuerId != ownerIdValue ||
+            slotNumberValue < 1 || slotNumberValue > playerIds.length ||
+            team < 0 || team > 4) {
+            return false
+        }
+        var slot = slotNumberValue - 1
+        if (playerIds[slot] <= 0) { return false }
+        playerTeams[slot] = team
+        return true
+    }
+
     Bool validChat(String message) {
         if (message.length() < 1 ||
             message.length() > lobbyServerMaximumChatLength()) {
@@ -574,10 +594,9 @@ class DedicatedLobbyServer {
         return true
     }
 
-    Bool sendChat(Int playerId, String message) {
-        var slot = findPlayer(playerId)
-        if (!runningValue || slot < 0 || playerBots[slot] ||
-            !validChat(message) || chatSequenceValue >= 1000000) {
+    Bool appendChat(Int playerId, String message, Int channel, Int target) {
+        if (!runningValue || !validChat(message) ||
+            chatSequenceValue >= 1000000) {
             return false
         }
         chatSequenceValue = chatSequenceValue + 1
@@ -585,7 +604,56 @@ class DedicatedLobbyServer {
         chatSenders[index] = playerId
         chatTicks[index] = tickValue
         chatMessages[index] = message
+        chatChannels[index] = channel
+        chatTargets[index] = target
         return true
+    }
+
+    Bool sendChat(Int playerId, String message) {
+        var slot = findPlayer(playerId)
+        if (slot < 0 || playerBots[slot]) { return false }
+        return appendChat(playerId, message, 0, 0)
+    }
+
+    Bool sendTeamChat(Int playerId, String message) {
+        var slot = findPlayer(playerId)
+        if (slot < 0 || playerBots[slot] ||
+            playerTeams[slot] < 1 || playerTeams[slot] > 4) {
+            return false
+        }
+        return appendChat(playerId, message, 1, playerTeams[slot])
+    }
+
+    Bool sendWhisper(Int playerId, Int recipientId, String message) {
+        var senderSlot = findPlayer(playerId)
+        var recipientSlot = findPlayer(recipientId)
+        if (senderSlot < 0 || recipientSlot < 0 ||
+            playerBots[senderSlot] || playerBots[recipientSlot] ||
+            playerId == recipientId) {
+            return false
+        }
+        return appendChat(playerId, message, 2, recipientId)
+    }
+
+    Int chatChannelAt(Int index, Int playerId) {
+        var slot = chatSlot(index)
+        if (slot < 0 || !chatVisibleTo(index, playerId)) { return -1 }
+        return chatChannels[slot]
+    }
+
+    Bool chatVisibleTo(Int index, Int playerId) {
+        var messageSlot = chatSlot(index)
+        var recipientSlot = findPlayer(playerId)
+        if (messageSlot < 0 || recipientSlot < 0) { return false }
+        if (chatChannels[messageSlot] == 0) { return true }
+        if (chatChannels[messageSlot] == 1) {
+            return playerTeams[recipientSlot] == chatTargets[messageSlot]
+        }
+        if (chatChannels[messageSlot] == 2) {
+            return chatSenders[messageSlot] == playerId ||
+                chatTargets[messageSlot] == playerId
+        }
+        return false
     }
 
     Bool advanceTick() {
@@ -664,15 +732,15 @@ class DedicatedLobbyServer {
         return (sequence - 1) % chatSenders.length
     }
 
-    Int chatSenderAt(Int index) {
+    Int chatSenderAt(Int index, Int playerId) {
         var slot = chatSlot(index)
-        if (slot < 0) { return 0 }
+        if (slot < 0 || !chatVisibleTo(index, playerId)) { return 0 }
         return chatSenders[slot]
     }
 
-    String chatMessageAt(Int index) {
+    String chatMessageAt(Int index, Int playerId) {
         var slot = chatSlot(index)
-        if (slot < 0) { return "" }
+        if (slot < 0 || !chatVisibleTo(index, playerId)) { return "" }
         return chatMessages[slot]
     }
 

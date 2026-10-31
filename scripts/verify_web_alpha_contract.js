@@ -194,7 +194,9 @@ function fullSceneAt(sequence, tick, actorX) {
   words[words.length - 1] = messageChecksum(words.slice(0, -1));
   return words;
 }
-function extendedMultiplayerWords(sequence, tick, localX = 32, lastInputSequence = 7) {
+function extendedMultiplayerWords(
+  sequence, tick, localX = 32, lastInputSequence = 7, localHit = false,
+) {
   const words = [
     2, 6, sequence, 7, tick,
     1, 1, 32, 32, 52, 0, 0, 100, 100, 30, 2, 0, 2,
@@ -203,8 +205,10 @@ function extendedMultiplayerWords(sequence, tick, localX = 32, lastInputSequence
     lastInputSequence, 1, 1, 1,
     11, 1, 2, 36, 4, 52, 20, 1,
     12, 1, 36, 5, 52, 2, 2, 36,
-    1, 3, 1, 2, 40, 4, 52, 20,
   ];
+  words.push(...(localHit
+    ? [sequence, 3, 2, 1, 40, 4, 52, 20]
+    : [1, 3, 1, 2, 40, 4, 52, 20]));
   words.push(messageChecksum(words));
   return words;
 }
@@ -771,8 +775,26 @@ async function main() {
     "turning layout editing off persists the dragged coordinates as JSON");
   monotonicNow = 1001;
   FakeWebSocket.active.emit(encodeFrame(
-    6, 15, extendedMultiplayerWords(15, 15)));
+    6, 15, extendedMultiplayerWords(15, 15, 32, 7, true)));
   await new Promise((resolve) => setImmediate(resolve));
+  const hitFeedbackFlash = pageElements.find((element) =>
+    element.className === "kookie-hit-feedback-flash");
+  const hitDirection = pageElements.find((element) =>
+    element.className === "kookie-hit-direction");
+  const reducedMotionToggle = pageElements.find((element) =>
+    element.attributes["aria-label"] === "Reduce interface motion");
+  assert.equal(hitFeedbackFlash.style.opacity, "0.28",
+    "normal local damage uses the expected brief hit flash");
+  reducedMotionToggle.checked = true;
+  reducedMotionToggle.listeners.change();
+  assert.equal(savedSettings.at(-1).value.reducedMotion, true,
+    "reduced-motion preference persists");
+  assert.equal(hitFeedbackFlash.style.opacity, "0",
+    "reduced motion suppresses the screen flash immediately");
+  assert.equal(hitDirection.hidden, false,
+    "reduced motion preserves the directional hit cue");
+  assert.equal(hitDirection.style.opacity, "1",
+    "reduced motion keeps the directional cue static");
   assert.ok(document.getElementById("kookie-authoritative-scene")
     .attributes["aria-label"].includes("tick 15"),
   document.getElementById("kookie-session-status").textContent);

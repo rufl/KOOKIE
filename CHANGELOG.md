@@ -3,6 +3,12 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Dedicated in-process lobby chat now supports room-wide, same-team, and private
+  participant whispers in its bounded 32-message ring. Owner-authorized team
+  assignment and recipient visibility checks are covered; this lobby remains
+  disconnected from the WebSocket server/client, and no map voting, RCON, or
+  between-match flow is claimed.
+
 - The Kof web-server qualification now selects a free loopback port unless
   `KOOKIE_WEB_TEST_PORT` is explicitly set, preventing tests from silently
   talking to an already-running preview server.
@@ -24,7 +30,8 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Damaged players and training dummies recoil briefly away from attackers.
   Impact flashes now use a defined neutral tint.
 - Non-controlled characters briefly flash when hit. Local-player hits trigger a
-  short red screen flash and a directional attacker indicator.
+  short red screen flash and a directional attacker indicator. The reduced-motion
+  setting suppresses the flash and keeps the direction cue static.
 - Web multiplayer players spawn with 300 health, extending bot battles to three
   times the previous health pool for longer combat and effect observation.
 - The CLI 4v4 battle monitor accepts additional spectators joining before or
