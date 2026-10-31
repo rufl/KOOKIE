@@ -224,6 +224,10 @@ class WebServerMetrics {
     Int[] connectionEdgeActions
     Int[] connectionOutputSequence
     Int[] connectionLastSequence
+    Int nextChatSequenceValue
+    Int[] chatLengthValues
+    Int[] chatWordStorage
+    Int[] connectionChatLastTick
     Int nextPlayerIdValue
     Long nextTickNanosecondsValue
     Int acceptedConnectionsValue
@@ -262,6 +266,10 @@ class WebServerMetrics {
         connectionEdgeActions = new Int[12]
         connectionOutputSequence = new Int[12]
         connectionLastSequence = new Int[12]
+        nextChatSequenceValue = 1
+        chatLengthValues = new Int[32]
+        chatWordStorage = new Int[32 * 89]
+        connectionChatLastTick = new Int[12]
         nextPlayerIdValue = 1
         nextTickNanosecondsValue = 0L
         acceptedConnectionsValue = 0
@@ -272,6 +280,9 @@ class WebServerMetrics {
         metricsCountValue = 0
         tickScheduleOverrunsValue = 0
         for (var i = 0; i < 12; i = i + 1) { connectionUsed[i] = false }
+        for (var chat = 0; chat < 32; chat = chat + 1) {
+            chatLengthValues[chat] = 0
+        }
     }
     Int find(Int id) {
         for (var i = 0; i < 12; i = i + 1) { if (connectionUsed[i] && connectionIds[i] == id) { return i } }
@@ -293,6 +304,7 @@ class WebServerMetrics {
                 connectionOutputSequence[i] = 1; connectionLastSequence[i] = 0
                 connectionKutter[i] = false
                 acceptedConnectionsValue = acceptedConnectionsValue + 1
+                connectionChatLastTick[i] = -1000
                 return i
             }
         }
@@ -758,6 +770,116 @@ Bool webTick(WebServerMetrics metrics) {
     }
     return true
 }
+
+Bool webChatVisibleTo(
+    WebServerMetrics metrics, Int slot, Int channel, Int target, Int sender
+) {
+    if (!metrics.connectionUsed[slot] || !metrics.connectionJoined[slot]) {
+        return false
+    }
+    if (channel == sessionWebChatGlobal()) { return true }
+    if (metrics.connectionSpectators[slot]) { return false }
+    var recipient = metrics.connectionPlayerIds[slot]
+    if (channel == sessionWebChatTeam()) {
+        return metrics.simulation.playerTeam(recipient) == target
+    }
+    if (channel == sessionWebChatWhisper()) {
+        return recipient == sender || recipient == target
+    }
+    return false
+}
+
+Bool webSendChatPacket(
+    WebServerMetrics metrics, Int slot, Int[] words
+) {
+    var sequence = webOutputSequence(metrics, slot)
+    var outgoing = new Int[words.length]
+    for (var index = 0; index < words.length; index = index + 1) {
+        outgoing[index] = words[index]
+    }
+    outgoing[2] = sequence
+    outgoing[3] = sessionWebGameChatResponseMarker()
+    outgoing[words.length - 1] =
+        sessionWebMessageChecksum(outgoing, words.length - 1)
+    return validSessionWebGameChat(outgoing) &&
+        webSendSessionWords(metrics.connectionIds[slot],
+            sessionWebGameKind(), sequence, outgoing)
+}
+
+Bool webDistributeChat(WebServerMetrics metrics, Int[] words) {
+    var sender = words[7]
+    var channel = words[4]
+    var target = words[5]
+    var sequence = metrics.nextChatSequenceValue
+    if (sequence <= 0 || sequence > 1000000) { return false }
+    var ringSlot = (sequence - 1) % 32
+    metrics.nextChatSequenceValue = sequence + 1
+    metrics.chatLengthValues[ringSlot] = words.length
+    var base = ringSlot * 89
+    for (var index = 0; index < words.length; index = index + 1) {
+        metrics.chatWordStorage[base + index] = words[index]
+    }
+    var accepted = true
+    for (var slot = 0; slot < 12; slot = slot + 1) {
+        if (webChatVisibleTo(metrics, slot, channel, target, sender) &&
+            !webSendChatPacket(metrics, slot, words)) {
+            accepted = false
+        }
+    }
+    return accepted
+}
+
+Bool webReplayChatHistory(WebServerMetrics metrics, Int slot) {
+    var count = metrics.nextChatSequenceValue - 1
+    if (count > 32) { count = 32 }
+    var first = metrics.nextChatSequenceValue - count
+    for (var sequence = first;
+        sequence < metrics.nextChatSequenceValue; sequence = sequence + 1) {
+        var ringSlot = (sequence - 1) % 32
+        var length = metrics.chatLengthValues[ringSlot]
+        if (length <= 0) { continue }
+        var stored = new Int[length]
+        var base = ringSlot * 89
+        for (var index = 0; index < length; index = index + 1) {
+            stored[index] = metrics.chatWordStorage[base + index]
+        }
+        if (webChatVisibleTo(metrics, slot, stored[4], stored[5],
+                stored[7]) &&
+            !webSendChatPacket(metrics, slot, stored)) {
+            return false
+        }
+    }
+    return true
+}
+
+Bool webHandleChat(
+    WebServerMetrics metrics, Int slot, WebSessionFrame frame
+) {
+    var words = frame.words()
+    if (!validSessionWebGameChat(words) ||
+        words[3] != sessionWebGameChatMarker() ||
+        frame.sequence() <= metrics.connectionLastSequence[slot] ||
+        metrics.simulation.tick() - metrics.connectionChatLastTick[slot] < 6) {
+        return false
+    }
+    var sender = metrics.connectionPlayerIds[slot]
+    if (metrics.connectionSpectators[slot]) {
+        if (words[4] != sessionWebChatGlobal()) { return false }
+    } else if (words[4] == sessionWebChatTeam()) {
+        if (metrics.simulation.playerTeam(sender) != words[5]) { return false }
+    } else if (words[4] == sessionWebChatWhisper()) {
+        if (words[5] == sender || metrics.simulation.playerState(words[5]).active == false) {
+            return false
+        }
+    }
+    words[7] = sender
+    words[words.length - 1] =
+        sessionWebMessageChecksum(words, words.length - 1)
+    metrics.connectionLastSequence[slot] = frame.sequence()
+    metrics.connectionChatLastTick[slot] = metrics.simulation.tick()
+    return webDistributeChat(metrics, words)
+}
+
 Bool webHandleJoin(WebServerMetrics metrics, Int slot, Int[] words) {
     if (!validSessionWebGameJoinRequest(words) ||
         (metrics.connectionSpectatorRoute[slot] &&
@@ -767,6 +889,8 @@ Bool webHandleJoin(WebServerMetrics metrics, Int slot, Int[] words) {
             words[4] != sessionWebRoleTraining())) { return false }
     var role = words[4]
     var playerId = metrics.nextPlayerIdValue
+    var selectedTeam = if (words.length == 7) words[5]
+        else metrics.connectionTeam[slot]
     var accepted = false
     if (role == sessionWebRoleTraining()) {
         if (!metrics.simulation.trainingMode() &&
@@ -785,11 +909,12 @@ Bool webHandleJoin(WebServerMetrics metrics, Int slot, Int[] words) {
             metrics.playerCount() < 8 && playerId <= 1000000) {
             var spawnX = 24 + (playerId % 4) * 12
             var spawnZ = 24 + (playerId % 3) * 12
-            accepted = metrics.simulation.addPlayer(playerId,
-                metrics.connectionAnimal[slot], spawnX, 1, spawnZ)
-            if (accepted && metrics.connectionTeam[slot] > 0) {
-                accepted = metrics.simulation.setPlayerTeam(playerId,
-                    metrics.connectionTeam[slot])
+            accepted = metrics.simulation.addPlayer(
+                playerId, metrics.connectionAnimal[slot],
+                spawnX, 1, spawnZ)
+            if (accepted && selectedTeam > 0) {
+                accepted = metrics.simulation.setPlayerTeam(
+                    playerId, selectedTeam)
             }
         }
     } else {
@@ -800,12 +925,17 @@ Bool webHandleJoin(WebServerMetrics metrics, Int slot, Int[] words) {
         metrics.connectionJoined[slot] = true
         metrics.connectionSpectators[slot] = role == sessionWebRoleSpectator()
         metrics.connectionPlayerIds[slot] = playerId
+        metrics.connectionTeam[slot] = selectedTeam
     } else { playerId = 0 }
     var response = newSessionWebGameJoinResponse(words[2], accepted, role, playerId,
         metrics.playerCount(), metrics.spectatorCount())
     if (response.length <= 0 || !webSendSessionWords(metrics.connectionIds[slot],
             sessionWebGameKind(), words[2], response)) { return false }
-    if (!accepted) { kookie_web_server_close_client_after_output(metrics.connectionIds[slot]) }
+    if (!accepted) {
+        kookie_web_server_close_client_after_output(metrics.connectionIds[slot])
+    } else if (!webReplayChatHistory(metrics, slot)) {
+        return false
+    }
     return true
 }
 Bool webHandleGame(WebServerMetrics metrics, Int slot, WebSessionFrame frame) {
@@ -820,7 +950,16 @@ Bool webHandleGame(WebServerMetrics metrics, Int slot, WebSessionFrame frame) {
         }
         return false
     }
-    if (metrics.connectionSpectators[slot]) { return false }
+    if (words.length > 3 &&
+        words[3] == sessionWebGameChatMarker()) {
+        return webHandleChat(metrics, slot, frame)
+    }
+    if (metrics.connectionSpectators[slot]) {
+        if (validSessionWebGameChat(words)) {
+            return webHandleChat(metrics, slot, frame)
+        }
+        return false
+    }
     if (validSessionWebGameInput(words)) {
         if (frame.sequence() <= metrics.connectionLastSequence[slot]) { return false }
         metrics.connectionLastSequence[slot] = frame.sequence()

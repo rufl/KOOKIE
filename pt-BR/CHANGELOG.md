@@ -3,11 +3,14 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
-- O chat da sala dedicada em processo agora oferece mensagens para a sala,
-  para o mesmo time e sussurros privados entre participantes, no buffer limitado
-  a 32 mensagens. A atribuição de time autorizada pelo host e a visibilidade
-  por destinatário têm cobertura. A sala não está conectada ao servidor/cliente
-  WebSocket; não alegamos votação de mapas, RCON ou fluxo entre partidas.
+- A sessão WebSocket do jogo agora oferece chat global, do mesmo time e
+  sussurros privados com filtragem por destinatário, mensagens ASCII limitadas
+  a 80 caracteres, histórico em memória de 32 mensagens e seleção opcional de
+  time ao entrar. As mensagens usam IDs numéricos da sessão; não há identidade
+  autenticada. O transporte ainda usa WebSocket sem TLS e não valida o token
+  opcional. RCON WebSocket, votação de mapas, vários mapas multiplayer
+  autorados e transição entre partidas continuam sem implementação; os comandos
+  administrativos/minijogos da sala em processo não são expostos pela rede.
 
 - O gate do servidor Kof escolhe uma porta loopback livre por padrão, impedindo
   que um preview já ativo satisfaça o health check do processo sob teste.

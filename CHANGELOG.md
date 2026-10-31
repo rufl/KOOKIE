@@ -3,11 +3,14 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
-- Dedicated in-process lobby chat now supports room-wide, same-team, and private
-  participant whispers in its bounded 32-message ring. Owner-authorized team
-  assignment and recipient visibility checks are covered; this lobby remains
-  disconnected from the WebSocket server/client, and no map voting, RCON, or
-  between-match flow is claimed.
+- The WebSocket game session now supports global, same-team, and private
+  whispers with recipient filtering, bounded 80-character ASCII messages, a
+  32-message in-memory history, and optional player team selection. These
+  messages use numeric session IDs; they do not add authenticated identities.
+  transport still uses plain WebSocket and does not verify the optional token.
+  WebSocket RCON, map voting, multiple authored maps, and between-match flow
+  remain unimplemented; the existing in-process lobby admin/minigame commands
+  are still not exposed over the network.
 
 - The Kof web-server qualification now selects a free loopback port unless
   `KOOKIE_WEB_TEST_PORT` is explicitly set, preventing tests from silently

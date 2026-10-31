@@ -51,6 +51,11 @@ Int sessionWebGameFullSceneSnapshotMarker() { return 4 }
 Int sessionWebGameJoinRequestMarker() { return 5 }
 Int sessionWebGameJoinResponseMarker() { return 6 }
 Int sessionWebGameMultiplayerSnapshotMarker() { return 7 }
+Int sessionWebGameChatMarker() { return 9 }
+Int sessionWebGameChatResponseMarker() { return 10 }
+Int sessionWebChatGlobal() { return 0 }
+Int sessionWebChatTeam() { return 1 }
+Int sessionWebChatWhisper() { return 2 }
 Int sessionWebRolePlayer() { return 1 }
 Int sessionWebRoleSpectator() { return 2 }
 Int sessionWebRoleTraining() { return 3 }
@@ -348,15 +353,102 @@ Int[] newSessionWebGameJoinRequest(Int sequence, Int role) {
 }
 
 Bool validSessionWebGameJoinRequest(Int[] words) {
-    return words.length == 6 &&
-        words[0] == sessionWebGameProtocolVersion() &&
-        words[1] == sessionWebGameKind() &&
-        words[2] > 0 && words[2] <= 1000000 &&
-        words[3] == sessionWebGameJoinRequestMarker() &&
-        (words[4] == sessionWebRolePlayer() ||
-            words[4] == sessionWebRoleSpectator() ||
-            words[4] == sessionWebRoleTraining()) &&
-        words[5] == sessionWebMessageChecksum(words, 5)
+    if ((words.length != 6 && words.length != 7) ||
+        words[0] != sessionWebGameProtocolVersion() ||
+        words[1] != sessionWebGameKind() ||
+        words[2] <= 0 || words[2] > 1000000 ||
+        words[3] != sessionWebGameJoinRequestMarker() ||
+        (words[4] != sessionWebRolePlayer() &&
+            words[4] != sessionWebRoleSpectator() &&
+            words[4] != sessionWebRoleTraining())) {
+        return false
+    }
+    if (words.length == 6) {
+        return words[5] == sessionWebMessageChecksum(words, 5)
+    }
+    return words[4] == sessionWebRolePlayer() &&
+        words[5] >= 0 && words[5] <= 2 &&
+        words[6] == sessionWebMessageChecksum(words, 6)
+}
+
+Int[] newSessionWebGameJoinRequestWithTeam(
+    Int sequence, Int role, Int team
+) {
+    if (sequence <= 0 || sequence > 1000000 ||
+        role != sessionWebRolePlayer() || team < 0 || team > 2) {
+        return new Int[0]
+    }
+    var words = new Int[7]
+    words[0] = sessionWebGameProtocolVersion()
+    words[1] = sessionWebGameKind()
+    words[2] = sequence
+    words[3] = sessionWebGameJoinRequestMarker()
+    words[4] = role
+    words[5] = team
+    words[6] = sessionWebMessageChecksum(words, 6)
+    return words
+}
+
+Int[] newSessionWebGameChat(
+    Int sequence, Int channel, Int target, Int[] text
+) {
+    if (sequence <= 0 || sequence > 1000000 ||
+        channel < sessionWebChatGlobal() ||
+        channel > sessionWebChatWhisper() || text.length < 1 ||
+        text.length > 80 ||
+        (channel == sessionWebChatGlobal() && target != 0) ||
+        (channel == sessionWebChatTeam() && (target < 1 || target > 2)) ||
+        (channel == sessionWebChatWhisper() && (target <= 0 || target > 1000000))) {
+        return new Int[0]
+    }
+    var words = new Int[9 + text.length]
+    words[0] = sessionWebGameProtocolVersion()
+    words[1] = sessionWebGameKind()
+    words[2] = sequence
+    words[3] = sessionWebGameChatMarker()
+    words[4] = channel
+    words[5] = target
+    words[6] = text.length
+    words[7] = 0
+    for (var index = 0; index < text.length; index = index + 1) {
+        if (text[index] < 32 || text[index] > 126) { return new Int[0] }
+        words[8 + index] = text[index]
+    }
+    words[words.length - 1] =
+        sessionWebMessageChecksum(words, words.length - 1)
+    return words
+}
+
+Bool validSessionWebGameChat(Int[] words) {
+    if (words.length < 10 || words.length > 89 ||
+        words[0] != sessionWebGameProtocolVersion() ||
+        words[1] != sessionWebGameKind() ||
+        words[2] <= 0 || words[2] > 1000000 ||
+        (words[3] != sessionWebGameChatMarker() &&
+            words[3] != sessionWebGameChatResponseMarker()) ||
+        words[4] < sessionWebChatGlobal() ||
+        words[4] > sessionWebChatWhisper() ||
+        words[6] < 1 || words[6] > 80 ||
+        words.length != 9 + words[6] ||
+        (words[3] == sessionWebGameChatMarker() && words[7] != 0) ||
+        (words[3] == sessionWebGameChatResponseMarker() &&
+            (words[7] <= 0 || words[7] > 1000000))) {
+        return false
+    }
+    if ((words[4] == sessionWebChatGlobal() && words[5] != 0) ||
+        (words[4] == sessionWebChatTeam() &&
+            (words[5] < 1 || words[5] > 2)) ||
+        (words[4] == sessionWebChatWhisper() &&
+            (words[5] <= 0 || words[5] > 1000000))) {
+        return false
+    }
+    for (var index = 0; index < words[6]; index = index + 1) {
+        if (words[8 + index] < 32 || words[8 + index] > 126) {
+            return false
+        }
+    }
+    return words[words.length - 1] ==
+        sessionWebMessageChecksum(words, words.length - 1)
 }
 
 Int[] newSessionWebGameJoinResponse(

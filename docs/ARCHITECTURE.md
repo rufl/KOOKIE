@@ -193,21 +193,24 @@ not visible. `playerFlourCloudRadius` exposes the active concealment state to
 presentation code; the current game presentation does not yet stage a persistent
 smoke-cloud visual.
 
-`session/lobby_server.kf` provides a bounded dedicated-lobby authority for up to
-eight participants, a 32-message chat ring with room-wide, same-team and
+`session/lobby_server.kf` provides a bounded in-process lobby authority for up
+to eight participants, a 32-message chat ring with room-wide, same-team and
 participant-to-participant whisper visibility, host-only `addbot NAME [team]`
 and `delbot SLOT` commands, and server-ticked free-roam, race, target-practice
-and tag activities. Chat message, channel and sender accessors filter reads for
-the current recipient and team; team assignment is owner-authorized. Human
-lobby admission requires a caller-supplied stable player ID, enforces
-case-insensitive unique nicknames, and retains ID-to-nickname ownership across
-lobby stop/start for up to 256 identities per server object. The ID must come
-from a trusted authentication layer; the registry is in-memory and does not
-survive process restart. This is an in-process server model; the current
-WebSocket qualification server is not wired to this lobby, so network admission,
-remote chat/commands and a rendered lobby/minigame client are not claimed.
-Production map voting, RCON and between-match UI flow are not implemented in
-KOOKIE.
+and tag activities. Its identity registry requires a trusted stable player ID,
+enforces case-insensitive unique nicknames, and keeps up to 256 identities in
+memory across lobby stop/start; it is not persistent.
+
+The WebSocket game server separately supports room-wide, same-team and private
+whisper chat, optional player team selection, a 32-message in-memory history,
+and recipient filtering in its authoritative fixed-capacity session. These chat
+messages use numeric session player IDs; admission has no authenticated identity
+binding. The WebSocket endpoint is plain and currently checks only the
+`kookie.v1` subprotocol; it does not verify the optional browser token. The
+in-process lobby's bot commands and minigames are not exposed to
+WebSocket clients. Map voting, multiple authored multiplayer maps,
+inter-match transitions, and remote admin/RCON are not implemented. The
+current WebSocket match remains one continuously running arena simulation.
 
 Server systems read approved state, emit bounded commands and commit mutations at
 defined tick phases. Stable IDs and declared ordering break ties.

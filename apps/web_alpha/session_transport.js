@@ -45,6 +45,11 @@
   const GAME_JOIN_REQUEST_MARKER = 5;
   const GAME_JOIN_RESPONSE_MARKER = 6;
   const GAME_MULTIPLAYER_SNAPSHOT_MARKER = 7;
+  const GAME_CHAT_MARKER = 9;
+  const GAME_CHAT_RESPONSE_MARKER = 10;
+  const CHAT_GLOBAL = 0;
+  const CHAT_TEAM = 1;
+  const CHAT_WHISPER = 2;
   const GAME_ROLE_PLAYER = 1;
   const GAME_ROLE_SPECTATOR = 2;
   const GAME_ROLE_TRAINING = 3;
@@ -146,6 +151,17 @@
   roleSelect.value = ["player", "spectator", "training"].includes(roleParam)
     ? roleParam : "player";
   roleLabel.appendChild(roleSelect);
+  const teamLabel = document.createElement("label");
+  teamLabel.textContent = "Player team";
+  const teamSelect = document.createElement("select");
+  teamSelect.setAttribute("aria-label", "Player team");
+  for (const [value, label] of [["0", "Free for all"], ["1", "Red team"], ["2", "Blue team"]]) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    teamSelect.appendChild(option);
+  }
+  teamLabel.appendChild(teamSelect);
   const tokenLabel = document.createElement("label");
   tokenLabel.textContent = "Session token (optional)";
   const authToken = document.createElement("input");
@@ -290,6 +306,7 @@
   });
   reconnectDelayLabel.appendChild(reconnectDelay);
   settingsGrid.appendChild(reconnectDelayLabel);
+  settingsGrid.appendChild(teamLabel);
   settingsMenu.appendChild(endpointLabel);
   settingsMenu.appendChild(roleLabel);
   settingsMenu.appendChild(tokenLabel);
@@ -1269,6 +1286,55 @@
   gameConsoleDialog.appendChild(gameConsoleDescription);
   gameConsoleDialog.appendChild(gameConsoleOutput);
   gameConsoleDialog.appendChild(gameConsoleForm);
+  const lobbyChat = document.createElement("details");
+  lobbyChat.className = "kookie-lobby-chat";
+  const lobbyChatSummary = document.createElement("summary");
+  lobbyChatSummary.textContent = "LOBBY CHAT";
+  const lobbyChatOutput = document.createElement("pre");
+  lobbyChatOutput.setAttribute("role", "log");
+  lobbyChatOutput.setAttribute("aria-live", "polite");
+  lobbyChatOutput.style.maxHeight = "120px";
+  lobbyChatOutput.style.overflowY = "auto";
+  const lobbyChatForm = document.createElement("form");
+  const lobbyChatChannel = document.createElement("select");
+  lobbyChatChannel.setAttribute("aria-label", "Chat channel");
+  for (const [value, label] of [["0", "Global"], ["1", "Team"], ["2", "Whisper"]]) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    lobbyChatChannel.appendChild(option);
+  }
+  const lobbyChatTarget = document.createElement("select");
+  lobbyChatTarget.setAttribute("aria-label", "Whisper recipient");
+  const noWhisperTarget = document.createElement("option");
+  noWhisperTarget.value = "";
+  noWhisperTarget.textContent = "Select player";
+  lobbyChatTarget.appendChild(noWhisperTarget);
+  lobbyChatTarget.hidden = true;
+  lobbyChatChannel.addEventListener("change", () => {
+    lobbyChatTarget.hidden = Number(lobbyChatChannel.value) !== CHAT_WHISPER;
+  });
+  const lobbyChatInput = document.createElement("input");
+  lobbyChatInput.type = "text";
+  lobbyChatInput.maxLength = 80;
+  lobbyChatInput.setAttribute("aria-label", "Lobby chat message");
+  lobbyChatInput.placeholder = "Message";
+  const lobbyChatSend = document.createElement("button");
+  lobbyChatSend.type = "submit";
+  lobbyChatSend.textContent = "Send";
+  lobbyChatSend.disabled = true;
+  lobbyChatForm.append(lobbyChatChannel, lobbyChatTarget, lobbyChatInput, lobbyChatSend);
+  lobbyChat.append(lobbyChatSummary, lobbyChatOutput, lobbyChatForm);
+  lobbyChat.style.position = "absolute";
+  lobbyChat.style.zIndex = "7";
+  lobbyChat.style.left = "14px";
+  lobbyChat.style.bottom = "52px";
+  lobbyChat.style.width = "min(320px, calc(100% - 28px))";
+  lobbyChat.style.padding = "8px 10px";
+  lobbyChat.style.border = "1px solid #ffffff35";
+  lobbyChat.style.borderRadius = "12px";
+  lobbyChat.style.background = "#111c18e8";
+  sceneCanvasWrap.appendChild(lobbyChat);
   panel.appendChild(gameConsoleDialog);
   function logGameConsole(message) {
     const lines = (gameConsoleOutput.textContent + String(message) + "\n")
@@ -2241,6 +2307,19 @@
       return words.length === 4 && words[3] === messageChecksum(words.slice(0, 3));
     }
     if (kind === GAME) {
+      if (words.length >= 10 && words.length <= 89 &&
+          (words[3] === GAME_CHAT_MARKER || words[3] === GAME_CHAT_RESPONSE_MARKER) &&
+          words[4] >= CHAT_GLOBAL && words[4] <= CHAT_WHISPER &&
+          words[6] >= 1 && words[6] <= 80 && words.length === 9 + words[6] &&
+          ((words[4] === CHAT_GLOBAL && words[5] === 0) ||
+            (words[4] === CHAT_TEAM && words[5] >= 1 && words[5] <= 2) ||
+            (words[4] === CHAT_WHISPER && words[5] >= 1 && words[5] <= MAX_SEQUENCE)) &&
+          (words[3] !== GAME_CHAT_RESPONSE_MARKER ||
+            (words[7] >= 1 && words[7] <= MAX_SEQUENCE)) &&
+          words.slice(8, 8 + words[6]).every((value) => value >= 32 && value <= 126) &&
+          words[words.length - 1] === messageChecksum(words.slice(0, -1))) {
+        return words[3] === GAME_CHAT_RESPONSE_MARKER;
+      }
       if (words.length === 10 && words[3] === GAME_JOIN_RESPONSE_MARKER) {
         return (words[4] === 0 || words[4] === 1) &&
           (words[5] === GAME_ROLE_PLAYER || words[5] === GAME_ROLE_SPECTATOR ||
@@ -2978,12 +3057,78 @@
     joinSequence = nextSequence();
     const words = [NETCODE_PROTOCOL_VERSION, GAME, joinSequence,
       GAME_JOIN_REQUEST_MARKER, requestedRole];
+    if (requestedRole === GAME_ROLE_PLAYER) words.push(Number(teamSelect.value));
     words.push(messageChecksum(words));
     socket.send(encodeFrame(GAME, joinSequence, words));
     setRuntimeState("joining as " +
       (requestedRole === GAME_ROLE_SPECTATOR ? "spectator"
         : requestedRole === GAME_ROLE_TRAINING ? "training" : "player"));
   }
+  let joinedPlayerId = 0;
+  function appendLobbyChat(channel, target, sender, text) {
+    const label = channel === CHAT_TEAM ? "TEAM" :
+      channel === CHAT_WHISPER ? "WHISPER" : "GLOBAL";
+    const line = document.createElement("div");
+    line.textContent = "[" + label + "] " + sender + ": " + text;
+    lobbyChatOutput.appendChild(line);
+    while (lobbyChatOutput.childElementCount > 60) {
+      lobbyChatOutput.firstElementChild.remove();
+    }
+    lobbyChatOutput.scrollTop = lobbyChatOutput.scrollHeight;
+    lobbyChat.open = true;
+  }
+  function syncWhisperRecipients(scene) {
+    const previous = lobbyChatTarget.value;
+    while (lobbyChatTarget.children.length > 1) {
+      lobbyChatTarget.removeChild(lobbyChatTarget.children[1]);
+    }
+    for (const actor of scene.actors) {
+      if (actor.id <= 0 || actor.id === joinedPlayerId || actor.kind === 3) continue;
+      const option = document.createElement("option");
+      option.value = String(actor.id);
+      option.textContent = (actor.kind === 1 ? "Goose " : "Cat ") + actor.id;
+      lobbyChatTarget.appendChild(option);
+    }
+    if ([...lobbyChatTarget.children].some((option) => option.value === previous)) {
+      lobbyChatTarget.value = previous;
+    }
+  }
+  lobbyChatForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!socket || socket.readyState !== WebSocket.OPEN ||
+        joinedRole === null || !authoritativeReady) return;
+    const channel = Number(lobbyChatChannel.value);
+    const target = channel === CHAT_GLOBAL ? 0 :
+      channel === CHAT_TEAM ? Number(teamSelect.value) :
+        Number(lobbyChatTarget.value);
+    const message = lobbyChatInput.value.trim();
+    if (!message || message.length > 80 ||
+        Array.from(message).some((character) => {
+          const value = character.charCodeAt(0);
+          return value < 32 || value > 126;
+        })) {
+      appendLobbyChat(CHAT_GLOBAL, 0, "system", "Use 1-80 printable ASCII characters.");
+      return;
+    }
+    if (channel === CHAT_TEAM &&
+        (joinedRole === GAME_ROLE_SPECTATOR || target < 1 || target > 2)) {
+      appendLobbyChat(CHAT_GLOBAL, 0, "system", "Select a team before using team chat.");
+      return;
+    }
+    if (channel === CHAT_WHISPER &&
+        (!Number.isInteger(target) || target < 1 || target > MAX_SEQUENCE ||
+          target === joinedPlayerId)) {
+      appendLobbyChat(CHAT_GLOBAL, 0, "system", "Enter another player's ID to whisper.");
+      return;
+    }
+    const text = Array.from(message, (character) => character.charCodeAt(0));
+    const frameSequence = nextSequence();
+    const words = [NETCODE_PROTOCOL_VERSION, GAME, frameSequence,
+      GAME_CHAT_MARKER, channel, target, text.length, 0, ...text];
+    words.push(messageChecksum(words));
+    socket.send(encodeFrame(GAME, frameSequence, words));
+    lobbyChatInput.value = "";
+  });
   function parseMultiplayerScene(words) {
     const actors = [];
     for (let index = 0; index < words[17]; index += 1) {
@@ -3338,6 +3483,9 @@
     }
     const activeSocket = socket;
     socket = null;
+    joinedRole = null;
+    joinedPlayerId = 0;
+    lobbyChatSend.disabled = true;
     connected = false;
     authoritativeReady = false;
     if (pingTimer !== null) window.clearInterval(pingTimer);
@@ -3507,11 +3655,16 @@
             }, 450);
           }
         } else if (frame.kind === GAME) {
-          if (frame.words[3] === GAME_JOIN_RESPONSE_MARKER) {
+          if (frame.words[3] === GAME_CHAT_RESPONSE_MARKER) {
+            const message = String.fromCharCode(...frame.words.slice(8, 8 + frame.words[6]));
+            appendLobbyChat(frame.words[4], frame.words[5], frame.words[7], message);
+          } else if (frame.words[3] === GAME_JOIN_RESPONSE_MARKER) {
             if (frame.sequence !== joinSequence || frame.words[4] !== 1 ||
                 frame.words[5] !== requestedRole) {
               throw new Error("multiplayer join rejected");
             }
+            lobbyChatSend.disabled = false;
+            joinedPlayerId = frame.words[6];
             joinedRole = frame.words[5];
             setRuntimeState("joined / " +
               (joinedRole === GAME_ROLE_SPECTATOR ? "spectator"
@@ -3524,6 +3677,7 @@
               " spectators=" + frame.words[8], "#4ade80");
           } else if (frame.words[3] === GAME_MULTIPLAYER_SNAPSHOT_MARKER) {
             const scene = parseMultiplayerScene(frame.words);
+            syncWhisperRecipients(scene);
             if (joinedRole === null || scene.role !== joinedRole) {
               throw new Error("multiplayer snapshot role mismatch");
             }

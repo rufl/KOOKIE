@@ -763,6 +763,10 @@ class WebMultiplayerSimulation {
         teamValues[slot] = team
         return true
     }
+    Int playerTeam(Int externalId) {
+        var slot = playerSlot(externalId)
+        return if (slot < 0) -1 else teamValues[slot]
+    }
     Bool removePlayer(Int externalId) {
         var slot = playerSlot(externalId)
         if (slot < 0) { return false }

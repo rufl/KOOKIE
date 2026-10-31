@@ -47,7 +47,7 @@ def decode(wire):
 
 class Client:
     def __init__(self, port, spectator=False, accepted=True, path=None,
-                 role=None):
+                 role=None, team=0):
         self.sock = socket.create_connection(("127.0.0.1", port), timeout=5)
         self.sock.settimeout(5)
         self.closed = False
@@ -78,6 +78,8 @@ class Client:
         assert ack[1:4] == [2, 1, 1] and ack[3] == 1, ack
         self.sequence = 2
         join = [2, 6, self.sequence, 5, role]
+        if role == 1:
+            join.append(team)
         join.append(checksum(join))
         self.send(6, join)
         response = self.receive()
@@ -98,6 +100,28 @@ class Client:
         words.append(checksum(words))
         self.send(6, words)
         return self.sequence
+
+    def chat(self, channel, target, text):
+        encoded = text.encode("ascii")
+        assert 1 <= len(encoded) <= 80
+        self.sequence += 1
+        words = [2, 6, self.sequence, 9, channel, target, len(encoded), 0]
+        words.extend(encoded)
+        words.append(checksum(words))
+        self.send(6, words)
+
+    def receive_chat(self, timeout=5):
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            try:
+                words = self.inbox.get(timeout=deadline - time.monotonic())
+            except queue.Empty as error:
+                raise TimeoutError("timed out waiting for lobby chat") from error
+            if isinstance(words, BaseException):
+                raise words
+            if len(words) >= 10 and words[3] == 10:
+                return words
+        raise TimeoutError("timed out waiting for lobby chat")
 
     def send(self, kind, words):
         data = encode(kind, words[2], words)
@@ -279,12 +303,39 @@ def main():
         else:
             raise AssertionError("server did not become healthy")
 
-        players = [Client(port) for _ in range(8)]
+        players = [Client(port, team=1 if index < 2 else 2)
+                   for index in range(8)]
         clients.extend(players)
         for player in players:
             scene = player.snapshot(expected_players=8, expected_spectators=0)
             assert scene[5] == 1 and scene[6] == player.player_id
             assert scene[17] == 8
+        players[0].chat(0, 0, "global-check")
+        for player in players:
+            message = player.receive_chat()
+            assert message[3:8] == [10, 0, 0, len("global-check"), players[0].player_id]
+            assert bytes(message[8:-1]).decode("ascii") == "global-check"
+        time.sleep(0.15)
+        players[0].chat(1, 1, "team-check")
+        red_message = players[1].receive_chat()
+        assert red_message[3] == 10 and red_message[4] == 1 and \
+            red_message[5] == 1 and red_message[7] == players[0].player_id
+        try:
+            players[4].receive_chat(timeout=0.15)
+            raise AssertionError("team chat leaked to another team")
+        except TimeoutError:
+            pass
+        time.sleep(0.15)
+        players[0].chat(2, players[4].player_id, "whisper-check")
+        private_message = players[4].receive_chat()
+        assert private_message[3] == 10 and private_message[4] == 2 and \
+            private_message[5] == players[4].player_id and \
+            private_message[7] == players[0].player_id
+        try:
+            players[1].receive_chat(timeout=0.15)
+            raise AssertionError("private whisper leaked to a bystander")
+        except TimeoutError:
+            pass
 
         spectators = [Client(port, spectator=True) for _ in range(4)]
         clients.extend(spectators)
