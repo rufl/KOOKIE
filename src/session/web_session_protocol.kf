@@ -58,6 +58,13 @@ Int sessionWebGameAdminResponseMarker() { return 12 }
 Int sessionWebGameAdminStatus() { return 1 }
 Int sessionWebGameAdminKick() { return 2 }
 Int sessionWebGameAdminSetTeam() { return 3 }
+Int sessionWebGameMapVoteMarker() { return 13 }
+Int sessionWebGameMapOne() { return 1 }
+Int sessionWebGameMapTwo() { return 2 }
+Int sessionWebGameMapCount() { return 2 }
+Int sessionWebGameMatchActive() { return 0 }
+Int sessionWebGameMatchIntermission() { return 1 }
+Int sessionWebGameAdminMapVoteStart() { return 5 }
 Int sessionWebGameAdminSay() { return 4 }
 Int sessionWebChatGlobal() { return 0 }
 Int sessionWebChatTeam() { return 1 }
@@ -679,25 +686,38 @@ Bool validSessionWebGameMultiplayerSnapshot(Int[] words) {
         var hasExtendedPickup = false
         var hasLegacyPickup = false
         var directSuffix = -1
+        var hasMapState = false
         if (words.length >= cursor + 11) {
             var directSlices = words[cursor + 9]
-            if (directSlices >= 0 && directSlices <= 4 &&
-                words.length == cursor + 10 + directSlices * 4 + 1) {
-                directSuffix = cursor
+            if (directSlices >= 0 && directSlices <= 4) {
+                if (words.length == cursor + 10 + directSlices * 4 + 1) {
+                    directSuffix = cursor
+                } else if (words.length ==
+                        cursor + 10 + directSlices * 4 + 7) {
+                    directSuffix = cursor
+                    hasMapState = true
+                }
             }
         }
         var shiftedSuffix = cursor + actorCount
         if (directSuffix < 0 &&
             words.length >= shiftedSuffix + 11) {
             var shiftedSlices = words[shiftedSuffix + 9]
-            if (shiftedSlices >= 0 && shiftedSlices <= 4 &&
-                words.length == shiftedSuffix + 10 +
-                    shiftedSlices * 4 + 1) {
-                for (var index = 0; index < actorCount; index = index + 1) {
-                    if (words[cursor + index] < 0 ||
-                        words[cursor + index] > 1000000) { return false }
+            if (shiftedSlices >= 0 && shiftedSlices <= 4) {
+                if (words.length ==
+                        shiftedSuffix + 10 + shiftedSlices * 4 + 1) {
+                    directSuffix = shiftedSuffix
+                } else if (words.length ==
+                        shiftedSuffix + 10 + shiftedSlices * 4 + 7) {
+                    directSuffix = shiftedSuffix
+                    hasMapState = true
                 }
-                directSuffix = shiftedSuffix
+                if (directSuffix == shiftedSuffix) {
+                    for (var index = 0; index < actorCount; index = index + 1) {
+                        if (words[cursor + index] < 0 ||
+                            words[cursor + index] > 1000000) { return false }
+                    }
+                }
             }
         }
         if (directSuffix >= 0) {
@@ -758,8 +778,10 @@ Bool validSessionWebGameMultiplayerSnapshot(Int[] words) {
                     (words[suffix + 5] != 0 || words[suffix + 6] != 0))) {
                 return false
             }
-            if (words.length != suffix + 10 + slices * 4 + 1 &&
-                words.length != suffix + 10 + slices * 4 + actorCount + 1) {
+            var mapState = suffix + 10 + slices * 4
+            if (words.length != mapState + (if (hasMapState) 7 else 1) &&
+                words.length != mapState + actorCount +
+                    (if (hasMapState) 7 else 1)) {
                 return false
             }
             for (var slice = 0; slice < slices; slice = slice + 1) {
@@ -771,6 +793,18 @@ Bool validSessionWebGameMultiplayerSnapshot(Int[] words) {
                     words[offset + 2] > sessionWebGameWorldMaximumY() ||
                     words[offset + 3] < sessionWebGameWorldMinimumZ() ||
                     words[offset + 3] > sessionWebGameWorldMaximumZ()) { return false }
+            }
+            if (hasMapState) {
+                var metadata = mapState
+                var votes = words[metadata + 3] + words[metadata + 4]
+                if ((words[metadata] != sessionWebGameMapOne() &&
+                    words[metadata] != sessionWebGameMapTwo()) ||
+                    (words[metadata + 1] != sessionWebGameMatchActive() &&
+                    words[metadata + 1] != sessionWebGameMatchIntermission()) ||
+                    words[metadata + 2] < 0 || words[metadata + 2] > 7200 ||
+                    words[metadata + 3] < 0 || words[metadata + 3] > 8 ||
+                    words[metadata + 4] < 0 || words[metadata + 4] > 8 ||
+                    words[metadata + 5] != votes) { return false }
             }
         }
     }

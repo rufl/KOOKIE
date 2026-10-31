@@ -226,11 +226,15 @@ class WebServerMetrics {
     Int[] connectionEdgeActions
     Int[] connectionOutputSequence
     Int[] connectionLastSequence
+    Int[] connectionMapVote
     Int nextChatSequenceValue
     Int[] chatLengthValues
     Int[] chatWordStorage
     Int[] connectionChatLastTick
     Int nextPlayerIdValue
+    Int serverTickValue
+    Int matchPhaseValue
+    Int matchPhaseEndsAt
     Long nextTickNanosecondsValue
     Int acceptedConnectionsValue
     Int rejectionCountValue
@@ -272,7 +276,11 @@ class WebServerMetrics {
         nextChatSequenceValue = 1
         chatLengthValues = new Int[32]
         chatWordStorage = new Int[32 * 89]
+        connectionMapVote = new Int[12]
         connectionChatLastTick = new Int[12]
+        serverTickValue = 0
+        matchPhaseValue = sessionWebGameMatchActive()
+        matchPhaseEndsAt = 2400
         nextPlayerIdValue = 1
         nextTickNanosecondsValue = 0L
         acceptedConnectionsValue = 0
@@ -306,6 +314,7 @@ class WebServerMetrics {
                 connectionLookYaw[i] = 0; connectionLookPitch[i] = 0
                 connectionHeldActions[i] = 0; connectionEdgeActions[i] = 0
                 connectionOutputSequence[i] = 1; connectionLastSequence[i] = 0
+                connectionMapVote[i] = 0
                 connectionKutter[i] = false
                 acceptedConnectionsValue = acceptedConnectionsValue + 1
                 connectionChatLastTick[i] = -1000
@@ -636,7 +645,7 @@ Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot) {
     }
     if (cursor != actors.length) { return new Int[0] }
     var sequence = webOutputSequence(metrics, slot)
-    var base = newSessionWebGameMultiplayerSnapshot(sequence, metrics.simulation.tick(),
+    var base = newSessionWebGameMultiplayerSnapshot(sequence, metrics.serverTickValue,
         if (spectator) sessionWebRoleSpectator()
         else if (metrics.simulation.trainingMode()) sessionWebRoleTraining()
         else sessionWebRolePlayer(),
@@ -650,7 +659,7 @@ Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot) {
     var trailer = 18 + actors.length
     var sliceCount = metrics.simulation.sliceCount()
     var extended = new Int[base.length + 4 + projectileCount * 8 +
-        throwableCount * 8 + impactCount * 8 + 10 + sliceCount * 4]
+        throwableCount * 8 + impactCount * 8 + 10 + sliceCount * 4 + 6]
     for (var i = 0; i < base.length; i = i + 1) {
         extended[i] = base[i]
     }
@@ -708,8 +717,29 @@ Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot) {
         extended[cursor + 3] = item.z
         cursor = cursor + 4
     }
+    extended[cursor] = metrics.simulation.mapId()
+    extended[cursor + 1] = metrics.matchPhaseValue
+    extended[cursor + 2] =
+        if (metrics.matchPhaseEndsAt > metrics.serverTickValue)
+            metrics.matchPhaseEndsAt - metrics.serverTickValue else 0
+    extended[cursor + 3] =
+        webMapVoteCount(metrics, sessionWebGameMapOne())
+    extended[cursor + 4] =
+        webMapVoteCount(metrics, sessionWebGameMapTwo())
+    extended[cursor + 5] =
+        extended[cursor + 3] + extended[cursor + 4]
     extended[extended.length - 1] = sessionWebMessageChecksum(extended, extended.length - 1)
     if (!validSessionWebGameMultiplayerSnapshot(extended)) {
+        println("invalid snapshot len=" + extended.length +
+            " tick=" + metrics.serverTickValue +
+            " players=" + metrics.playerCount() +
+            " actors=" + extended[17] +
+            " map=" + extended[extended.length - 7] +
+            " phase=" + extended[extended.length - 6] +
+            " remaining=" + extended[extended.length - 5] +
+            " votes1=" + extended[extended.length - 4] +
+            " votes2=" + extended[extended.length - 3] +
+            " total=" + extended[extended.length - 2])
         return new Int[0]
     }
     return extended
@@ -739,16 +769,97 @@ Bool webBroadcastSnapshots(WebServerMetrics metrics) {
     }
     return true
 }
+Int webMapVoteCount(WebServerMetrics metrics, Int mapId) {
+    var count = 0
+    for (var slot = 0; slot < 12; slot = slot + 1) {
+        if (metrics.connectionUsed[slot] && metrics.connectionJoined[slot] &&
+            !metrics.connectionSpectators[slot] &&
+            metrics.connectionMapVote[slot] == mapId) {
+            count = count + 1
+        }
+    }
+    return count
+}
+Bool webBeginMapIntermission(WebServerMetrics metrics) {
+    if (metrics.matchPhaseValue == sessionWebGameMatchIntermission() ||
+        metrics.simulation.trainingMode()) { return false }
+    metrics.matchPhaseValue = sessionWebGameMatchIntermission()
+    metrics.matchPhaseEndsAt = metrics.serverTickValue + 300
+    for (var slot = 0; slot < 12; slot = slot + 1) {
+        metrics.connectionMapVote[slot] = 0
+        metrics.connectionMoveX[slot] = 0
+        metrics.connectionMoveZ[slot] = 0
+        metrics.connectionLookYaw[slot] = 0
+        metrics.connectionLookPitch[slot] = 0
+        metrics.connectionHeldActions[slot] = 0
+        metrics.connectionEdgeActions[slot] = 0
+    }
+    return true
+}
+Bool webTransitionMap(WebServerMetrics metrics) {
+    var mapId = metrics.simulation.mapId()
+    var mapOneVotes = webMapVoteCount(metrics, sessionWebGameMapOne())
+    var mapTwoVotes = webMapVoteCount(metrics, sessionWebGameMapTwo())
+    if (mapTwoVotes > mapOneVotes) {
+        mapId = sessionWebGameMapTwo()
+    } else if (mapOneVotes > mapTwoVotes) {
+        mapId = sessionWebGameMapOne()
+    }
+    metrics.simulation.destroyBox3DArena()
+    var nextSimulation = WebMultiplayerSimulation()
+    if (!nextSimulation.selectArenaMap(mapId) || !nextSimulation.configure()) {
+        return false
+    }
+    for (var slot = 0; slot < 12; slot = slot + 1) {
+        if (!metrics.connectionUsed[slot] || !metrics.connectionJoined[slot] ||
+            metrics.connectionSpectators[slot]) { continue }
+        var playerId = metrics.connectionPlayerIds[slot]
+        var spawnX = 24 + (playerId % 4) * 12
+        var spawnZ = 24 + (playerId % 3) * 12
+        if (!nextSimulation.addPlayer(
+                playerId, metrics.connectionAnimal[slot], spawnX, 1, spawnZ) ||
+            (metrics.connectionTeam[slot] > 0 &&
+                !nextSimulation.setPlayerTeam(
+                    playerId, metrics.connectionTeam[slot]))) {
+            nextSimulation.destroyBox3DArena()
+            return false
+        }
+        metrics.connectionAppliedInputSequence[slot] =
+            metrics.connectionInputSequence[slot]
+        metrics.connectionMapVote[slot] = 0
+    }
+    metrics.simulation = nextSimulation
+    metrics.matchPhaseValue = sessionWebGameMatchActive()
+    metrics.matchPhaseEndsAt = metrics.serverTickValue + 2400
+    return true
+}
+
 Bool webTick(WebServerMetrics metrics) {
+    metrics.serverTickValue = metrics.serverTickValue + 1
+    if (metrics.matchPhaseValue == sessionWebGameMatchActive() &&
+        metrics.serverTickValue >= metrics.matchPhaseEndsAt &&
+        metrics.playerCount() > 0) {
+        webBeginMapIntermission(metrics)
+    } else if (metrics.matchPhaseValue ==
+            sessionWebGameMatchIntermission() &&
+        metrics.serverTickValue >= metrics.matchPhaseEndsAt) {
+        if (!webTransitionMap(metrics)) {
+            println("KOOKIE map transition failed")
+            return false
+        }
+    }
     var nextTick = metrics.simulation.tick() + 1
     for (var slot = 0; slot < 12; slot = slot + 1) {
         if (metrics.connectionUsed[slot] && metrics.connectionJoined[slot] && !metrics.connectionSpectators[slot]) {
             var id = metrics.connectionPlayerIds[slot]
+            var moveX = if (metrics.matchPhaseValue == sessionWebGameMatchIntermission()) 0 else metrics.connectionMoveX[slot]
+            var moveZ = if (metrics.matchPhaseValue == sessionWebGameMatchIntermission()) 0 else metrics.connectionMoveZ[slot]
+            var lookYaw = if (metrics.matchPhaseValue == sessionWebGameMatchIntermission()) 0 else metrics.connectionLookYaw[slot]
+            var lookPitch = if (metrics.matchPhaseValue == sessionWebGameMatchIntermission()) 0 else metrics.connectionLookPitch[slot]
+            var held = if (metrics.matchPhaseValue == sessionWebGameMatchIntermission()) 0 else metrics.connectionHeldActions[slot]
+            var edge = if (metrics.matchPhaseValue == sessionWebGameMatchIntermission()) 0 else metrics.connectionEdgeActions[slot]
             if (metrics.simulation.applyInputFrame(id, nextTick, nextTick,
-                    metrics.connectionMoveX[slot], metrics.connectionMoveZ[slot],
-                    metrics.connectionLookYaw[slot], metrics.connectionLookPitch[slot],
-                    metrics.connectionHeldActions[slot],
-                    metrics.connectionEdgeActions[slot])) {
+                    moveX, moveZ, lookYaw, lookPitch, held, edge)) {
                 metrics.connectionAppliedInputSequence[slot] =
                     metrics.connectionInputSequence[slot]
                 metrics.connectionLookYaw[slot] = 0
@@ -942,6 +1053,24 @@ Bool webHandleJoin(WebServerMetrics metrics, Int slot, Int[] words) {
     }
     return true
 }
+Bool webHandleMapVote(
+    WebServerMetrics metrics, Int slot, WebSessionFrame frame
+) {
+    var words = frame.words()
+    if (words.length != 6 || words[3] != sessionWebGameMapVoteMarker() ||
+        metrics.matchPhaseValue != sessionWebGameMatchIntermission() ||
+        metrics.connectionSpectators[slot] ||
+        (words[4] != sessionWebGameMapOne() &&
+            words[4] != sessionWebGameMapTwo()) ||
+        words[5] != sessionWebMessageChecksum(words, 5) ||
+        frame.sequence() <= metrics.connectionLastSequence[slot]) {
+        return false
+    }
+    metrics.connectionLastSequence[slot] = frame.sequence()
+    metrics.connectionMapVote[slot] = words[4]
+    return true
+}
+
 Bool webSendAdminResponse(
     WebServerMetrics metrics, Int slot, Int sequence, Int operation, Int result
 ) {
@@ -1035,6 +1164,9 @@ Bool webHandleAdmin(
                 sessionWebMessageChecksum(message, message.length - 1)
             if (webDistributeChat(metrics, message)) { result = 0 }
         }
+    } else if (operation == sessionWebGameAdminMapVoteStart() &&
+        words.length == 6) {
+        result = if (webBeginMapIntermission(metrics)) 0 else 1
     }
     metrics.connectionLastSequence[slot] = frame.sequence()
     return webSendAdminResponse(metrics, slot, frame.sequence(), operation, result)
@@ -1059,6 +1191,10 @@ Bool webHandleGame(WebServerMetrics metrics, Int slot, WebSessionFrame frame) {
         words[3] == sessionWebGameChatMarker()) {
         return webHandleChat(metrics, slot, frame)
     }
+    if (words.length > 3 &&
+        words[3] == sessionWebGameMapVoteMarker()) {
+        return webHandleMapVote(metrics, slot, frame)
+    }
     if (metrics.connectionSpectators[slot]) {
         if (validSessionWebGameChat(words)) {
             return webHandleChat(metrics, slot, frame)
@@ -1068,6 +1204,18 @@ Bool webHandleGame(WebServerMetrics metrics, Int slot, WebSessionFrame frame) {
     if (validSessionWebGameInput(words)) {
         if (frame.sequence() <= metrics.connectionLastSequence[slot]) { return false }
         metrics.connectionLastSequence[slot] = frame.sequence()
+        if (metrics.matchPhaseValue ==
+            sessionWebGameMatchIntermission()) {
+            metrics.connectionInputSequence[slot] = frame.sequence()
+            metrics.connectionAppliedInputSequence[slot] = frame.sequence()
+            metrics.connectionMoveX[slot] = 0
+            metrics.connectionMoveZ[slot] = 0
+            metrics.connectionLookYaw[slot] = 0
+            metrics.connectionLookPitch[slot] = 0
+            metrics.connectionHeldActions[slot] = 0
+            metrics.connectionEdgeActions[slot] = 0
+            return true
+        }
         metrics.connectionInputSequence[slot] = frame.sequence()
         metrics.connectionMoveX[slot] = words[5]; metrics.connectionMoveZ[slot] = words[6]
         metrics.connectionLookYaw[slot] = metrics.connectionLookYaw[slot] + words[7]

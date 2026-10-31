@@ -853,6 +853,24 @@ test "deathmatch arena links routes, height, water crossings and open sky" {
         sky.accepted() && !sky.collided(),
         "deathmatch arena must preserve alternate routes, vertical landmarks and open sky")
 }
+test "multiplayer arena registry selects distinct playable layouts" {
+    var arena = G1Arena()
+    var originalChecksum = arena.authoredChecksum()
+    var g1Crossing = arena.query(160, 1, 44, 160, 12, 44)
+    assert(arena.ready() && arena.mapId() == multiplayerArenaMapOne() &&
+        !g1Crossing.collided() &&
+        arena.selectMap(multiplayerArenaMapTwo()) && arena.ready() &&
+        arena.mapId() == multiplayerArenaMapTwo() &&
+        arena.authoredChecksum() != originalChecksum,
+        "map registry must switch to a distinct authored arena")
+    var g2Platform = arena.query(160, 1, 44, 160, 12, 44)
+    assert(g2Platform.accepted() && g2Platform.collided() &&
+        !arena.selectMap(99) && arena.mapId() == multiplayerArenaMapTwo(),
+        "map selection must use registered layouts and reject unknown IDs")
+    assert(arena.selectMap(multiplayerArenaMapOne()) &&
+        arena.authoredChecksum() == originalChecksum,
+        "map changes must rebuild the exact selected authored collision")
+}
 
 test "WASD movement axes match gameplay controls" {
     assert(movementForwardAxis(1, 0) == 1 &&

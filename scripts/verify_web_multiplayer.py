@@ -118,6 +118,12 @@ class Client:
         words.extend(encoded)
         words.append(checksum(words))
         self.send(6, words)
+    def vote_map(self, map_id):
+        assert map_id in (1, 2)
+        self.sequence += 1
+        words = [2, 6, self.sequence, 13, map_id]
+        words.append(checksum(words))
+        self.send(6, words)
 
     def receive_chat(self, timeout=5):
         deadline = time.monotonic() + timeout
@@ -305,9 +311,20 @@ def throwable_suffix(scene):
     checksum_index = len(scene) - 1
     if checksum_index - cursor >= 10:
         count = scene[cursor + 9]
-        if checksum_index == cursor + 10 + count * 4:
-            return scene[cursor:cursor + 10 + count * 4]
+        base_end = cursor + 10 + count * 4
+        if checksum_index in (base_end, base_end + 6):
+            return scene[cursor:base_end]
     return scene[cursor:cursor + 6]
+
+def match_metadata(scene):
+    trailer = 18 + scene[17] * 8
+    cursor = trailer + 4 + scene[trailer + 1] * 8
+    cursor += scene[trailer + 2] * 8 + scene[trailer + 3] * 8
+    pickup = throwable_suffix(scene)
+    if len(pickup) < 10:
+        return None
+    metadata = cursor + 10 + pickup[9] * 4
+    return scene[metadata:metadata + 6]
 def projectile_records(scene):
     trailer = 18 + scene[17] * 8
     count = scene[trailer + 1]
@@ -927,6 +944,42 @@ def main():
         assert all(scene[18 + index * 8] != kicked.player_id
                    for index in range(scene[17])), (
             f"kicked player {kicked.player_id} remained in actor snapshots")
+        admin.rcon(5)
+        start_vote_result = admin.receive_admin()
+        assert start_vote_result[4:6] == [5, 0], start_vote_result
+        deadline = time.monotonic() + 5
+        intermission_scene = None
+        while time.monotonic() < deadline:
+            intermission_scene = replacements[0].snapshot(6, 4)
+            if match_metadata(intermission_scene)[1] == 1:
+                break
+        else:
+            raise AssertionError("admin-started map vote did not enter intermission")
+        previous_tick = intermission_scene[4]
+        players[2].vote_map(2)
+        players[3].vote_map(2)
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            intermission_scene = replacements[0].snapshot(6, 4)
+            if match_metadata(intermission_scene)[4] == 2:
+                break
+        else:
+            raise AssertionError("map votes were not replicated to spectators")
+        deadline = time.monotonic() + 20
+        transitioned_scene = intermission_scene
+        while time.monotonic() < deadline:
+            transitioned_scene = replacements[0].snapshot(6, 4)
+            state = match_metadata(transitioned_scene)
+            if state[0] == 2 and state[1] == 0:
+                break
+        else:
+            raise AssertionError(
+                f"map vote did not transition to G2; metadata={match_metadata(transitioned_scene)}")
+        assert transitioned_scene[4] > previous_tick, (
+            "server tick must remain monotonic across simulation replacement")
+        assert transitioned_scene[17] == 6
+        assert all(actor_record(transitioned_scene, player.player_id)[4] == 300
+                   for player in players[2:])
         admin.close()
         clients.remove(admin)
         for client in clients:

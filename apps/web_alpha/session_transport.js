@@ -44,6 +44,7 @@
   const GAME_ADMIN_KICK = 2;
   const GAME_ADMIN_SET_TEAM = 3;
   const GAME_ADMIN_SAY = 4;
+  const GAME_ADMIN_MAPVOTE_START = 5;
   const AUTH_TOKEN_MINIMUM_LENGTH = 8;
   const AUTH_TOKEN_MAXIMUM_LENGTH = 128;
   const GAME_COMMAND_MARKER = 1;
@@ -54,6 +55,7 @@
   const GAME_JOIN_RESPONSE_MARKER = 6;
   const GAME_MULTIPLAYER_SNAPSHOT_MARKER = 7;
   const GAME_CHAT_MARKER = 9;
+  const GAME_MAP_VOTE_MARKER = 13;
   const GAME_CHAT_RESPONSE_MARKER = 10;
   const CHAT_GLOBAL = 0;
   const CHAT_TEAM = 1;
@@ -1358,6 +1360,49 @@
   lobbyChat.style.borderRadius = "12px";
   lobbyChat.style.background = "#111c18e8";
   sceneCanvasWrap.appendChild(lobbyChat);
+  const mapVotePanel = document.createElement("section");
+  mapVotePanel.className = "kookie-map-vote";
+  mapVotePanel.hidden = true;
+  mapVotePanel.setAttribute("aria-live", "polite");
+  const mapVoteHeading = document.createElement("h2");
+  mapVoteHeading.textContent = "NEXT MATCH";
+  const mapVoteStatus = document.createElement("p");
+  const mapVoteButtons = document.createElement("div");
+  const mapVoteControls = [];
+  for (const [mapId, label] of [
+    [1, "G1 · Central Pool"],
+    [2, "G2 · Ruins"],
+  ]) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = label;
+    button.dataset.mapId = String(mapId);
+    button.dataset.mapName = label;
+    button.addEventListener("click", () => sendMapVote(mapId));
+    mapVoteButtons.appendChild(button);
+    mapVoteControls.push(button);
+  }
+  mapVotePanel.append(
+    mapVoteHeading, mapVoteStatus, mapVoteButtons,
+  );
+  Object.assign(mapVotePanel.style, {
+    position: "absolute",
+    zIndex: "9",
+    left: "50%",
+    top: "50%",
+    transform: "translate(-50%, -50%)",
+    width: "min(360px, calc(100% - 28px))",
+    padding: "16px",
+    border: "1px solid #ffffff55",
+    borderRadius: "14px",
+    background: "#101b20ee",
+    color: "#fff",
+    textAlign: "center",
+  });
+  mapVoteButtons.style.display = "grid";
+  mapVoteButtons.style.gridTemplateColumns = "1fr";
+  mapVoteButtons.style.gap = "8px";
+  sceneCanvasWrap.appendChild(mapVotePanel);
   panel.appendChild(gameConsoleDialog);
   function logGameConsole(message) {
     const lines = (gameConsoleOutput.textContent + String(message) + "\n")
@@ -1825,8 +1870,41 @@
       actor.yaw = position.yaw;
     }
   }
+  let lastMapVoteSent = 0;
+  function sendMapVote(mapId) {
+    if (!connected || joinedRole !== GAME_ROLE_PLAYER || !socket ||
+        socket.readyState !== WebSocket.OPEN || !sceneState ||
+        sceneState.matchPhase !== 1 || (mapId !== 1 && mapId !== 2)) return;
+    const frameSequence = nextSequence();
+    const words = [NETCODE_PROTOCOL_VERSION, GAME, frameSequence,
+      GAME_MAP_VOTE_MARKER, mapId];
+    words.push(messageChecksum(words));
+    socket.send(encodeFrame(GAME, frameSequence, words));
+    lastMapVoteSent = mapId;
+  }
+  function updateMapVotePanel(scene) {
+    const inIntermission = scene.matchPhase === 1;
+    mapVotePanel.hidden = !inIntermission;
+    if (!inIntermission) {
+      lastMapVoteSent = 0;
+      return;
+    }
+    const remainingSeconds = Math.ceil(scene.matchTicksRemaining / 20);
+    const currentMap = scene.mapId === 2 ? "G2 · Ruins" : "G1 · Central Pool";
+    mapVoteStatus.textContent = "Current: " + currentMap +
+      " · " + remainingSeconds + "s left · " +
+      scene.mapVoteCounts[0] + " / " + scene.mapVoteCounts[1] + " votes" +
+      (lastMapVoteSent ? " · Your vote: G" + lastMapVoteSent : "");
+    for (const button of mapVoteControls) {
+      const voteIndex = Number(button.dataset.mapId) - 1;
+      button.textContent = button.dataset.mapName + " · " +
+        scene.mapVoteCounts[voteIndex] + " votes";
+      button.disabled = scene.role !== GAME_ROLE_PLAYER;
+    }
+  }
   function updateScene(scene) {
     sceneState = scene;
+    updateMapVotePanel(scene);
     renderSceneState = {
       ...scene,
       camera: { ...scene.camera },
@@ -2331,7 +2409,7 @@
     }
     if (kind === GAME) {
       if (words.length === 10 && words[3] === GAME_ADMIN_RESPONSE_MARKER) {
-        return words[4] >= GAME_ADMIN_STATUS && words[4] <= GAME_ADMIN_SAY &&
+        return words[4] >= GAME_ADMIN_STATUS && words[4] <= GAME_ADMIN_MAPVOTE_START &&
           words[5] >= 0 && words[5] <= 2 &&
           words[6] >= 0 && words[6] <= GAME_MAXIMUM_TICK &&
           words[7] >= 0 && words[7] <= 8 &&
@@ -2449,19 +2527,24 @@
                 words[offset + 7] < 0 || words[offset + 7] > GAME_MAXIMUM_HEALTH) return false;
           }
           const tailLength = words.length - offset - 1;
-          const hasNoOxygenNewSuffix = tailLength >= 10 && tailLength <= 26 &&
+          const baseExtendedSuffixLength = 10 + words[offset + 9] * 4;
+          const hasNoOxygenNewSuffix = tailLength >= 10 && tailLength <= 32 &&
             Number.isInteger(words[offset + 9]) &&
             words[offset + 9] >= 0 && words[offset + 9] <= 4 &&
-            tailLength === 10 + words[offset + 9] * 4;
+            (tailLength === baseExtendedSuffixLength ||
+              tailLength === baseExtendedSuffixLength + 6);
           const hasOxygen = !hasNoOxygenNewSuffix &&
             (tailLength === actorCount || tailLength === actorCount + 6 ||
-              (tailLength >= actorCount + 10 && tailLength <= actorCount + 26 &&
-                (tailLength - actorCount - 10) % 4 === 0));
+              (tailLength >= actorCount + 10 && tailLength <= actorCount + 32 &&
+                ((tailLength - actorCount - 10) % 4 === 0 ||
+                  (tailLength - actorCount - 16) % 4 === 0)));
           const suffixOffset = offset + (hasOxygen ? actorCount : 0);
           const suffixLength = words.length - suffixOffset - 1;
           if (suffixLength !== 0 && suffixLength !== 6 &&
-              !(suffixLength >= 10 && suffixLength <= 26 &&
-                (suffixLength - 10) % 4 === 0)) return false;
+              !(suffixLength >= 10 && suffixLength <= 32 &&
+                ((suffixLength - 10) % 4 === 0 ||
+                  (suffixLength >= 16 && (suffixLength - 16) % 4 === 0))) &&
+              !(suffixLength >= actorCount + 10 && suffixLength <= actorCount + 32)) return false;
           if (hasOxygen) {
             for (let index = 0; index < actorCount; index += 1) {
               if (!Number.isInteger(words[offset + index]) ||
@@ -2497,7 +2580,8 @@
                 words[suffixOffset + 8] < 0 ||
                 words[suffixOffset + 8] > GAME_MAXIMUM_SEED_AMMO ||
                 !Number.isInteger(sliceCount) || sliceCount < 0 || sliceCount > 4 ||
-                suffixLength !== 10 + sliceCount * 4) return false;
+                (suffixLength !== 10 + sliceCount * 4 &&
+                  suffixLength !== 16 + sliceCount * 4)) return false;
             const sliceIds = new Set();
             for (let index = 0; index < sliceCount; index += 1) {
               const sliceOffset = suffixOffset + 10 + index * 4;
@@ -2510,6 +2594,16 @@
                   words[sliceOffset + 3] < GAME_WORLD_MINIMUM_Z ||
                   words[sliceOffset + 3] > GAME_WORLD_MAXIMUM_Z) return false;
               sliceIds.add(words[sliceOffset]);
+            }
+            if (suffixLength === 16 + sliceCount * 4) {
+              const metadata = suffixOffset + 10 + sliceCount * 4;
+              const totalVotes = words[metadata + 3] + words[metadata + 4];
+              if ((words[metadata] !== 1 && words[metadata] !== 2) ||
+                  (words[metadata + 1] !== 0 && words[metadata + 1] !== 1) ||
+                  words[metadata + 2] < 0 || words[metadata + 2] > 7200 ||
+                  words[metadata + 3] < 0 || words[metadata + 3] > 8 ||
+                  words[metadata + 4] < 0 || words[metadata + 4] > 8 ||
+                  words[metadata + 5] !== totalVotes) return false;
             }
           }
         }
@@ -3056,11 +3150,15 @@
   function runRemoteAdminCommand(command) {
     const normalized = command.toLowerCase();
     if (normalized === "/help") {
-      logGameConsole("Remote commands: /status, /say <text>, /team <id> <free|red|blue>, /kick <id>");
+      logGameConsole("Remote commands: /status, /say <text>, /team <id> <free|red|blue>, /kick <id>, /mapvote start");
       return;
     }
     if (normalized === "/status") {
       sendAdminCommand(GAME_ADMIN_STATUS);
+      return;
+    }
+    if (normalized === "/mapvote start") {
+      sendAdminCommand(GAME_ADMIN_MAPVOTE_START);
       return;
     }
     if (normalized.startsWith("/say ")) {
@@ -3253,6 +3351,10 @@
     const trailer = 18 + words[17] * 8;
     let carryType = 0;
     let seedAmmo = 0;
+    let mapId = 1;
+    let matchPhase = 0;
+    let matchTicksRemaining = 0;
+    let mapVoteCounts = [0, 0];
     const slicePickups = [];
 
     if (words.length !== 19 + words[17] * 8) {
@@ -3278,11 +3380,14 @@
       let suffix = offset;
       const tailLength = words.length - suffix - 1;
       const isSuffixLength = (length) => length === 0 || length === 6 ||
-        (length >= 10 && length <= 26 && (length - 10) % 4 === 0);
-      const hasNewSuffix = tailLength >= 10 && tailLength <= 26 &&
+        (length >= 10 && length <= 32 &&
+          ((length - 10) % 4 === 0 ||
+            (length >= 16 && (length - 16) % 4 === 0)));
+      const hasNewSuffix = tailLength >= 10 && tailLength <= 32 &&
         Number.isInteger(words[suffix + 9]) &&
         words[suffix + 9] >= 0 && words[suffix + 9] <= 4 &&
-        tailLength === 10 + words[suffix + 9] * 4;
+        (tailLength === 10 + words[suffix + 9] * 4 ||
+          tailLength === 16 + words[suffix + 9] * 4);
       const hasOxygen = !hasNewSuffix && !isSuffixLength(tailLength) &&
         isSuffixLength(tailLength - words[17]);
       if (hasOxygen) {
@@ -3313,6 +3418,14 @@
           slicePickups.push({ id: words[sliceOffset], x: words[sliceOffset + 1],
             y: words[sliceOffset + 2], z: words[sliceOffset + 3] });
         }
+        const sliceCount = words[suffix + 9];
+        if (suffixLength === 16 + sliceCount * 4) {
+          const metadata = suffix + 10 + sliceCount * 4;
+          mapId = words[metadata];
+          matchPhase = words[metadata + 1];
+          matchTicksRemaining = words[metadata + 2];
+          mapVoteCounts = [words[metadata + 3], words[metadata + 4]];
+        }
       }
     }
     const playerX = words[7];
@@ -3324,6 +3437,10 @@
     const cameraYaw = yaw * Math.PI / 180;
     return {
       tick: words[4],
+      mapId,
+      matchPhase,
+      matchTicksRemaining,
+      mapVoteCounts,
       lastInputSequence,
       role: words[5],
       training: words[5] === GAME_ROLE_TRAINING,

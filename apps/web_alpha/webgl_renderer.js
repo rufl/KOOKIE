@@ -2320,6 +2320,17 @@
     ramps: Object.freeze(ARENA_RAMPS.map((ramp) => Object.freeze({
       vertices: Object.freeze(ramp.vertices.map((vertex) => Object.freeze(vertex.slice()))),
     }))),
+    maps: Object.freeze(Object.fromEntries(
+      Object.entries(ARENA_MAPS).map(([mapId, map]) => [mapId, Object.freeze({
+        name: mapId === "1" ? "G1 Central Pool" : "G2 Ruins",
+        solids: Object.freeze(map.solids.map((entry) =>
+          Object.freeze({ box: Object.freeze(entry.box.slice()) }))),
+        ramps: Object.freeze(map.ramps.map((ramp) =>
+          Object.freeze({ vertices: Object.freeze(
+            ramp.vertices.map((vertex) => Object.freeze(vertex.slice())),
+          ) }))),
+      })]),
+    )),
   });
   window.KookieWebRenderer = Object.freeze({ create, encodeScreenshot });
 })();
