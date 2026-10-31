@@ -193,13 +193,20 @@ not visible. `playerFlourCloudRadius` exposes the active concealment state to
 presentation code; the current game presentation does not yet stage a persistent
 smoke-cloud visual.
 
-`session/lobby_server.kf` provides a bounded in-process lobby authority for up
-to eight participants, a 32-message chat ring with room-wide, same-team and
-participant-to-participant whisper visibility, host-only `addbot NAME [team]`
-and `delbot SLOT` commands, and server-ticked free-roam, race, target-practice
-and tag activities. Its identity registry requires a trusted stable player ID,
-enforces case-insensitive unique nicknames, and keeps up to 256 identities in
-memory across lobby stop/start; it is not persistent.
+`session/lobby_server.kf` defines `DedicatedLobbyServer`, a bounded **in-process
+model**, not a running network service and not the WebSocket match backend. One
+instance supports eight total players (owner and bots included), four separate
+read-only spectators, case-insensitive unique ASCII nicknames, and an optional
+caller-trusted identity registry of 256 bindings that survives room stop/start
+in that object only. The owner can manage bots (`addbot NAME [red|blue|yellow|green]`,
+`delbot SLOT`), assign one of five teams, and select free roam, race, target
+practice or tag; deterministic bot movement/scoring advances only when the host
+calls `advanceTick()`. Global/team/private chat uses an authorized 32-entry
+[pt-BR/docs/ARCHITECTURE.md#DACA]
+in-memory ring. The Kof tests cover admission/capacities, ownership handoff,
+identity binding, chat filtering and minigame outcomes. This model has no
+transport, renderer, persistence, or browser/RCON integration; full API,
+limits and rules are in [the lobby reference](RUNNING_AND_PACKAGING.md#in-process-dedicatedlobbyserver).
 
 The WebSocket game server supports room-wide, same-team and private whisper
 chat, optional player team selection, a 32-message in-memory history, and
@@ -435,9 +442,10 @@ ICE gathers candidates with STUN and falls back to TURN when direct candidates
 fail. It is not raw UDP hole punching.
 
 The web and native clients share Kof session semantics and wire schemas, not GPU
-objects or shader binaries. The current browser client uses a direct WebGL2
-renderer with GLSL ES 3.00 shaders; a Three.js scene layer remains an optional
-future presentation choice. Native desktop and Android clients keep SDL3/SDL_GPU
+O owner gerencia bots (`addbot NOME [red|blue|yellow|green]`, `delbot SLOT`),
+atribui um de cinco times e seleciona free roam, race, target practice ou tag;
+movimento e pontuação determinísticos dos bots avançam somente quando o host
+chama `advanceTick()`. Chat global/time/privado usa ring em memória de 32 mensagens com filtragem de
 and the existing SPIR-V/DXIL/native shader pipeline. Kof remains the owner of
 camera, material and replication policy on both sides.
 

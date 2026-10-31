@@ -170,6 +170,151 @@ administrativo, começa após 120 segundos de jogo ativo. Os mapas disponíveis
 são G1 Central Pool e G2 Ruins; empate mantém o mapa atual. Cada transição
 reposiciona os jogadores e reinicia o estado da partida.
 
+### `DedicatedLobbyServer` em processo
+
+`src/session/lobby_server.kf` define um modelo de lobby em Kof para ser
+instanciado e controlado por uma aplicação host. **Não** é um processo
+independente, listener de rede, lobby de navegador nem backend WebSocket. O
+servidor web atual não usa esse objeto: admissão, chat, RCON e estado de jogo
+WebSocket são separados. A classe não possui renderer nem transporte de
+clientes; a aplicação chamadora fornece admissão, entrada, agenda de ticks,
+apresentação e persistência. `room` é somente um identificador inteiro nesse
+modelo, não uma sala/endpoint de rede.
+
+Ciclo de vida típico:
+
+1. Crie `DedicatedLobbyServer()`.
+2. Inicie com `start(roomId, ownerName, trustedIdentity)` para vincular o host
+   a uma identidade estável fornecida pelo chamador, ou com
+   `startRoom(roomId, ownerName)` sem identidade. Consulte `ownerId()` para obter
+   o ID do host.
+3. Admita jogadores com `joinPlayer(identity, name)` e espectadores somente
+   leitura com `joinSpectator(identity, name)`.
+4. Chame `advanceTick()` no loop de ticks fixos do host; use `movePlayer`,
+   `performMinigameAction`, as APIs de time/chat e os getters do roster,
+   pontuação e chat.
+5. Chame `stop()` para fechar a sala. `leavePlayer(ownerId)` transfere a
+   propriedade ao primeiro jogador humano restante; sem humanos, encerra a sala.
+
+| Capacidade / validação | Limite |
+|---|---|
+| Slots de jogadores ativos | 8 no total, incluindo owner e bots |
+| Slots de espectadores somente leitura | 4 adicionais; não contam como jogadores |
+| Nomes de jogador/espectador | 1–16 letras ASCII, dígitos, `_` ou `-`; únicos ignorando maiúsculas/minúsculas em ambos os rosters |
+| Identidade estável | 1–64 letras ASCII, dígitos, `_`, `-` ou `:`; fornecida por chamador confiável, não autenticada pela classe |
+| Vínculos identidade→nome lembrados | 256 por objeto; sobrevivem a `stop()`/`start()` no mesmo objeto, não ao reinício do processo |
+| Ring de chat | 32 mensagens, 1–80 caracteres ASCII imprimíveis; sem persistência |
+| ID da sala | Inteiro de 0 a 1.000.000 |
+| Tick de simulação do lobby | `advanceTick()` incrementa até o limite fixo de 10.000.000 |
+
+Os limites também ficam disponíveis por
+`lobbyServerMaximumPlayers()`, `lobbyServerMaximumSpectators()`,
+`lobbyServerMaximumChatMessages()`, `lobbyServerMaximumPlayerNameLength()` e
+`lobbyServerMaximumChatLength()`. `start`, `startRoom` e as operações de saída
+retornam `Bool`; `joinPlayer`, `joinSpectator` e `addBot` direto retornam ID
+positivo do participante em caso de sucesso ou `0` em caso de falha.
+`removeBotSlot` direto retorna `Bool`.
+
+`startRoom` cria o owner sem identidade estável. O apelido desse owner não fica
+vinculado a uma identidade; somente `start(room, nome, identidade)` faz esse
+vínculo.
+
+A admissão com identidade rejeita identidade ativa duplicada, nome duplicado
+ignorando caixa, nome/ID malformado e identidade estável tentando reivindicar
+outro apelido já registrado. A mesma identidade pode voltar após sair ou
+reiniciar a sala, mantendo o apelido registrado. IDs de jogador são inteiros
+positivos gerados para jogadores e espectadores; não são contas e não reiniciam
+ao reiniciar a sala no mesmo objeto. Um objeto/processo novo não restaura o
+registro.
+
+Espectadores ficam em roster/getters separados e não podem mover, conversar,
+agir em minijogos, sair por `leavePlayer` nem emitir comandos de owner. Contam
+no limite independente de quatro espectadores, não no limite de oito
+jogadores. Bots ocupam slots normais de jogador e contam no limite de oito.
+
+Getters somente leitura do roster/status: `running`, `room`, `ownerId`,
+`playerCount`, `botCount`, `gameMode`, `tick`, `spectatorCount`,
+`maximumSpectators` e `lastCommandResult`. Getters de jogadores:
+`playerIdAt`, `playerNameAt`, `playerIdentityAt`, `playerTeamAt`,
+`playerScoreAt`, `playerXAt`, `playerZAt` e `playerIsBotAt`; os índices de slot
+são base zero. Getters de espectadores: `spectatorIdAt`, `spectatorNameAt`,
+`spectatorIdentityAt` e `spectatorIdActive`. O estado continua em memória e é
+possuído pela instância.
+
+#### Propriedade e comandos de bot
+
+Somente o owner pode chamar `addBot`, `removeBotSlot`, `setPlayerTeam` e
+`executeAdminCommand`. Se ele sair, a propriedade passa ao primeiro
+participante não bot restante. O parser em processo aceita comandos em
+minúsculas (sem `/`), com até 96 caracteres:
+
+| Comando | Resultado |
+|---|---|
+| `addbot NOME` | Adiciona um bot sem time. |
+| `addbot NOME red` / `blue` / `yellow` / `green` | Adiciona um bot no time 1 / 2 / 3 / 4. O time deve estar em minúsculas; nome segue a regra de 1–16 caracteres. |
+| `delbot SLOT` | Remove o bot do slot 1–8, numerado a partir de 1; `SLOT` **não** é ID de jogador. |
+
+Times: `0` free-for-all, `1` red, `2` blue, `3` yellow, `4` green.
+`setPlayerTeam(ownerId, slotUmBased, team)` altera um slot ocupado. Getters do
+roster como `playerNameAt` e `playerTeamAt` usam índices de slot começando em
+zero. O owner também pode usar as APIs diretas de bot; elas repetem a
+verificação de owner. `leavePlayer` não remove bots; use `delbot` ou
+`removeBotSlot`.
+
+`executeAdminCommand` retorna `lobbyServerCommandOk()` (0), `Offline` (1),
+`PermissionDenied` (2), `Invalid` (3), `Full` (4) ou `NotBot` (5). `addbot`
+retorna `Full` ao atingir a capacidade; nome/time inválido retorna `Invalid`.
+`delbot` com slot válido vazio ou ocupado por humano retorna `NotBot`. Essa
+verificação de owner em processo **não é autenticação RCON**; esses comandos não
+estão disponíveis em `/admin` via WebSocket.
+
+#### Modos de jogo e ticks autoritativos
+
+`setGameMode(mode)` aceita `lobbyServerGameFreeRoam()` (0),
+`lobbyServerGameRace()` (1), `lobbyServerGameTargetPractice()` (2) e
+`lobbyServerGameTag()` (3). Trocar o modo zera pontuação, checkpoints de corrida
+e cooldowns de ação, mas preserva as posições. Humanos movem com
+`movePlayer(playerId, deltaX, deltaZ)`: cada delta deve estar em `[-4, 4]`;
+coordenadas inteiras X/Z resultantes são limitadas a `[-100, 100]`. O host move
+bots por `advanceTick()`; `movePlayer` não aceita bot.
+
+| Modo | Regras |
+|---|---|
+| Free roam | Humanos movem no plano X/Z limitado. Bots vagam uma unidade em X por tick, alternando direção conforme tick e ID. Não há ação de pontuação. |
+| Race | Quatro checkpoints em ordem: `(-30,0)`, `(0,30)`, `(30,0)`, `(0,-30)`. Chegar a distância Manhattan 5 avança checkpoint; completar o circuito marca um ponto. Bots seguem o próximo checkpoint, uma unidade por eixo por tick. |
+| Target practice | Três alvos fixos: ID 1 em `(-20,0)`, 2 em `(0,20)`, 3 em `(20,0)`. A ação humana `performMinigameAction(playerId, targetId)` marca ponto a distância Manhattan 8. Bots escolhem alvos por ciclo de tick/ID, caminham até eles e pontuam ao chegar. |
+| Tag | A ação humana informa outro ID de jogador e marca ponto a distância Manhattan 4; o alvo volta ao spawn do slot. Bots perseguem o humano mais próximo e pontuam a distância 2. |
+
+Ações humanas de minijogo exigem pelo menos 10 ticks do lobby desde a ação
+anterior daquele ator. Alvo inválido, modo incorreto, ação fora de alcance,
+bot usado como ator humano e espectador são rejeitados. A IA de bot é uma
+simulação determinística pequena para o lobby; não é a IA de batalha WebSocket
+nem a simulação completa do jogo.
+
+#### API de chat em processo
+
+`sendChat(playerId, message)` é global; `sendTeamChat` envia ao time do
+remetente; `sendWhisper(playerId, recipientId, message)` fica visível somente
+ao remetente e destinatário. O ring de 32 entradas armazena sequência global,
+remetente, tick, canal, alvo e texto. Leia com `chatCount()` e índices
+cronológicos `0..chatCount()-1` usando `chatSequenceAt`, `chatChannelAt`,
+`chatSenderAt` e `chatMessageAt`, passando o ID de jogador que consulta.
+Leituras inválidas/sem permissão retornam `-1`, `0` ou `""`, conforme o getter;
+`chatVisibleTo` consulta a visibilidade explicitamente.
+
+IDs de canal: 0 global, 1 time, 2 whisper. Chat de time exige time diferente de
+zero (1–4); whisper exige outro jogador humano ativo, não bot nem o próprio
+remetente. Espectadores não são remetentes nem leitores válidos de chat nesse
+modelo. Mensagens vazias, controles e caracteres não ASCII são rejeitados.
+Diferente do chat de rede, esta API em processo **não limita a frequência** de
+envio; o chamador controla essa política. Depois de 32 mensagens, novas entradas
+substituem as mais antigas; a sequência para em 1.000.000.
+
+Os testes de lobby em `src/main.kf` cobrem admissão, vínculo identidade/nome,
+capacidade, propriedade, visibilidade de time/whisper, wraparound do ring e os
+três minijogos com pontuação. O modelo continua isolado até uma aplicação host
+integrar transporte, UI e persistência.
+
 ## Console de batalha ao vivo 4v4
 
 Compile o servidor e inicie o console interativo de batalha:

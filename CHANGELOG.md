@@ -16,6 +16,11 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   commands: `/help`, `/status`, `/say <text>`, `/team <player-id> <free|red|blue>`,
   `/kick <player-id>`, and `/mapvote start`. Remote exposure requires an
   authenticated TLS/WSS reverse proxy; backend TLS is not provided.
+- Documented `DedicatedLobbyServer` as a separate in-process Kof model: eight
+  player/bot slots, four spectators, trusted identity/name binding, owner-only
+  bot/team administration, four tick-driven modes and filtered chat. Its
+  transport, UI and persistence are not integrated. See
+  [the dedicated lobby reference](docs/RUNNING_AND_PACKAGING.md#in-process-dedicatedlobbyserver).
 - Added server-authoritative multiplayer rotation between G1 Central Pool and
   G2 Ruins. Matches enter a 15-second map-vote intermission after 120 seconds
   of active play or `/mapvote start`; joined players may vote, counts replicate,

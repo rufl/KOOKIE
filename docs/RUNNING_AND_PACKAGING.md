@@ -336,9 +336,9 @@ provide admission, input, tick scheduling, presentation and persistence.
 Typical lifecycle:
 
 1. Construct `DedicatedLobbyServer()`.
-2. Start with `start(roomId, ownerName, trustedIdentity)`; the two-argument
-   `start(roomId, ownerName)` overload creates an owner without a stable
-   identity. The host receives `ownerId()`.
+2. Start with `start(roomId, ownerName, trustedIdentity)` to bind the host to a
+   caller-supplied stable identity, or `startRoom(roomId, ownerName)` without
+   one. The host receives `ownerId()`.
 3. Admit human participants with `joinPlayer(identity, name)` and read-only
    spectators with `joinSpectator(identity, name)`.
 4. Drive `advanceTick()` from the host's fixed-tick loop; call `movePlayer`,
@@ -358,6 +358,17 @@ Typical lifecycle:
 | Room ID | Integer from 0 to 1,000,000 |
 | Lobby simulation tick | `advanceTick()` increments to a hard limit of 10,000,000 |
 
+The capacity/name/chat values are also exposed by `lobbyServerMaximumPlayers()`,
+`lobbyServerMaximumSpectators()`, `lobbyServerMaximumChatMessages()`,
+`lobbyServerMaximumPlayerNameLength()` and
+`lobbyServerMaximumChatLength()`. `start`, `startRoom` and leave operations
+return `Bool`; `joinPlayer`, `joinSpectator` and direct `addBot` return a
+positive participant ID on success or `0` on failure. Direct `removeBotSlot`
+returns `Bool`.
+
+`startRoom` creates an owner without a stable identity. It does not make that
+owner's nickname identity-bound; only `start(room, name, identity)` does.
+
 Identity-aware admission rejects active duplicate identities, duplicate names
 ignoring ASCII case, malformed names/IDs, and a stable ID claiming a different
 previously registered nickname. The same stable identity can reclaim its
@@ -370,6 +381,15 @@ Spectators use their separate roster/accessors and cannot move, chat, act in
 minigames, leave through `leavePlayer`, or issue owner commands. They count
 against the separate four-spectator cap, not the eight-player cap. Bots occupy
 ordinary player slots and do count toward the eight.
+
+The model exposes read-only roster/status accessors: `running`, `room`,
+`ownerId`, `playerCount`, `botCount`, `gameMode`, `tick`, `spectatorCount`,
+`maximumSpectators`, and `lastCommandResult`. Player roster getters are
+`playerIdAt`, `playerNameAt`, `playerIdentityAt`, `playerTeamAt`,
+`playerScoreAt`, `playerXAt`, `playerZAt`, and `playerIsBotAt`; their slot
+indexes are zero-based. Spectator getters are `spectatorIdAt`,
+`spectatorNameAt`, `spectatorIdentityAt`, and `spectatorIdActive`. These roster
+and status values are in-memory state owned by this instance.
 
 #### Ownership and bot commands
 

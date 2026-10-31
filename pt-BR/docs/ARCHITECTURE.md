@@ -435,6 +435,23 @@ vez e geram quatro fatias coletáveis de vida/sementes. SDL native e WebGL
 consomem os mesmos snapshots; não executam simulações online independentes.
 Isso é paridade semântica de renderização, não equivalência pixel a pixel.
 
+`src/session/lobby_server.kf` define `DedicatedLobbyServer`, um **modelo em
+processo**, não um serviço de rede ativo nem o backend da partida WebSocket.
+Uma instância admite oito jogadores no total (owner e bots incluídos), quatro
+espectadores separados somente leitura, nomes ASCII únicos ignorando caixa e
+registro opcional de até 256 identidades confiadas pelo chamador. Esse registro
+sobrevive ao stop/start da sala no mesmo objeto, não ao reinício do processo.
+O owner gerencia bots (`addbot NOME [red|blue|yellow|green]`, `delbot SLOT`),
+atribui um de cinco times e seleciona free roam, race, target practice ou tag;
+movimento e pontuação determinísticos dos bots avançam somente quando o host
+chama `advanceTick()`. Chat global/time/privado usa ring em memória de 32
+mensagens com filtragem de visibilidade. Testes Kof cobrem admissão/capacidades,
+transferência de propriedade, identidade, chat e resultados de minijogos.
+O modelo não tem transporte, renderer, persistência nem integração com
+navegador/RCON; a
+[referência completa do lobby](RUNNING_AND_PACKAGING.md#dedicatedlobbyserver-em-processo)
+documenta API, limites e regras.
+
 O servidor WebSocket do jogo oferece chat global, de time e sussurros privados,
 seleção opcional de time e histórico em memória limitado a 32 mensagens, com
 filtragem autoritativa por destinatário. Mensagens aceitam 1–80 caracteres

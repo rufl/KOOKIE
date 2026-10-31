@@ -17,6 +17,11 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   `/team <id-jogador> <free|red|blue>`, `/kick <id-jogador>` e
   `/mapvote start`. Acesso remoto exige proxy reverso TLS/WSS autenticado; o
   backend não oferece TLS.
+- Documentamos `DedicatedLobbyServer` como modelo Kof separado em processo:
+  oito slots de jogador/bot, quatro espectadores, vínculo de identidade/nome,
+  administração de bots/times pelo owner, quatro modos por tick e chat filtrado.
+  Transporte, UI e persistência não estão integrados. Veja a
+  [referência do lobby](docs/RUNNING_AND_PACKAGING.md#dedicatedlobbyserver-em-processo).
 - Adicionamos rotação multiplayer autoritativa entre G1 Central Pool e G2
   Ruins. A partida abre um intervalo de votação de 15 segundos após 120
   segundos ativos ou `/mapvote start`; jogadores conectados votam, as contagens
