@@ -3,6 +3,13 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Outgoing session WebSocket messages now encode the protocol payload directly
+  into the final frame, removing one intermediate integer-array allocation per
+  message. The wire format is unchanged.
+- Validation: the 8-player/4-spectator protocol qualification passed, as did
+  four consecutive 4v4 battles. A 60-second loopback benchmark stayed at
+  15.94 ms snapshot p50 / 22.25 ms p95 after the change versus 15.91 / 22.37
+  ms before; this does not establish a meaningful latency improvement.
 - Hardened the 4v4 battle harness: bot-worker exceptions now fail the run,
   workers are stopped and joined before result checks, and full-session output
   no longer mislabels every run as a smoke test.

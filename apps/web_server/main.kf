@@ -97,6 +97,17 @@ Bool webRequestLine(Int[] source, Int requestLength, String method, String path)
     return webRangeEquals(source, 0, lineEnd, method + " " + path + " HTTP/1.1")
 }
 
+Int webWireChecksum(Int[] wire) {
+    if (wire.length < 16) { return -1 }
+    var result = 0
+    for (var index = 0; index < wire.length; index = index + 1) {
+        var value = wire[index]
+        if (index == 14 || index == 15) { value = 0 }
+        result = (result + value * (index + 1)) % 65536
+    }
+    return result
+}
+
 Bool webSendBytes(Int connectionId, Int[] bytes) {
     if (bytes.length <= 0 || bytes.length > webMaximumResponseBytes() ||
         !kookie_web_server_output_begin(connectionId, bytes.length)) { return false }

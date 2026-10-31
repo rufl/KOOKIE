@@ -3,6 +3,14 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Mensagens WebSocket de sessão agora codificam o payload do protocolo
+  diretamente no frame final, removendo uma alocação intermediária de array
+  inteiro por mensagem. O formato no fio permanece igual.
+- Validação: passou a qualificação de protocolo com 8 jogadores/4 espectadores
+  e quatro partidas 4v4 consecutivas. No benchmark loopback de 60 segundos,
+  snapshots ficaram em p50 de 15,94 ms / p95 de 22,25 ms após a mudança,
+  contra 15,91 / 22,37 ms antes; isso não comprova melhora de latência
+  significativa.
 - Endurecemos o runner de batalha 4v4: falhas dos workers dos bots agora
   reprovam a execução, os workers são parados e aguardados antes das
   verificações, e sessões completas não são mais rotuladas como smoke test.
