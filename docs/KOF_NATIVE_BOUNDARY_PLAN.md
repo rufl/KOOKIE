@@ -8,8 +8,8 @@ Status: **PROPOSED**. This plan is the execution document for decision
 Normative boundary and batch ABI: [Kof native-boundary and synchronous batch
 ABI](KOF_NATIVE_BOUNDARY_SPEC.md).
 
-Current source pin: official Kof `0.6.8` at
-`2971d2fe4cc873eb50fcd1b7d7d3e097381281c8`. The previous local proof was for
+Current source pin: official Kof `0.6.9` at
+`f02cd8233fb28cb225ac6e75ccd7d860add796ba`. The previous local proof was for
 `f42ed91dfbceae09880b7d0619d98f67490149d1`; that proof does not transfer
 automatically. Requalification is in progress.
 
@@ -48,14 +48,14 @@ is:
 
 This is physical source composition, not a performance claim.
 
-The official Kof 0.6.8 Linux release archive
-`kof-0.6.8-linux-x86_64.tar.gz` has SHA-256
+The official Kof 0.6.9 Linux release archive
+`kof-0.6.9-linux-x86_64.tar.gz` has SHA-256
 `8da8f9efc7c55b6e5314248b90a0ac62d900117f4a3503af8dadf6ce82a20577`.
 CI separately builds the exact pinned source commit after normalizing
 toolchain metadata. Earlier qualification records below retain their original
 toolchain identities and results; they are not evidence for the current pin.
 
-**Current local qualification:** the official Kof `0.6.8` archive passed package
+**Current local qualification:** the official Kof `0.6.9` archive passed package
 identity preflight. Static verification passed: 181 Kof files linted, 145-file
 LSP diagnostics, and all 164 JVM tests. Exception, bounded Buffer SIMD,
 external-LAN, interaction, durable-save, goose, PE durable-save and dedicated
@@ -98,19 +98,19 @@ cross-target runtime and hardware qualification remain outstanding.
 1. Re-run `python3 scripts/update_kof_lab.py --check` immediately before the
    change.
 2. If adopting the candidate, apply it with
-   `--expected-commit 2971d2fe4cc873eb50fcd1b7d7d3e097381281c8` and
-   `--expected-version 0.6.8`; do not update a moving `lab` ref implicitly.
+   `--expected-commit f02cd8233fb28cb225ac6e75ccd7d860add796ba` and
+   `--expected-version 0.6.9`; do not update a moving `lab` ref implicitly.
 3. Build the exact source archive and record source commit and archive hash.
 4. Re-run static/JVM, SIMD and the native/package gate with the exact source.
 5. Refresh active documentation only after the new baseline is green or its
    limits are explicitly recorded.
 
 **Exit gate:** active pin references name
-`2971d2fe4cc873eb50fcd1b7d7d3e097381281c8` and exact qualification results
+`f02cd8233fb28cb225ac6e75ccd7d860add796ba` and exact qualification results
 and remaining native/package limits are recorded. No migration claims
 “latest” before this gate.
 
-**Current local result:** the official Kof `0.6.8` archive identity and local
+**Current local result:** the official Kof `0.6.9` archive identity and local
 static/JVM, SIMD, exception, native, package, and dedicated-server gates passed.
 The full matrix remains blocked by the web multiplayer coffee-pickup
 replication assertion; cross-target runtime and hardware gates are also
@@ -139,7 +139,7 @@ zero/maximum cases and scalar parity. A source comment or an upstream claim is
 not sufficient.
 
 **Current status:** `scripts/verify_simd_dispatch.sh` passed with the official
-Kof `0.6.8` archive on JVM and native x86-64. It reported
+Kof `0.6.9` archive on JVM and native x86-64. It reported
 `buffer-fixture-sum=809`, `buffer-inout-sum=1231`, equal scalar/SIMD totals
 `16844324864`, and selected SIMD routing. Freestanding syntax proofs passed
 for AArch64 Linux, RISC-V Linux and x86-64/AArch64 macOS. This qualifies

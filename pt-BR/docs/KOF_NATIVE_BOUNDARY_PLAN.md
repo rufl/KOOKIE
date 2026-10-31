@@ -7,8 +7,8 @@ Status: **PROPOSTO**. Este plano é o documento de execução da decisão
 
 Fronteira normativa e ABI batch: [Fronteira nativa Kof e ABI batch síncrona](KOF_NATIVE_BOUNDARY_SPEC.md).
 
-Pin de fonte atual: Kof oficial `0.6.8` no commit
-`2971d2fe4cc873eb50fcd1b7d7d3e097381281c8`.
+Pin de fonte atual: Kof oficial `0.6.9` no commit
+`f02cd8233fb28cb225ac6e75ccd7d860add796ba`.
 
 ## 1. Resumo da decisão
 
@@ -45,7 +45,7 @@ A composição medida por `scripts/report_code_mix.py` na working tree atual é:
 
 Isso é composição física de fonte, não uma afirmação de performance.
 
-O archive Linux oficial do Kof `0.6.8` tem SHA-256
+O archive Linux oficial do Kof `0.6.9` tem SHA-256
 `8da8f9efc7c55b6e5314248b90a0ac62d900117f4a3503af8dadf6ce82a20577`.
 O gate de identidade do archive passou. A verificação estática passou: 181
 arquivos Kof no lint, diagnósticos LSP em 145 arquivos e 164 testes JVM.
@@ -56,7 +56,7 @@ asserção de replicação da coleta de café; portanto, a matriz completa não 
 verde. As provas de sintaxe cross-target passaram, mas runtime cross-target e
 hardware continuam sem qualificação.
 
-**Resultado local atual:** identidade do archive oficial Kof `0.6.8` e gates
+**Resultado local atual:** identidade do archive oficial Kof `0.6.9` e gates
 locais de static/JVM, SIMD, exceções, native, pacote e servidor dedicado
 passaram. A matriz completa continua bloqueada pela asserção de replicação da
 coleta de café no multiplayer web; runtime cross-target e hardware também
