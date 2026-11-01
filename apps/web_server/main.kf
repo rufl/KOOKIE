@@ -27,6 +27,27 @@ Int webWebSocketOpcodeBinary() { return 2 }
 Int webWebSocketOpcodeClose() { return 8 }
 Int webWebSocketOpcodePing() { return 9 }
 Int webWebSocketOpcodePong() { return 10 }
+Int webTimingHistogramSeriesCount() { return 5 }
+Int webTimingHistogramBucketCount() { return 10 }
+Long webTimingBucketLimit(Int bucket) {
+    if (bucket == 0) { return 1000000L }
+    if (bucket == 1) { return 2000000L }
+    if (bucket == 2) { return 4000000L }
+    if (bucket == 3) { return 8000000L }
+    if (bucket == 4) { return 16000000L }
+    if (bucket == 5) { return 20000000L }
+    if (bucket == 6) { return 33000000L }
+    if (bucket == 7) { return 50000000L }
+    if (bucket == 8) { return 100000000L }
+    return 500000000L
+}
+Int webTimingBucketIndex(Long nanoseconds) {
+    for (var bucket = 0; bucket < webTimingHistogramBucketCount();
+        bucket = bucket + 1) {
+        if (nanoseconds <= webTimingBucketLimit(bucket)) { return bucket }
+    }
+    return webTimingHistogramBucketCount()
+}
 
 Int webAsciiLower(Int value) {
     if (value >= 65 && value <= 90) { return value + 32 }
@@ -264,7 +285,39 @@ class WebServerMetrics {
     Int healthCountValue
     Int metricsCountValue
     Int tickScheduleOverrunsValue
-
+    Long maximumTickWorkNanosecondsValue
+    Long maximumSnapshotBuildNanosecondsValue
+    Long maximumSnapshotSendNanosecondsValue
+    Long maximumTickLatenessNanosecondsValue
+    Long[] timingHistogramValues
+    Long[] timingSampleCounts
+    Long[] timingSampleSums
+    Long currentTickSimulationNanosecondsValue
+    Long currentTickSimulationConstructionNanosecondsValue
+    Long currentTickInputApplicationNanosecondsValue
+    Long currentTickAdvanceNanosecondsValue
+    Long currentTickSnapshotBuildNanosecondsValue
+    Long currentTickSnapshotSendNanosecondsValue
+    Long currentTickMapTeardownNanosecondsValue
+    Long currentTickMapSelectionNanosecondsValue
+    Long currentTickMapConfigureNanosecondsValue
+    Long currentTickMapPlayerRestoreNanosecondsValue
+    Int slowestTickNumberValue
+    Long slowestTickLatenessNanosecondsValue
+    Long slowestTickSimulationNanosecondsValue
+    Long slowestTickSimulationConstructionNanosecondsValue
+    Long slowestTickInputApplicationNanosecondsValue
+    Long slowestTickAdvanceNanosecondsValue
+    Long slowestTickSnapshotBuildNanosecondsValue
+    Long slowestTickSnapshotSendNanosecondsValue
+    Long slowestTickMapTeardownNanosecondsValue
+    Long slowestTickMapSelectionNanosecondsValue
+    Long slowestTickMapConfigureNanosecondsValue
+    Long slowestTickMapPlayerRestoreNanosecondsValue
+    Long maximumMapTeardownNanosecondsValue
+    Long maximumMapSelectionNanosecondsValue
+    Long maximumMapConfigureNanosecondsValue
+    Long maximumMapPlayerRestoreNanosecondsValue
     public constructor() {
         simulation = WebMultiplayerSimulation()
         kutterEditor = BoundedKutterLevelEditor()
@@ -311,10 +364,82 @@ class WebServerMetrics {
         healthCountValue = 0
         metricsCountValue = 0
         tickScheduleOverrunsValue = 0
+        maximumTickWorkNanosecondsValue = 0L
+        maximumSnapshotBuildNanosecondsValue = 0L
+        maximumSnapshotSendNanosecondsValue = 0L
+        maximumTickLatenessNanosecondsValue = 0L
+        timingHistogramValues = new Long[
+            webTimingHistogramSeriesCount() *
+                (webTimingHistogramBucketCount() + 1)]
+        timingSampleCounts = new Long[webTimingHistogramSeriesCount()]
+        timingSampleSums = new Long[webTimingHistogramSeriesCount()]
+        currentTickSimulationNanosecondsValue = 0L
+        currentTickSnapshotBuildNanosecondsValue = 0L
+        currentTickSnapshotSendNanosecondsValue = 0L
+        currentTickSimulationConstructionNanosecondsValue = 0L
+        currentTickInputApplicationNanosecondsValue = 0L
+        currentTickAdvanceNanosecondsValue = 0L
+        currentTickMapTeardownNanosecondsValue = 0L
+        currentTickMapSelectionNanosecondsValue = 0L
+        currentTickMapConfigureNanosecondsValue = 0L
+        currentTickMapPlayerRestoreNanosecondsValue = 0L
+        slowestTickNumberValue = 0
+        slowestTickLatenessNanosecondsValue = 0L
+        slowestTickSimulationNanosecondsValue = 0L
+        slowestTickSimulationConstructionNanosecondsValue = 0L
+        slowestTickInputApplicationNanosecondsValue = 0L
+        slowestTickAdvanceNanosecondsValue = 0L
+        slowestTickSnapshotBuildNanosecondsValue = 0L
+        slowestTickSnapshotSendNanosecondsValue = 0L
+        slowestTickMapTeardownNanosecondsValue = 0L
+        slowestTickMapSelectionNanosecondsValue = 0L
+        slowestTickMapConfigureNanosecondsValue = 0L
+        slowestTickMapPlayerRestoreNanosecondsValue = 0L
+        maximumMapTeardownNanosecondsValue = 0L
+        maximumMapSelectionNanosecondsValue = 0L
+        maximumMapConfigureNanosecondsValue = 0L
+        maximumMapPlayerRestoreNanosecondsValue = 0L
+        for (var i = 0;
+            i < webTimingHistogramSeriesCount() *
+                (webTimingHistogramBucketCount() + 1); i = i + 1) {
+            timingHistogramValues[i] = 0L
+        }
+        for (var i = 0; i < webTimingHistogramSeriesCount(); i = i + 1) {
+            timingSampleCounts[i] = 0L
+            timingSampleSums[i] = 0L
+        }
         for (var i = 0; i < 12; i = i + 1) { connectionUsed[i] = false }
         for (var chat = 0; chat < 32; chat = chat + 1) {
             chatLengthValues[chat] = 0
         }
+    }
+    void recordTimingSample(Int series, Long nanoseconds) {
+        if (series < 0 || series >= webTimingHistogramSeriesCount()) { return }
+        var bucket = webTimingBucketIndex(nanoseconds)
+        if (bucket > webTimingHistogramBucketCount()) {
+            bucket = webTimingHistogramBucketCount()
+        }
+        var offset = series * (webTimingHistogramBucketCount() + 1)
+        timingHistogramValues[offset + bucket] =
+            timingHistogramValues[offset + bucket] + 1L
+        timingSampleCounts[series] = timingSampleCounts[series] + 1L
+        timingSampleSums[series] = timingSampleSums[series] + nanoseconds
+    }
+    String timingHistogramBody(String metricName, Int series) {
+        var body = "# TYPE " + metricName + " histogram\n"
+        var cumulative = 0L
+        var offset = series * (webTimingHistogramBucketCount() + 1)
+        for (var bucket = 0;
+            bucket < webTimingHistogramBucketCount(); bucket = bucket + 1) {
+            cumulative = cumulative + timingHistogramValues[offset + bucket]
+            body = body + metricName + "_bucket{le=\"" +
+                webTimingBucketLimit(bucket) + "\"} " + cumulative + "\n"
+        }
+        body = body + metricName + "_bucket{le=\"+Inf\"} " +
+            timingSampleCounts[series] + "\n" +
+            metricName + "_sum " + timingSampleSums[series] + "\n" +
+            metricName + "_count " + timingSampleCounts[series] + "\n"
+        return body
     }
     Int find(Int id) {
         for (var i = 0; i < 12; i = i + 1) { if (connectionUsed[i] && connectionIds[i] == id) { return i } }
@@ -381,7 +506,7 @@ class WebServerMetrics {
             "\"active_sessions\":" + activeSessions() + "}\n"
     }
     String metricsBody() {
-        return "# TYPE kookie_gateway_active_sessions gauge\nkookie_gateway_active_sessions " + activeSessions() +
+        var body = "# TYPE kookie_gateway_active_sessions gauge\nkookie_gateway_active_sessions " + activeSessions() +
             "\n# TYPE kookie_gateway_rejections_total counter\nkookie_gateway_rejections_total " + rejectionCountValue +
             "\n# TYPE kookie_gateway_frames_total counter\nkookie_gateway_frames_total " + frameCountValue +
             "\n# TYPE kookie_gateway_upgrades_total counter\nkookie_gateway_upgrades_total " + upgradeCountValue +
@@ -392,7 +517,77 @@ class WebServerMetrics {
             "\n# TYPE kookie_gateway_tick_schedule_overruns_total counter\n" +
             "kookie_gateway_tick_schedule_overruns_total " +
             tickScheduleOverrunsValue +
-            "\n"
+            "\n# TYPE kookie_gateway_tick_work_max_nanoseconds gauge\n" +
+            "kookie_gateway_tick_work_max_nanoseconds " +
+            maximumTickWorkNanosecondsValue +
+            "\n# TYPE kookie_gateway_snapshot_build_max_nanoseconds gauge\n" +
+            "kookie_gateway_snapshot_build_max_nanoseconds " +
+            maximumSnapshotBuildNanosecondsValue +
+            "\n# TYPE kookie_gateway_snapshot_send_max_nanoseconds gauge\n" +
+            "kookie_gateway_snapshot_send_max_nanoseconds " +
+            maximumSnapshotSendNanosecondsValue +
+            "\n# TYPE kookie_gateway_tick_lateness_max_nanoseconds gauge\n" +
+            "kookie_gateway_tick_lateness_max_nanoseconds " +
+            maximumTickLatenessNanosecondsValue + "\n"
+        body = body +
+            "\n# TYPE kookie_gateway_slowest_tick_number gauge\n" +
+            "kookie_gateway_slowest_tick_number " + slowestTickNumberValue +
+            "\n# TYPE kookie_gateway_slowest_tick_lateness_nanoseconds gauge\n" +
+            "kookie_gateway_slowest_tick_lateness_nanoseconds " +
+            slowestTickLatenessNanosecondsValue +
+            "\n# TYPE kookie_gateway_slowest_tick_simulation_nanoseconds gauge\n" +
+            "kookie_gateway_slowest_tick_simulation_nanoseconds " +
+            slowestTickSimulationNanosecondsValue +
+            "\n# TYPE kookie_gateway_slowest_tick_snapshot_build_nanoseconds gauge\n" +
+            "kookie_gateway_slowest_tick_snapshot_build_nanoseconds " +
+            slowestTickSnapshotBuildNanosecondsValue +
+            "\n# TYPE kookie_gateway_slowest_tick_snapshot_send_nanoseconds gauge\n" +
+            "kookie_gateway_slowest_tick_snapshot_send_nanoseconds " +
+            slowestTickSnapshotSendNanosecondsValue +
+            "\n# TYPE kookie_gateway_slowest_tick_simulation_construction_nanoseconds gauge\n" +
+            "kookie_gateway_slowest_tick_simulation_construction_nanoseconds " +
+            slowestTickSimulationConstructionNanosecondsValue +
+            "\n# TYPE kookie_gateway_slowest_tick_input_application_nanoseconds gauge\n" +
+            "kookie_gateway_slowest_tick_input_application_nanoseconds " +
+            slowestTickInputApplicationNanosecondsValue +
+            "\n# TYPE kookie_gateway_slowest_tick_advance_nanoseconds gauge\n" +
+            "kookie_gateway_slowest_tick_advance_nanoseconds " +
+            slowestTickAdvanceNanosecondsValue +
+            "\n# TYPE kookie_gateway_slowest_tick_map_teardown_nanoseconds gauge\n" +
+            "kookie_gateway_slowest_tick_map_teardown_nanoseconds " +
+            slowestTickMapTeardownNanosecondsValue +
+            "\n# TYPE kookie_gateway_slowest_tick_map_selection_nanoseconds gauge\n" +
+            "kookie_gateway_slowest_tick_map_selection_nanoseconds " +
+            slowestTickMapSelectionNanosecondsValue +
+            "\n# TYPE kookie_gateway_slowest_tick_map_configure_nanoseconds gauge\n" +
+            "kookie_gateway_slowest_tick_map_configure_nanoseconds " +
+            slowestTickMapConfigureNanosecondsValue +
+            "\n# TYPE kookie_gateway_slowest_tick_map_player_restore_nanoseconds gauge\n" +
+            "kookie_gateway_slowest_tick_map_player_restore_nanoseconds " +
+            slowestTickMapPlayerRestoreNanosecondsValue +
+            "\n# TYPE kookie_gateway_map_teardown_max_nanoseconds gauge\n" +
+            "kookie_gateway_map_teardown_max_nanoseconds " +
+            maximumMapTeardownNanosecondsValue +
+            "\n# TYPE kookie_gateway_map_selection_max_nanoseconds gauge\n" +
+            "kookie_gateway_map_selection_max_nanoseconds " +
+            maximumMapSelectionNanosecondsValue +
+            "\n# TYPE kookie_gateway_map_configure_max_nanoseconds gauge\n" +
+            "kookie_gateway_map_configure_max_nanoseconds " +
+            maximumMapConfigureNanosecondsValue +
+            "\n# TYPE kookie_gateway_map_player_restore_max_nanoseconds gauge\n" +
+            "kookie_gateway_map_player_restore_max_nanoseconds " +
+            maximumMapPlayerRestoreNanosecondsValue + "\n"
+        body = body + timingHistogramBody(
+            "kookie_gateway_tick_work_nanoseconds", 0)
+        body = body + timingHistogramBody(
+            "kookie_gateway_tick_lateness_nanoseconds", 1)
+        body = body + timingHistogramBody(
+            "kookie_gateway_simulation_work_nanoseconds", 2)
+        body = body + timingHistogramBody(
+            "kookie_gateway_snapshot_build_work_nanoseconds", 3)
+        body = body + timingHistogramBody(
+            "kookie_gateway_snapshot_send_work_nanoseconds", 4)
+        return body
     }
 }
 Int[] webKutterResponse(
@@ -758,7 +953,20 @@ Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot) {
 Bool webBroadcastSnapshots(WebServerMetrics metrics) {
     for (var slot = 0; slot < 12; slot = slot + 1) {
         if (metrics.connectionUsed[slot] && metrics.connectionJoined[slot]) {
+            var snapshotBuildStarted =
+                kookie_web_server_monotonic_nanoseconds()
             var snapshot = webMultiplayerSnapshot(metrics, slot)
+            var snapshotBuildDuration =
+                kookie_web_server_monotonic_nanoseconds() -
+                snapshotBuildStarted
+            metrics.currentTickSnapshotBuildNanosecondsValue =
+                metrics.currentTickSnapshotBuildNanosecondsValue +
+                snapshotBuildDuration
+            if (snapshotBuildDuration >
+                    metrics.maximumSnapshotBuildNanosecondsValue) {
+                metrics.maximumSnapshotBuildNanosecondsValue =
+                    snapshotBuildDuration
+            }
             var sequence = metrics.connectionOutputSequence[slot] - 1
             if (snapshot.length <= 0) {
                 println("KOOKIE snapshot validation failed connection=" +
@@ -767,14 +975,31 @@ Bool webBroadcastSnapshots(WebServerMetrics metrics) {
                     metrics.simulation.tick())
                 kookie_web_server_close_client(metrics.connectionIds[slot])
                 metrics.release(metrics.connectionIds[slot])
-            } else if (!webSendSessionWords(metrics.connectionIds[slot],
-                    sessionWebGameKind(), sequence, snapshot)) {
-                println("KOOKIE snapshot send failed connection=" +
-                    metrics.connectionIds[slot] + " player=" +
-                    metrics.connectionPlayerIds[slot] + " tick=" +
-                    metrics.simulation.tick())
-                kookie_web_server_close_client(metrics.connectionIds[slot])
-                metrics.release(metrics.connectionIds[slot])
+            } else {
+                var snapshotSendStarted =
+                    kookie_web_server_monotonic_nanoseconds()
+                var sent = webSendSessionWords(metrics.connectionIds[slot],
+                    sessionWebGameKind(), sequence, snapshot)
+                var snapshotSendDuration =
+                    kookie_web_server_monotonic_nanoseconds() -
+                    snapshotSendStarted
+                metrics.currentTickSnapshotSendNanosecondsValue =
+                    metrics.currentTickSnapshotSendNanosecondsValue +
+                    snapshotSendDuration
+                if (snapshotSendDuration >
+                        metrics.maximumSnapshotSendNanosecondsValue) {
+                    metrics.maximumSnapshotSendNanosecondsValue =
+                        snapshotSendDuration
+                }
+                if (!sent) {
+                    println("KOOKIE snapshot send failed connection=" +
+                        metrics.connectionIds[slot] + " player=" +
+                        metrics.connectionPlayerIds[slot] + " tick=" +
+                        metrics.simulation.tick())
+                    kookie_web_server_close_client(
+                        metrics.connectionIds[slot])
+                    metrics.release(metrics.connectionIds[slot])
+                }
             }
         }
     }
@@ -816,36 +1041,71 @@ Bool webTransitionMap(WebServerMetrics metrics) {
     } else if (mapOneVotes > mapTwoVotes) {
         mapId = sessionWebGameMapOne()
     }
-    metrics.simulation.destroyBox3DArena()
-    var nextSimulation = WebMultiplayerSimulation()
-    if (!nextSimulation.selectArenaMap(mapId) || !nextSimulation.configure()) {
-        return false
+    var reuseBox3DArena = mapId == metrics.simulation.mapId()
+    var teardownStarted = kookie_web_server_monotonic_nanoseconds()
+    if (!reuseBox3DArena) { metrics.simulation.destroyBox3DArena() }
+    metrics.currentTickMapTeardownNanosecondsValue =
+        kookie_web_server_monotonic_nanoseconds() - teardownStarted
+    if (metrics.currentTickMapTeardownNanosecondsValue >
+            metrics.maximumMapTeardownNanosecondsValue) {
+        metrics.maximumMapTeardownNanosecondsValue =
+            metrics.currentTickMapTeardownNanosecondsValue
     }
+    metrics.currentTickSimulationConstructionNanosecondsValue = 0L
+    metrics.currentTickMapSelectionNanosecondsValue = 0L
+    var configureStarted = kookie_web_server_monotonic_nanoseconds()
+    var configured = metrics.simulation.resetForMatch(
+        mapId, reuseBox3DArena)
+    metrics.currentTickMapConfigureNanosecondsValue =
+        kookie_web_server_monotonic_nanoseconds() - configureStarted
+    if (metrics.currentTickMapConfigureNanosecondsValue >
+            metrics.maximumMapConfigureNanosecondsValue) {
+        metrics.maximumMapConfigureNanosecondsValue =
+            metrics.currentTickMapConfigureNanosecondsValue
+    }
+    if (!configured) { return false }
+    var playerRestoreStarted = kookie_web_server_monotonic_nanoseconds()
     for (var slot = 0; slot < 12; slot = slot + 1) {
         if (!metrics.connectionUsed[slot] || !metrics.connectionJoined[slot] ||
             metrics.connectionSpectators[slot]) { continue }
         var playerId = metrics.connectionPlayerIds[slot]
         var spawnX = 24 + (playerId % 4) * 12
         var spawnZ = 24 + (playerId % 3) * 12
-        if (!nextSimulation.addPlayer(
+        if (!metrics.simulation.addPlayer(
                 playerId, metrics.connectionAnimal[slot], spawnX, 1, spawnZ) ||
             (metrics.connectionTeam[slot] > 0 &&
-                !nextSimulation.setPlayerTeam(
+                !metrics.simulation.setPlayerTeam(
                     playerId, metrics.connectionTeam[slot]))) {
-            nextSimulation.destroyBox3DArena()
+            metrics.simulation.destroyBox3DArena()
             return false
         }
         metrics.connectionAppliedInputSequence[slot] =
             metrics.connectionInputSequence[slot]
         metrics.connectionMapVote[slot] = 0
     }
-    metrics.simulation = nextSimulation
+    metrics.currentTickMapPlayerRestoreNanosecondsValue =
+        kookie_web_server_monotonic_nanoseconds() - playerRestoreStarted
+    if (metrics.currentTickMapPlayerRestoreNanosecondsValue >
+            metrics.maximumMapPlayerRestoreNanosecondsValue) {
+        metrics.maximumMapPlayerRestoreNanosecondsValue =
+            metrics.currentTickMapPlayerRestoreNanosecondsValue
+    }
     metrics.matchPhaseValue = sessionWebGameMatchActive()
     metrics.matchPhaseEndsAt = metrics.serverTickValue + 2400
     return true
 }
 
 Bool webTick(WebServerMetrics metrics) {
+    metrics.currentTickSimulationConstructionNanosecondsValue = 0L
+    metrics.currentTickInputApplicationNanosecondsValue = 0L
+    metrics.currentTickAdvanceNanosecondsValue = 0L
+    metrics.currentTickSnapshotBuildNanosecondsValue = 0L
+    metrics.currentTickSnapshotSendNanosecondsValue = 0L
+    metrics.currentTickMapTeardownNanosecondsValue = 0L
+    metrics.currentTickMapSelectionNanosecondsValue = 0L
+    metrics.currentTickMapConfigureNanosecondsValue = 0L
+    metrics.currentTickMapPlayerRestoreNanosecondsValue = 0L
+    var simulationStarted = kookie_web_server_monotonic_nanoseconds()
     metrics.serverTickValue = metrics.serverTickValue + 1
     if (metrics.matchPhaseValue == sessionWebGameMatchActive() &&
         metrics.serverTickValue >= metrics.matchPhaseEndsAt &&
@@ -859,16 +1119,19 @@ Bool webTick(WebServerMetrics metrics) {
             return false
         }
     }
+    var inputApplicationStarted = kookie_web_server_monotonic_nanoseconds()
     var nextTick = metrics.simulation.tick() + 1
     for (var slot = 0; slot < 12; slot = slot + 1) {
         if (metrics.connectionUsed[slot] && metrics.connectionJoined[slot] && !metrics.connectionSpectators[slot]) {
             var id = metrics.connectionPlayerIds[slot]
-            var moveX = if (metrics.matchPhaseValue == sessionWebGameMatchIntermission()) 0 else metrics.connectionMoveX[slot]
-            var moveZ = if (metrics.matchPhaseValue == sessionWebGameMatchIntermission()) 0 else metrics.connectionMoveZ[slot]
-            var lookYaw = if (metrics.matchPhaseValue == sessionWebGameMatchIntermission()) 0 else metrics.connectionLookYaw[slot]
-            var lookPitch = if (metrics.matchPhaseValue == sessionWebGameMatchIntermission()) 0 else metrics.connectionLookPitch[slot]
-            var held = if (metrics.matchPhaseValue == sessionWebGameMatchIntermission()) 0 else metrics.connectionHeldActions[slot]
-            var edge = if (metrics.matchPhaseValue == sessionWebGameMatchIntermission()) 0 else metrics.connectionEdgeActions[slot]
+            var intermission = metrics.matchPhaseValue ==
+                sessionWebGameMatchIntermission()
+            var moveX = if (intermission) 0 else metrics.connectionMoveX[slot]
+            var moveZ = if (intermission) 0 else metrics.connectionMoveZ[slot]
+            var lookYaw = if (intermission) 0 else metrics.connectionLookYaw[slot]
+            var lookPitch = if (intermission) 0 else metrics.connectionLookPitch[slot]
+            var held = if (intermission) 0 else metrics.connectionHeldActions[slot]
+            var edge = if (intermission) 0 else metrics.connectionEdgeActions[slot]
             if (metrics.simulation.applyInputFrame(id, nextTick, nextTick,
                     moveX, moveZ, lookYaw, lookPitch, held, edge)) {
                 metrics.connectionAppliedInputSequence[slot] =
@@ -886,14 +1149,27 @@ Bool webTick(WebServerMetrics metrics) {
             }
         }
     }
+    metrics.currentTickInputApplicationNanosecondsValue =
+        kookie_web_server_monotonic_nanoseconds() - inputApplicationStarted
+    var advanceStarted = kookie_web_server_monotonic_nanoseconds()
     if (!metrics.simulation.advanceTick()) {
         println("KOOKIE authoritative simulation tick failed")
         return false
     }
+    metrics.currentTickAdvanceNanosecondsValue =
+        kookie_web_server_monotonic_nanoseconds() - advanceStarted
+    metrics.currentTickSimulationNanosecondsValue =
+        kookie_web_server_monotonic_nanoseconds() - simulationStarted
     if (!webBroadcastSnapshots(metrics)) {
         println("KOOKIE authoritative snapshot broadcast failed")
         return false
     }
+    metrics.recordTimingSample(
+        2, metrics.currentTickSimulationNanosecondsValue)
+    metrics.recordTimingSample(
+        3, metrics.currentTickSnapshotBuildNanosecondsValue)
+    metrics.recordTimingSample(
+        4, metrics.currentTickSnapshotSendNanosecondsValue)
     return true
 }
 
@@ -1350,7 +1626,7 @@ main() {
     var port = kookie_web_server_port()
     if (!kookie_web_server_open(port)) { println("KOOKIE Kof web server bind rejected"); process.exit(1) }
     var metrics = WebServerMetrics()
-    if (!metrics.simulation.configure()) {
+    if (!metrics.simulation.configure(true, false)) {
         println("KOOKIE multiplayer simulation setup failed")
         metrics.simulation.destroyBox3DArena()
         kookie_web_server_close()
@@ -1397,9 +1673,43 @@ main() {
         now = kookie_web_server_monotonic_nanoseconds()
         if (webTickDue(metrics, now)) {
             var scheduledDeadline = metrics.nextTickNanosecondsValue
+            var tickLateness = now - scheduledDeadline
+            if (tickLateness > metrics.maximumTickLatenessNanosecondsValue) {
+                metrics.maximumTickLatenessNanosecondsValue = tickLateness
+            }
+            var tickStarted = now
             if (!webTick(metrics)) {
                 println("KOOKIE authoritative tick failed")
                 process.exit(1)
+            }
+            var tickDuration =
+                kookie_web_server_monotonic_nanoseconds() - tickStarted
+            metrics.recordTimingSample(0, tickDuration)
+            metrics.recordTimingSample(1, tickLateness)
+            if (tickDuration > metrics.maximumTickWorkNanosecondsValue) {
+                metrics.maximumTickWorkNanosecondsValue = tickDuration
+                metrics.slowestTickNumberValue = metrics.serverTickValue
+                metrics.slowestTickLatenessNanosecondsValue = tickLateness
+                metrics.slowestTickSimulationNanosecondsValue =
+                    metrics.currentTickSimulationNanosecondsValue
+                metrics.slowestTickSimulationConstructionNanosecondsValue =
+                    metrics.currentTickSimulationConstructionNanosecondsValue
+                metrics.slowestTickInputApplicationNanosecondsValue =
+                    metrics.currentTickInputApplicationNanosecondsValue
+                metrics.slowestTickAdvanceNanosecondsValue =
+                    metrics.currentTickAdvanceNanosecondsValue
+                metrics.slowestTickSnapshotBuildNanosecondsValue =
+                    metrics.currentTickSnapshotBuildNanosecondsValue
+                metrics.slowestTickSnapshotSendNanosecondsValue =
+                    metrics.currentTickSnapshotSendNanosecondsValue
+                metrics.slowestTickMapTeardownNanosecondsValue =
+                    metrics.currentTickMapTeardownNanosecondsValue
+                metrics.slowestTickMapSelectionNanosecondsValue =
+                    metrics.currentTickMapSelectionNanosecondsValue
+                metrics.slowestTickMapConfigureNanosecondsValue =
+                    metrics.currentTickMapConfigureNanosecondsValue
+                metrics.slowestTickMapPlayerRestoreNanosecondsValue =
+                    metrics.currentTickMapPlayerRestoreNanosecondsValue
             }
             metrics.nextTickNanosecondsValue =
                 scheduledDeadline + metrics.simulation.tickNanoseconds()

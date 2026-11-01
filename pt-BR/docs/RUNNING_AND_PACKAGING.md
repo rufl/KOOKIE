@@ -389,10 +389,27 @@ WAN/tailnet ou equilíbrio de partidas humanas.
 
 Clique em `CHECK GATEWAY` para consultar a rota configurada `GET /healthz`. Ela
 informa transporte, protocolo, modo de admissão bearer e sessões ativas.
-`GET /metrics` expõe contadores limitados de upgrades, rejeições, frames,
-comandos e requisições de health. O servidor Kof é somente TCP e suporta
-qualificação local com `ws://`; ele não fornece identidade hospedada, admissão
-bearer ou terminação TLS.
+`GET /metrics` expõe contadores limitados, gauges de duração máxima desde a
+inicialização e histogramas (`_bucket`, `_sum`, `_count`) para trabalho do tick,
+atraso do tick, trabalho da simulação, montagem agregada de snapshots por tick
+e envio agregado de snapshots por tick. Os limites cumulativos em nanossegundos
+são 1, 2, 4, 8, 16, 20, 33, 50, 100 e 500 ms, mais `+Inf`. Os gauges
+`kookie_gateway_slowest_tick_*` preservam as fases correlacionadas do tick com
+maior duração total: número do tick, atraso, trabalho e construção da simulação,
+aplicação de entradas, avanço da simulação, montagem/envio de snapshots,
+destruição/seleção/configuração do mapa e restauração dos jogadores. Gauges
+máximos separados registram a duração da destruição/seleção/configuração do mapa
+e restauração. O trabalho do tick inclui o broadcast.
+Máximos por cliente para montagem/envio continuam disponíveis separadamente.
+Transições de mapa ignoram os casos de paridade de movimento do Box3D, executados na
+inicialização. Elas reiniciam no próprio armazenamento a simulação existente, o
+estado limitado de combate/espaço e os buffers de projéteis; não constroem uma
+simulação substituta. Transições para o mesmo mapa mantêm a arena Box3D e as
+definições de power-ups e líquidos carregadas na inicialização. Trocar de mapa
+reconstrói a geometria da arena. A votação e o reinício da partida permanecem
+iguais. Todos os valores reiniciam com o processo. O servidor Kof usa somente TCP
+e suporta qualificação local com `ws://`; não oferece identidade hospedada,
+admissão bearer ou TLS.
 
 Execute o gate end-to-end do servidor Kof:
 

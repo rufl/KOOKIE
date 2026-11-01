@@ -468,9 +468,26 @@ host application supplies transport, UI and persistence integration.
 
 Click `CHECK GATEWAY` to query the configured `GET /healthz` route. It reports
 transport, protocol, bearer-admission mode and active sessions. `GET /metrics`
-exposes bounded counters for upgrades, rejections, frames, commands and health
-requests. The Kof server is TCP-only and supports local `ws://` qualification;
-it does not provide hosted identity, bearer admission or TLS termination.
+exposes bounded request counters, process-lifetime maximum timing gauges, and
+histograms (`_bucket`, `_sum`, `_count`) for tick work, tick lateness, simulation
+work, aggregate per-tick snapshot build and aggregate per-tick snapshot send.
+Buckets are cumulative nanosecond bounds at 1, 2, 4, 8, 16, 20, 33, 50, 100 and
+500 ms, plus `+Inf`. `kookie_gateway_slowest_tick_*` gauges preserve the phase
+breakdown for the tick with the highest measured work; its tick number,
+lateness, simulation work, simulation construction, input application, simulation
+advance, snapshot build/send, map teardown/selection/configuration and player
+restoration remain correlated. Separate process-lifetime maximum gauges expose
+map teardown/selection/configuration and player restoration durations. Tick work
+includes snapshot broadcast.
+Per-client build/send maxima remain available separately. All values reset on
+restart. Map transitions skip startup-only Box3D movement-parity cases; startup
+still runs all three. Transitions reset the existing simulation, fixed-capacity
+combat/spatial state and projectile buffers in place; they do not construct a
+replacement simulation. Same-map transitions retain the Box3D arena and
+power-up/liquid definitions loaded at startup. Different-map transitions rebuild
+the arena geometry. Vote timing and match-reset behavior are unchanged. The Kof
+server is TCP-only and supports local `ws://` qualification; it does not provide
+hosted identity, bearer admission or TLS termination.
 
 For the same browser client and native backend over the Chopper tailnet,
 install Kof 0.6.6, ensure `tailscale serve status` already routes `/` to

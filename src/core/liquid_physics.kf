@@ -165,6 +165,20 @@ class BoundedLiquidWorld {
         bodyCountValue = bodyCountValue + 1
         return true
     }
+    LiquidBodyDefinition definitionAt(Int index) {
+        if (index < 0 || index >= bodyCountValue) {
+            return LiquidBodyDefinition(
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        }
+        return LiquidBodyDefinition(
+            ids[index], minXs[index], maxXs[index], minZs[index],
+            maxZs[index], surfaceYs[index], depths[index], styleIds[index],
+            tintRs[index], tintGs[index], tintBs[index], causticScales[index],
+            causticSpeeds[index], causticStrengths[index], toonBases[index],
+            toonContrasts[index], opacities[index], splashDurations[index],
+            splashRadiuses[index], splashHeights[index])
+    }
 
     Int bodyCount() { return bodyCountValue }
     Int bodyIdAt(Int index) {

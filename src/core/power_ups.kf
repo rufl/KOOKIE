@@ -168,6 +168,21 @@ class PowerUpWorld {
         countValue = countValue + 1
         return true
     }
+    Bool resetPickups() {
+        for (var index = 0; index < countValue; index = index + 1) {
+            activeValues[index] = true
+        }
+        return true
+    }
+    PowerUpDefinition definitionAt(Int index) {
+        if (index < 0 || index >= countValue) {
+            return PowerUpDefinition(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        }
+        return PowerUpDefinition(
+            ids[index], kinds[index], xValues[index], yValues[index],
+            zValues[index], pickupRadiuses[index], durations[index],
+            effects[index], visualSizes[index], resources[index])
+    }
 
     Int count() { return countValue }
     Int activeCount() {

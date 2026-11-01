@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Measure loopback snapshot cadence and input-to-ACK latency.
+"""Measure loopback cadence, input ACKs, and server timing distributions.
 
 This is a local WebSocket/TCP benchmark, not a WAN or browser-render benchmark.
 """
@@ -11,6 +11,7 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.request
 
 
 CLIENT_MODULE_PATH = os.path.join(os.path.dirname(__file__), "verify_web_multiplayer.py")
@@ -103,6 +104,69 @@ def main():
             if pending_sequence is not None and scene[trailer] >= pending_sequence:
                 input_ack_ms.append((arrived_at - pending_sent_at) * 1000)
                 pending_sequence = None
+        # The server has 12 connection slots; release a spectator to scrape
+        # metrics after measuring the full 8-player/4-spectator workload.
+        spectators[-1].close()
+        clients.remove(spectators[-1])
+        metrics_deadline = time.monotonic() + 3
+        while True:
+            try:
+                with urllib.request.urlopen(
+                        f"http://127.0.0.1:{port}/metrics", timeout=2) as response:
+                    metric_lines = response.read().decode("ascii").splitlines()
+                break
+            except (OSError, urllib.error.URLError):
+                if time.monotonic() >= metrics_deadline:
+                    raise
+                time.sleep(.05)
+        server_metrics = {
+            fields[0]: int(fields[1])
+            for line in metric_lines if line and not line.startswith("#")
+            if len(fields := line.split()) == 2
+        }
+        timing_metrics = (
+            "kookie_gateway_tick_work_max_nanoseconds",
+            "kookie_gateway_snapshot_build_max_nanoseconds",
+            "kookie_gateway_snapshot_send_max_nanoseconds",
+            "kookie_gateway_tick_lateness_max_nanoseconds",
+            "kookie_gateway_map_teardown_max_nanoseconds",
+            "kookie_gateway_map_selection_max_nanoseconds",
+            "kookie_gateway_map_configure_max_nanoseconds",
+            "kookie_gateway_map_player_restore_max_nanoseconds",
+            "kookie_gateway_tick_schedule_overruns_total",
+        )
+        histogram_names = (
+            "kookie_gateway_tick_work_nanoseconds",
+            "kookie_gateway_tick_lateness_nanoseconds",
+            "kookie_gateway_simulation_work_nanoseconds",
+            "kookie_gateway_snapshot_build_work_nanoseconds",
+            "kookie_gateway_snapshot_send_work_nanoseconds",
+        )
+        slowest_tick_metrics = (
+            "kookie_gateway_slowest_tick_number",
+            "kookie_gateway_slowest_tick_lateness_nanoseconds",
+            "kookie_gateway_slowest_tick_simulation_nanoseconds",
+            "kookie_gateway_slowest_tick_snapshot_build_nanoseconds",
+            "kookie_gateway_slowest_tick_snapshot_send_nanoseconds",
+            "kookie_gateway_slowest_tick_simulation_construction_nanoseconds",
+            "kookie_gateway_slowest_tick_input_application_nanoseconds",
+            "kookie_gateway_slowest_tick_advance_nanoseconds",
+            "kookie_gateway_slowest_tick_map_teardown_nanoseconds",
+            "kookie_gateway_slowest_tick_map_selection_nanoseconds",
+            "kookie_gateway_slowest_tick_map_configure_nanoseconds",
+            "kookie_gateway_slowest_tick_map_player_restore_nanoseconds",
+        )
+        if any(name not in server_metrics for name in
+               timing_metrics + slowest_tick_metrics):
+            raise RuntimeError("server timing metrics are missing")
+        bucket_bounds_ns = (
+            1_000_000, 2_000_000, 4_000_000, 8_000_000, 16_000_000,
+            20_000_000, 33_000_000, 50_000_000, 100_000_000,
+            500_000_000, "+Inf",
+        )
+        for name in histogram_names:
+            if name + "_count" not in server_metrics:
+                raise RuntimeError(f"server timing histogram is missing: {name}")
 
         def report(label, values):
             print(f"{label}: n={len(values)} p50={percentile(values, .50):.2f}ms "
@@ -115,6 +179,53 @@ def main():
         if tick_gaps:
             print(f"snapshot tick gap: p50={percentile(tick_gaps, .50):.0f} "
                   f"p95={percentile(tick_gaps, .95):.0f} max={max(tick_gaps)}")
+        print("Server timing histograms (cumulative buckets):")
+        for name in histogram_names:
+            count = server_metrics[name + "_count"]
+            total_ms = server_metrics[name + "_sum"] / 1_000_000
+            buckets = [
+                server_metrics[
+                    f'{name}_bucket{{le="{bound}"}}'
+                ]
+                for bound in bucket_bounds_ns
+            ]
+            bucket_text = ", ".join(
+                f'{"+Inf" if bound == "+Inf" else "≤" + str(bound // 1_000_000) + "ms"}:'
+                f"{value}"
+                for bound, value in zip(bucket_bounds_ns, buckets)
+            )
+            if (buckets[-1] != count or
+                    any(left > right for left, right in
+                        zip(buckets, buckets[1:]))):
+                raise RuntimeError(
+                    f"invalid server timing histogram: {name}")
+            mean_ms = total_ms / count if count else 0.0
+            print(f"  {name}: n={count} mean={mean_ms:.3f}ms; {bucket_text}")
+        print("Slowest tick breakdown (tick work includes all phases):")
+        print("  tick={}; lateness={:.3f}ms; simulation={:.3f}ms; "
+              "snapshot_build={:.3f}ms; snapshot_send={:.3f}ms; "
+              "sim_construct={:.3f}ms; input_apply={:.3f}ms; "
+              "advance={:.3f}ms; map_teardown={:.3f}ms; "
+              "map_selection={:.3f}ms; map_configure={:.3f}ms; "
+              "player_restore={:.3f}ms".format(
+                  server_metrics[slowest_tick_metrics[0]],
+                  server_metrics[slowest_tick_metrics[1]] / 1_000_000,
+                  server_metrics[slowest_tick_metrics[2]] / 1_000_000,
+                  server_metrics[slowest_tick_metrics[3]] / 1_000_000,
+                  server_metrics[slowest_tick_metrics[4]] / 1_000_000,
+                  server_metrics[slowest_tick_metrics[5]] / 1_000_000,
+                  server_metrics[slowest_tick_metrics[6]] / 1_000_000,
+                  server_metrics[slowest_tick_metrics[7]] / 1_000_000,
+                  server_metrics[slowest_tick_metrics[8]] / 1_000_000,
+                  server_metrics[slowest_tick_metrics[9]] / 1_000_000,
+                  server_metrics[slowest_tick_metrics[10]] / 1_000_000,
+                  server_metrics[slowest_tick_metrics[11]] / 1_000_000,
+              ))
+        print("Server maximum durations:")
+        for name in timing_metrics[:-1]:
+            print(f"  {name}: {server_metrics[name] / 1_000_000:.3f}ms")
+        print("  kookie_gateway_tick_schedule_overruns_total: " +
+              str(server_metrics["kookie_gateway_tick_schedule_overruns_total"]))
         print("Transport: local WebSocket/TCP; excludes browser rendering and WAN conditions.")
         if len(input_ack_ms) < max(5, int(duration * 3)):
             raise RuntimeError(f"too few acknowledged input samples: {len(input_ack_ms)}")

@@ -241,8 +241,10 @@ The WebSocket match registers G1 Central Pool and G2 Ruins in shared server
 collision/browser rendering; after 2,400 active ticks (120 seconds at 20 Hz),
 or an admin start, a 300-tick (15-second) intermission accepts one map vote per
 joined player. Votes and counts replicate to clients; ties retain the current
-map. The server rebuilds the winning arena, respawns players and resets match
-state before play resumes. This is a bounded two-map rotation, not a persistent
+map. Transitions reset the existing simulation and its fixed-capacity combat,
+spatial and projectile state in place. Same-map transitions retain the Box3D
+arena; changing maps rebuilds its geometry. Players respawn and match state
+resets before play resumes. This is a bounded two-map rotation, not a persistent
 lobby, ranked queue or general map registry.
 
 Server systems read approved state, emit bounded commands and commit mutations at

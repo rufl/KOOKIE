@@ -111,6 +111,7 @@ main() {
         g1.leaveSpectatorMode() && !g1.spectatorActive(),
         "G1 demo must expose usable spectator input, target and lifecycle controls")
 
+    println("KOOKIE G1 authoritative shooter verified")
 }
 test "game shell menus transact display audio and lobby state" {
     var shell = GameShell()
@@ -6628,6 +6629,13 @@ test "deterministic enemy states and encounter admission" {
     assert(!encounters.admit(10, 9).accepted() &&
         encounters.release(10) && !encounters.release(10),
         "exhausted encounters must reject spawns and extra releases")
+    assert(encounters.resetForMatch() &&
+        encounters.activeCount(10) == 0 &&
+        encounters.remainingBudget(10) == 2,
+        "match reset must clear active spawns and restore the initial budget")
+    var afterReset = encounters.admit(10, 9)
+    assert(afterReset.accepted() && afterReset.remainingBudget() == 1,
+        "reset encounter definitions must remain usable")
 }
 
 test "authoritative enemy combat event bridge" {
@@ -6658,6 +6666,15 @@ test "authoritative enemy combat event bridge" {
         "enemy death events must transition AI state and release encounter slots")
     assert(session.admitEnemy(4, 3, 5, 0, 9),
         "released encounter slots must admit remaining deterministic budget")
+    assert(session.resetForMatch() &&
+        session.enemyState(2) == -1 &&
+        session.encounterActiveCount(4) == 0 &&
+        session.encounterRemainingBudget(4) == 2 &&
+        session.pendingCombatEvents() == 0,
+        "match reset must clear runtime state and restore encounter budget")
+    assert(session.addActor(1, 20, 0) && session.equipWeapon(1, 9) &&
+        session.admitEnemy(4, 2, 5, 0, 9),
+        "match reset must preserve weapon and encounter definitions")
 }
 
 test "loopback enemy tick and replicated snapshots" {

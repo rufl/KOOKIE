@@ -8,7 +8,7 @@ source "$ROOT_DIR/scripts/kof_pin.sh"
 source "$ROOT_DIR/scripts/sdl3_dependencies.sh"
 source "$ROOT_DIR/scripts/native_text_dependencies.sh"
 
-for command_name in kof cc glslc spirv-val ldd pkg-config python3; do
+for command_name in kof cc glslc spirv-val ldd pkg-config python3 zig; do
   command -v "$command_name" >/dev/null || {
     printf 'G5 renderer gate requires %s\n' "$command_name" >&2
     exit 75
@@ -45,7 +45,7 @@ cleanup() {
   rm -rf -- "$WORK_DIR"
 }
 trap cleanup EXIT INT TERM
-mkdir -p "$SOURCE_DIR"/{core,content,session,ui,build} "$EVIDENCE_DIR"
+mkdir -p "$SOURCE_DIR"/{core,content,session,ui,world,build} "$EVIDENCE_DIR"
 echo "KOOKIE G5 phase=stage-assets"
 mkdir -p "$SOURCE_DIR"/assets/{fonts,ui,prototype/runtime}
 cp -- "$ROOT_DIR/assets/fonts/jared-lite.ttf" \
@@ -67,6 +67,9 @@ for source_file in "$ROOT_DIR/src/session/"*.kf; do
 done
 for source_file in "$ROOT_DIR/src/ui/"*.kf; do
   ln -s "$source_file" "$SOURCE_DIR/ui/$(basename "$source_file")"
+done
+for source_file in "$ROOT_DIR/src/world/"*.kf; do
+  ln -s "$source_file" "$SOURCE_DIR/world/$(basename "$source_file")"
 done
 cp -- "$ROOT_DIR/probes/shared/gpu_scene_batch.kf" \
   "$SOURCE_DIR/core/gpu_scene_batch.kf"
@@ -100,6 +103,15 @@ while IFS= read -r library; do
   esac
 done < <(ldd "$SOURCE_DIR/build/libkookie_sdl_adapter.so" |
   sed -n -E 's/.*=> (\/[^ ]+) .*/\1/p')
+echo "KOOKIE G5 phase=compile-box3d"
+(
+  cd "$ROOT_DIR"
+  zig build check-box3d-adapter
+  zig build -Drelease=true --prefix "$SOURCE_DIR/zig-prefix"
+)
+mkdir -p "$SOURCE_DIR/lib"
+cp -- "$SOURCE_DIR/zig-prefix/lib/libkookie_box3d.so" \
+  "$SOURCE_DIR/lib/libkookie_box3d.so"
 echo "KOOKIE G5 phase=compile-renderer"
 (
   cd "$SOURCE_DIR"
@@ -138,7 +150,7 @@ for attempt in 1 2 3; do
       KOOKIE_CONTENT_DIR="$SOURCE_DIR/assets/prototype" \
       KOOKIE_SHADER_DIR="$SOURCE_DIR/build" \
       KOOKIE_SCREENSHOT_PATH="$INNER_SCREENSHOT_PATH" \
-      LD_LIBRARY_PATH="$SOURCE_DIR/build" \
+      LD_LIBRARY_PATH="$SOURCE_DIR/lib:$SOURCE_DIR/build" \
       SDL_AUDIODRIVER=dummy SDL_VIDEODRIVER=offscreen \
       "$BINARY"
   ) >"$LOG_PATH" 2>&1

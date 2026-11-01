@@ -4,6 +4,7 @@ import demo
 import world
 import ui
 
+extern "./build/libkookie_sdl_adapter.so" kookie_native_adapter_mode(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_sdl_init(Int flags): Bool
 
 extern "./build/libkookie_sdl_adapter.so" kookie_sdl_shutdown(): void
@@ -227,28 +228,65 @@ class G1HeadlessPresentation {
             !interactionSession.defineWorldDoor(
                 2, 1, 0, 5, 5, 3, 5, 1, 8) ||
             !interactionSession.start()) {
+            println("g1-render-setup-failed")
             return false
         }
         var blocked = interactionSession.queryWorldDoorPath(
             SpatialPoint(-5, 5, 5), SpatialPoint(5, 5, 5))
         var above = interactionSession.queryWorldDoorPath(
             SpatialPoint(-5, 12, 5), SpatialPoint(5, 12, 5))
-        var vertexCount =
-            worldCapacity + doorCapacity + hudCapacity
-        if (!blocked.accepted() || !blocked.collided() ||
-            !above.accepted() || above.collided() ||
-            kookie_gpu_scene_capacity() < vertexCount ||
-            !arena.stage(worldFrame, 1, 1, camera) ||
+        if (!blocked.accepted() || !blocked.collided()) {
+            println("g1-render-world-door-blocking-failed")
+            return false
+        }
+        if (!above.accepted() || above.collided()) {
+            println("g1-render-world-door-clearance-failed")
+            return false
+        }
+        if (!arena.stage(worldFrame, 1, 1, camera) ||
             !interactionSession.stageWorldInteractionGeometry(
                 doorFrame, 1, 7, camera) ||
-            !hud.stage(hudFrame, 1, 9) ||
-            !kookie_gpu_scene_begin(vertexCount) ||
-            !upload(worldFrame) || !upload(doorFrame) ||
-            !upload(hudFrame) ||
-            !kookie_gpu_scene_commit() ||
-            kookie_gpu_scene_count() != vertexCount ||
+            !hud.stage(hudFrame, 1, 9)) {
+            println("g1-render-frame-stage-failed")
+            return false
+        }
+        var vertexCount = worldFrame.stagedCount() +
+            doorFrame.stagedCount() + hudFrame.stagedCount()
+        if (!kookie_gpu_scene_begin(vertexCount)) {
+            println("g1-render-scene-begin-failed")
+            println(vertexCount)
+            return false
+        }
+        if (kookie_gpu_scene_capacity() < vertexCount) {
+            println("g1-render-scene-capacity-failed")
+            println(kookie_gpu_scene_capacity())
+            println(vertexCount)
+            return false
+        }
+        if (!upload(worldFrame)) {
+            println("g1-render-world-upload-failed")
+            return false
+        }
+        if (!upload(doorFrame)) {
+            println("g1-render-door-upload-failed")
+            return false
+        }
+        if (!upload(hudFrame)) {
+            println("g1-render-hud-upload-failed")
+            return false
+        }
+        if (!kookie_gpu_scene_commit()) {
+            println("g1-render-scene-commit-failed")
+            return false
+        }
+        if (kookie_gpu_scene_count() != vertexCount ||
             kookie_gpu_scene_batch_calls() != 3 ||
             kookie_gpu_scene_scalar_calls() != 0) {
+            println("g1-render-scene-contract-failed")
+            println(kookie_gpu_scene_count())
+            println(vertexCount)
+            println(kookie_gpu_scene_batch_calls())
+            println(kookie_gpu_scene_scalar_calls())
             return false
         }
         var batchCapture = kookie_gpu_capture_headless_scene()
@@ -257,6 +295,11 @@ class G1HeadlessPresentation {
         var batchScalarCalls = kookie_gpu_scene_scalar_calls()
         if (batchCapture <= 0 || batchDrawCalls <= 0 ||
             batchCalls != 3 || batchScalarCalls != 0) {
+            println("g1-render-batch-capture-failed")
+            println(batchCapture)
+            println(batchDrawCalls)
+            println(batchCalls)
+            println(batchScalarCalls)
             return false
         }
         println("gpu-scene-batch-calls")
@@ -299,27 +342,32 @@ class G1HeadlessPresentation {
                 shell.renderVertexCapacity(), 0) ||
             !kookie_gpu_reload_stage(2, shell.kutter().renderChecksum()) ||
             !kookie_gpu_scene_begin(3) ||
-            !kookie_gpu_scene_push_vertex_batch_v1(
+            kookie_gpu_scene_push_vertex_batch_v1(
                 invalidBatch, 1, 23, 1, 24, 2, 0L) ||
-            !kookie_gpu_scene_push_vertex_batch_v1(
+            kookie_gpu_scene_push_vertex_batch_v1(
                 invalidBatch, 1, 24, 1, 24, 2, 0L) ||
             !kookie_gpu_scene_push_vertex_resource(1, 0, 0, 0, 0, 100) ||
-            !kookie_gpu_scene_push_vertex_resource(0, 0, 0, 0, 0, 0) ||
+            kookie_gpu_scene_push_vertex_resource(0, 0, 0, 0, 0, 0) ||
             !kookie_gpu_reload_cancel(2) ||
             kookie_gpu_reload_pending_generation() != 0 ||
             kookie_gpu_reload_active_generation() != 1 ||
             kookie_gpu_capture_headless_scene() <= 0) {
+            println("kutter-reload-initial-state-failed")
             return false
         }
         if (!shell.handleAction(gameShellActionDown()) ||
+            !shell.handleAction(gameShellActionDown()) ||
             !shell.handleAction(gameShellActionDown()) ||
             !shell.handleAction(gameShellActionDown()) ||
             !shell.handleAction(gameShellActionActivate()) ||
             shell.screen() != gameShellScreenKutter() ||
             !shell.handleAction(gameShellActionActivate()) ||
             shell.kutter().generation() != 2 ||
-            !shell.stage(shellFrame, 2) ||
-            !reload.stage(
+            !shell.stage(shellFrame, 2)) {
+            println("kutter-reload-scene-transition-failed")
+            return false
+        }
+        if (!reload.stage(
                 reload.activeGeneration(), shell.kutter().generation(),
                 shell.kutter().worldChecksum(),
                 shell.kutter().collisionChecksum(),
@@ -333,20 +381,51 @@ class G1HeadlessPresentation {
             !kookie_gpu_scene_commit() ||
             kookie_gpu_scene_count() != shellFrame.stagedCount() ||
             kookie_gpu_capture_headless_scene() <= 0) {
+            println("kutter-reload-scene-upload-failed")
+            println(shellFrame.stagedCount())
+            println(kookie_gpu_scene_count())
+            println(kookie_gpu_reload_pending_generation())
             return false
         }
         var generation = shell.kutter().generation()
         var completedFence = kookie_gpu_reload_completed_fence()
-        return kookie_gpu_reload_pending_generation() == 0 &&
-            kookie_gpu_reload_active_generation() == generation &&
-            kookie_gpu_reload_active_checksum() ==
-                shell.kutter().renderChecksum() &&
-            reload.markUploaded(generation, completedFence) &&
-            reload.activateAtFrame(generation, 2, completedFence) &&
-            kookie_gpu_reload_retired_generation() ==
-                reload.retiringGeneration() &&
-            reload.retire(completedFence) &&
-            shellFrame.retire(2)
+        if (kookie_gpu_reload_pending_generation() != 0) {
+            println("kutter-reload-pending-after-scene-commit")
+            return false
+        }
+        if (kookie_gpu_reload_active_generation() != generation) {
+            println("kutter-reload-active-generation-mismatch")
+            println(kookie_gpu_reload_active_generation())
+            println(generation)
+            return false
+        }
+        if (kookie_gpu_reload_active_checksum() !=
+            shell.kutter().renderChecksum()) {
+            println("kutter-reload-active-checksum-mismatch")
+            println(kookie_gpu_reload_active_checksum())
+            println(shell.kutter().renderChecksum())
+            return false
+        }
+        if (!reload.markUploaded(generation, completedFence)) {
+            println("kutter-reload-mark-uploaded-failed")
+            return false
+        }
+        if (!reload.activateAtFrame(generation, 2, completedFence)) {
+            println("kutter-reload-activate-failed")
+            return false
+        }
+        if (kookie_gpu_reload_retired_generation() !=
+            reload.retiringGeneration()) {
+            println("kutter-reload-retired-generation-mismatch")
+            println(kookie_gpu_reload_retired_generation())
+            println(reload.retiringGeneration())
+            return false
+        }
+        if (!reload.retire(completedFence)) {
+            println("kutter-reload-retire-failed")
+            return false
+        }
+        return shellFrame.retire(2)
     }
 }
 
@@ -806,27 +885,42 @@ Bool externalStyleHostTwoClientRoundTrip() {
         clientReceivedA && clientReceivedB && staleA
 }
 
+Bool runAdapterTransportSmoke() {
+    var transportSession = LoopbackSession(4, 4)
+    if (!transportSession.start() ||
+        !transportSession.addBroadPhaseTriangle(
+            0, 0, 5, 4, 0, 5, 0, 4, 5)) {
+        println("session transport probe failed to seed broad-phase geometry")
+        return false
+    }
+    if (!transportBroadPhaseRoundTrip(transportSession) ||
+        !twoClientAuthenticatedRoundTrip() ||
+        !externalStyleHostTwoClientRoundTrip()) {
+        return false
+    }
+    println("session-external-style-two-client")
+    println("session-transport-open")
+    println("session-two-client-reconnected")
+    return true
+}
+
 main() {
+    var adapterMode = kookie_native_adapter_mode()
+    if (adapterMode == 1) {
+        println("KOOKIE G0 native UDP transport probe")
+        assert(runAdapterTransportSmoke(),
+            "native UDP loopback transport must authenticate and exchange snapshots")
+        return
+    }
     println("KOOKIE G0 native SDL adapter probe")
     assert(kookie_sdl_init(48), "SDL video/audio adapter init must succeed")
     var frameClock = FixedStepClock(60, 4)
     assert(frameClock.frameBudgetMicros() == 16667,
         "GPU smoke must use the declared 60 Hz frame budget")
-    var transportSession = LoopbackSession(4, 4)
-    assert(transportSession.start() &&
-        transportSession.addBroadPhaseTriangle(
-            0, 0, 5, 4, 0, 5, 0, 4, 5),
-        "session transport probe must seed broad-phase geometry")
-    assert(transportBroadPhaseRoundTrip(transportSession),
-        "native datagram transport must apply a broad-phase snapshot")
-    assert(twoClientAuthenticatedRoundTrip(),
-        "two authenticated clients must exchange and reconnect over UDP")
-    assert(externalStyleHostTwoClientRoundTrip(),
-        "one host listener pair must authenticate and serve two client sockets")
-    println("session-external-style-two-client")
-    println("session-transport-open")
-    println("session-two-client-reconnected")
-
+    if (adapterMode != 2) {
+        assert(runAdapterTransportSmoke(),
+            "native adapter transport checks must pass in combined mode")
+    }
 
     if (kookie_gpu_open_headless_ready()) {
         assert(kookie_gpu_recovery_state() == 1,
@@ -930,19 +1024,23 @@ main() {
     assert(eventKind == 1, "SDL quit event must flatten to quit")
 
 
-    var gpu = kookie_gpu_open(window)
-    if (gpu > 0) {
-        assert(kookie_gpu_draw_test(), "first SDL GPU upload and draw must succeed")
-        assert(kookie_gpu_report_window_present_capabilities(),
-            "claimed GPU window must expose a valid swapchain format")
-        assert(kookie_gpu_capture_window(),
-            "DRI3-capable window path must capture a non-empty screenshot")
-        assert(kookie_gpu_report_window_draw(), "GPU draw timing must be positive")
-        assert(kookie_gpu_close(gpu), "live GPU token must close")
-        assert(!kookie_gpu_close(gpu), "stale GPU token must reject")
-        println("gpu-open")
+    if (adapterMode == 2) {
+        println("gpu-window-deferred-to-g5-renderer")
     } else {
-        println("gpu-unavailable")
+        var gpu = kookie_gpu_open(window)
+        if (gpu > 0) {
+            assert(kookie_gpu_draw_test(), "first SDL GPU upload and draw must succeed")
+            assert(kookie_gpu_report_window_present_capabilities(),
+                "claimed GPU window must expose a valid swapchain format")
+            assert(kookie_gpu_capture_window(),
+                "DRI3-capable window path must capture a non-empty screenshot")
+            assert(kookie_gpu_report_window_draw(), "GPU draw timing must be positive")
+            assert(kookie_gpu_close(gpu), "live GPU token must close")
+            assert(!kookie_gpu_close(gpu), "stale GPU token must reject")
+            println("gpu-open")
+        } else {
+            println("gpu-unavailable")
+        }
     }
 
     assert(kookie_window_destroy(window), "live window token must destroy")

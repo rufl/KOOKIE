@@ -201,6 +201,19 @@ class EnemySpatialWorld {
         cachedPositionSlot = -1
         return true
     }
+    Bool resetForMatch() {
+        for (var index = 0; index < ids.length; index = index + 1) {
+            ids[index] = 0
+            positionsX[index] = 0
+            positionsY[index] = 0
+            positionsZ[index] = 0
+            active[index] = false
+        }
+        cachedPositionId = 0
+        cachedPositionSlot = -1
+        physicsValue.clear()
+        return true
+    }
 
     Int absolute(Int value) {
         if (value < 0) {
@@ -882,6 +895,20 @@ class EnemyStateWorld {
         active[index] = true
         return true
     }
+    Bool resetForMatch() {
+        for (var index = 0; index < ids.length; index = index + 1) {
+            ids[index] = 0
+            states[index] = idleState()
+            targets[index] = 0
+            roles[index] = hitscanRole()
+            moveSteps[index] = 1
+            projectileSteps[index] = 1
+            stateSinceTicks[index] = 0
+            attackReadyTicks[index] = 0
+            active[index] = false
+        }
+        return true
+    }
 
     Bool configureRole(
         Int id, Int role, Int moveStep, Int projectileStep
@@ -1124,6 +1151,7 @@ class EncounterDirector {
     Bool[] zoneConfigured
     Bool[] active
 
+    Int[] initialBudgets
     public constructor(Int capacity) {
         ids = new Int[capacity]
         maxActive = new Int[capacity]
@@ -1135,10 +1163,12 @@ class EncounterDirector {
         zoneRadius = new Int[capacity]
         zoneConfigured = new Bool[capacity]
         active = new Bool[capacity]
+        initialBudgets = new Int[capacity]
         for (var index = 0; index < capacity; index = index + 1) {
             ids[index] = 0
             maxActive[index] = 0
             remainingBudgets[index] = 0
+            initialBudgets[index] = 0
             activeCounts[index] = 0
             zoneX[index] = 0
             zoneY[index] = 0
@@ -1182,6 +1212,7 @@ class EncounterDirector {
         }
         maxActive[index] = nextMaxActive
         remainingBudgets[index] = budget
+        initialBudgets[index] = budget
         activeCounts[index] = 0
         zoneX[index] = 0
         zoneY[index] = 0
@@ -1339,6 +1370,13 @@ class EncounterDirector {
             zoneRadius[index] = source[offset + 8]
             zoneConfigured[index] = source[offset + 9] == 1
             offset = offset + 10
+        }
+        return true
+    }
+    Bool resetForMatch() {
+        for (var index = 0; index < ids.length; index = index + 1) {
+            activeCounts[index] = 0
+            remainingBudgets[index] = initialBudgets[index]
         }
         return true
     }

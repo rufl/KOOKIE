@@ -90,6 +90,11 @@ class BoundedPhysicsBodyWorld {
 
     void clear() {
         for (var index = 0; index < actualCapacityValue; index = index + 1) {
+            if (active[index]) {
+                dynamic.remove(ids[index])
+            }
+        }
+        for (var index = 0; index < actualCapacityValue; index = index + 1) {
             ids[index] = 0
             positionsX[index] = 0
             positionsY[index] = 0

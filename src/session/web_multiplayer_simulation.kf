@@ -256,6 +256,8 @@ class WebMultiplayerSimulation {
     Int projectileLaunchedValue
     Int throwableLaunchedValue
     Bool configuredValue
+    Bool powerUpDefinitionsLoadedValue
+    Bool liquidWorldConfiguredValue
     Bool trainingModeValue
     Int[] trainingDummyHealthValues
     Int[] trainingDummyRespawnTicks
@@ -351,6 +353,8 @@ class WebMultiplayerSimulation {
         projectileLaunchedValue = 0
         throwableLaunchedValue = 0
         configuredValue = false
+        powerUpDefinitionsLoadedValue = false
+        liquidWorldConfiguredValue = false
         trainingModeValue = false
         trainingDummyHealthValues = new Int[4]
         trainingDummyRespawnTicks = new Int[4]
@@ -492,19 +496,111 @@ class WebMultiplayerSimulation {
     }
 
 
+    Bool resetForMatch(Int nextMapId, Bool reuseExistingBox3DArena) {
+        if (!configuredValue || !arena.ready()) { return false }
+        for (var slot = 0; slot < 8; slot = slot + 1) {
+            if (activeValues[slot] && !removePlayer(playerIds[slot])) {
+                return false
+            }
+            kookie_box3d_clear_actor(slot)
+            effectAt(slot).clear()
+            oxygenAt(slot).reset()
+            playerIds[slot] = 0
+            animals[slot] = 0
+            teamValues[slot] = 0
+            healthValues[slot] = 0
+            ammoValues[slot] = 0
+            yawValues[slot] = 0
+            pitchValues[slot] = 0
+            activeValues[slot] = false
+            movementActorInitialized[slot] = false
+            movingValues[slot] = false
+            animationValues[slot] = sessionWebActorAnimationIdle()
+            animationUntilTicks[slot] = 0
+            playerInputSequences[slot] = 0
+            throwableCarried[slot] = false
+            throwableButtonHeld[slot] = false
+            throwableChargeReady[slot] = false
+            throwableCharging[slot] = false
+            throwableChargeTicks[slot] = 0
+            seedAmmoValues[slot] = 0
+            dizzyUntilTicks[slot] = 0
+        }
+        if (!combat.resetForMatch()) { return false }
+        for (var index = 0; index < 16; index = index + 1) {
+            projectileActive[index] = false
+            projectileIds[index] = 0
+            projectileOwners[index] = 0
+            projectileTargets[index] = 0
+            projectileKinds[index] = 0
+            projectileX[index] = 0
+            projectileY[index] = 0
+            projectileZ[index] = 0
+            projectileDX[index] = 0
+            projectileDY[index] = 0
+            projectileDZ[index] = 0
+            projectileDamage[index] = 0
+            projectileItemTypes[index] = 0
+            projectileAge[index] = 0
+            watermelonGroundBounces[index] = 0
+        }
+        for (var index = 0; index < 8; index = index + 1) {
+            impactSequence[index] = 0
+            impactTick[index] = 0
+            impactKind[index] = 0
+            impactSource[index] = 0
+            impactTarget[index] = 0
+            impactX[index] = 0
+            impactY[index] = 0
+            impactZ[index] = 0
+            impactDamage[index] = 0
+        }
+        for (var index = 0; index < 4; index = index + 1) {
+            sliceActive[index] = false
+            sliceIds[index] = 0
+            sliceX[index] = 0
+            sliceY[index] = 0
+            sliceZ[index] = 0
+            trainingDummyHealthValues[index] = 100
+            trainingDummyRespawnTicks[index] = 0
+        }
+        tickValue = 0
+        nextProjectileId = 1
+        nextImpactSequence = 1
+        impactCountValue = 0
+        lastInputSequenceValue = 0
+        firedCountValue = 0
+        meleeCountValue = 0
+        projectileLaunchedValue = 0
+        throwableLaunchedValue = 0
+        nextSliceId = 1
+        throwablePickupActive = true
+        throwableRespawnTick = 0
+        carriedThrowableType = 0
+        trainingModeValue = false
+        powerUpWorld.resetPickups()
+        configuredValue = false
+        if (!arena.selectMap(nextMapId)) { return false }
+        reseedThrowablePickup()
+        return configure(false, reuseExistingBox3DArena)
+    }
+
     Bool selectArenaMap(Int mapId) {
         if (configuredValue) { return false }
         return arena.selectMap(mapId)
     }
     Int mapId() { return arena.mapId() }
 
-    Bool configure() {
+    Bool configure(
+        Bool validateBox3DParity, Bool reuseExistingBox3DArena
+    ) {
         if (!arena.ready() ||
             !movement.configure(arena.authoredCollision())) { return false }
-        if (!configureBox3DArena() ||
-            !webMultiplayerBox3DParityCase(arena, 6, 1, 6, 0, 0, 12, false) ||
-            !webMultiplayerBox3DParityCase(arena, 16, 1, 68, 4, 0, 24, false) ||
-            !webMultiplayerBox3DParityCase(arena, 12, 1, 12, 0, 0, 32, true) ||
+        if ((!reuseExistingBox3DArena && !configureBox3DArena()) ||
+            (validateBox3DParity &&
+                (!webMultiplayerBox3DParityCase(arena, 6, 1, 6, 0, 0, 12, false) ||
+                 !webMultiplayerBox3DParityCase(arena, 16, 1, 68, 4, 0, 24, false) ||
+                 !webMultiplayerBox3DParityCase(arena, 12, 1, 12, 0, 0, 32, true))) ||
             !movement.setExternalCollisionMode(true)) {
             kookie_box3d_destroy_arena()
             return false
@@ -513,22 +609,15 @@ class WebMultiplayerSimulation {
         if (!combat.defineWeapon(1, 30, 90, 20, 1) ||
             !combat.setWeaponRange(1, 120) ||
             !combat.setWeaponCooldown(1, 0)) { return false }
-        if (!loadPowerUp("config/runtime/power_ups/coffee_mug.json") ||
-            !loadPowerUp("config/runtime/power_ups/jetpack.json") ||
-            !loadPowerUp("config/runtime/power_ups/megaphone.json") ||
-            !loadPowerUp("config/runtime/power_ups/scuba_kit.json") ||
-            !loadPowerUp("config/runtime/power_ups/wool_ball.json") ||
-            !loadPowerUp("config/runtime/power_ups/multiplayer_coffee.json") ||
-            !loadPowerUp("config/runtime/power_ups/wizard_hat.json")) {
-            return false
-        }
+        if (!powerUpDefinitionsLoadedValue &&
+            !loadPowerUpDefinitions()) { return false }
         if (!configureLiquidWorld()) { return false }
         reseedThrowablePickup()
         configuredValue = true
         return true
     }
 
-    Bool start() { return configure() }
+    Bool start() { return configure(true, false) }
     Bool configured() { return configuredValue }
     Int tick() { return tickValue }
     Int tickMillis() { return webMultiplayerTickMillis() }
@@ -659,6 +748,40 @@ class WebMultiplayerSimulation {
         var loader = PowerUpConfigFileLoader()
         return loader.load(config, path) && powerUpWorld.add(config.definition())
     }
+    Bool loadPowerUpDefinitions() {
+        if (!loadPowerUp("config/runtime/power_ups/coffee_mug.json") ||
+            !loadPowerUp("config/runtime/power_ups/jetpack.json") ||
+            !loadPowerUp("config/runtime/power_ups/megaphone.json") ||
+            !loadPowerUp("config/runtime/power_ups/scuba_kit.json") ||
+            !loadPowerUp("config/runtime/power_ups/wool_ball.json") ||
+            !loadPowerUp("config/runtime/power_ups/multiplayer_coffee.json") ||
+            !loadPowerUp("config/runtime/power_ups/wizard_hat.json")) {
+            return false
+        }
+        powerUpDefinitionsLoadedValue = true
+        return true
+    }
+    Bool copyPowerUpDefinitionsFrom(WebMultiplayerSimulation source) {
+        if (configuredValue || powerUpDefinitionsLoadedValue ||
+            !source.powerUpDefinitionsLoadedValue) { return false }
+        for (var index = 0; index < source.powerUpWorld.count(); index = index + 1) {
+            if (!powerUpWorld.add(
+                    source.powerUpWorld.definitionAt(index))) { return false }
+        }
+        powerUpDefinitionsLoadedValue = true
+        return true
+    }
+    Bool copyLiquidWorldFrom(WebMultiplayerSimulation source) {
+        if (configuredValue || liquidWorldConfiguredValue ||
+            !source.liquidWorldConfiguredValue) { return false }
+        liquidPhysics = source.liquidPhysics
+        for (var index = 0; index < source.liquidWorld.bodyCount(); index = index + 1) {
+            if (!liquidWorld.addBody(
+                    source.liquidWorld.definitionAt(index))) { return false }
+        }
+        liquidWorldConfiguredValue = true
+        return true
+    }
     Int nextThrowableRandom() {
         throwableRngState = (throwableRngState * 25173 + 13849) % 32768
         return throwableRngState
@@ -692,15 +815,18 @@ class WebMultiplayerSimulation {
         throwablePickupActive = true
     }
     Bool configureLiquidWorld() {
-        var loader = LiquidConfigFileLoader()
-        var pool = WaterBodyConfig()
-        var channel = WaterBodyConfig()
-        if (!loader.loadPhysics(liquidPhysics,
-                "config/runtime/liquid_physics.json") ||
-            !loader.loadWaterBody(pool, "config/runtime/water_bodies/pool.json") ||
-            !loader.loadWaterBody(channel, "config/runtime/water_bodies/channel.json") ||
-            !liquidWorld.addBody(pool.definition()) ||
-            !liquidWorld.addBody(channel.definition())) { return false }
+        if (!liquidWorldConfiguredValue) {
+            var loader = LiquidConfigFileLoader()
+            var pool = WaterBodyConfig()
+            var channel = WaterBodyConfig()
+            if (!loader.loadPhysics(liquidPhysics,
+                    "config/runtime/liquid_physics.json") ||
+                !loader.loadWaterBody(pool, "config/runtime/water_bodies/pool.json") ||
+                !loader.loadWaterBody(channel, "config/runtime/water_bodies/channel.json") ||
+                !liquidWorld.addBody(pool.definition()) ||
+                !liquidWorld.addBody(channel.definition())) { return false }
+            liquidWorldConfiguredValue = true
+        }
         var capacity = liquidPhysics.oxygenCapacity()
         var drain = liquidPhysics.oxygenDrainPerTick()
         var recovery = liquidPhysics.oxygenRecoveryPerTick()

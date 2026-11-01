@@ -761,6 +761,38 @@ class CombatWorld {
         }
         return eventQueue.reset()
     }
+    Bool resetForMatch() {
+        for (var index = 0; index < actorIds.length; index = index + 1) {
+            actorIds[index] = 0
+            health[index] = 0
+            maxHealth[index] = 0
+            armor[index] = 0
+            weaponIds[index] = 0
+            magazines[index] = 0
+            reserves[index] = 0
+            nextReadyTicks[index] = 0
+            deathSequences[index] = 0
+            damageFlats[index] = 0
+            damagePercents[index] = 0
+            defenseFlats[index] = 0
+            defensePercents[index] = 0
+            shields[index] = 0
+            maxShields[index] = 0
+            active[index] = false
+            alive[index] = false
+            projectileIds[index] = 0
+            projectileSources[index] = 0
+            projectileWeapons[index] = 0
+            projectileActive[index] = false
+            for (var channel = 0; channel < 4; channel = channel + 1) {
+                resistancePercents[index * 4 + channel] = 0
+            }
+        }
+        nextShotId = 1
+        nextProjectileId = 1
+        deathCount = 0
+        return eventQueue.reset()
+    }
 
 
     Bool setDamageModifier(Int actorId, Int flatValue, Int percentValue) {

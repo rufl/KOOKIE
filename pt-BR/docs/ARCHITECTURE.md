@@ -483,9 +483,12 @@ A partida registra G1 Central Pool e G2 Ruins com colisão no servidor e
 renderização compartilhada com o navegador. Após 2.400 ticks ativos (120
 segundos a 20 Hz), ou início administrativo, um intervalo de 300 ticks (15
 segundos) aceita um voto por jogador conectado. Votos e contagens são
-replicados; empate mantém o mapa atual. O servidor reconstrói a arena vencedora,
-reposiciona jogadores e reinicia o estado da partida. É uma rotação limitada a
-dois mapas, não um lobby persistente, fila ranqueada ou registro geral de mapas.
+replicados; empate mantém o mapa atual. As transições reiniciam a simulação
+existente e os estados limitados de combate, espaço e projéteis no próprio
+armazenamento. Transições para o mesmo mapa mantêm a arena Box3D; trocar de mapa
+reconstrói a geometria. Jogadores reaparecem e o estado da partida reinicia antes
+do jogo continuar. É uma rotação limitada a dois mapas, não um lobby persistente,
+fila ranqueada ou registro geral de mapas.
 
 O cliente bloqueia os controles de gameplay até receber a cena completa, oferece
 reconexão automática limitada com estados visíveis de carregamento/falha e

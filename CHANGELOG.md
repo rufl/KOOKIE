@@ -3,6 +3,55 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Native adapter checks run UDP loopback outside the private network namespace
+  and graphics validation inside the isolated display. The paired-socket
+  transport validates packets against the send socket endpoint, not the paired
+  receive destination; the headless scene probe reserves its vertex capacity
+  before checking it.
+- Corrected the native reload probe to expect rejection for malformed GPU
+  vertex batches and invalid resources; those checks had inverted predicates
+  and stopped before the generation/fence transition was exercised; the probe
+  now follows the same four-step menu route as the presentation smoke.
+- The headless adapter run defers its window swapchain check to the G5 renderer
+  gate, avoiding duplicate GPU surface initialization in the isolated display.
+- G5 renderer staging now includes `src/world`; the isolated renderer probe
+  previously failed to resolve the module imported by its content package and
+  omitted the Box3D library required at native link time.
+- `/metrics` now exposes process-lifetime cumulative timing histograms for tick
+  work, tick lateness, simulation work, aggregate snapshot building and
+  aggregate snapshot sending. The bucket bounds are 1, 2, 4, 8, 16, 20, 33,
+  50, 100 and 500 ms, plus `+Inf`. Gauges preserve the phase breakdown of the
+  slowest tick; per-client snapshot maxima remain separate.
+- In a 60-second 8-player/4-spectator run (3,602 ticks), the slowest tick was
+  tick 2700: 428.492 ms total, with 0.519 ms lateness, 421.096 ms simulation,
+  6.647 ms aggregate snapshot build and 0.745 ms aggregate send. Tick 2700 is
+  the map-transition tick; its simulation phase includes arena reconfiguration.
+  The separate maximum lateness was 412.442 ms on another tick. Most ticks were
+  below 16 ms (3,597/3,602). These are loopback results, not WAN measurements.
+- Map transitions now skip repeated Box3D movement-parity simulations; the
+  simulation still runs all three parity cases at startup. A 60-second
+  configure-only time from 317.803 ms to 38.484 ms (87.9%); player restoration
+  was 0.067 ms. Maximum tick work fell from 393.326 ms to 91.233 ms. Snapshot
+  tick gap remained 1. A follow-up 60-second run measured 125.934 ms for map
+  teardown/selection/configuration and 127.317 ms total work on transition tick
+  2700; the combined transition remains a visible pause. The map timing gauge
+  now covers teardown, selection and configuration. Multiplayer protocol
+  qualification passed, and one full 4v4 battle completed. Loopback results.
+- Same-map transitions now reuse the existing Box3D arena and copy validated
+  power-up/liquid definitions instead of rereading runtime JSON. Different-map
+  transitions still rebuild Box3D geometry; vote selection and reset behavior
+  are unchanged. After this change, a 60-second 8-player/4-spectator run measured
+  10.053 ms map configuration versus 24.323 ms before (58.7% lower); snapshot
+  tick gap remained 1. The slowest transition tick measured 65.473 ms total.
+  Loopback results; overall tick maxima vary between runs.
+- Map intermissions now reset the existing simulation and its fixed-capacity
+  combat/spatial/projectile state in place instead of constructing a replacement.
+  Same-map transitions retain the Box3D arena; changing maps rebuilds geometry.
+  In a 60-second loopback run with 8 players and 4 spectators (3,627 ticks),
+  simulation construction measured 0 ms, maximum map configuration 14.633 ms,
+  player restoration 0.075 ms, maximum tick work 17.431 ms, and maximum snapshot
+  tick gap 1. Protocol qualification and one full 4v4 match passed. The slowest
+  tick spent 16.584 ms building snapshots. Loopback results.
 - Outgoing session WebSocket messages now encode the protocol payload directly
   into the final frame, removing one intermediate integer-array allocation per
   message. The wire format is unchanged.

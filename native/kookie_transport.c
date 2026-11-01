@@ -56,9 +56,11 @@ typedef struct {
     kookie_socket_t socket_fd;
     kookie_socket_t receive_socket_fd;
     struct sockaddr_in peer;
+    struct sockaddr_in paired_sender;
     struct sockaddr_in last_sender;
     bool last_sender_valid;
     bool peer_valid;
+    bool paired_mode;
     uint64_t key0;
     uint64_t key1;
     bool key_configured;
@@ -163,10 +165,12 @@ static bool kookie_socket_would_block(void) {
 static bool kookie_transport_peer_matches(
     const struct sockaddr_in *sender
 ) {
+    const struct sockaddr_in *expected =
+        transport.paired_mode ? &transport.paired_sender : &transport.peer;
     return transport.peer_valid &&
-        sender->sin_family == transport.peer.sin_family &&
-        sender->sin_addr.s_addr == transport.peer.sin_addr.s_addr &&
-        sender->sin_port == transport.peer.sin_port;
+        sender->sin_family == expected->sin_family &&
+        sender->sin_addr.s_addr == expected->sin_addr.s_addr &&
+        sender->sin_port == expected->sin_port;
 }
 
 static kookie_io_size_t kookie_socket_send(
@@ -559,8 +563,9 @@ bool kookie_transport_open_pair(void) {
     transport.socket_fd = socket_fd;
     transport.receive_socket_fd = receive_socket_fd;
     transport.peer = receive_address;
+    transport.paired_sender = peer;
     transport.peer_valid = true;
-    kookie_transport_reset_counters();
+    transport.paired_mode = true;
     return true;
 }
 bool kookie_transport_open_remote_ipv4(

@@ -3,6 +3,44 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- `/metrics` agora expõe histogramas cumulativos de duração desde a inicialização
+  para trabalho do tick, atraso do tick, trabalho da simulação, montagem
+  agregada de snapshots e envio agregado. Limites: 1, 2, 4, 8, 16, 20, 33,
+  50, 100 e 500 ms, mais `+Inf`. Gauges preservam as fases correlacionadas do
+  tick mais lento; máximos por cliente dos snapshots continuam separados.
+- Em 60 segundos com 8 jogadores e 4 espectadores (3.602 ticks), o mais lento
+  foi o tick 2700: 428,492 ms no total, com 0,519 ms de atraso, 421,096 ms de
+  simulação, 6,647 ms para montar snapshots e 0,745 ms para enviá-los. O tick
+  2700 é o tick de transição de mapa; a fase de simulação inclui reconfigurar a
+  arena. O maior atraso separado foi 412,442 ms em outro tick. A maioria ficou
+  abaixo de 16 ms (3.597/3.602). São resultados loopback, não medições WAN.
+- Transições de mapa agora ignoram as simulações repetidas de paridade de
+  movimento do Box3D; a inicialização ainda executa os três casos. Um benchmark
+  no tick 2700 de 317,803 ms para 38,484 ms (87,9%); a restauração de jogadores
+  levou 0,067 ms. O trabalho máximo do tick caiu de 393,326 ms para 91,233 ms.
+  O intervalo máximo entre snapshots permaneceu em 1 tick. Uma nova execução
+  de 60 segundos mediu 125,934 ms para destruir/selecionar/configurar o mapa e
+  127,317 ms de trabalho total no tick de transição 2700; a pausa ainda é
+  perceptível. O gauge de mapa agora cobre destruição, seleção e configuração.
+  Passaram a qualificação de protocolo multiplayer e uma partida 4v4 completa.
+  Resultados somente em loopback.
+- Transições para o mesmo mapa agora reutilizam a arena Box3D e copiam definições
+  validadas de power-ups/líquidos, sem reler os JSONs de runtime. Transições
+  para outro mapa continuam reconstruindo a geometria Box3D; a votação e o
+  reinício permanecem iguais. Após a mudança, benchmark de 60 segundos com
+  8 jogadores/4 espectadores mediu 10,053 ms para configurar o mapa, ante
+  24,323 ms (redução de 58,7%); o intervalo máximo entre snapshots permaneceu
+  em 1 tick. O tick de transição mais lento mediu 65,473 ms no total. Resultados
+  loopback; máximos de tick variam entre execuções.
+- Intervalos entre partidas agora reiniciam a simulação existente e o estado
+  limitado de combate/espaço/projéteis no próprio armazenamento, sem construir
+  uma substituta. Transições para o mesmo mapa mantêm a arena Box3D; trocar de
+  mapa reconstrói a geometria. Em 60 segundos de loopback com 8 jogadores e 4
+  espectadores (3.627 ticks), a construção da simulação mediu 0 ms, a
+  configuração máxima do mapa 14,633 ms, a restauração de jogadores 0,075 ms,
+  o trabalho máximo do tick 17,431 ms e o intervalo máximo entre snapshots 1
+  tick. Passaram a qualificação de protocolo e uma partida 4v4 completa. O tick
+  mais lento gastou 16,584 ms montando snapshots. Resultados loopback.
 - Mensagens WebSocket de sessão agora codificam o payload do protocolo
   diretamente no frame final, removendo uma alocação intermediária de array
   inteiro por mensagem. O formato no fio permanece igual.

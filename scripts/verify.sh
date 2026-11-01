@@ -225,17 +225,28 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null &&
     native/kookie_ui_renderer.c \
     native/kookie_transport.c \
     native/kookie_kutter_sync.c \
+    probes/g0_native_adapter/probe_mode.c \
     -o "$adapter_build_dir/build/libkookie_sdl_adapter.so" \
     $(pkg-config --cflags --libs sdl3 sdl3-mixer freetype2 harfbuzz libcurl) -lm -pthread
   gcc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
     native/kookie_persistence_adapter.c \
     -o "$adapter_build_dir/build/libkookie_persistence_adapter.so"
   (
+    cd "$root_dir"
+    zig build check-box3d-adapter
+    zig build -Drelease=true --prefix "$adapter_build_dir/zig-prefix"
+  )
+  mkdir -p "$adapter_build_dir/lib"
+  cp -- "$adapter_build_dir/zig-prefix/lib/libkookie_box3d.so" \
+    "$adapter_build_dir/lib/libkookie_box3d.so"
+  (
     cd "$adapter_build_dir"
     kookie_kof_observed g0-native-adapter kof build \
       "$root_dir/probes/g0_native_adapter/main.kf" \
       --target native --output "$adapter_build_dir/native-adapter"
   )
+  cp -- "$adapter_build_dir/zig-prefix/lib/libkookie_box3d.so" \
+    "$adapter_build_dir/native-adapter/Default/libkookie_box3d.so"
   if [[ "${KOOKIE_REQUIRE_PRESENTATION:-0}" == "1" ]]; then
     (
       cd "$adapter_build_dir"
@@ -243,6 +254,8 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null &&
         "$root_dir/probes/g0_native_presentation/main.kf" \
         --target native --output "$adapter_build_dir/native-presentation"
     )
+    cp -- "$adapter_build_dir/zig-prefix/lib/libkookie_box3d.so" \
+      "$adapter_build_dir/native-presentation/Default/libkookie_box3d.so"
   fi
   adapter_log="${KOOKIE_PRESENTATION_ADAPTER_LOG:-$build_dir/native-adapter.log}"
   mkdir -p "$(dirname "$adapter_log")"
@@ -260,16 +273,22 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null &&
 
   presentation_compositor_bin="${KOOKIE_PRESENTATION_COMPOSITOR_BIN:-}"
   presentation_compositor_libdir="${KOOKIE_PRESENTATION_COMPOSITOR_LIBDIR:-}"
-  presentation_env=()
   presentation_binary="$adapter_build_dir/native-adapter/Default/Main"
+  adapter_runtime_lib_dir="$adapter_build_dir/native-adapter/Default"
   if [[ "${KOOKIE_REQUIRE_PRESENTATION:-0}" == "1" ]]; then
     presentation_binary="$adapter_build_dir/native-presentation/Default/Main"
+    adapter_runtime_lib_dir="$adapter_build_dir/native-presentation/Default"
   fi
+  adapter_ld_library_path="$adapter_runtime_lib_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+  presentation_env=("LD_LIBRARY_PATH=$adapter_ld_library_path")
   presentation_command=(
-    bash -c 'cd "$1" && exec "$2"'
+    bash -c 'cd "$1" && LD_LIBRARY_PATH="$3${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" KOOKIE_TRANSPORT_KEY_HEX="$4" KOOKIE_TRANSPORT_KEY_FILE="$5" exec "$2"'
     --
     "$adapter_build_dir"
     "$presentation_binary"
+    "$adapter_runtime_lib_dir"
+    00000001000000020000000300000004
+    "$transport_key_file"
   )
   if [[ -n "$presentation_compositor_bin" ]]; then
     [[ -x "$presentation_compositor_bin" ]] || {
@@ -281,9 +300,8 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null &&
         echo "presentation compositor library directory is unavailable: $presentation_compositor_libdir" >&2
         exit 75
       }
-      existing_ld_library_path="${LD_LIBRARY_PATH:-}"
-      presentation_env+=(
-        "LD_LIBRARY_PATH=$presentation_compositor_libdir${existing_ld_library_path:+:$existing_ld_library_path}"
+      presentation_env=(
+        "LD_LIBRARY_PATH=$presentation_compositor_libdir:$adapter_ld_library_path"
       )
     fi
     presentation_env+=(
@@ -298,15 +316,30 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null &&
     echo "isolated SDL adapter compositor: $presentation_compositor_bin"
   fi
   set +e
+  adapter_transport_log="$build_dir/native-adapter-transport.log"
+  (
+    cd "$adapter_build_dir"
+    timeout --signal=TERM --kill-after=5s 90 \
+      env "LD_LIBRARY_PATH=$adapter_ld_library_path" \
+        KOOKIE_TRANSPORT_KEY_FILE="$transport_key_file" \
+        KOOKIE_TRANSPORT_KEY_HEX=00000001000000020000000300000004 \
+        KOOKIE_NATIVE_ADAPTER_MODE=transport \
+        "$adapter_build_dir/native-adapter/Default/Main"
+  ) >"$adapter_transport_log" 2>&1
+  transport_status=$?
+  cat "$adapter_transport_log"
+  if [[ "$transport_status" -ne 0 ]]; then
+    exit "$transport_status"
+  fi
   "$isolation_wrapper" --timeout 90 "${render_node_args[@]}" -- \
     env "${presentation_env[@]}" \
     KOOKIE_ASSET_DIR="$adapter_build_dir/assets" \
     KOOKIE_CONTENT_DIR="$adapter_build_dir/assets/prototype" \
     KOOKIE_TRANSPORT_KEY_FILE="$transport_key_file" \
     KOOKIE_TRANSPORT_KEY_HEX=00000001000000020000000300000004 \
+    KOOKIE_NATIVE_ADAPTER_MODE=graphics \
     KOOKIE_PRESENTATION_SMOKE="${KOOKIE_REQUIRE_PRESENTATION:-0}" \
     KOOKIE_SCREENSHOT_PATH="$presentation_screenshot_path" \
-
     KOOKIE_AUDIO_MUSIC_OGG="$adapter_build_dir/assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Cursor - 1.ogg" \
     KOOKIE_SHADER_DIR="$adapter_build_dir" SDL_AUDIODRIVER=dummy \
     SDL_VIDEODRIVER="$presentation_video_driver" \

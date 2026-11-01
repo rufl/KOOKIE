@@ -371,6 +371,43 @@ class AuthoritativeEnemySession {
             projectileDefenseActive[index] = false
         }
     }
+    Bool resetForMatch() {
+        combat.resetForMatch()
+        enemies.resetForMatch()
+        spatial.resetForMatch()
+        encounters.resetForMatch()
+        for (var index = 0; index < linkedEnemyIds.length; index = index + 1) {
+            linkedEnemyIds[index] = 0
+            linkedEncounterIds[index] = 0
+            linkedActive[index] = false
+            spatialProjectileIds[index] = 0
+            spatialProjectileSources[index] = 0
+            spatialProjectileTargets[index] = 0
+            spatialProjectileX[index] = 0
+            spatialProjectileY[index] = 0
+            spatialProjectileZ[index] = 0
+            spatialProjectileRanges[index] = 0
+            spatialProjectileTravelled[index] = 0
+            spatialProjectileSteps[index] = 0
+            spatialProjectileCriticals[index] = 0
+            spatialProjectileActive[index] = false
+            projectileDefenseIds[index] = 0
+            projectileDefenseGuards[index] = false
+            projectileDefenseEvades[index] = false
+            projectileDefenseActive[index] = false
+        }
+        for (var index = 0; index < spatialImpactScratch.length; index = index + 1) {
+            spatialImpactScratch[index] = 0
+        }
+        spatialProjectileActiveCountValue = 0
+        spatialProjectileHitsValue = 0
+        spatialProjectileBlockedValue = 0
+        lastEnemySteering = EnemySteeringResult(
+            false, false, false, 0, 0, 0, 0, 0, 0)
+        lastEnemyStateValue = 0
+        spatialImpacts.reset()
+        return true
+    }
 
     Int findEnemyLink(Int enemyId) {
         for (var index = 0; index < linkedEnemyIds.length; index = index + 1) {
