@@ -3,6 +3,12 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Web multiplayer collision separation now clamps resolved player positions to
+  protocol world bounds. Invalid snapshot buffers are rejected before indexed
+  writes, preventing a malformed state from terminating the server.
+- After the bounds fix, the endless spectator-backed 2v2 run passed tick 8,653
+  with all four actors active and bot respawns continuing; the native server
+  remained alive during observation.
 - Endless CLI battles no longer stop when one team is eliminated: dead bots
   reconnect through their team route and resume combat until Ctrl+C. Desktop
   A/D and arrow movement and horizontal mouse look now use conventional

@@ -476,9 +476,19 @@ class WebMultiplayerSimulation {
                 fpsMovementCapsuleHeight(), wasGrounded) != 0) {
             return false
         }
+        var scale = fpsMovementCoordinateScale()
+        var resolvedX = kookie_box3d_result_x_fixed()
+        var resolvedZ = kookie_box3d_result_z_fixed()
+        var minimumX = sessionWebGameWorldMinimumX() * scale
+        var minimumZ = sessionWebGameWorldMinimumZ() * scale
+        var maximumX = sessionWebGameWorldMaximumX() * scale
+        var maximumZ = sessionWebGameWorldMaximumZ() * scale
+        if (resolvedX < minimumX) { resolvedX = minimumX }
+        if (resolvedX > maximumX) { resolvedX = maximumX }
+        if (resolvedZ < minimumZ) { resolvedZ = minimumZ }
+        if (resolvedZ > maximumZ) { resolvedZ = maximumZ }
         return movement.applyExternalCollision(
-            actor, kookie_box3d_result_x_fixed(),
-            kookie_box3d_result_y_fixed(), kookie_box3d_result_z_fixed(),
+            actor, resolvedX, kookie_box3d_result_y_fixed(), resolvedZ,
             kookie_box3d_result_grounded(), wasGrounded, jumpHeld)
     }
 
@@ -1013,6 +1023,11 @@ class WebMultiplayerSimulation {
                 sessionWebGameWorldMaximumY(), movement.positionZ(actor))) {
             return false
         }
+        if (movedY < sessionWebGameWorldMinimumY() &&
+            !movement.setPosition(actor, movement.positionX(actor),
+                sessionWebGameWorldMinimumY(), movement.positionZ(actor))) {
+            return false
+        }
         for (var other = 0; other < 8; other = other + 1) {
             if (activeValues[other] && other != slot &&
                 oldY == movement.positionY(actor) && !jump && !flying &&
@@ -1038,7 +1053,21 @@ class WebMultiplayerSimulation {
                     contactZ = movement.positionZ(other + 1) +
                         if (oldZ >= movement.positionZ(other + 1)) { 4 } else { -4 }
                 }
-                movement.setPosition(actor, contactX, oldY, contactZ)
+                if (contactX < sessionWebGameWorldMinimumX()) {
+                    contactX = sessionWebGameWorldMinimumX()
+                }
+                if (contactX > sessionWebGameWorldMaximumX()) {
+                    contactX = sessionWebGameWorldMaximumX()
+                }
+                if (contactZ < sessionWebGameWorldMinimumZ()) {
+                    contactZ = sessionWebGameWorldMinimumZ()
+                }
+                if (contactZ > sessionWebGameWorldMaximumZ()) {
+                    contactZ = sessionWebGameWorldMaximumZ()
+                }
+                if (!movement.setPosition(actor, contactX, oldY, contactZ)) {
+                    return false
+                }
                 combat.setSpatialPosition(externalId, contactX, oldY, contactZ)
             }
         }

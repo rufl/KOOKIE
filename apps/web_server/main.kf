@@ -861,12 +861,17 @@ Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot) {
     }
     if (cursor != actors.length) { return new Int[0] }
     var sequence = webOutputSequence(metrics, slot)
+    if (sequence <= 0 || sequence > 1000000) {
+        sequence = 1
+        metrics.connectionOutputSequence[slot] = 2
+    }
     var base = newSessionWebGameMultiplayerSnapshot(sequence, metrics.serverTickValue,
         if (spectator) sessionWebRoleSpectator()
         else if (metrics.simulation.trainingMode()) sessionWebRoleTraining()
         else sessionWebRolePlayer(),
         if (spectator) 0 else id, x, y, z, webActorYaw(yaw), pitch,
         metrics.playerCount(), metrics.spectatorCount(), actors)
+    if (base.length < 19 + actors.length) { return new Int[0] }
     base[12] = health
     base[14] = ammo
     var projectileCount = metrics.simulation.projectileCount()

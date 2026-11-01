@@ -3,6 +3,12 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- A separação de colisões multiplayer agora limita a posição dos jogadores aos
+  limites do mundo do protocolo. Buffers de snapshot inválidos são rejeitados
+  antes de escritas indexadas, evitando que um estado malformado encerre o servidor.
+- Após a correção dos limites, a partida 2v2 sem fim com espectador passou do
+  tick 8.653, manteve os quatro atores ativos e continuou repondo bots; o servidor
+  nativo permaneceu ativo durante a observação.
 - `/metrics` agora expõe histogramas cumulativos de duração desde a inicialização
   para trabalho do tick, atraso do tick, trabalho da simulação, montagem
   agregada de snapshots e envio agregado. Limites: 1, 2, 4, 8, 16, 20, 33,
