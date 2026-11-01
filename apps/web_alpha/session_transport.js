@@ -4015,8 +4015,8 @@
   const movementKeys = new Map([
     ["KeyW", [0, 1]], ["ArrowUp", [0, 1]],
     ["KeyS", [0, -1]], ["ArrowDown", [0, -1]],
-    ["KeyA", [1, 0]], ["ArrowLeft", [1, 0]],
-    ["KeyD", [-1, 0]], ["ArrowRight", [-1, 0]],
+    ["KeyA", [-1, 0]], ["ArrowLeft", [-1, 0]],
+    ["KeyD", [1, 0]], ["ArrowRight", [1, 0]],
   ]);
   function updateKeyboardMovement() {
     let x = 0;
@@ -4143,11 +4143,13 @@
         }
       }
       const sensitivity = clientSettings.mouseCameraSensitivityPercent / 100;
+      const horizontalDirection = event.pointerType === "touch" ? -1 : 1;
       const lookYaw = Math.max(-180, Math.min(180,
-        -deltaX * sensitivity * 1.25));
+        horizontalDirection * deltaX * sensitivity * 1.25));
       const lookPitch = Math.max(-180, Math.min(180, -deltaY * sensitivity * 1.25));
       if (lookYaw !== 0 || lookPitch !== 0) {
-        const spectatorDirection = joinedRole === GAME_ROLE_SPECTATOR ? -1 : 1;
+        const spectatorDirection = joinedRole === GAME_ROLE_SPECTATOR &&
+          event.pointerType === "touch" ? -1 : 1;
         sendGameplayInput({
           lookYaw: lookYaw * spectatorDirection,
           lookPitch: lookPitch * spectatorDirection,

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run an interactive 4v4 goose-vs-cat bot battle against a local KOOKIE server."""
+"""Run a spectator-visible, server-authoritative goose-vs-cat bot battle."""
 import math
 import os
 import queue
@@ -66,8 +66,8 @@ def wait_healthy(port, process):
             time.sleep(.05)
     raise TimeoutError("KOOKIE web server did not become healthy")
 
-def latest_snapshot(client, expected_spectators=None):
-    scene = client.snapshot(expected_players=BOT_COUNT,
+def latest_snapshot(client, expected_players=BOT_COUNT, expected_spectators=None):
+    scene = client.snapshot(expected_players=expected_players,
                             expected_spectators=expected_spectators)
     while True:
         try:
@@ -77,15 +77,40 @@ def latest_snapshot(client, expected_spectators=None):
         if isinstance(candidate, BaseException):
             raise candidate
         if len(candidate) >= 19 and candidate[3] == 7 and \
-                candidate[15] == BOT_COUNT:
+                candidate[15] == expected_players:
             scene = candidate
 
 
-def run_battle(port, duration=None, log_path=None):
+def reconnect_bot(port, path, expected_players, stop):
+    deadline = time.monotonic() + 30
+    last_error = None
+    while not stop.is_set() and time.monotonic() < deadline:
+        stop.wait(.25)
+        if stop.is_set():
+            break
+        replacement = None
+        try:
+            replacement = Client(port, path=path)
+            replacement.snapshot(expected_players=expected_players)
+            return replacement
+        except Exception as error:
+            last_error = error
+            if replacement is not None:
+                replacement.close()
+    raise RuntimeError(f"bot respawn failed for {path}: {last_error}")
+
+def run_battle(port, duration=None, log_path=None,
+               goose_count=4, cat_count=4, wait_for_spectator=False,
+               spectator_url=None):
+    bot_count = goose_count + cat_count
+    if goose_count <= 0 or cat_count <= 0 or bot_count > 8:
+        raise ValueError("team sizes must be positive and total at most 8")
     clients = []
     drivers = []
     battle_log = None
     stop = threading.Event()
+    clients_lock = threading.Lock()
+    roster_lock = threading.Lock()
     action_usage = set()
     actions_by_player = {}
     powerups_acquired = set()
@@ -93,15 +118,33 @@ def run_battle(port, duration=None, log_path=None):
     observed_animation_states = set()
     driver_errors = []
     try:
-        geese = [Client(port, path="/session/goose") for _ in range(4)]
+        if wait_for_spectator:
+            url = spectator_url or f"ws://127.0.0.1:{port}/spectate"
+            print(f"Spectator WebSocket: {url}", flush=True)
+            print("Waiting for browser spectator before spawning bots.",
+                  flush=True)
+            readiness_client = Client(port, spectator=True)
+            clients.append(readiness_client)
+            while True:
+                try:
+                    readiness_client.snapshot(
+                        expected_players=0, expected_spectators=2)
+                    break
+                except AssertionError:
+                    print("Still waiting for browser spectator.", flush=True)
+            readiness_client.close()
+            clients.remove(readiness_client)
+
+        geese = [Client(port, path="/session/goose")
+                 for _ in range(goose_count)]
         clients.extend(geese)
-        cats = [Client(port, path="/session/cat") for _ in range(4)]
+        cats = [Client(port, path="/session/cat") for _ in range(cat_count)]
         clients.extend(cats)
         spectator = Client(port, spectator=True)
         clients.append(spectator)
         for client in geese + cats:
-            client.snapshot(expected_players=BOT_COUNT)
-        first_scene = spectator.snapshot(expected_players=BOT_COUNT)
+            client.snapshot(expected_players=bot_count)
+        first_scene = spectator.snapshot(expected_players=bot_count)
         goose_ids = {client.player_id for client in geese}
         cat_ids = {client.player_id for client in cats}
         kinds = {first_scene[18 + index * 8]: first_scene[24 + index * 8]
@@ -123,22 +166,59 @@ def run_battle(port, duration=None, log_path=None):
             throwable_charge_started = 0.0
             next_jump = 0.0
             double_jump_due = None
-            burst_action = ACTION_DASH
             tried_pickups = {}
+            burst_action = ACTION_DASH
             animal = 1 if client.player_id in goose_ids else 2
+            bot_path = "/session/goose" if animal == 1 else "/session/cat"
             actions_by_player[client.player_id] = set()
             animation_states_by_player[client.player_id] = set()
             opening_roll = True
             while not stop.is_set():
                 try:
-                    scene = latest_snapshot(client)
+                    scene = latest_snapshot(client, bot_count)
                     me = actor_record(scene, client.player_id)
+                    if duration is None and me[4] <= 0:
+                        dead_client = client
+                        dead_id = client.player_id
+                        dead_client.close()
+                        client = reconnect_bot(port, bot_path, bot_count, stop)
+                        new_id = client.player_id
+                        with roster_lock:
+                            own_team.discard(dead_id)
+                            own_team.add(new_id)
+                            team_ids = goose_ids if animal == 1 else cat_ids
+                            team_ids.discard(dead_id)
+                            team_ids.add(new_id)
+                        with clients_lock:
+                            clients[clients.index(dead_client)] = client
+                        actions_by_player.pop(dead_id, None)
+                        animation_states_by_player.pop(dead_id, None)
+                        actions_by_player[new_id] = set()
+                        animation_states_by_player[new_id] = set()
+                        action_start = time.monotonic()
+                        next_shot = action_start + 1.5
+                        next_burst = 0.0
+                        next_melee = action_start + 1.5
+                        next_special = action_start + .7
+                        throwable_phase = 0
+                        throwable_charge_started = 0.0
+                        next_jump = 0.0
+                        double_jump_due = None
+                        burst_action = ACTION_DASH
+                        tried_pickups = {}
+                        opening_roll = True
+                        print(f"Bot respawned: {dead_id} -> {new_id} "
+                              f"({'goose' if animal == 1 else 'cat'}).",
+                              flush=True)
+                        continue
                     animation_state = me[5] // 128
                     animation_states_by_player[client.player_id].add(animation_state)
                     observed_animation_states.add(animation_state)
+                    with roster_lock:
+                        own_ids = set(own_team)
                     enemies = [scene[18 + index * 8:26 + index * 8]
                                for index in range(scene[17])
-                               if scene[18 + index * 8] not in own_team and
+                               if scene[18 + index * 8] not in own_ids and
                                scene[22 + index * 8] > 0]
                     if not enemies or me[4] <= 0:
                         client.input()
@@ -294,34 +374,42 @@ def run_battle(port, duration=None, log_path=None):
         for thread in drivers:
             thread.start()
 
-        print("/b2teams4 LIVE: 4 geese (red) vs 4 cats (blue); server-authoritative combat")
+        print(f"/b2teams4 LIVE: {goose_count} geese (red) vs "
+              f"{cat_count} cats (blue); server-authoritative combat")
         print(f"Spectator WebSocket: ws://127.0.0.1:{port}/spectate")
         print("Open the web client, select Spectator, set its server URL, and connect.")
+        if duration is None:
+            print("Endless mode: eliminated bots respawn; Ctrl+C stops the match.",
+                  flush=True)
         start = time.monotonic()
+        if log_path:
+            Path(log_path).parent.mkdir(parents=True, exist_ok=True)
         battle_log = open(log_path, "w", encoding="utf-8") if log_path else None
         last_logged_tick = -1
         previous_positions = None
         samples = 0
-        minimum_health = BOT_COUNT * GAME_MAXIMUM_HEALTH
-        minimum_alive = BOT_COUNT
+        minimum_health = bot_count * GAME_MAXIMUM_HEALTH
+        minimum_alive = bot_count
         last_report = 0.0
         winner = None
         while not stop.is_set() and (duration is None or
                                      time.monotonic() - start < duration):
-            scene = latest_snapshot(spectator)
+            scene = latest_snapshot(spectator, bot_count)
             positions = [tuple(scene[19 + index * 8:22 + index * 8])
                          for index in range(scene[17])]
             if previous_positions is not None and positions != previous_positions:
                 samples += 1
             previous_positions = positions
             if battle_log is not None and scene[4] > last_logged_tick:
+                with roster_lock:
+                    red_ids = set(goose_ids)
                 players = []
                 for index in range(scene[17]):
                     offset = 18 + index * 8
                     player_id = scene[offset]
                     players.append({
                         "id": player_id,
-                        "team": "red" if player_id in goose_ids else "blue",
+                        "team": "red" if player_id in red_ids else "blue",
                         "health": max(0, scene[offset + 4]),
                         "x": scene[offset + 1],
                         "y": scene[offset + 2],
@@ -339,25 +427,31 @@ def run_battle(port, duration=None, log_path=None):
             alive = sum(scene[22 + index * 8] > 0
                         for index in range(scene[17]))
             minimum_alive = min(minimum_alive, alive)
+            with roster_lock:
+                red_ids = set(goose_ids)
             goose_alive = sum(scene[22 + index * 8] > 0
                               for index in range(scene[17])
-                              if scene[18 + index * 8] in goose_ids)
+                              if scene[18 + index * 8] in red_ids)
             cat_alive = alive - goose_alive
-            if goose_alive == 0:
-                winner = "blue cats"
-            elif cat_alive == 0:
-                winner = "red geese"
-            if winner is not None:
-                print(f"Round complete: {winner} win.")
-                break
+            if duration is not None:
+                if goose_alive == 0:
+                    winner = "blue cats"
+                elif cat_alive == 0:
+                    winner = "red geese"
+                if winner is not None:
+                    print(f"Round complete: {winner} win.")
+                    break
             now = time.monotonic()
             if now - last_report >= .8:
-                print(f"tick={scene[4]} alive={alive}/8 moving-snapshots={samples}",
+                print(f"tick={scene[4]} alive={alive}/{bot_count} "
+                      f"moving-snapshots={samples}",
                       flush=True)
                 last_report = now
             stop.wait(.05)
         stop.set()
-        for client in clients:
+        with clients_lock:
+            active_clients = tuple(clients)
+        for client in active_clients:
             client.close()
         for thread in drivers:
             thread.join()
@@ -367,7 +461,7 @@ def run_battle(port, duration=None, log_path=None):
 
             if samples == 0:
                 raise AssertionError("bot positions did not change during smoke run")
-            if minimum_health == BOT_COUNT * GAME_MAXIMUM_HEALTH:
+            if minimum_health == bot_count * GAME_MAXIMUM_HEALTH:
                 raise AssertionError("teams did not exchange authoritative damage")
             if not powerups_acquired:
                 raise AssertionError("bots did not acquire an authoritative powerup")
@@ -395,8 +489,8 @@ def run_battle(port, duration=None, log_path=None):
                 for player_id, actions in sorted(actions_by_player.items())
             )
             print(f"/b2teams4 checks passed: {samples} moving snapshots; "
-                  f"minimum alive={minimum_alive}/8; "
-                  f"min health={minimum_health}/{BOT_COUNT * GAME_MAXIMUM_HEALTH}; "
+                  f"minimum alive={minimum_alive}/{bot_count}; "
+                  f"min health={minimum_health}/{bot_count * GAME_MAXIMUM_HEALTH}; "
                   f"actions={','.join(sorted(action_usage)) or 'none'}; "
                   f"animation states={','.join(map(str, sorted(observed_animation_states)))}; "
                   f"powerup kinds={','.join(map(str, sorted(powerups_acquired)))}; "
@@ -415,42 +509,85 @@ def run_battle(port, duration=None, log_path=None):
 
 
 def main():
-    if len(sys.argv) < 3:
-        raise SystemExit("usage: scripts/b2teams4.py SERVER_BINARY PORT [--smoke] [--log PATH]")
-    binary = os.path.abspath(sys.argv[1])
-    if "--log" in sys.argv:
-        log_index = sys.argv.index("--log")
-        if log_index + 1 >= len(sys.argv):
-            raise SystemExit("--log requires a path")
-        log_path = sys.argv[log_index + 1]
-        del sys.argv[log_index:log_index + 2]
-    else:
-        log_path = None
-    port = int(sys.argv[2])
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Run an authoritative goose-vs-cat battle with a spectator.")
+    parser.add_argument("server_binary")
+    parser.add_argument("port", type=int)
+    parser.add_argument("--smoke", action="store_true")
+    parser.add_argument("--run", action="store_true",
+                        help="start the battle immediately instead of prompting")
+    parser.add_argument("--geese", type=int, default=4)
+    parser.add_argument("--cats", type=int, default=4)
+    parser.add_argument("--duration", type=float, default=120,
+                        help="battle seconds; 0 enables endless bot respawns")
+    parser.add_argument("--log", type=Path,
+                        help="write per-tick kookie-battle-v1 JSONL snapshots")
+    parser.add_argument("--server-log", type=Path,
+                        help="persist server stdout/stderr separately")
+    parser.add_argument("--wait-for-spectator", action="store_true",
+                        help="wait until a browser spectator joins before spawning bots")
+    parser.add_argument("--spectator-url",
+                        help="public spectator WebSocket URL to print")
+    parser.add_argument("--keep-server", action="store_true",
+                        help="keep the server running after a --run battle")
+    args = parser.parse_args()
+    if args.geese <= 0 or args.cats <= 0 or args.geese + args.cats > 8:
+        parser.error("team sizes must be positive and total at most 8")
+    if args.duration < 0:
+        parser.error("--duration must be non-negative (0 disables the timer)")
+    if args.smoke and args.run:
+        parser.error("--smoke and --run cannot be combined")
+
+    binary = os.path.abspath(args.server_binary)
+    port = args.port
     if port == 0:
         with socket.socket() as probe:
             probe.bind(("127.0.0.1", 0))
             port = probe.getsockname()[1]
-    smoke = "--smoke" in sys.argv[3:]
-    if any(option != "--smoke" for option in sys.argv[3:]):
-        raise SystemExit("usage: scripts/b2teams4.py SERVER_BINARY PORT [--smoke] [--log PATH]")
     library_dir = os.path.join(os.path.dirname(binary), "lib")
     library_path = os.environ.get("LD_LIBRARY_PATH", "")
     if library_path:
         library_dir += os.pathsep + library_path
     env = dict(os.environ, KOOKIE_WEB_PORT=str(port),
                LD_LIBRARY_PATH=library_dir)
+
+    server_log = None
+    if args.server_log:
+        args.server_log.parent.mkdir(parents=True, exist_ok=True)
+        server_log = args.server_log.open("w", encoding="utf-8")
     process = subprocess.Popen(
         [binary], cwd=os.path.dirname(binary), env=env,
-        stdout=sys.stderr if smoke else subprocess.DEVNULL,
-        stderr=sys.stderr if smoke else subprocess.PIPE,
+        stdout=(server_log if server_log else
+                (sys.stderr if args.smoke else subprocess.DEVNULL)),
+        stderr=(subprocess.STDOUT if server_log else
+                (sys.stderr if args.smoke else subprocess.PIPE)),
     )
     try:
         wait_healthy(port, process)
-        if smoke:
-            run_battle(port, duration=12, log_path=log_path)
+        if args.smoke or args.run:
+            run_battle(
+                port,
+                duration=(12 if args.smoke else
+                          (args.duration or None)),
+                log_path=args.log,
+                goose_count=args.geese,
+                cat_count=args.cats,
+                wait_for_spectator=args.wait_for_spectator,
+                spectator_url=args.spectator_url,
+            )
+            if args.keep_server and args.run and not args.smoke:
+                print("Match complete; server remains available until Ctrl-C.",
+                      flush=True)
+                try:
+                    while True:
+                        time.sleep(3600)
+                except KeyboardInterrupt:
+                    pass
             return
-        print("KOOKIE server ready. Type /b2teams4 to launch the 4v4 battle; /quit exits.")
+        print(f"KOOKIE server ready. Type /b2teams4 to launch "
+              f"{args.geese}v{args.cats}; /quit exits.")
         while True:
             try:
                 command = input("kookie> ").strip()
@@ -460,7 +597,12 @@ def main():
                 break
             if command == "/b2teams4":
                 try:
-                    run_battle(port, duration=120, log_path=log_path)
+                    run_battle(
+                        port, duration=(args.duration or None),
+                        log_path=args.log, goose_count=args.geese,
+                        cat_count=args.cats,
+                        wait_for_spectator=args.wait_for_spectator,
+                        spectator_url=args.spectator_url)
                 except KeyboardInterrupt:
                     print("\nBattle stopped.")
             elif command:
@@ -472,7 +614,8 @@ def main():
         except subprocess.TimeoutExpired:
             process.kill()
             process.wait(timeout=5)
-
+        if server_log:
+            server_log.close()
 
 if __name__ == "__main__":
     main()

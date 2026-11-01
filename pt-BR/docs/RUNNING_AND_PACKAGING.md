@@ -352,19 +352,24 @@ itens atingem o alvo; melancias quicam uma vez e espalham quatro fatias, cada
 uma recuperando um pouco de vida e munição de sementes. Arremessáveis não
 explosivos podem deixar jogadores tontos brevemente. A fumaça de pulo, aterrissagem
 e corrida é branca. Botões de ação touch podem ser reposicionados
-individualmente; os eixos de teclado e mouse não mudam.
+individualmente. No desktop, A/D, setas esquerda/direita e movimento horizontal
+do mouse seguem a direção convencional; os eixos touch permanecem inalterados.
 
-O modo CLI também está disponível. No prompt `kookie>`, `/b2teams4` inicia os
-mesmos oito bots e transmite tick autoritativo, jogadores vivos e snapshots de
-movimento por até dois minutos. O monitor CLI permite que espectadores do
-navegador entrem antes ou durante a batalha. `/quit` ou Ctrl+C encerra o console.
-Passe `--log CAMINHO` ao iniciar para gravar um snapshot JSON
-`kookie-battle-v1` por tick observado; analise-o com:
+O modo CLI também está disponível. No prompt `kookie>`, `/b2teams4` inicia
+quatro gansos e quatro gatos, com limite de dois minutos. Use
+`--geese N --cats N` para alterar os times (máximo de oito participantes no
+total), `--duration 0` para remover os limites de tempo e eliminação e `--run`
+para iniciar sem prompt. No modo sem limite, bots eliminados se desconectam e
+entram novamente no mesmo time, continuando a luta até Ctrl+C.
+`--wait-for-spectator` aguarda um espectador do navegador antes de criar os
+bots. O servidor escuta apenas em loopback; espectadores remotos precisam de
+um encaminhador TCP ou proxy reverso até a porta local.
 
-```bash
-scripts/b2teams4.py "$server_dir/kookie-web-server" 8080 --log batalha.ndjson
-scripts/analyze_battle_log.py batalha.ndjson --format text
-```
+`--log CAMINHO` grava um snapshot JSON `kookie-battle-v1` por tick observado;
+`--server-log CAMINHO` salva a saída do servidor separadamente.
+`--keep-server` mantém o servidor ativo após uma partida com limite; os bots se
+desconectam ao final. O analisador atual aceita somente logs 4v4; use snapshots
+NDJSON diretamente para outros tamanhos de time.
 
 Execute o smoke headless de 12 segundos com
 `scripts/b2teams4.py "$server_dir/kookie-web-server" 8080 --smoke`. Ele verifica

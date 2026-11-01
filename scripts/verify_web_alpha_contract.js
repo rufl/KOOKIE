@@ -643,7 +643,7 @@ async function main() {
   document.listeners.keydown({
     key: "d", code: "KeyD", repeat: false, preventDefault() {},
   });
-  assert.ok(Math.abs(sentInputFrames.at(-1).moveX + 707) <= 1);
+  assert.ok(Math.abs(sentInputFrames.at(-1).moveX - 707) <= 1);
   assert.ok(Math.abs(sentInputFrames.at(-1).moveZ - 707) <= 1,
     "diagonal keyboard movement is normalized");
   document.listeners.keyup({ key: "d", code: "KeyD", preventDefault() {} });
@@ -655,8 +655,8 @@ async function main() {
   document.listeners.keydown({
     key: "a", code: "KeyA", repeat: false, preventDefault() {},
   });
-  assert.equal(sentInputFrames.at(-1).moveX, 1000,
-    "A moves left in the browser world's mirrored horizontal axis");
+  assert.equal(sentInputFrames.at(-1).moveX, -1000,
+    "A moves left on the desktop horizontal axis");
   document.listeners.keyup({ key: "a", code: "KeyA", preventDefault() {} });
   const lookStickBase = sticks[1].children[0];
   lookStickBase.width = 100;
@@ -698,8 +698,8 @@ async function main() {
   const beforeLockedLook = sentInputFrames.length;
   document.pointerLockElement = sceneCanvas;
   sceneCanvas.listeners.pointermove({ movementX: 12 });
-  assert.equal(sentInputFrames.at(-1).lookYaw, -150);
-  assert.equal(sentInputFrames.at(-1).lookPitch, 0);
+  assert.equal(sentInputFrames.at(-1).lookYaw, 150,
+    "rightward desktop mouse movement turns the camera right");
   assert.equal(sentInputFrames.length, beforeLockedLook + 1);
   document.pointerLockElement = null;
   const authoritative = renderedScenes.find((scene) => scene.sceneObjects?.length === 10);

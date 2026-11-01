@@ -133,7 +133,7 @@ The browser contract checks a missing intermediate snapshot and confirms that
 an unacknowledged horizontal input still produces bounded presentation movement.
 It does not simulate network packet loss or prove convergence under WAN jitter.
 
-## Live 4v4 battle console
+## Live bot battle console
 
 Build the web server, then launch the interactive battle console:
 
@@ -144,16 +144,20 @@ scripts/b2teams4.py "$server_dir/kookie-web-server" 8080
 ```
 
 In the browser, open **Settings → Open game console**, choose **Spectator**,
-then connect to `ws://SERVER_HOST:8080`. Run `/b2teams4` to spawn the eight bots
-on that same server and spectate their battle in the page; `/stop` disconnects
-them. Browser bots load eligible pickup positions from the shipped runtime
-powerup JSON when they have no active effect, then return to combat. They use
+then connect to `ws://SERVER_HOST:8080`. The default console command `/b2teams4`
+spawns four goose bots on red and four cat bots on blue; `/stop` disconnects
+them. The CLI default battle ends on elimination or after two minutes. Use
+`--geese N --cats N --duration SECONDS` to customize team sizes (up to eight
+total) and timeout; `--duration 0` removes both end conditions: dead bots
+disconnect and immediately rejoin their team, and the match continues until
+Ctrl+C. `--run` starts immediately instead of prompting. The CLI runner also
+joins as a spectator to monitor and log the match.
+
+Browser bots seek eligible powerups when they have no active effect, then use
 jump, roll, dash, glide/fly, melee, ranged fire, special attacks, and throwables
-based on range and vertical separation. The battle ends when one team is
-eliminated or after two minutes. The console requires an active spectator join;
-it does not require a separate CLI process.
-Browser and CLI battle bots spawn with 300 health (three times the former
-100-health pool); the browser HUD displays the 300-point maximum.
+based on range and vertical separation. Browser and CLI battle bots spawn with
+300 health (three times the former 100-health pool); the browser HUD displays
+the 300-point maximum.
 
 The Web multiplayer HUD shows 300 maximum health, team-colored hearts (blue for
 blue players; red for red), and one shared ammo card for bullets, watermelon
@@ -172,28 +176,46 @@ and seed ammo. Non-explosive throws can briefly dizzy players. Ground smoke from
 jumps, landings, and running is white.
 
 Action buttons on touch layouts can be repositioned independently. Desktop
-keyboard and mouse controls keep their existing axes.
+WASD/arrow left-right and mouse horizontal-look directions follow their
+conventional direction; touch-stick and touch-drag axes are unchanged.
 
-The CLI mode is also available. At the `kookie>` prompt, `/b2teams4` spawns
-four goose bots on red and four cat bots on blue, then streams authoritative
-tick, alive count, and movement-snapshot counts for up to two minutes. CLI and
-browser bots seek eligible powerups when they have no active effect, then use
-jump, roll, dash, glide/fly, melee, ranged fire, special attacks, and throwables
-based on target range and vertical separation. The CLI reads the authored
-waypoints from `assets/prototype/runtime/power_ups/*.json`; the server remains
-authoritative for pickups, damage, and collisions. Same-team targets are ignored
-by direct targeting and projectile/throwable damage. A round returns to the
-prompt when one team is eliminated or the timer expires. The CLI monitor accepts
-browser spectators joining before or during a battle. Enter `/quit` or press
-Ctrl+C to stop it.
-
-Pass `--log PATH` when launching the CLI to write one `kookie-battle-v1` JSON
-snapshot per newly observed server tick during each battle. Analyze the result:
+Build the browser and server into a persistent run directory:
 
 ```bash
-scripts/b2teams4.py "$server_dir/kookie-web-server" 8080 --log battle.ndjson
-scripts/analyze_battle_log.py battle.ndjson --format text
+run_dir="$PWD/build/battle-runs/goose-cat-2v2"
+mkdir -p "$run_dir"
+bash scripts/build_web_alpha.sh --output "$run_dir/site"
+bash scripts/build_web_server.sh --output "$run_dir/server"
 ```
+
+In one terminal, serve the browser files:
+
+```bash
+run_dir="$PWD/build/battle-runs/goose-cat-2v2"
+python3 -m http.server 8081 --directory "$run_dir/site"
+```
+
+In another terminal, start 2 geese versus 2 cats with no timeout. `--wait-for-spectator`
+does not spawn bots until a browser spectator joins; `--spectator-url` prints
+the address reachable from that browser. The server itself listens on loopback,
+so remote browsers need a TCP forwarder or reverse proxy to that local port.
+
+```bash
+run_dir="$PWD/build/battle-runs/goose-cat-2v2"
+scripts/b2teams4.py "$run_dir/server/kookie-web-server" 8080 \
+  --run --geese 2 --cats 2 --duration 0 \
+  --wait-for-spectator --spectator-url ws://SERVER_HOST:8091/spectate \
+  --log "$run_dir/battle.ndjson" \
+  --server-log "$run_dir/server.log" >"$run_dir/runner.log" 2>&1
+```
+
+Open `http://127.0.0.1:8081/`, choose **Spectator** in the game console, set
+`ws://SERVER_HOST:8091/spectate`, and connect. `--duration 0` keeps the match
+running indefinitely: each eliminated bot reconnects as the same animal/team
+and resumes fighting. Ctrl+C stops the match and server. `battle.ndjson` stores
+one `kookie-battle-v1` snapshot per observed tick; server and runner output are
+separate logs. The current analyzer supports 4v4 logs only; use raw NDJSON
+snapshots for other team sizes.
 
 The parser estimates team strength from alive-player count plus remaining
 health, then compares an early baseline with three contiguous late windows. A

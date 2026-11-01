@@ -3,6 +3,18 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Endless CLI battles no longer stop when one team is eliminated: dead bots
+  reconnect through their team route and resume combat until Ctrl+C. Desktop
+  A/D and arrow movement and horizontal mouse look now use conventional
+  left/right directions; touch-stick and touch-drag mappings remain unchanged.
+  The browser contract smoke passes with both desktop-axis expectations and
+  existing touch-axis expectations.
+- The bot battle runner now supports configurable goose/cat counts, unlimited
+  elimination matches, spectator-gated starts, separate server/battle logs,
+  and an option to keep the server running after a match. A live 2v2 spectator
+  run logged 319 snapshots across ticks 3473–4434; red geese eliminated both
+  blue cats. The browser spectator joined before bots spawned. This single bot
+  match is functional evidence, not a stability or balance benchmark.
 - Dedicated profile and soak staging now includes the UI/world modules and
   Box3D shared library required by the native build. A fresh paced 30-minute
   server run completed 108,000 measured ticks at p95 295 µs, but RSS grew
