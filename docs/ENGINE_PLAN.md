@@ -892,15 +892,20 @@ collision scene with 64 enemies, 256 moving projectiles, 512 pickups,
 limits admit 16 AI states, 64 projectile slots and 128 pickup slots per tick.
 `scripts/verify_dedicated_server.sh` proves matching JVM/native behavior,
 unchanged resource signature `520690` and all 64 collision triangles loaded.
-On Linux 6.18.54-1-lts/x86_64, a 16-core Genuine Intel family 6 model 197 CPU,
-the focused native sample recorded p50/p95/p99/max
-1.518/1.623/1.717/1.757 ms and a 64 KiB RSS growth/range.
+The earlier focused native sample measured p50/p95/p99/max
+1.518/1.623/1.717/1.757 ms with 64 KiB RSS growth/range. A fresh native
+profile using 12,000 warm-up and 120,000 measured ticks recorded p50/p95/p99
+86/142/177 µs and 26,688 KiB RSS growth. A candidate projectile-array caching
+change measured 85/141/175 µs and the same 26,688 KiB growth; the 1 µs p95
+difference is not a meaningful improvement, so the code change was discarded.
 
-`scripts/verify_dedicated_soak.sh` paced 108,000 measured ticks at 60 Hz after
-600 warm-up ticks. p50/p95/p99/max were 2.489/3.202/3.721/23.645 ms; RSS
-first/last was 3,620/3,748 KiB with 128 KiB growth/range across 181 samples.
-The logical resource signature stayed `520690`; the final workload checksum was
-`884139`. Simulation p95 therefore remains below the declared 4 ms budget.
+The latest paced 30-minute run completed 108,000 measured ticks after 600 warm-up
+ticks at p50/p95/p99/max 175/295/391/9,166 µs. RSS rose from 9,812 to 40,656 KiB
+(30,844 KiB growth/range across 181 samples), failing the 4 MiB plateau gate.
+Resource signature `520690` and workload checksum `884139` remained stable;
+simulation p95 passed the declared 4 ms budget. The native profile and soak run
+both show substantial process-memory growth; allocation-level profiling is
+still needed to identify its source before changing engine data structures.
 
 `scripts/verify_dedicated_network.sh` runs one authenticated host and two client
 processes through content admission and a complete four-chunk state update on

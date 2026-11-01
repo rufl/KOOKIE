@@ -1494,8 +1494,8 @@ class AuthoritativeEnemySession {
                         spatialProjectileCriticals[index])
                     if (result.accepted()) {
                         stageSpatialImpact(
-                            1, projectileId, spatialProjectileSources[index],
-                            targetId)
+                            1, projectileId,
+                            spatialProjectileSources[index], targetId)
                         stageSpatialImpactPosition(
                             nextX, nextY, nextZ, result.applied())
                         publishSpatialImpact(result.died())
@@ -1504,8 +1504,8 @@ class AuthoritativeEnemySession {
                         consumeCombatEvents(tick)
                     } else {
                         stageSpatialImpact(
-                            3, projectileId, spatialProjectileSources[index],
-                            targetId)
+                            3, projectileId,
+                            spatialProjectileSources[index], targetId)
                         stageSpatialImpactPosition(nextX, nextY, nextZ, 0)
                         publishSpatialImpact(false)
                         combat.cancelProjectile(projectileId)

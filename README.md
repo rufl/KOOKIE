@@ -374,7 +374,7 @@ performance claims.
 | Evidence | Recorded result | Boundary |
 |---|---:|---|
 | Authoritative session | 60 Hz, host + two clients | Same-host process qualification; G4 also passed across three isolated Linux network namespaces |
-| G5 simulation soak | p95 **3.202 ms/tick**; RSS within **128 KiB** after warm-up | 30 minutes on one Linux x86-64 workstation; 64 enemies, 256 projectiles, 512 pickups, 24 lights, 64 effects |
+| G5 simulation soak | Latest 30-minute run: p95 **295 µs/tick**; RSS grew **30,844 KiB**, so the plateau gate failed | 108,000 measured ticks after 600 warm-up; 64 enemies, 256 projectiles, 512 pickups; logical resources stable at `520690`; 4 ms p95 budget passed |
 | SDL_GPU reference scene | **984** hardware triangle instances in **one draw**; p95 submission **0.645 ms** | 600 frames at 1920×1080 on recorded Intel Arrow Lake graphics |
 | Kof buffer SIMD probe | 64 MiB batch: scalar **233.350 ms**, AVX2 **1.074 ms** | Exact reduction ABI/workload only; not a gameplay-wide speedup claim |
 | Release chain | Ed25519-signed archive, manifest and checksum set | Clean source tree, pinned Kof source and verified distribution digest required |

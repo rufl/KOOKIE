@@ -73,7 +73,7 @@ def shell_command(command: str) -> list[str]:
 
 def source_tree(work: Path) -> Path:
     source = work / "source"
-    for module in ("core", "content", "session"):
+    for module in ("core", "content", "session", "ui", "world"):
         module_dir = source / module
         module_dir.mkdir(parents=True, exist_ok=True)
         for source_file in sorted((ROOT / "src" / module).glob("*.kf")):
@@ -81,6 +81,23 @@ def source_tree(work: Path) -> Path:
     (source / "main.kf").symlink_to(ROOT / "apps" / "server" / "main.kf")
     lib_dir = source / "lib"
     lib_dir.mkdir()
+    zig = shutil.which(os.environ.get("ZIG", "zig"))
+    if zig is None:
+        fail("zig is required for the Box3D-backed headless workload")
+    zig_prefix = work / "zig-prefix"
+    for command in (
+        [zig, "build", "check-box3d-adapter"],
+        [zig, "build", "-Drelease=true", "--prefix", str(zig_prefix)],
+    ):
+        completed = subprocess.run(
+            command, cwd=ROOT, capture_output=True, text=True, check=False)
+        if completed.returncode != 0:
+            print(completed.stdout, end="", file=sys.stderr)
+            print(completed.stderr, end="", file=sys.stderr)
+            fail("Box3D adapter build failed")
+    shutil.copyfile(
+        zig_prefix / "lib" / "libkookie_box3d.so",
+        lib_dir / "libkookie_box3d.so")
     cc = shutil.which(os.environ.get("CC", "cc"))
     if cc is None:
         fail("a C compiler is required for the headless native adapter")
@@ -364,6 +381,9 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="kookie-profile-") as temporary:
         work = Path(temporary)
         source = source_tree(work)
+        base_env["LD_LIBRARY_PATH"] = os.pathsep.join(
+            filter(None, (
+                str(source / "lib"), base_env.get("LD_LIBRARY_PATH", ""))))
         jvm_build: Path | None = None
         native_build: Path | None = None
         jvm_compile: dict[str, Any] | None = None

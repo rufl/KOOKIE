@@ -3,6 +3,12 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Dedicated profile and soak staging now includes the UI/world modules and
+  Box3D shared library required by the native build. A fresh paced 30-minute
+  server run completed 108,000 measured ticks at p95 295 µs, but RSS grew
+  30,844 KiB and failed the existing 4 MiB plateau gate; logical resource
+  signature `520690` remained stable. The timing budget passed; memory stability
+  is not qualified.
 - Native adapter checks run UDP loopback outside the private network namespace
   and graphics validation inside the isolated display. The paired-socket
   transport validates packets against the send socket endpoint, not the paired

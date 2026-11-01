@@ -1089,11 +1089,16 @@ scene contains 192 vertices, 64 triangles, 64 enemies, 256 moving projectiles,
 512 pickups, 24 dynamic lights and 64 effects. Rolling
 AI/projectile/pickup budgets remain 16/64/128.
 
-The focused native sample measured p50/p95/p99/max simulation work at
-1.518/1.623/1.717/1.757 ms. A paced 30-minute run measured 108,000 ticks after
-600 warm-up ticks at 2.489/3.202/3.721/23.645 ms; RSS stayed within a 128 KiB
-range across 181 samples and resource signature `520690` remained stable. An
-authenticated same-host host plus two clients replicate the complete state on
+The earlier 30-minute qualification record measured p50/p95/p99/max at
+2.489/3.202/3.721/23.645 ms and RSS within 128 KiB; that result is superseded
+by a fresh 108,000-tick paced run after 600 warm-up ticks on Linux
+6.18.57-2-lts/x86_64. The fresh run measured 175/295/391/9166 µs; RSS rose
+from 9,812 to 40,656 KiB (30,844 KiB growth/range), failing the 4 MiB plateau
+gate. Resource signature `520690` and workload checksum `884139` remained
+stable; the fixed logical resource signature does not identify the source of
+RSS growth, which remains an open engine memory issue.
+
+The authenticated same-host host plus two clients replicate complete state
 every tick, assemble four chunks transactionally, reject stale/tampered state,
 and recover client B at generation 2.
 

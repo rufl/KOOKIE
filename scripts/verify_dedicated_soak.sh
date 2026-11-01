@@ -16,8 +16,16 @@ trap cleanup EXIT INT TERM
 
 SOURCE_DIR="$WORK_DIR/source"
 BUILD_DIR="$WORK_DIR/build"
-mkdir -p "$SOURCE_DIR"/{core,content,session,lib}
-for module in core content session; do
+mkdir -p "$SOURCE_DIR"/{core,content,session,ui,world,lib}
+zig_bin="${ZIG:-zig}"
+(
+  cd "$ROOT_DIR"
+  "$zig_bin" build check-box3d-adapter
+  "$zig_bin" build -Drelease=true --prefix "$WORK_DIR/zig-prefix"
+)
+cp -- "$WORK_DIR/zig-prefix/lib/libkookie_box3d.so" \
+  "$SOURCE_DIR/lib/libkookie_box3d.so"
+for module in core content session ui world; do
   for source_file in "$ROOT_DIR/src/$module/"*.kf; do
     ln -s "$source_file" "$SOURCE_DIR/$module/$(basename "$source_file")"
   done
@@ -37,6 +45,7 @@ server_log="$WORK_DIR/server.log"
 server_status=0
 (
   cd "$SOURCE_DIR"
+  LD_LIBRARY_PATH="$SOURCE_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
   KOOKIE_SERVER_WARMUP_TICKS="$warmup_ticks" \
   KOOKIE_SERVER_TICKS="$measured_ticks" \
   KOOKIE_SERVER_RSS_SAMPLE_TICKS="$sample_ticks" \
