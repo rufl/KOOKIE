@@ -17,6 +17,8 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - G5 renderer staging now includes `src/world`; the isolated renderer probe
   previously failed to resolve the module imported by its content package and
   omitted the Box3D library required at native link time.
+- Final native smoke now loads Box3D from the canonical build's shared library
+  directory, matching the way the canonical artifacts are staged.
 - `/metrics` now exposes process-lifetime cumulative timing histograms for tick
   work, tick lateness, simulation work, aggregate snapshot building and
   aggregate snapshot sending. The bucket bounds are 1, 2, 4, 8, 16, 20, 33,

@@ -404,7 +404,8 @@ jvm_output="$(
 [[ "$jvm_output" == "$expected_output" ]]
 native_output="$(
   cd "$root_dir"
-  "$canonical_native_build/Default/Main" 2>/dev/null
+  LD_LIBRARY_PATH="$canonical_build_dir/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+    "$canonical_native_build/Default/Main" 2>/dev/null
 )"
 [[ "$native_output" == "$expected_output" ]]
 
