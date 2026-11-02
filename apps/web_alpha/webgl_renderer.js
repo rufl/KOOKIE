@@ -1909,12 +1909,13 @@
           );
         } else if (object.kind === SCENE_OBJECT_KINDS.powerup) {
           const bob = Math.sin(time * 0.0028 + object.id) * 0.16;
-          const powerUpMeshes = object.id === 1
+          const usesCoffeeModel = object.id === 1 || object.id === 8;
+          const powerUpMeshes = usesCoffeeModel
             ? assets.coffeeMug?.meshes
             : object.id === 9 ? assets.wizardHat?.meshes : null;
           const usePowerUpModel = Boolean(powerUpMeshes?.length);
-          const powerUpScale = object.id === 1 ? 1.3 : 3.2;
-          const modelBaseOffset = object.id === 1 ? 0.28
+          const powerUpScale = usesCoffeeModel ? 1.3 : 3.2;
+          const modelBaseOffset = usesCoffeeModel ? 0.28
             : object.id === 9 ? powerUpScale * 0.5911 + 0.18 : object.sizeY;
           const powerUpY = object.y + modelBaseOffset + bob;
           const spin = time * 0.0011 + object.id * 0.2;
@@ -1944,7 +1945,7 @@
             time, viewProjection,
           );
           const sparkleOrbit = ringRadius * 0.78;
-          const sparkleHeight = object.id === 1 ? powerUpScale * 1.62 : 0.55;
+          const sparkleHeight = usesCoffeeModel ? powerUpScale * 1.62 : 0.55;
           for (let sparkle = 0; sparkle < 2; sparkle += 1) {
             const angle = spin * 1.8 + object.id + sparkle * Math.PI;
             draw(

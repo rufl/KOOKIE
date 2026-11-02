@@ -2299,7 +2299,7 @@ class BoundedExternalGlbModelReader {
 
     Bool read(Int[] source, Int model) {
         clear()
-        if ((model != 1 && model != 2) || source.length < 20) {
+        if (model < 1 || model > 4 || source.length < 20) {
             return false
         }
         sourceValue = source

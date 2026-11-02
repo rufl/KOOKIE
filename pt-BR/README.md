@@ -235,14 +235,15 @@ limites, tint, caustics, contraste/opacidade toon e tempo de respingo;
 `runtime/floatables/*.json` escolhe buoyancy, densidade, drag e gravidade por
 objeto; e `runtime/power_ups/*.json` define canecas de café, jetpacks,
 megafones, kits de mergulho e melancias com posições, durações e efeitos
-limitados. O gameplay nativo gera as superfícies marcador, a geometria toon de
-respingo, os objetos flutuantes, os diamantes de power-up e o painel de
-power-up ativo do HUD a partir dessas definições. Canecas aumentam a
-velocidade, jetpacks aumentam o impulso de pulo, megafones aumentam o dano,
-kits de mergulho reduzem o consumo de O2 submerso e melancias restauram vida.
-A suíte JVM cobre carregamento JSON, movimento submerso, recuperação de
-oxigênio, buoyancy, efeitos de pickup e expiração de respingo; a apresentação
-SDL_GPU nativa continua sujeita ao gate de driver/dependências do host.
+limitados. O staging nativo carrega e gera a mesma geometria GLB e UVs da caneca
+e do chapéu de mago usados no WebGL; os demais power-ups mantêm o fallback
+limitado em forma de diamante. Os IDs 1 e 8 usam a caneca; o ID 9 usa o chapéu.
+Canecas aumentam a velocidade, jetpacks aumentam o impulso de pulo, megafones
+aumentam o dano, kits de mergulho reduzem o consumo de O2 submerso e melancias
+restauram vida. A suíte JVM cobre carregamento JSON, movimento submerso,
+recuperação de oxigênio, buoyancy, efeitos de pickup e expiração de respingo; a
+apresentação SDL_GPU nativa continua sujeita ao gate de driver/dependências do
+host.
 
 O passe de GUI de 2026-10-02 agora adiciona uma shell em moldura consistente,
 trilhos nas linhas selecionadas, subtítulos por tela, clipping limitado e dicas

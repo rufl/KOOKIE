@@ -3,16 +3,16 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
-- Power-ups now hover just above their floor position with a subtle bob,
-  continuous rotation, a pulsing ground halo, and two orbiting glints. The same
-  presentation covers the coffee/wizard models and fallback pickup meshes.
-- Imported the uploaded coffee mug FBX and UV texture into a textured GLB and
-  bound it to coffee speed power-up ID 1 in the WebGL renderer. The archive has
-  no license terms; source and derivative are marked prototype-only pending
-  rights confirmation.
-- Added the textured CC0 WizardHat from Devil's Work.shop to the WebGL scene
-  for wizard-hat power-up ID 9; retained creator credit and collection
-  provenance in the prototype asset manifest.
+- Native Kof staging can now load and emit the same coffee-mug and wizard-hat
+  GLB geometry and UVs used in WebGL; other power-ups retain the bounded
+  diamond fallback. Coffee IDs 1 and 8 share the mug, wizard-hat ID 9 uses the
+  hat. WebGL renders their embedded textures and keeps the bob, spin, floor halo
+  and orbiting highlights.
+- Imported the uploaded coffee mug FBX and UV texture into a textured GLB. The
+  archive has no license terms; source and derivative remain prototype-only
+  pending rights confirmation.
+- Added the textured CC0 WizardHat from Devil's Work.shop; creator credit and
+  collection provenance remain in the prototype asset manifest.
 - `kof_observed.sh` now removes generated build logs older than 30 days and
   keeps at most 200 generated logs in its managed directory. Explicit `--log`
   paths remain untouched. A local audit found 1,100 small logs using 3.9 MiB

@@ -3,20 +3,30 @@ class BoundedExternalGlbAssetStore {
     Int maximumBytesValue
     Int[] gooseSourceValue
     Int[] catSourceValue
+    Int[] coffeeMugSourceValue
+    Int[] wizardHatSourceValue
     Bool gooseAttemptedValue
     Bool catAttemptedValue
+    Bool coffeeMugAttemptedValue
+    Bool wizardHatAttemptedValue
 
     public constructor() {
         maximumBytesValue = 1048576
         gooseSourceValue = new Int[0]
         catSourceValue = new Int[0]
+        coffeeMugSourceValue = new Int[0]
+        wizardHatSourceValue = new Int[0]
         gooseAttemptedValue = false
         catAttemptedValue = false
+        coffeeMugAttemptedValue = false
+        wizardHatAttemptedValue = false
     }
 
     String relativePath(Int model) {
         if (model == 1) { return "models/goose/goose.glb" }
         if (model == 2) { return "models/cat/cat.glb" }
+        if (model == 3) { return "models/coffee_mug/coffee_mug.glb" }
+        if (model == 4) { return "models/wizard_hat/wizard_hat.glb" }
         return ""
     }
 
@@ -38,29 +48,33 @@ class BoundedExternalGlbAssetStore {
     }
 
     Bool load(Int model) {
-        if (model != 1 && model != 2) { return false }
+        if (model < 1 || model > 4) { return false }
         if (model == 1 && gooseAttemptedValue) {
             return gooseSourceValue.length > 0
         }
         if (model == 2 && catAttemptedValue) {
             return catSourceValue.length > 0
         }
-        if (model == 1) {
-            gooseAttemptedValue = true
-        } else {
-            catAttemptedValue = true
+        if (model == 3 && coffeeMugAttemptedValue) {
+            return coffeeMugSourceValue.length > 0
         }
+        if (model == 4 && wizardHatAttemptedValue) {
+            return wizardHatSourceValue.length > 0
+        }
+        if (model == 1) { gooseAttemptedValue = true }
+        if (model == 2) { catAttemptedValue = true }
+        if (model == 3) { coffeeMugAttemptedValue = true }
+        if (model == 4) { wizardHatAttemptedValue = true }
         var roots = 0
         while (roots < 2) {
             var root = "content/prototype"
             if (roots == 1) { root = "assets/prototype" }
             var candidate = readCandidate(model, root)
             if (candidate.length > 0) {
-                if (model == 1) {
-                    gooseSourceValue = candidate
-                } else {
-                    catSourceValue = candidate
-                }
+                if (model == 1) { gooseSourceValue = candidate }
+                if (model == 2) { catSourceValue = candidate }
+                if (model == 3) { coffeeMugSourceValue = candidate }
+                if (model == 4) { wizardHatSourceValue = candidate }
                 return true
             }
             roots = roots + 1
@@ -81,6 +95,8 @@ class BoundedExternalGlbAssetStore {
         if (!load(model)) { return new Int[0] }
         if (model == 1) { return gooseSourceValue }
         if (model == 2) { return catSourceValue }
+        if (model == 3) { return coffeeMugSourceValue }
+        if (model == 4) { return wizardHatSourceValue }
         return new Int[0]
     }
 }

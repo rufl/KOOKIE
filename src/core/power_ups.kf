@@ -1,4 +1,5 @@
 package core
+import content
 
 Int powerUpKindCoffeeMug() { return 1 }
 Int powerUpKindJetpack() { return 2 }
@@ -279,6 +280,106 @@ class PowerUpWorld {
                 !target.pushWorldVertex(resource, x, y - size, z, 50, 100)) {
                 target.discard()
                 return false
+            }
+        }
+        return target.publish()
+    }
+    Bool hasImportedModel(
+        Int index,
+        content.BoundedExternalGlbModelReader coffeeModel,
+        content.BoundedExternalGlbModelReader wizardHatModel
+    ) {
+        return activeValues[index] &&
+            ((kinds[index] == powerUpKindCoffeeMug() &&
+                coffeeModel.valid()) ||
+             (kinds[index] == powerUpKindWizardHat() &&
+                wizardHatModel.valid()))
+    }
+
+    Int modelVertexCount(
+        Int index,
+        content.BoundedExternalGlbModelReader coffeeModel,
+        content.BoundedExternalGlbModelReader wizardHatModel
+    ) {
+        if (!activeValues[index]) { return 0 }
+        if (kinds[index] == powerUpKindCoffeeMug() &&
+            coffeeModel.valid()) {
+            return coffeeModel.vertexCount()
+        }
+        if (kinds[index] == powerUpKindWizardHat() &&
+            wizardHatModel.valid()) {
+            return wizardHatModel.vertexCount()
+        }
+        return powerUpVerticesPerDefinition()
+    }
+
+    Int renderVertexCountWithModels(
+        content.BoundedExternalGlbModelReader coffeeModel,
+        content.BoundedExternalGlbModelReader wizardHatModel
+    ) {
+        var total = 0
+        for (var index = 0; index < countValue; index = index + 1) {
+            total = total + modelVertexCount(index, coffeeModel, wizardHatModel)
+        }
+        return total
+    }
+
+    Bool stageWithModels(
+        FrameStaging target, Int frame,
+        content.BoundedExternalGlbModelReader coffeeModel,
+        content.BoundedExternalGlbModelReader wizardHatModel
+    ) {
+        var capacity = renderVertexCountWithModels(coffeeModel, wizardHatModel)
+        if (capacity <= 0 || target.vertexCapacity() < capacity ||
+            !target.begin(frame)) {
+            return false
+        }
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (!activeValues[index]) { continue }
+            var bob = (frame + index) % powerUpRenderBobPeriod()
+            if (bob > powerUpRenderBobPeriod() / 2) {
+                bob = powerUpRenderBobPeriod() - bob
+            }
+            bob = bob * powerUpRenderBobAmplitude()
+            if (!hasImportedModel(index, coffeeModel, wizardHatModel)) {
+                var size = visualSizes[index]
+                var resource = resources[index]
+                var x = xValues[index]
+                var y = yValues[index] + bob
+                var z = zValues[index]
+                if (!target.pushWorldVertex(resource, x - size, y, z, 0, 50) ||
+                    !target.pushWorldVertex(resource, x, y + size, z, 50, 0) ||
+                    !target.pushWorldVertex(resource, x + size, y, z, 100, 50) ||
+                    !target.pushWorldVertex(resource, x - size, y, z, 0, 50) ||
+                    !target.pushWorldVertex(resource, x + size, y, z, 100, 50) ||
+                    !target.pushWorldVertex(resource, x, y - size, z, 50, 100)) {
+                    target.discard()
+                    return false
+                }
+                continue
+            }
+            var modelVertexCountValue = modelVertexCount(
+                index, coffeeModel, wizardHatModel)
+            var selectedModel = coffeeModel
+            if (kinds[index] == powerUpKindWizardHat()) {
+                selectedModel = wizardHatModel
+            }
+            var size = visualSizes[index]
+            for (var vertex = 0; vertex < modelVertexCountValue;
+                 vertex = vertex + 1) {
+                var x = xValues[index] +
+                    selectedModel.vertexX(vertex) * size / 1000
+                var y = yValues[index] + bob +
+                    selectedModel.vertexY(vertex) * size / 1000
+                var z = zValues[index] +
+                    selectedModel.vertexZ(vertex) * size / 1000
+                if (!target.pushWorldVertex(
+                        resources[index], x, y, z,
+                        selectedModel.vertexU(vertex),
+                        selectedModel.vertexV(vertex))) {
+                    target.discard()
+                    return false
+                }
             }
         }
         return target.publish()

@@ -3,16 +3,16 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
-- Power-ups agora flutuam pouco acima do chão, com balanço sutil, rotação
-  contínua, halo pulsante no piso e dois brilhos orbitando. O efeito vale para
-  os modelos de caneca/chapéu e para os pickups fallback.
-- Importamos o FBX e a textura UV enviados da caneca para um GLB texturizado e
-  o ligamos ao power-up de velocidade Coffee, ID 1, no renderer WebGL. O
-  arquivo não contém licença; fonte e derivado ficam restritos ao protótipo
+- O staging Kof nativo agora carrega e emite a mesma geometria GLB e UVs da
+  caneca e do chapéu de mago usados no WebGL; os outros power-ups mantêm o
+  fallback limitado em forma de diamante. Os IDs 1 e 8 usam a caneca, e o ID 9
+  usa o chapéu. O WebGL renderiza as texturas embutidas e mantém balanço,
+  rotação, halo no piso e brilhos orbitando.
+- Importamos o FBX e a textura UV enviados da caneca para um GLB texturizado.
+  O arquivo não contém licença; fonte e derivado ficam restritos ao protótipo
   até a confirmação dos direitos.
-- Adicionamos o WizardHat texturizado e CC0 de Devil's Work.shop à cena WebGL
-  para o power-up Wizard Hat, ID 9; autoria e procedência estão registradas
-  no manifesto de assets do protótipo.
+- Adicionamos o WizardHat texturizado e CC0 de Devil's Work.shop; autoria e
+  procedência da coleção continuam no manifesto de assets do protótipo.
 - `kof_observed.sh` agora remove logs de build gerados há mais de 30 dias e
   mantém no máximo 200 arquivos gerados no diretório gerenciado. Caminhos
   explícitos de `--log` não são alterados. A auditoria local encontrou 1.100

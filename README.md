@@ -252,14 +252,14 @@ surface bounds, tint, caustics, toon contrast/opacity and splash timing;
 `runtime/floatables/*.json` selects per-object buoyancy, density, drag and
 gravity; and `runtime/power_ups/*.json` defines coffee mugs, jetpacks,
 megaphones, scuba kits and watermelons with bounded pickup positions, durations
-and effect values. Native gameplay stages the water marker surfaces, toon splash
-geometry, floating objects, power-up diamonds and the active power-up HUD panel
-from those bounded definitions. Coffee mugs increase movement speed, jetpacks
-increase jump impulse, megaphones increase damage, scuba kits reduce underwater
-O2 drain and watermelons restore health. The JVM suite covers JSON loading,
-underwater movement, oxygen recovery, buoyancy, pickup effects and splash
-expiry; native SDL_GPU presentation remains subject to the host's
-driver/dependency gate.
+and effect values. Native staging can load and stage the same coffee-mug and
+wizard-hat GLB geometry and UVs used by WebGL; other power-ups retain the
+bounded diamond fallback. Coffee pickup IDs 1 and 8 use the mug, and wizard-hat
+ID 9 uses the hat. Coffee mugs increase movement speed, jetpacks increase jump
+impulse, megaphones increase damage, scuba kits reduce underwater O2 drain and
+watermelons restore health. The JVM suite covers JSON loading, underwater
+movement, oxygen recovery, buoyancy, pickup effects and splash expiry; native
+SDL_GPU presentation remains subject to the host's driver/dependency gate.
 
 The 2026-10-02 GUI pass adds a consistent framed shell, selected-row rails,
 screen-specific subtitles, bounded text clipping and explicit keyboard hints

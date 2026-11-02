@@ -5815,6 +5815,31 @@ test "power-up JSON definitions stage named pickups" {
         "power-up world must stage resource-backed diamond pickups")
 }
 
+test "Kof stages imported coffee and wizard pickup models" {
+    var assets = BoundedExternalGlbAssetStore()
+    var coffee = BoundedExternalGlbModelReader()
+    var wizard = BoundedExternalGlbModelReader()
+    assert(assets.available(3) && assets.available(4) &&
+        coffee.read(assets.bytes(3), 3) &&
+        wizard.read(assets.bytes(4), 4) &&
+        coffee.valid() && wizard.valid(),
+        "Kof must load the same bounded pickup GLBs as WebGL")
+    var world = PowerUpWorld(2)
+    assert(world.add(PowerUpDefinition(
+            1, powerUpKindCoffeeMug(), 32, 1, 52, 3, 600, 2, 2, 9)) &&
+        world.add(PowerUpDefinition(
+            9, powerUpKindWizardHat(), 48, 1, 48, 3, 1000000, 5, 2, 9)),
+        "Kof model fixture must contain both imported pickup types")
+    var modelVertices = world.renderVertexCountWithModels(coffee, wizard)
+    var frame = FrameStaging(modelVertices)
+    assert(modelVertices == coffee.vertexCount() + wizard.vertexCount() &&
+        world.stageWithModels(frame, 3, coffee, wizard) &&
+        frame.stagedCount() == modelVertices &&
+        frame.resourceAt(0) == 9 &&
+        frame.resourceAt(coffee.vertexCount()) == 9,
+        "Kof staging must emit both imported pickup meshes with their UVs")
+}
+
 test "power-up state applies configurable effects" {
     var state = PowerUpEffectState()
     assert(state.apply(
