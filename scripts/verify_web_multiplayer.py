@@ -307,12 +307,11 @@ def throwable_suffix(scene):
     trailer = 18 + scene[17] * 8
     cursor = trailer + 4 + scene[trailer + 1] * 8
     cursor += scene[trailer + 2] * 8 + scene[trailer + 3] * 8
-    # New suffix has ten fixed words plus count * four; six-word legacy remains valid.
     checksum_index = len(scene) - 1
     if checksum_index - cursor >= 10:
         count = scene[cursor + 9]
         base_end = cursor + 10 + count * 4
-        if checksum_index in (base_end, base_end + 6):
+        if checksum_index in (base_end, base_end + 6, base_end + 7):
             return scene[cursor:base_end]
     return scene[cursor:cursor + 6]
 
@@ -324,7 +323,7 @@ def match_metadata(scene):
     if len(pickup) < 10:
         return None
     metadata = cursor + 10 + pickup[9] * 4
-    return scene[metadata:metadata + 6]
+    return scene[metadata:metadata + 7]
 def projectile_records(scene):
     trailer = 18 + scene[17] * 8
     count = scene[trailer + 1]
@@ -488,6 +487,7 @@ def main():
         shooter_state = actor_record(aim_scene, shooter.player_id)
         target_state = actor_record(aim_scene, target.player_id)
         target_before = target_state[4]
+        target_species = target_state[6]
         desired_yaw = round(math.degrees(math.atan2(
             target_state[1] - shooter_state[1],
             target_state[3] - shooter_state[3],
@@ -499,6 +499,83 @@ def main():
             lambda state, snapshot: state[4] < target_before)
         assert target_after[4] < target_before, "hitscan did not damage an aimed player"
         shooter.input(held=0)
+        respawn_target = players[2]
+        respawn_shooter = shooter
+        for _ in range(36):
+            aim_scene = spectators[0].snapshot(8, 4)
+            shooter_state = actor_record(aim_scene, respawn_shooter.player_id)
+            target_state = actor_record(aim_scene, respawn_target.player_id)
+            if target_state[4] <= 0:
+                break
+            desired_yaw = round(math.degrees(math.atan2(
+                target_state[1] - shooter_state[1],
+                target_state[3] - shooter_state[3],
+            )))
+            yaw_delta = (desired_yaw - shooter_state[7] + 180) % 360 - 180
+            sequence = respawn_shooter.input(
+                look_yaw=yaw_delta * 10, held=32)
+            aimed_scene = wait_for_input_ack(respawn_shooter, sequence)
+            target_state = actor_record(aimed_scene, respawn_target.player_id)
+            if target_state[4] <= 0:
+                break
+        release_sequence = respawn_shooter.input(held=0)
+        wait_for_input_ack(respawn_shooter, release_sequence)
+        assert target_state[4] == 0, (
+            f"lethal damage must leave the same player visibly eliminated; "
+            f"health={target_state[4]}, actor={target_state}")
+        death_deadline = time.monotonic() + 5
+        while time.monotonic() < death_deadline:
+            death_scene = respawn_target.snapshot(
+                expected_players=8, expected_spectators=4)
+            death_state = actor_record(death_scene, respawn_target.player_id)
+            metadata = match_metadata(death_scene)
+            if (death_state[4] == 0 and metadata is not None and
+                    0 < metadata[6] <= 360):
+                break
+        else:
+            raise AssertionError(
+                f"dead player snapshot was not observed; "
+                f"actor={death_state}, metadata={metadata}")
+        assert death_state[6] == target_species, (
+            f"dead player must preserve its species: "
+            f"expected={target_species}, actor={death_state}")
+        assert any(event[2] == respawn_shooter.player_id and
+                   event[3] == respawn_target.player_id and event[7] > 0
+                   for event in impact_events(death_scene)), (
+            "lethal impact must retain the attacker and victim IDs")
+        death_position = death_state[1:4]
+        respawn_target.input(move_x=1000)
+        still_dead = respawn_target.snapshot(
+            expected_players=8, expected_spectators=4)
+        still_dead_state = actor_record(still_dead, respawn_target.player_id)
+        assert still_dead_state[4] == 0 and \
+            still_dead_state[1:4] == death_position, (
+                "eliminated player input must not move the corpse")
+        respawn_deadline = time.monotonic() + 9
+        while time.monotonic() < respawn_deadline:
+            respawn_scene = spectators[0].snapshot(8, 4)
+            respawn_state = actor_record(
+                respawn_scene, respawn_target.player_id)
+            if respawn_state[4] > 0:
+                break
+        else:
+            raise AssertionError("player did not respawn on the next wave")
+        assert 0 < respawn_state[4] <= 300 and \
+            respawn_state[6] == target_species, (
+                f"respawn must restore the actor and preserve species; "
+                f"actor={respawn_state}, expected species={target_species}")
+        respawn_target.chat(1, 2, "respawn-team-check")
+        assert "respawn-team-check" in bytes(
+            respawn_target.receive_chat()[8:-1]).decode("ascii")
+        assert "respawn-team-check" in bytes(
+            players[3].receive_chat()[8:-1]).decode("ascii")
+        try:
+            players[0].receive_chat(timeout=0.15)
+            raise AssertionError("respawned player leaked team chat")
+        except TimeoutError:
+            pass
+        print("Authoritative team-wave respawn preserved player ID, species, team, and health",
+              flush=True)
 
         mover = players[0]
         flyer = players[1]
@@ -617,16 +694,17 @@ def main():
             spectators[0], 8, 4, mover.player_id,
             lambda state, snapshot: state[5] & 4 != 0)
 
-        ammo_before = mover.snapshot(8, 4)[14]
-        mover.input(look_yaw=-900, held=32)
+        ammo_mover = players[1]
+        ammo_before = ammo_mover.snapshot(8, 4)[14]
+        ammo_mover.input(look_yaw=-900, held=32)
         deadline = time.monotonic() + 3
         while time.monotonic() < deadline:
-            scene = mover.snapshot(8, 4)
+            scene = ammo_mover.snapshot(8, 4)
             if scene[14] < ammo_before:
                 break
         else:
             raise AssertionError("shoot input did not consume authoritative ammunition")
-        mover.input(held=0)
+        ammo_mover.input(held=0)
         trailer = 18 + scene[17] * 8
         before_special_scene = mover.snapshot(8, 4)
         before_special_trailer = 18 + before_special_scene[17] * 8

@@ -212,6 +212,7 @@ class WebMultiplayerSimulation {
     Int[] playerIds
     Int[] animals
     Int[] teamValues
+    Int[] lastDamagerValues
     Int[] healthValues
     Int[] ammoValues
     Int[] yawValues
@@ -247,6 +248,7 @@ class WebMultiplayerSimulation {
     Int[] impactZ
     Int[] impactDamage
     Int tickValue
+    Int nextRespawnWaveTickValue
     Int nextProjectileId
     Int nextImpactSequence
     Int impactCountValue
@@ -309,6 +311,7 @@ class WebMultiplayerSimulation {
         playerIds = new Int[8]
         animals = new Int[8]
         teamValues = new Int[8]
+        lastDamagerValues = new Int[8]
         healthValues = new Int[8]
         ammoValues = new Int[8]
         yawValues = new Int[8]
@@ -352,6 +355,7 @@ class WebMultiplayerSimulation {
         meleeCountValue = 0
         projectileLaunchedValue = 0
         throwableLaunchedValue = 0
+        nextRespawnWaveTickValue = 0
         configuredValue = false
         powerUpDefinitionsLoadedValue = false
         liquidWorldConfiguredValue = false
@@ -393,6 +397,7 @@ class WebMultiplayerSimulation {
             playerIds[index] = 0
             animals[index] = 0
             teamValues[index] = 0
+            lastDamagerValues[index] = 0
             healthValues[index] = 0
             ammoValues[index] = 0
             yawValues[index] = 0
@@ -476,20 +481,133 @@ class WebMultiplayerSimulation {
                 fpsMovementCapsuleHeight(), wasGrounded) != 0) {
             return false
         }
-        var scale = fpsMovementCoordinateScale()
         var resolvedX = kookie_box3d_result_x_fixed()
         var resolvedZ = kookie_box3d_result_z_fixed()
-        var minimumX = sessionWebGameWorldMinimumX() * scale
-        var minimumZ = sessionWebGameWorldMinimumZ() * scale
-        var maximumX = sessionWebGameWorldMaximumX() * scale
-        var maximumZ = sessionWebGameWorldMaximumZ() * scale
-        if (resolvedX < minimumX) { resolvedX = minimumX }
-        if (resolvedX > maximumX) { resolvedX = maximumX }
-        if (resolvedZ < minimumZ) { resolvedZ = minimumZ }
-        if (resolvedZ > maximumZ) { resolvedZ = maximumZ }
         return movement.applyExternalCollision(
             actor, resolvedX, kookie_box3d_result_y_fixed(), resolvedZ,
             kookie_box3d_result_grounded(), wasGrounded, jumpHeld)
+    }
+    Bool eliminateOutOfBounds(Int slot, Int sourceId) {
+        if (slot < 0 || slot >= 8 || !activeValues[slot] ||
+            healthValues[slot] <= 0) { return false }
+        var playerId = playerIds[slot]
+        var sourceSlot = playerSlot(sourceId)
+        if (sourceSlot < 0 || healthValues[sourceSlot] <= 0 ||
+            sourceSlot == slot ||
+            (teamValues[sourceSlot] != 0 &&
+                teamValues[slot] != 0 &&
+                teamValues[sourceSlot] == teamValues[slot])) {
+            sourceId = playerId
+        }
+        var targetIds = new Int[1]
+        targetIds[0] = playerId
+        var death = combat.playerAreaDamage(
+            sourceId, targetIds, 1000000, 0, 0, tickValue)
+        if (!death.accepted() || death.deaths() != 1) { return false }
+        healthValues[slot] = 0
+        var safeX = movement.positionX(slot + 1)
+        var safeY = movement.positionY(slot + 1)
+        var safeZ = movement.positionZ(slot + 1)
+        if (safeX < sessionWebGameWorldMinimumX()) {
+            safeX = sessionWebGameWorldMinimumX()
+        }
+        if (safeX > sessionWebGameWorldMaximumX()) {
+            safeX = sessionWebGameWorldMaximumX()
+        }
+        if (safeY < sessionWebGameWorldMinimumY()) {
+            safeY = sessionWebGameWorldMinimumY()
+        }
+        if (safeY > sessionWebGameWorldMaximumY()) {
+            safeY = sessionWebGameWorldMaximumY()
+        }
+        if (safeZ < sessionWebGameWorldMinimumZ()) {
+            safeZ = sessionWebGameWorldMinimumZ()
+        }
+        if (safeZ > sessionWebGameWorldMaximumZ()) {
+            safeZ = sessionWebGameWorldMaximumZ()
+        }
+        if (!movement.setPosition(slot + 1, safeX, safeY, safeZ) ||
+            !combat.setSpatialPosition(playerId, safeX, safeY, safeZ) ||
+            kookie_box3d_set_actor_capsule(
+                slot, movement.positionXFixed(slot + 1),
+                movement.positionYFixed(slot + 1), movement.positionZFixed(slot + 1),
+                fpsMovementCapsuleRadius(), fpsMovementCapsuleHeight()) != 0) {
+            return false
+        }
+        scheduleRespawnWave()
+        return true
+    }
+    Int respawnWaveIntervalTicks() {
+        var players = activePlayerCount()
+        if (players < 1) { return 120 }
+        var interval = players * 120
+        if (interval > 360) { interval = 360 }
+        return interval
+    }
+    void scheduleRespawnWave() {
+        if (nextRespawnWaveTickValue <= tickValue) {
+            nextRespawnWaveTickValue =
+                tickValue + respawnWaveIntervalTicks()
+        }
+    }
+    Bool respawnPlayer(Int slot) {
+        if (slot < 0 || slot >= 8 || !activeValues[slot] ||
+            healthValues[slot] > 0) { return false }
+        var playerId = playerIds[slot]
+        var animal = animals[slot]
+        var team = teamValues[slot]
+        var candidateStart = (playerId + tickValue) % 24
+        var spawnX = 24
+        var spawnZ = 20
+        var bestDistance = -1
+        for (var attempt = 0; attempt < 24; attempt = attempt + 1) {
+            var candidate = (candidateStart + attempt * 7) % 24
+            var column = candidate % 4
+            if ((team == 1 && column > 1) ||
+                (team == 2 && column < 2)) { continue }
+            var x = 24 + column * 88
+            var z = 20 + candidate / 4 * 48
+            var nearestDistance = 1000000
+            for (var other = 0; other < 8; other = other + 1) {
+                if (activeValues[other] && other != slot &&
+                    healthValues[other] > 0) {
+                    var dx = movement.positionX(other + 1) - x
+                    var dz = movement.positionZ(other + 1) - z
+                    var distance = dx * dx + dz * dz
+                    if (distance < nearestDistance) {
+                        nearestDistance = distance
+                    }
+                }
+            }
+            if (nearestDistance >= 32 * 32) {
+                spawnX = x
+                spawnZ = z
+                bestDistance = nearestDistance
+                break
+            }
+            if (nearestDistance > bestDistance) {
+                spawnX = x
+                spawnZ = z
+                bestDistance = nearestDistance
+            }
+        }
+        if (!removePlayer(playerId) ||
+            !addPlayer(playerId, animal, spawnX, 1, spawnZ)) { return false }
+        return team == 0 || setPlayerTeam(playerId, team)
+    }
+    Bool respawnWave() {
+        for (var slot = 0; slot < 8; slot = slot + 1) {
+            if (activeValues[slot] && healthValues[slot] <= 0 &&
+                !respawnPlayer(slot)) { return false }
+        }
+        nextRespawnWaveTickValue = 0
+        return true
+    }
+    Int respawnWaveTicksRemaining(Int externalId) {
+        var slot = playerSlot(externalId)
+        if (slot < 0 || healthValues[slot] > 0 ||
+            nextRespawnWaveTickValue <= tickValue) { return 0 }
+        return nextRespawnWaveTickValue - tickValue
     }
 
     void destroyBox3DArena() { kookie_box3d_destroy_arena() }
@@ -518,6 +636,7 @@ class WebMultiplayerSimulation {
             playerIds[slot] = 0
             animals[slot] = 0
             teamValues[slot] = 0
+            lastDamagerValues[slot] = 0
             healthValues[slot] = 0
             ammoValues[slot] = 0
             yawValues[slot] = 0
@@ -584,6 +703,7 @@ class WebMultiplayerSimulation {
         projectileLaunchedValue = 0
         throwableLaunchedValue = 0
         nextSliceId = 1
+        nextRespawnWaveTickValue = 0
         throwablePickupActive = true
         throwableRespawnTick = 0
         carriedThrowableType = 0
@@ -746,6 +866,7 @@ class WebMultiplayerSimulation {
         ammoValues[slot] = 30
         playerInputSequences[slot] = 0
         yawValues[slot] = 0
+        lastDamagerValues[slot] = 0
         pitchValues[slot] = 0
         seedAmmoValues[slot] = 0
         dizzyUntilTicks[slot] = 0
@@ -941,6 +1062,7 @@ class WebMultiplayerSimulation {
         activeValues[slot] = false
         playerIds[slot] = 0
         teamValues[slot] = 0
+        lastDamagerValues[slot] = 0
         healthValues[slot] = 0
         ammoValues[slot] = 0
         if (activePlayerCount() == 0) {
@@ -957,10 +1079,13 @@ class WebMultiplayerSimulation {
         Int lookYaw, Int lookPitch, Int heldMask, Int edgeMask
     ) {
         var slot = playerSlot(externalId)
-        if (slot < 0 || sequence <= playerInputSequences[slot] || sequence > 10000000 || inputTick < 0 ||
-            inputTick > 10000000 || moveX < -1000 || moveX > 1000 ||
-            moveZ < -1000 || moveZ > 1000 || lookYaw < -1800 || lookYaw > 1800 ||
-            lookPitch < -1800 || lookPitch > 1800 || heldMask < 0 || heldMask > 511 ||
+        if (slot < 0 || healthValues[slot] <= 0 ||
+            sequence <= playerInputSequences[slot] || sequence > 10000000 ||
+            inputTick < 0 || inputTick > 10000000 ||
+            moveX < -1000 || moveX > 1000 || moveZ < -1000 || moveZ > 1000 ||
+            lookYaw < -1800 || lookYaw > 1800 ||
+            lookPitch < -1800 || lookPitch > 1800 ||
+            heldMask < 0 || heldMask > 511 ||
             edgeMask < 0 || edgeMask > 511) { return false }
         var actor = slot + 1
         var axisX = moveX * 4 / 1000
@@ -1023,13 +1148,20 @@ class WebMultiplayerSimulation {
                 sessionWebGameWorldMaximumY(), movement.positionZ(actor))) {
             return false
         }
-        if (movedY < sessionWebGameWorldMinimumY() &&
-            !movement.setPosition(actor, movement.positionX(actor),
-                sessionWebGameWorldMinimumY(), movement.positionZ(actor))) {
-            return false
+        if (movedY < sessionWebGameWorldMinimumY()) {
+            if (!eliminateOutOfBounds(slot, lastDamagerValues[slot])) {
+                return false
+            }
+            yawValues[slot] = yaw
+            pitchValues[slot] = pitch
+            playerInputSequences[slot] = sequence
+            if (sequence > lastInputSequenceValue) {
+                lastInputSequenceValue = sequence
+            }
+            return true
         }
         for (var other = 0; other < 8; other = other + 1) {
-            if (activeValues[other] && other != slot &&
+            if (healthValues[slot] > 0 && activeValues[other] && other != slot &&
                 oldY == movement.positionY(actor) && !jump && !flying &&
                 (webMultiplayerSweptPlayerCollision(
                     oldX, oldY, oldZ,
@@ -1053,23 +1185,38 @@ class WebMultiplayerSimulation {
                     contactZ = movement.positionZ(other + 1) +
                         if (oldZ >= movement.positionZ(other + 1)) { 4 } else { -4 }
                 }
-                if (contactX < sessionWebGameWorldMinimumX()) {
-                    contactX = sessionWebGameWorldMinimumX()
+                if (contactX < sessionWebGameWorldMinimumX() ||
+                    contactX > sessionWebGameWorldMaximumX() ||
+                    contactZ < sessionWebGameWorldMinimumZ() ||
+                    contactZ > sessionWebGameWorldMaximumZ()) {
+                    if (!eliminateOutOfBounds(slot, playerIds[other])) {
+                        return false
+                    }
+                } else {
+                    if (!movement.setPosition(actor, contactX, oldY, contactZ)) {
+                        return false
+                    }
+                    combat.setSpatialPosition(externalId, contactX, oldY, contactZ)
                 }
-                if (contactX > sessionWebGameWorldMaximumX()) {
-                    contactX = sessionWebGameWorldMaximumX()
-                }
-                if (contactZ < sessionWebGameWorldMinimumZ()) {
-                    contactZ = sessionWebGameWorldMinimumZ()
-                }
-                if (contactZ > sessionWebGameWorldMaximumZ()) {
-                    contactZ = sessionWebGameWorldMaximumZ()
-                }
-                if (!movement.setPosition(actor, contactX, oldY, contactZ)) {
-                    return false
-                }
-                combat.setSpatialPosition(externalId, contactX, oldY, contactZ)
             }
+        }
+        if (healthValues[slot] > 0 &&
+            (movement.positionX(actor) < sessionWebGameWorldMinimumX() ||
+                movement.positionX(actor) > sessionWebGameWorldMaximumX() ||
+                movement.positionZ(actor) < sessionWebGameWorldMinimumZ() ||
+                movement.positionZ(actor) > sessionWebGameWorldMaximumZ())) {
+            if (!eliminateOutOfBounds(slot, lastDamagerValues[slot])) {
+                return false
+            }
+        }
+        if (healthValues[slot] <= 0) {
+            yawValues[slot] = yaw
+            pitchValues[slot] = pitch
+            playerInputSequences[slot] = sequence
+            if (sequence > lastInputSequenceValue) {
+                lastInputSequenceValue = sequence
+            }
+            return true
         }
         if (kookie_box3d_set_actor_capsule(
                 slot, movement.positionXFixed(actor),
@@ -1385,6 +1532,14 @@ class WebMultiplayerSimulation {
         return true
     }
     Bool pushImpact(Int kind, Int source, Int target, Int x, Int y, Int z, Int damage) {
+        var attackerSlot = playerSlot(source)
+        var victimSlot = playerSlot(target)
+        if (damage > 0 && attackerSlot >= 0 && victimSlot >= 0 &&
+            attackerSlot != victimSlot &&
+            (teamValues[attackerSlot] == 0 || teamValues[victimSlot] == 0 ||
+                teamValues[attackerSlot] != teamValues[victimSlot])) {
+            lastDamagerValues[victimSlot] = source
+        }
         if (impactCountValue == 8) {
             for (var i = 1; i < 8; i = i + 1) {
                 impactSequence[i - 1] = impactSequence[i]
@@ -1421,6 +1576,10 @@ class WebMultiplayerSimulation {
                 !setAnimation(targetSlot, sessionWebActorAnimationDamage(), 12)) {
                 return false
             }
+        }
+        if (damage > 0 && victimSlot >= 0 &&
+            healthValues[victimSlot] <= 0) {
+            scheduleRespawnWave()
         }
         nextImpactSequence = nextImpactSequence + 1
         return true
@@ -1717,6 +1876,9 @@ class WebMultiplayerSimulation {
                 }
             }
         }
+        if (nextRespawnWaveTickValue > 0 &&
+            tickValue >= nextRespawnWaveTickValue &&
+            !respawnWave()) { return false }
         return true
     }
     WebMultiplayerPlayerState playerState(Int externalId) {

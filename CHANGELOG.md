@@ -3,6 +3,20 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Multiplayer deaths and ring-outs now use authoritative shared respawn waves:
+  two seconds per connected player, capped at six seconds. Respawning restores
+  full health while preserving player ID, species, and team; spawn selection
+  prefers distance from living players. Dead clients cannot send gameplay input,
+  and the browser displays the server countdown. Bots stay connected and use the
+  same lifecycle. Behavior follows OpenSoldat's player-scaled, capped team-wave
+  model, adapted to KOOKIE's 60 Hz simulation.
+- The web multiplayer end-to-end gate now exercises lethal damage, attacker
+  attribution, dead-player immobility, wave countdown, same-ID/species respawn
+  with restored health, and preserved team-chat membership.
+- Multiplayer ring-outs now resolve as authoritative eliminations. The latest
+  opponent who dealt damage receives kill attribution; self-falls and friendly
+  pushes do not credit an opponent. Out-of-bounds positions are restored to a
+  valid snapshot location after elimination.
 - Web multiplayer collision separation now clamps resolved player positions to
   protocol world bounds. Invalid snapshot buffers are rejected before indexed
   writes, preventing a malformed state from terminating the server.
@@ -10,11 +24,11 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   with all four actors active and bot respawns continuing; the native server
   remained alive during observation.
 - Endless CLI battles no longer stop when one team is eliminated: dead bots
-  reconnect through their team route and resume combat until Ctrl+C. Desktop
-  A/D and arrow movement and horizontal mouse look now use conventional
-  left/right directions; touch-stick and touch-drag mappings remain unchanged.
-  The browser contract smoke passes with both desktop-axis expectations and
-  existing touch-axis expectations.
+  remain connected and wait for authoritative respawn waves. Desktop A/D and
+  arrow movement and horizontal mouse look now use conventional left/right
+  directions; touch-stick and touch-drag mappings remain unchanged. The browser
+  contract smoke passes with both desktop-axis expectations and existing
+  touch-axis expectations.
 - The bot battle runner now supports configurable goose/cat counts, unlimited
   elimination matches, spectator-gated starts, separate server/battle logs,
   and an option to keep the server running after a match. A live 2v2 spectator

@@ -89,6 +89,16 @@ behavior, shared concurrent Kutter edits, and the network-visible double-jump
 roll animation and roll-side bit. This is local qualification, not proof of
 WAN/tailnet latency or every gameplay edge case.
 
+Team-game deaths and ring-outs use an authoritative shared respawn wave: two
+seconds per connected player, capped at six seconds (60 simulation ticks per
+second). Eliminated players respawn together at full health with the same
+player ID, species, and team. Spawn selection prefers locations at least 32
+world units from living players, then uses the safest available team-side
+location. Dead players remain in the roster but cannot move or act. The browser
+disables their controls and shows the server countdown; bots use the same
+server-managed cycle. This adapts OpenSoldat's player-scaled, capped Team Games
+Wave Respawn model; timing and spawn behavior are KOOKIE-specific.
+
 The SDL gameplay client can join this same authoritative session. Configure
 `KOOKIE_KUTTER_HOST` and `KOOKIE_KUTTER_PORT`, and set
 `KOOKIE_KUTTER_PATH=/session/goose` or `/session/cat` to match the server's
@@ -269,15 +279,16 @@ python3 -m http.server 8080 --directory "$browser_dir"
 Open
 `http://127.0.0.1:8080/?kookie_ws=ws://127.0.0.1:8766/session`, click `CONNECT`,
 then use `PING`, `PROTOCOL ECHO`, or an authoritative action (`WASD`/arrow
-movement, `Q`/`E` look, `SPACE` jump, `F` fire, `M` melee, `X` special, `R`
-reset). Click the canvas to capture pointer lock for mouse look. Admission
-requests the full authoritative scene snapshot before enabling action controls.
-The Kof server maintains bounded tick, 3D player position/camera, stamina, ammo,
-combo, VFX, four actor states, one projectile and one pickup. The WebGL2 client
-loads the staged goose, cat, ground and wall GLB assets, displays an accessible
-HUD and top-down minimap, persists bounded settings, and reconnects up to five
-times when enabled. WebGL2 is required for the browser's 3D scene; the client
-fails closed when unavailable.
+movement, `Q`/`E` look, `SPACE` jump, `F` fire, `M` melee and `X` special).
+There is no client-side reset control; match resets are server-managed.
+Click the canvas to capture pointer lock for mouse look. Admission requests the
+full authoritative scene snapshot before enabling action controls. The Kof
+server maintains bounded tick, 3D player position/camera, stamina, ammo, combo,
+VFX, four actor states, one projectile and one pickup. The WebGL2 client loads
+the staged goose, cat, ground and wall GLB assets, displays an accessible HUD
+and top-down minimap, persists bounded settings, and reconnects up to five times
+when enabled. WebGL2 is required for the browser's 3D scene; the client fails
+closed when unavailable.
 
 ### Multiplayer chat and remote administration
 

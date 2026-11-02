@@ -880,7 +880,7 @@ Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot) {
     var trailer = 18 + actors.length
     var sliceCount = metrics.simulation.sliceCount()
     var extended = new Int[base.length + 4 + projectileCount * 8 +
-        throwableCount * 8 + impactCount * 8 + 10 + sliceCount * 4 + 6]
+        throwableCount * 8 + impactCount * 8 + 10 + sliceCount * 4 + 7]
     for (var i = 0; i < base.length; i = i + 1) {
         extended[i] = base[i]
     }
@@ -949,6 +949,8 @@ Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot) {
         webMapVoteCount(metrics, sessionWebGameMapTwo())
     extended[cursor + 5] =
         extended[cursor + 3] + extended[cursor + 4]
+    extended[cursor + 6] =
+        if (!spectator) metrics.simulation.respawnWaveTicksRemaining(id) else 0
     extended[extended.length - 1] = sessionWebMessageChecksum(extended, extended.length - 1)
     if (!validSessionWebGameMultiplayerSnapshot(extended)) {
         return new Int[0]
@@ -1523,17 +1525,6 @@ Bool webHandleGame(WebServerMetrics metrics, Int slot, WebSessionFrame frame) {
     if (validSessionWebGameProbe(words)) {
         return webSendSessionWords(
             metrics.connectionIds[slot], sessionWebGameKind(), frame.sequence(), words)
-    }
-    if (validSessionWebGameCommand(words)) {
-        if (words[4] == sessionWebGameResetCommand()) {
-            var id = metrics.connectionPlayerIds[slot]
-            metrics.simulation.removePlayer(id)
-            var reset = metrics.simulation.addPlayer(id, 1, 36, 1, 36)
-            if (!reset) { return false }
-            metrics.connectionMoveX[slot] = 0; metrics.connectionMoveZ[slot] = 0
-            metrics.connectionHeldActions[slot] = 0; metrics.connectionEdgeActions[slot] = 0
-            return true
-        }
     }
     return false
 }

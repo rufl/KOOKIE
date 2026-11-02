@@ -95,7 +95,8 @@ Abra
 `http://127.0.0.1:8080/?kookie_ws=ws://127.0.0.1:8766/session`, clique em
 `CONNECT` e use `PING`, `PROTOCOL ECHO` ou uma ação autoritativa
 (`WASD`/setas para mover, `Q`/`E` para olhar, `ESPAÇO` para pular, `F` para
-atirar, `M` corpo a corpo, `X` especial, `R` reset). Clique no canvas para
+atirar, `M` corpo a corpo e `X` especial). Não há controle de reset no cliente;
+reinícios de partida são gerenciados pelo servidor. Clique no canvas para
 capturar pointer lock e usar o mouse. A admissão pede o snapshot de cena
 autoritativo completo antes de habilitar os controles de ação. O servidor Kof
 mantém tick, posição/câmera 3D, stamina, munição, combate, saúde e estado
@@ -104,6 +105,17 @@ carrega os GLBs staged de ganso, gato, chão e parede, exibe HUD acessível e
 minimapa superior, persiste configurações limitadas e reconecta até cinco vezes
 quando habilitado. WebGL2 é obrigatório para a cena 3D; o cliente falha fechado
 quando não está disponível.
+
+Mortes e quedas em partidas por equipe usam uma onda de respawn autoritativa
+compartilhada: dois segundos por jogador conectado, limitados a seis segundos
+(60 ticks de simulação por segundo). Jogadores eliminados voltam juntos com a
+vida completa, mantendo ID, espécie e equipe. A escolha de spawn prioriza locais
+a pelo menos 32 unidades do mundo dos jogadores vivos e, caso não existam,
+escolhe o local mais seguro do lado da equipe. Jogadores mortos permanecem no
+elenco, mas não podem mover-se nem agir. O navegador desativa os controles e
+mostra a contagem do servidor; bots usam o mesmo ciclo. É uma adaptação do
+modelo de onda de respawn por equipe escalada por jogadores e limitada do
+OpenSoldat; tempo e posições são específicos do KOOKIE.
 
 ### Chat multiplayer e administração remota
 

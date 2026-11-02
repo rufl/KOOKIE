@@ -3,6 +3,20 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Mortes e quedas no multiplayer agora usam ondas autoritativas compartilhadas:
+  dois segundos por jogador conectado, limitados a seis segundos. O respawn
+  restaura a vida completa e preserva ID, espécie e equipe; o spawn prioriza
+  distância dos jogadores vivos. Clientes mortos não enviam ações, e o navegador
+  mostra a contagem regressiva do servidor. Bots permanecem conectados e usam
+  o mesmo ciclo. O modelo segue as ondas de equipe escaladas por jogadores e
+  limitadas do OpenSoldat, adaptadas à simulação KOOKIE de 60 Hz.
+- O teste end-to-end multiplayer agora verifica dano letal, autoria do atacante,
+  imobilidade após a morte, contagem da onda, respawn com o mesmo ID/espécie,
+  recuperação de vida e manutenção da equipe no chat.
+- Ring-outs no multiplayer agora são eliminações autoritativas. O último
+  adversário que causou dano recebe a eliminação; quedas próprias e empurrões
+  de aliados não creditam um adversário. Após a eliminação, a posição é
+  restaurada para um ponto válido do snapshot.
 - A separação de colisões multiplayer agora limita a posição dos jogadores aos
   limites do mundo do protocolo. Buffers de snapshot inválidos são rejeitados
   antes de escritas indexadas, evitando que um estado malformado encerre o servidor.

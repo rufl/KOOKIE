@@ -623,7 +623,12 @@ Bool validSessionWebGameMultiplayerSnapshot(Int[] words) {
                 (suffixLength - 16) % 4 == 0) ||
             (suffixLength >= actorCount + 16 &&
                 suffixLength <= actorCount + 32 &&
-                (suffixLength - actorCount - 16) % 4 == 0)
+                (suffixLength - actorCount - 16) % 4 == 0) ||
+            (suffixLength >= 17 && suffixLength <= 33 &&
+                (suffixLength - 17) % 4 == 0) ||
+            (suffixLength >= actorCount + 17 &&
+                suffixLength <= actorCount + 33 &&
+                (suffixLength - actorCount - 17) % 4 == 0)
         if (words[trailer] < 0 || words[trailer] > 1000000 ||
             projectileCount < 0 || projectileCount > 12 ||
             throwableCount < 0 || throwableCount > 4 ||
@@ -692,6 +697,7 @@ Bool validSessionWebGameMultiplayerSnapshot(Int[] words) {
         var hasLegacyPickup = false
         var directSuffix = -1
         var hasMapState = false
+        var hasRespawnTimer = false
         if (words.length >= cursor + 11) {
             var directSlices = words[cursor + 9]
             if (directSlices >= 0 && directSlices <= 4) {
@@ -701,6 +707,11 @@ Bool validSessionWebGameMultiplayerSnapshot(Int[] words) {
                         cursor + 10 + directSlices * 4 + 7) {
                     directSuffix = cursor
                     hasMapState = true
+                } else if (words.length ==
+                        cursor + 10 + directSlices * 4 + 8) {
+                    directSuffix = cursor
+                    hasMapState = true
+                    hasRespawnTimer = true
                 }
             }
         }
@@ -716,6 +727,11 @@ Bool validSessionWebGameMultiplayerSnapshot(Int[] words) {
                         shiftedSuffix + 10 + shiftedSlices * 4 + 7) {
                     directSuffix = shiftedSuffix
                     hasMapState = true
+                } else if (words.length ==
+                        shiftedSuffix + 10 + shiftedSlices * 4 + 8) {
+                    directSuffix = shiftedSuffix
+                    hasMapState = true
+                    hasRespawnTimer = true
                 }
                 if (directSuffix == shiftedSuffix) {
                     for (var index = 0; index < actorCount; index = index + 1) {
@@ -784,9 +800,10 @@ Bool validSessionWebGameMultiplayerSnapshot(Int[] words) {
                 return false
             }
             var mapState = suffix + 10 + slices * 4
-            if (words.length != mapState + (if (hasMapState) 7 else 1) &&
-                words.length != mapState + actorCount +
-                    (if (hasMapState) 7 else 1)) {
+            var mapStateLength = if (hasRespawnTimer) 8
+                else if (hasMapState) 7 else 1
+            if (words.length != mapState + mapStateLength &&
+                words.length != mapState + actorCount + mapStateLength) {
                 return false
             }
             for (var slice = 0; slice < slices; slice = slice + 1) {
@@ -809,7 +826,10 @@ Bool validSessionWebGameMultiplayerSnapshot(Int[] words) {
                     words[metadata + 2] < 0 || words[metadata + 2] > 7200 ||
                     words[metadata + 3] < 0 || words[metadata + 3] > 8 ||
                     words[metadata + 4] < 0 || words[metadata + 4] > 8 ||
-                    words[metadata + 5] != votes) { return false }
+                    words[metadata + 5] != votes ||
+                    (hasRespawnTimer &&
+                        (words[metadata + 6] < 0 ||
+                            words[metadata + 6] > 360))) { return false }
             }
         }
     }

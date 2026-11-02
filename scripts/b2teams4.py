@@ -81,23 +81,6 @@ def latest_snapshot(client, expected_players=BOT_COUNT, expected_spectators=None
             scene = candidate
 
 
-def reconnect_bot(port, path, expected_players, stop):
-    deadline = time.monotonic() + 30
-    last_error = None
-    while not stop.is_set() and time.monotonic() < deadline:
-        stop.wait(.25)
-        if stop.is_set():
-            break
-        replacement = None
-        try:
-            replacement = Client(port, path=path)
-            replacement.snapshot(expected_players=expected_players)
-            return replacement
-        except Exception as error:
-            last_error = error
-            if replacement is not None:
-                replacement.close()
-    raise RuntimeError(f"bot respawn failed for {path}: {last_error}")
 
 def run_battle(port, duration=None, log_path=None,
                goose_count=4, cat_count=4, wait_for_spectator=False,
@@ -169,7 +152,6 @@ def run_battle(port, duration=None, log_path=None,
             tried_pickups = {}
             burst_action = ACTION_DASH
             animal = 1 if client.player_id in goose_ids else 2
-            bot_path = "/session/goose" if animal == 1 else "/session/cat"
             actions_by_player[client.player_id] = set()
             animation_states_by_player[client.player_id] = set()
             opening_roll = True
@@ -177,39 +159,8 @@ def run_battle(port, duration=None, log_path=None,
                 try:
                     scene = latest_snapshot(client, bot_count)
                     me = actor_record(scene, client.player_id)
-                    if duration is None and me[4] <= 0:
-                        dead_client = client
-                        dead_id = client.player_id
-                        dead_client.close()
-                        client = reconnect_bot(port, bot_path, bot_count, stop)
-                        new_id = client.player_id
-                        with roster_lock:
-                            own_team.discard(dead_id)
-                            own_team.add(new_id)
-                            team_ids = goose_ids if animal == 1 else cat_ids
-                            team_ids.discard(dead_id)
-                            team_ids.add(new_id)
-                        with clients_lock:
-                            clients[clients.index(dead_client)] = client
-                        actions_by_player.pop(dead_id, None)
-                        animation_states_by_player.pop(dead_id, None)
-                        actions_by_player[new_id] = set()
-                        animation_states_by_player[new_id] = set()
-                        action_start = time.monotonic()
-                        next_shot = action_start + 1.5
-                        next_burst = 0.0
-                        next_melee = action_start + 1.5
-                        next_special = action_start + .7
-                        throwable_phase = 0
-                        throwable_charge_started = 0.0
-                        next_jump = 0.0
-                        double_jump_due = None
-                        burst_action = ACTION_DASH
-                        tried_pickups = {}
-                        opening_roll = True
-                        print(f"Bot respawned: {dead_id} -> {new_id} "
-                              f"({'goose' if animal == 1 else 'cat'}).",
-                              flush=True)
+                    if me[4] <= 0:
+                        stop.wait(.045)
                         continue
                     animation_state = me[5] // 128
                     animation_states_by_player[client.player_id].add(animation_state)
@@ -220,7 +171,7 @@ def run_battle(port, duration=None, log_path=None,
                                for index in range(scene[17])
                                if scene[18 + index * 8] not in own_ids and
                                scene[22 + index * 8] > 0]
-                    if not enemies or me[4] <= 0:
+                    if not enemies:
                         client.input()
                     else:
                         target = min(enemies, key=lambda actor:
@@ -378,9 +329,8 @@ def run_battle(port, duration=None, log_path=None,
               f"{cat_count} cats (blue); server-authoritative combat")
         print(f"Spectator WebSocket: ws://127.0.0.1:{port}/spectate")
         print("Open the web client, select Spectator, set its server URL, and connect.")
-        if duration is None:
-            print("Endless mode: eliminated bots respawn; Ctrl+C stops the match.",
-                  flush=True)
+        print("Eliminated bots respawn together on authoritative server waves; "
+              "their player ID, species, and team are preserved.", flush=True)
         start = time.monotonic()
         if log_path:
             Path(log_path).parent.mkdir(parents=True, exist_ok=True)

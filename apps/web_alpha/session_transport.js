@@ -68,7 +68,6 @@
   const GAME_MOVE_RIGHT = 2;
   const GAME_MELEE = 3;
   const GAME_SPECIAL = 4;
-  const GAME_RESET = 5;
   const GAME_SCENE_PROBE = 6;
   const GAME_FULL_SCENE_PROBE = 7;
   const GAME_MOVE_FORWARD = 8;
@@ -1075,9 +1074,6 @@
   const gameButton = createButton("Protocol echo", true);
   const healthButton = createButton("Check connection");
   const captureButton = createButton("Capture screenshot");
-  const resetButton = createButton("Reset game", true);
-  gameActionButtons.push(resetButton);
-  resetButton.addEventListener("click", () => sendGameCommand(GAME_RESET, 0));
   settingsMenu.appendChild(advancedControls);
 
   root.appendChild(panel);
@@ -1403,6 +1399,28 @@
   mapVoteButtons.style.gridTemplateColumns = "1fr";
   mapVoteButtons.style.gap = "8px";
   sceneCanvasWrap.appendChild(mapVotePanel);
+  const respawnNotice = document.createElement("section");
+  respawnNotice.hidden = true;
+  respawnNotice.className = "kookie-respawn-notice";
+  respawnNotice.setAttribute("role", "status");
+  respawnNotice.setAttribute("aria-live", "polite");
+  Object.assign(respawnNotice.style, {
+    position: "absolute",
+    zIndex: "10",
+    left: "50%",
+    top: "42%",
+    transform: "translate(-50%, -50%)",
+    padding: "18px 24px",
+    border: "1px solid #ffffff70",
+    borderRadius: "14px",
+    background: "#101b20e8",
+    color: "#fff",
+    font: "700 18px sans-serif",
+    letterSpacing: "0.08em",
+    textAlign: "center",
+    pointerEvents: "none",
+  });
+  sceneCanvasWrap.appendChild(respawnNotice);
   panel.appendChild(gameConsoleDialog);
   function logGameConsole(message) {
     const lines = (gameConsoleOutput.textContent + String(message) + "\n")
@@ -1889,7 +1907,7 @@
       lastMapVoteSent = 0;
       return;
     }
-    const remainingSeconds = Math.ceil(scene.matchTicksRemaining / 20);
+    const remainingSeconds = Math.ceil(scene.matchTicksRemaining / 60);
     const currentMap = scene.mapId === 2 ? "G2 · Ruins" : "G1 · Central Pool";
     mapVoteStatus.textContent = "Current: " + currentMap +
       " · " + remainingSeconds + "s left · " +
@@ -1903,6 +1921,33 @@
     }
   }
   function updateScene(scene) {
+    const previousScene = sceneState;
+    const isDead = scene.role === GAME_ROLE_PLAYER && scene.health === 0;
+    const wasDead = previousScene?.role === GAME_ROLE_PLAYER &&
+      previousScene.health === 0;
+    if (isDead && !wasDead) {
+      heldMovementKeys.clear();
+      gameplayMoveX = 0;
+      gameplayMoveZ = 0;
+      gameplayHeldActions = 0;
+      pendingInputFrames.clear();
+      pendingMovement.clear();
+    }
+    if (scene.role === GAME_ROLE_PLAYER && isDead !== wasDead) {
+      setGameControlsEnabled(!isDead);
+    }
+    respawnNotice.hidden = !isDead;
+    if (isDead) {
+      const seconds = Math.ceil(scene.respawnTicksRemaining / 60);
+      const message = seconds > 0
+        ? "KNOCKED OUT · RESPAWNING IN " + seconds + "s"
+        : "KNOCKED OUT · RESPAWNING NEXT WAVE";
+      if (respawnNotice.textContent !== message) {
+        respawnNotice.textContent = message;
+      }
+    } else if (respawnNotice.textContent) {
+      respawnNotice.textContent = "";
+    }
     sceneState = scene;
     updateMapVotePanel(scene);
     renderSceneState = {
@@ -3355,6 +3400,7 @@
     let matchPhase = 0;
     let matchTicksRemaining = 0;
     let mapVoteCounts = [0, 0];
+    let respawnTicksRemaining = 0;
     const slicePickups = [];
 
     if (words.length !== 19 + words[17] * 8) {
@@ -3380,14 +3426,16 @@
       let suffix = offset;
       const tailLength = words.length - suffix - 1;
       const isSuffixLength = (length) => length === 0 || length === 6 ||
-        (length >= 10 && length <= 32 &&
+        (length >= 10 && length <= 33 &&
           ((length - 10) % 4 === 0 ||
-            (length >= 16 && (length - 16) % 4 === 0)));
-      const hasNewSuffix = tailLength >= 10 && tailLength <= 32 &&
+            (length >= 16 && (length - 16) % 4 === 0) ||
+            (length >= 17 && (length - 17) % 4 === 0)));
+      const hasNewSuffix = tailLength >= 10 && tailLength <= 33 &&
         Number.isInteger(words[suffix + 9]) &&
         words[suffix + 9] >= 0 && words[suffix + 9] <= 4 &&
         (tailLength === 10 + words[suffix + 9] * 4 ||
-          tailLength === 16 + words[suffix + 9] * 4);
+          tailLength === 16 + words[suffix + 9] * 4 ||
+          tailLength === 17 + words[suffix + 9] * 4);
       const hasOxygen = !hasNewSuffix && !isSuffixLength(tailLength) &&
         isSuffixLength(tailLength - words[17]);
       if (hasOxygen) {
@@ -3419,12 +3467,16 @@
             y: words[sliceOffset + 2], z: words[sliceOffset + 3] });
         }
         const sliceCount = words[suffix + 9];
-        if (suffixLength === 16 + sliceCount * 4) {
+        if (suffixLength === 16 + sliceCount * 4 ||
+            suffixLength === 17 + sliceCount * 4) {
           const metadata = suffix + 10 + sliceCount * 4;
           mapId = words[metadata];
           matchPhase = words[metadata + 1];
           matchTicksRemaining = words[metadata + 2];
           mapVoteCounts = [words[metadata + 3], words[metadata + 4]];
+          if (suffixLength === 17 + sliceCount * 4) {
+            respawnTicksRemaining = words[metadata + 6];
+          }
         }
       }
     }
@@ -3441,7 +3493,7 @@
       matchPhase,
       matchTicksRemaining,
       mapVoteCounts,
-      lastInputSequence,
+      respawnTicksRemaining,
       role: words[5],
       training: words[5] === GAME_ROLE_TRAINING,
       playerId: words[6],
@@ -3511,6 +3563,9 @@
   function sendGameplayInput(changes = {}) {
     if (!sceneRenderer || !socket || socket.readyState !== WebSocket.OPEN ||
         !authoritativeReady) return;
+    if (joinedRole !== GAME_ROLE_SPECTATOR && sceneState?.health === 0) {
+      return;
+    }
     if (joinedRole === GAME_ROLE_SPECTATOR) {
       if (Number.isFinite(changes.moveX)) {
         spectatorMoveX = Math.max(-1000, Math.min(1000, changes.moveX));
@@ -4058,10 +4113,6 @@
     } else if (event.key === "e" || event.key === "E") {
       event.preventDefault();
       sendGameplayInput({ lookYaw: 15 });
-    } else if ((event.key === "r" || event.key === "R") &&
-        joinedRole !== GAME_ROLE_SPECTATOR) {
-      event.preventDefault();
-      sendGameCommand(GAME_RESET, 0);
     }
   });
   document.addEventListener("keyup", (event) => {
@@ -4187,7 +4238,6 @@
     fire: () => sendGameCommand(GAME_FIRE, 0),
     melee: () => sendGameCommand(GAME_MELEE, 0),
     special: () => sendGameCommand(GAME_SPECIAL, 0),
-    reset: () => sendGameCommand(GAME_RESET, 0),
     protocolVersion: NETCODE_PROTOCOL_VERSION,
     maxFrameBytes: MAX_FRAME_BYTES,
   });
