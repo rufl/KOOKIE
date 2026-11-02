@@ -750,6 +750,11 @@ class EnemyStateWorld {
     Int attackRange
     Int attackCooldown
     BoundedBehaviorProgram behaviorProgram
+    Bool lastStepAcceptedValue
+    Int lastStepStateValue
+    Int lastStepTargetIdValue
+    Bool lastStepAttackReadyValue
+    Bool lastStepTransitionedValue
     public constructor(Int capacity) {
         ids = new Int[capacity]
         states = new Int[capacity]
@@ -765,6 +770,11 @@ class EnemyStateWorld {
         attackCooldown = 0
         behaviorProgram = BoundedBehaviorProgram(64, 128, 32)
         behaviorProgram.configureDefaultEnemyProgram(1)
+        lastStepAcceptedValue = false
+        lastStepStateValue = 0
+        lastStepTargetIdValue = 0
+        lastStepAttackReadyValue = false
+        lastStepTransitionedValue = false
         for (var index = 0; index < capacity; index = index + 1) {
             ids[index] = 0
             states[index] = 0
@@ -940,26 +950,35 @@ class EnemyStateWorld {
         return true
     }
 
-    EnemyStepResult step(
+    Bool stepForBudget(
         Int id, Int tick, Int targetId, Bool targetVisible, Int distance
     ) {
+        lastStepAcceptedValue = false
+        lastStepStateValue = 0
+        lastStepTargetIdValue = 0
+        lastStepAttackReadyValue = false
+        lastStepTransitionedValue = false
         var index = find(id)
         if (index < 0 || tick < stateSinceTicks[index] || distance < 0 ||
             (targetVisible && targetId <= 0) || perceptionRange <= 0) {
-            return EnemyStepResult(false, id, 0, 0, false, false)
+            return false
         }
         if (states[index] == deadState()) {
-            return EnemyStepResult(true, id, deadState(), 0, false, false)
+            lastStepAcceptedValue = true
+            lastStepStateValue = deadState()
+            return true
         }
-        var decision = behaviorProgram.evaluate(
-            targetId, targetVisible, distance, perceptionRange, attackRange)
-        if (!decision.accepted()) {
-            return EnemyStepResult(false, id, 0, 0, false, false)
+        if (!behaviorProgram.evaluateInto(
+                targetId, targetVisible, distance,
+                perceptionRange, attackRange)) {
+            return false
         }
         var priorState = states[index]
         var attackReady = false
-        if (decision.intent() == behaviorIntentAttack()) {
-            targets[index] = decision.targetId()
+        var intent = behaviorProgram.lastDecisionIntent()
+        if (intent == behaviorIntentAttack()) {
+            var decidedTarget = behaviorProgram.lastDecisionTargetId()
+            targets[index] = decidedTarget
             if (tick >= attackReadyTicks[index]) {
                 states[index] = attackState()
                 stateSinceTicks[index] = tick
@@ -968,25 +987,44 @@ class EnemyStateWorld {
             } else {
                 states[index] = attackState()
             }
-        } else if (decision.intent() == behaviorIntentChase()) {
-            targets[index] = decision.targetId()
+        } else if (intent == behaviorIntentChase()) {
+            targets[index] = behaviorProgram.lastDecisionTargetId()
             states[index] = chaseState()
             stateSinceTicks[index] = tick
-        } else if (decision.intent() == behaviorIntentInvestigate()) {
+        } else if (intent == behaviorIntentInvestigate()) {
             targets[index] = 0
             states[index] = investigateState()
             stateSinceTicks[index] = tick
-        } else if (decision.intent() == behaviorIntentIdle()) {
+        } else if (intent == behaviorIntentIdle()) {
             targets[index] = 0
             states[index] = idleState()
             stateSinceTicks[index] = tick
         } else {
-            return EnemyStepResult(false, id, 0, 0, false, false)
+            return false
         }
-        return EnemyStepResult(
-            true, id, states[index], targets[index], attackReady,
-            priorState != states[index])
+        lastStepAcceptedValue = true
+        lastStepStateValue = states[index]
+        lastStepTargetIdValue = targets[index]
+        lastStepAttackReadyValue = attackReady
+        lastStepTransitionedValue = priorState != states[index]
+        return true
     }
+
+    EnemyStepResult step(
+        Int id, Int tick, Int targetId, Bool targetVisible, Int distance
+    ) {
+        var accepted = stepForBudget(
+            id, tick, targetId, targetVisible, distance)
+        return EnemyStepResult(
+            accepted, id, lastStepStateValue, lastStepTargetIdValue,
+            lastStepAttackReadyValue, lastStepTransitionedValue)
+    }
+
+    Bool lastStepAccepted() { return lastStepAcceptedValue }
+    Int lastStepState() { return lastStepStateValue }
+    Int lastStepTargetId() { return lastStepTargetIdValue }
+    Bool lastStepAttackReady() { return lastStepAttackReadyValue }
+    Bool lastStepTransitioned() { return lastStepTransitionedValue }
 
     Bool kill(Int id, Int tick) {
         return transition(id, deadState(), tick)

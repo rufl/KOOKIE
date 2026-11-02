@@ -4296,6 +4296,13 @@ test "Kof behavior program selects bounded enemy intents", "behavior" {
         attack.intent() == behaviorIntentAttack() &&
         attack.targetId() == 7 && attack.work() == 3,
         "visible targets inside attack range must select attack")
+    assert(program.evaluateInto(7, true, 10, 100, 20) &&
+        program.lastDecisionAccepted() &&
+        program.lastDecisionIntent() == behaviorIntentAttack() &&
+        program.lastDecisionTargetId() == attack.targetId() &&
+        program.lastDecisionWork() == attack.work() &&
+        program.lastDecisionRuleNodeId() > 0,
+        "in-place behavior evaluation must match the allocated decision")
 
     var chase = program.evaluate(7, true, 60, 100, 20)
     assert(chase.accepted() &&
@@ -6586,18 +6593,36 @@ test "deterministic enemy states and encounter admission" {
         "attack range cannot exceed perception range")
     assert(enemies.addEnemy(7, 0) && enemies.state(7) == enemies.idleState(),
         "enemy admission must start in idle")
+    var budgeted = EnemyStateWorld(2)
+    assert(budgeted.configure(100, 20, 4) && budgeted.addEnemy(7, 0),
+        "budgeted enemy state world must match the public reference")
     var chase = enemies.step(7, 1, 1, true, 60)
     assert(chase.accepted() && chase.state() == enemies.chaseState() &&
         chase.targetId() == 1 && !chase.attackReady(),
         "visible distant targets must drive deterministic chase")
+    assert(budgeted.stepForBudget(7, 1, 1, true, 60) &&
+        budgeted.lastStepAccepted() &&
+        budgeted.lastStepState() == chase.state() &&
+        budgeted.lastStepTargetId() == chase.targetId() &&
+        !budgeted.lastStepAttackReady(),
+        "budgeted chase must match the public enemy step")
     var attack = enemies.step(7, 2, 1, true, 20)
     assert(attack.accepted() && attack.state() == enemies.attackState() &&
         attack.attackReady() && enemies.attackReadyTick(7) == 6,
         "visible near targets must enter attack and schedule cooldown")
+    assert(budgeted.stepForBudget(7, 2, 1, true, 20) &&
+        budgeted.lastStepState() == attack.state() &&
+        budgeted.lastStepTargetId() == attack.targetId() &&
+        budgeted.lastStepAttackReady(),
+        "budgeted attack must preserve target and cooldown semantics")
     var waiting = enemies.step(7, 5, 1, true, 20)
     assert(waiting.accepted() && !waiting.attackReady() &&
         !waiting.transitioned(),
         "attack cooldown must suppress repeated attack decisions")
+    assert(budgeted.stepForBudget(7, 5, 1, true, 20) &&
+        !budgeted.lastStepAttackReady() &&
+        !budgeted.lastStepTransitioned(),
+        "budgeted cooldown must suppress duplicate attack readiness")
     var repeated = enemies.step(7, 6, 1, true, 20)
     assert(repeated.attackReady() && enemies.attackReadyTick(7) == 10,
         "attack readiness must recur on an integer tick boundary")
@@ -6605,6 +6630,10 @@ test "deterministic enemy states and encounter admission" {
     assert(lost.accepted() && lost.state() == enemies.investigateState() &&
         lost.targetId() == 0,
         "lost perception must clear target and enter investigate")
+    assert(budgeted.stepForBudget(7, 7, 0, false, 0) &&
+        budgeted.lastStepState() == lost.state() &&
+        budgeted.lastStepTargetId() == 0,
+        "budgeted lost perception must clear the target")
     assert(!enemies.transition(7, enemies.patrolState(), 6),
         "state transitions must reject time going backwards")
     assert(enemies.kill(7, 8) && enemies.state(7) == enemies.deadState())
@@ -6612,6 +6641,12 @@ test "deterministic enemy states and encounter admission" {
     assert(dead.accepted() && dead.state() == enemies.deadState() &&
         !dead.attackReady(),
         "dead enemies must remain terminal")
+    assert(budgeted.kill(7, 8) &&
+        budgeted.stepForBudget(7, 9, 1, true, 1) &&
+        budgeted.lastStepAccepted() &&
+        budgeted.lastStepState() == budgeted.deadState() &&
+        !budgeted.lastStepAttackReady(),
+        "budgeted dead enemies must remain terminal")
 
     var encounters = EncounterDirector(1)
     assert(!encounters.define(0, 1, 2) && encounters.define(10, 1, 2),

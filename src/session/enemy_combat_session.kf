@@ -979,18 +979,17 @@ class AuthoritativeEnemySession {
         Int enemyId, Int tick, Int targetId,
         Bool targetVisible, Int distance, Int critical
     ) {
-        var step = enemies.step(
-            enemyId, tick, targetId, targetVisible, distance)
-        if (!step.accepted()) {
+        if (!enemies.stepForBudget(
+                enemyId, tick, targetId, targetVisible, distance)) {
             return false
         }
-        lastEnemyStateValue = step.state()
-        if (!step.attackReady()) {
+        lastEnemyStateValue = enemies.lastStepState()
+        if (!enemies.lastStepAttackReady()) {
             return true
         }
-        // stepEnemy keeps the dispatch accepted after a resolution rejection.
+        // Result records are avoided for the common non-attacking AI ticks.
         combat.resolveHitscan(
-            enemyId, step.targetId(), tick, distance, critical)
+            enemyId, enemies.lastStepTargetId(), tick, distance, critical)
         return true
     }
 

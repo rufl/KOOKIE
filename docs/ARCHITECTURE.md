@@ -1089,14 +1089,20 @@ scene contains 192 vertices, 64 triangles, 64 enemies, 256 moving projectiles,
 512 pickups, 24 dynamic lights and 64 effects. Rolling
 AI/projectile/pickup budgets remain 16/64/128.
 
-The earlier 30-minute qualification record measured p50/p95/p99/max at
-2.489/3.202/3.721/23.645 ms and RSS within 128 KiB; that result is superseded
-by a fresh 108,000-tick paced run after 600 warm-up ticks on Linux
-6.18.57-2-lts/x86_64. The fresh run measured 175/295/391/9166 µs; RSS rose
-from 9,812 to 40,656 KiB (30,844 KiB growth/range), failing the 4 MiB plateau
-gate. Resource signature `520690` and workload checksum `884139` remained
-stable; the fixed logical resource signature does not identify the source of
-RSS growth, which remains an open engine memory issue.
+The fresh 30-minute run measured 175/295/391/9,166 µs p50/p95/p99/max and
+30,844 KiB RSS growth, failing the 4 MiB plateau gate. The pinned Kof `0.6.8`
+five-minute soak baseline grew 10,368 KiB. Heaptrack saw 121 allocations and
+one 73.73 KiB loader-retained startup allocation; `/proc` showed the Kof native
+runtime's 4 GiB arena and rising anonymous RSS with flat file-backed RSS.
+Heaptrack did not attribute that RSS growth to simulation heap allocations,
+so this indicates arena/page retention, not a proven live-object leak.
+
+The budgeted enemy AI now avoids constructing decision/step result records on
+the common path. The pinned `0.6.8` rerun reduced five-minute RSS growth to
+8,320 KiB, with resource signature `520690` stable and p95 671 µs; the
+simulation timing budget passes, but RSS still exceeds the 4 MiB limit.
+Memory stability remains unqualified. The soak script now rejects compiler
+versions other than the pinned `0.6.8`.
 
 The authenticated same-host host plus two clients replicate complete state
 every tick, assemble four chunks transactionally, reject stale/tampered state,

@@ -903,18 +903,28 @@ The latest paced 30-minute run completed 108,000 measured ticks after 600 warm-u
 ticks at p50/p95/p99/max 175/295/391/9,166 µs. RSS rose from 9,812 to 40,656 KiB
 (30,844 KiB growth/range across 181 samples), failing the 4 MiB plateau gate.
 Resource signature `520690` and workload checksum `884139` remained stable;
-simulation p95 passed the declared 4 ms budget. The native profile and soak run
-both show substantial process-memory growth; allocation-level profiling is
-still needed to identify its source before changing engine data structures.
+simulation p95 passed the declared 4 ms budget.
 
-The five-minute rerun measured 18,000 ticks after 600 warm-up ticks. RSS grew
-10,368 KiB over 61 samples, failing the same 4 MiB gate, while resource
-signature `520690` and simulation p95 (504 µs) remained stable. This is measured
-process growth, not proof of a leak. `KOOKIE_SOAK_HEAPTRACK=1` now captures
-allocation stacks and prints a report/profile path while preserving the temp
-directory. On Arch/EndeavourOS, install heaptrack with
-`sudo pacman -S --needed heaptrack`. The profiling run remains diagnostic and
-can exit nonzero at the existing RSS gate; run it without `sudo`.
+The five-minute soak measured 18,000 ticks after 600 warm-up ticks. On the
+pinned Kof `0.6.8`, the baseline grew 10,368 KiB over 61 RSS samples, failing
+the unchanged 4 MiB plateau gate; resource signature `520690` remained stable.
+Heaptrack recorded 121 allocation calls and one 73.73 KiB startup allocation
+retained through `libstdc++`/the dynamic loader. During profiling, `VmData`
+included the Kof native runtime's 4 GiB arena and anonymous RSS rose while
+file-backed RSS stayed flat; heaptrack did not attribute the arena's page
+growth to simulation heap allocations. This is evidence of native arena/RSS
+retention, not proof of a live-object leak.
+
+The budgeted AI path now evaluates and steps enemies in place, avoiding
+`BehaviorDecision` and `EnemyStepResult` records on each AI tick. The pinned
+Kof `0.6.8` 18,000-tick rerun reduced RSS growth to 8,320 KiB (from 10,368 KiB)
+with resource signature `520690` stable and p95 671 µs, still within the 4 ms
+simulation budget. Memory still fails the 4 MiB gate. The optimization reduced
+growth but does not fix the remaining allocator/arena retention; the soak
+remains unqualified. Heaptrack's headless report path works; install on
+Arch/EndeavourOS with `sudo pacman -S --needed heaptrack` and run without
+`sudo`. `scripts/verify_dedicated_soak.sh` rejects Kof versions other than the
+pinned `0.6.8` before building or running.
 
 `scripts/verify_dedicated_network.sh` runs one authenticated host and two client
 processes through content admission and a complete four-chunk state update on

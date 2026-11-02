@@ -8,15 +8,21 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   explícitos de `--log` não são alterados. A auditoria local encontrou 1.100
   logs pequenos usando 3,9 MiB alocados em `/tmp`; o gate de retenção limitada
   passou em um diretório isolado. O arquivo de histórico tinha apenas 11 linhas.
-- Um soak ritmado de cinco minutos no servidor dedicado (18.000 ticks medidos
-  após 600 de aquecimento) manteve estável a assinatura de recursos `520690` e
-  passou o limite p95 de tempo com 504 µs, mas o RSS cresceu 10.368 KiB em 61
-  amostras e falhou o gate de plateau de 4 MiB. A estabilidade de memória não
-  está qualificada; o crescimento de RSS, sozinho, não identifica um vazamento.
-- O soak dedicado agora oferece o modo opcional `KOOKIE_SOAK_HEAPTRACK=1`, que
-  preserva a saída do heaptrack para diagnóstico de alocações; o gate normal
-  de RSS continua igual. No Arch/EndeavourOS, instale com
-  `sudo pacman -S --needed heaptrack`; execute o soak sem `sudo`.
+- O soak dedicado de cinco minutos com Kof `0.6.8` fixado (18.000 ticks
+  medidos, 600 de aquecimento) falhou o gate de plateau de RSS de 4 MiB:
+  crescimento-base de 10.368 KiB em 61 amostras, com assinatura `520690`
+  estável. O heaptrack registrou 121 alocações e uma alocação de inicialização
+  retida de 73,73 KiB por `libstdc++`/loader; `/proc` mostrou crescimento de
+  RSS anônimo na arena nativa de 4 GiB do Kof, sem atribuição pelo heaptrack
+  ao heap da simulação. Isso não prova vazamento de objetos vivos.
+- O caminho de IA com orçamento agora avalia/atualiza in-place e evita criar
+  registros de decisão/resultado nos ticks comuns. O soak fixado de 18.000
+  ticks reduziu o crescimento de RSS para 8.320 KiB, com assinatura `520690`
+  estável e p95 de 671 µs; o tempo passa, mas o gate de memória continua
+  falhando. A retenção de RSS/arena nativa segue como problema aberto do
+  engine/runtime. O script de soak rejeita Kof diferente da versão `0.6.8`
+  fixada. No Arch/EndeavourOS, instale heaptrack com
+  `sudo pacman -S --needed heaptrack`; execute sem sudo.
 - Mortes e quedas no multiplayer agora usam ondas autoritativas compartilhadas:
   dois segundos por jogador conectado, limitados a seis segundos. O respawn
   restaura a vida completa e preserva ID, espécie e equipe; o spawn prioriza

@@ -951,14 +951,32 @@ RSS inicial/final foi 3.620/3.748 KiB, com 128 KiB de crescimento/faixa em
 181 amostras. A assinatura lógica permaneceu `520690`; o checksum final da
 carga foi `884139`. O p95 da simulação fica abaixo do orçamento de 4 ms.
 
-O novo soak de cinco minutos mediu 18.000 ticks após 600 de aquecimento. O RSS
-cresceu 10.368 KiB em 61 amostras e falhou o mesmo limite de 4 MiB; a assinatura
-de recursos `520690` e o p95 de simulação (504 µs) ficaram estáveis. Isso mede
-crescimento do processo, não prova vazamento. `KOOKIE_SOAK_HEAPTRACK=1` agora
-captura stacks de alocação e informa os caminhos do relatório/perfil, mantendo
-o diretório temporário. No Arch/EndeavourOS, instale com
-`sudo pacman -S --needed heaptrack`. A execução de diagnóstico continua sujeita
-ao gate de RSS e pode terminar com código diferente de zero; rode-a sem `sudo`.
+O soak ritmado anterior de 30 minutos mediu 108.000 ticks após 600 ticks de aquecimento.
+p50/p95/p99/máximo foram 2,489/3,202/3,721/23,645 ms; o RSS
+cresceu 30.844 KiB, falhando o limite de plateau de 4 MiB.
+
+O soak de cinco minutos mediu 18.000 ticks após 600 ticks de aquecimento. Com
+Kof `0.6.8` fixado, a execução-base cresceu 10.368 KiB em 61 amostras de RSS e
+falhou o gate inalterado de plateau de 4 MiB; a assinatura de recursos
+`520690` permaneceu estável. O heaptrack registrou 121 chamadas de alocação e
+uma alocação de inicialização retida de 73,73 KiB via `libstdc++`/loader
+dinâmico. Durante o perfil, `VmData` incluía a arena de 4 GiB do runtime nativo
+Kof e o RSS anônimo cresceu enquanto o RSS de arquivos ficou estável; o
+heaptrack não atribuiu o crescimento de páginas da arena a alocações do heap
+da simulação. Isso evidencia retenção de RSS/arena nativa, não prova um
+vazamento de objetos vivos.
+
+O caminho de IA com orçamento agora avalia e atualiza inimigos in-place,
+evitando registros `BehaviorDecision` e `EnemyStepResult` a cada tick de IA.
+No soak de 18.000 ticks com Kof `0.6.8`, o crescimento de RSS caiu para
+8.320 KiB (de 10.368 KiB), com assinatura `520690` estável e p95 de 671 µs,
+ainda dentro do orçamento de simulação de 4 ms. A memória continua falhando o
+gate de 4 MiB. A otimização reduziu o crescimento, mas não corrige a retenção
+restante do allocator/arena; o soak segue sem qualificação. O relatório
+headless do heaptrack funciona; no Arch/EndeavourOS, instale com
+`sudo pacman -S --needed heaptrack` e execute sem `sudo`.
+`scripts/verify_dedicated_soak.sh` rejeita versões Kof diferentes da `0.6.8`
+fixada antes de compilar ou executar.
 
 `scripts/verify_dedicated_network.sh` executa um host autenticado e dois
 processos clientes com admissão de conteúdo e uma atualização completa em

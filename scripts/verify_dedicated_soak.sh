@@ -4,6 +4,16 @@ IFS=$'\n\t'
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT_DIR/scripts/kof_pin.sh"
+command -v kof >/dev/null || {
+  echo 'verify_dedicated_soak: pinned Kof compiler is required' >&2
+  exit 2
+}
+actual_kof_version="$(kof version)"
+if [[ "$actual_kof_version" != "$KOF_PIN_CLI_VERSION" ]]; then
+  printf 'verify_dedicated_soak: expected %s; found %s\n' \
+    "$KOF_PIN_CLI_VERSION" "$actual_kof_version" >&2
+  exit 2
+fi
 heaptrack_enabled="${KOOKIE_SOAK_HEAPTRACK:-0}"
 if [[ "$heaptrack_enabled" != 0 && "$heaptrack_enabled" != 1 ]]; then
   echo 'verify_dedicated_soak: KOOKIE_SOAK_HEAPTRACK must be 0 or 1' >&2
@@ -58,10 +68,13 @@ p95_budget_us="${KOOKIE_SERVER_P95_BUDGET_US:-4000}"
 server_log="$WORK_DIR/server.log"
 server_status=0
 run_command=("$BUILD_DIR/Default/Main")
-heaptrack_profile=""
+heaptrack_profile_base=""
 if [[ "$heaptrack_enabled" == 1 ]]; then
-  heaptrack_profile="$WORK_DIR/dedicated-server.heaptrack.zst"
-  run_command=(heaptrack --output "$heaptrack_profile" "$BUILD_DIR/Default/Main")
+  heaptrack_profile_base="$WORK_DIR/dedicated-server.heaptrack"
+  run_command=(
+    heaptrack --record-only --output "$heaptrack_profile_base"
+    "$BUILD_DIR/Default/Main"
+  )
 fi
 (
   cd "$SOURCE_DIR"
@@ -78,9 +91,20 @@ if [[ "$server_status" -ne 0 ]]; then
   printf 'dedicated-soak-status=%s\n' "$server_status" >&2
   exit "$server_status"
 fi
-if [[ -n "$heaptrack_profile" ]]; then
+if [[ -n "$heaptrack_profile_base" ]]; then
+  heaptrack_profile=""
+  for suffix in zst gz; do
+    if [[ -f "$heaptrack_profile_base.$suffix" ]]; then
+      heaptrack_profile="$heaptrack_profile_base.$suffix"
+      break
+    fi
+  done
+  [[ -n "$heaptrack_profile" ]] || {
+    echo 'verify_dedicated_soak: heaptrack produced no data file' >&2
+    exit 1
+  }
   report_file="$WORK_DIR/heaptrack-report.txt"
-  heaptrack_print "$heaptrack_profile" >"$report_file"
+  heaptrack_print --file "$heaptrack_profile" --print-leaks >"$report_file"
   printf 'heaptrack-profile=%s\n' "$heaptrack_profile"
   printf 'heaptrack-report=%s\n' "$report_file"
 fi

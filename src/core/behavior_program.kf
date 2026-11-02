@@ -44,6 +44,11 @@ class BoundedBehaviorProgram {
     Bool sealedValue
     Int[] wire
     Int wordCountValue
+    Bool lastDecisionAcceptedValue
+    Int lastDecisionIntentValue
+    Int lastDecisionTargetIdValue
+    Int lastDecisionWorkValue
+    Int lastDecisionRuleNodeIdValue
 
     public constructor(
         Int nodeCapacity,
@@ -71,6 +76,11 @@ class BoundedBehaviorProgram {
         wordCountValue = 0
         configuredValue = false
         sealedValue = false
+        lastDecisionAcceptedValue = false
+        lastDecisionIntentValue = 0
+        lastDecisionTargetIdValue = 0
+        lastDecisionWorkValue = 0
+        lastDecisionRuleNodeIdValue = 0
         return true
     }
 
@@ -535,25 +545,31 @@ class BoundedBehaviorProgram {
         return true
     }
 
-    BehaviorDecision evaluate(
+    Bool evaluateInto(
         Int targetId,
         Bool targetVisible,
         Int distance,
         Int perceptionRange,
         Int attackRange
     ) {
+        lastDecisionAcceptedValue = false
+        lastDecisionIntentValue = 0
+        lastDecisionTargetIdValue = 0
+        lastDecisionWorkValue = 0
+        lastDecisionRuleNodeIdValue = 0
         if (!sealedValue || !configuredValue ||
             targetId < 0 || distance < 0 ||
             perceptionRange <= 0 || attackRange <= 0 ||
             attackRange > perceptionRange ||
             (targetVisible && targetId <= 0)) {
-            return BehaviorDecision(false, 0, 0, 0, 0)
+            return false
         }
         var work = 0
         for (var rule = 0; rule < ruleCountValue; rule = rule + 1) {
             work = work + 1 + conditionCount(ruleConditionMasks[rule])
+            lastDecisionWorkValue = work
             if (work > workBudgetValue) {
-                return BehaviorDecision(false, 0, 0, work, 0)
+                return false
             }
             if (conditionsPass(
                     ruleConditionMasks[rule], targetId, targetVisible,
@@ -564,12 +580,36 @@ class BoundedBehaviorProgram {
                     intent == behaviorIntentChase()) {
                     decidedTarget = targetId
                 }
-                return BehaviorDecision(
-                    true, intent, decidedTarget, work, ruleNodeIds[rule])
+                lastDecisionAcceptedValue = true
+                lastDecisionIntentValue = intent
+                lastDecisionTargetIdValue = decidedTarget
+                lastDecisionRuleNodeIdValue = ruleNodeIds[rule]
+                return true
             }
         }
-        return BehaviorDecision(false, 0, 0, work, 0)
+        return false
     }
+
+    BehaviorDecision evaluate(
+        Int targetId,
+        Bool targetVisible,
+        Int distance,
+        Int perceptionRange,
+        Int attackRange
+    ) {
+        var accepted = evaluateInto(
+            targetId, targetVisible, distance,
+            perceptionRange, attackRange)
+        return BehaviorDecision(
+            accepted, lastDecisionIntentValue, lastDecisionTargetIdValue,
+            lastDecisionWorkValue, lastDecisionRuleNodeIdValue)
+    }
+
+    Bool lastDecisionAccepted() { return lastDecisionAcceptedValue }
+    Int lastDecisionIntent() { return lastDecisionIntentValue }
+    Int lastDecisionTargetId() { return lastDecisionTargetIdValue }
+    Int lastDecisionWork() { return lastDecisionWorkValue }
+    Int lastDecisionRuleNodeId() { return lastDecisionRuleNodeIdValue }
 
     Int formatVersion() { return topology.formatVersion() }
     Int revision() { return topology.revision() }
