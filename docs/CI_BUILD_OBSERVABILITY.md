@@ -39,6 +39,15 @@ was exceeded while the hard timeout is still active.
 | `KOOKIE_BUILD_LOG_DIR` | `/tmp/kookie-build-logs` | Directory for full command logs. |
 | `KOOKIE_KOF_BUILD_HISTORY_DIR` | `$XDG_CACHE_HOME/kookie` | Directory for `build-times.tsv`. |
 
+Generated logs are retained automatically in the managed log directory: files
+older than 30 days are deleted and only the newest 200 wrapper-generated logs
+remain. Set `KOOKIE_BUILD_LOG_MAX_AGE_DAYS` or
+`KOOKIE_BUILD_LOG_MAX_FILES` to change those limits. An explicit `--log PATH`
+is user-managed and is never pruned by the wrapper. Pruning runs before each
+generated-log command; an existing backlog is removed gradually as the wrapper
+is used. Retention bounds file count, not individual output size. Temporary
+soak/server logs use their own `mktemp` work directory and are removed on exit.
+
 The Verify native and release jobs override `KOOKIE_KOF_BUILD_TIMEOUT_SECONDS`
 to `2700` seconds (45 minutes); the Verify native/package job has a
 150-minute outer timeout. Individual stages can override the value through

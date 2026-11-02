@@ -951,6 +951,15 @@ RSS inicial/final foi 3.620/3.748 KiB, com 128 KiB de crescimento/faixa em
 181 amostras. A assinatura lógica permaneceu `520690`; o checksum final da
 carga foi `884139`. O p95 da simulação fica abaixo do orçamento de 4 ms.
 
+O novo soak de cinco minutos mediu 18.000 ticks após 600 de aquecimento. O RSS
+cresceu 10.368 KiB em 61 amostras e falhou o mesmo limite de 4 MiB; a assinatura
+de recursos `520690` e o p95 de simulação (504 µs) ficaram estáveis. Isso mede
+crescimento do processo, não prova vazamento. `KOOKIE_SOAK_HEAPTRACK=1` agora
+captura stacks de alocação e informa os caminhos do relatório/perfil, mantendo
+o diretório temporário. No Arch/EndeavourOS, instale com
+`sudo pacman -S --needed heaptrack`. A execução de diagnóstico continua sujeita
+ao gate de RSS e pode terminar com código diferente de zero; rode-a sem `sudo`.
+
 `scripts/verify_dedicated_network.sh` executa um host autenticado e dois
 processos clientes com admissão de conteúdo e uma atualização completa em
 quatro chunks em cada um dos 256 ticks. Ambos terminam com checksum de estado

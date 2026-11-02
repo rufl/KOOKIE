@@ -25,8 +25,11 @@ heartbeat_seconds="${KOOKIE_KOF_BUILD_HEARTBEAT_SECONDS:-30}"
 kill_after_seconds="${KOOKIE_KOF_BUILD_KILL_AFTER_SECONDS:-30}"
 estimate_override="${KOOKIE_KOF_BUILD_ESTIMATE_SECONDS:-}"
 log_file=""
+managed_log=0
 history_file="${KOOKIE_KOF_BUILD_HISTORY_FILE:-}"
 command=()
+max_log_files="${KOOKIE_BUILD_LOG_MAX_FILES:-200}"
+max_log_age_days="${KOOKIE_BUILD_LOG_MAX_AGE_DAYS:-30}"
 saw_command=0
 
 is_positive_integer() {
@@ -125,7 +128,7 @@ if [[ "$history_key" == *$'\t'* || "$history_key" == *$'\n'* ]]; then
   exit 2
 fi
 
-for required_command in awk date tee timeout; do
+for required_command in awk date find sort tee timeout; do
   command -v "$required_command" >/dev/null || {
     echo "kof_observed: required command missing: $required_command" >&2
     exit 75
@@ -140,6 +143,37 @@ if [[ -z "$log_file" ]]; then
   log_root="${KOOKIE_BUILD_LOG_DIR:-${TMPDIR:-/tmp}/kookie-build-logs}"
   safe_name="${name//[^a-zA-Z0-9_.-]/_}"
   log_file="$log_root/${safe_name}-$(date -u +%Y%m%dT%H%M%SZ)-$$.log"
+  managed_log=1
+fi
+
+if ((managed_log)); then
+  is_positive_integer "$max_log_files" || {
+    echo 'kof_observed: KOOKIE_BUILD_LOG_MAX_FILES must be positive' >&2
+    exit 2
+  }
+  is_nonnegative_integer "$max_log_age_days" || {
+    echo 'kof_observed: KOOKIE_BUILD_LOG_MAX_AGE_DAYS must be non-negative' >&2
+    exit 2
+  }
+  mkdir -p "$log_root"
+  managed_log_pattern='*-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z-*.log'
+  find "$log_root" -maxdepth 1 -type f -name "$managed_log_pattern" \
+    -mtime "+$max_log_age_days" -delete || {
+    echo "kof_observed: could not age out logs in $log_root" >&2
+  }
+  retention_limit=$((max_log_files - 1))
+  mapfile -d '' -t managed_logs < <(
+    find "$log_root" -maxdepth 1 -type f -name "$managed_log_pattern" \
+      -printf '%T@\t%p\0' | sort -z -nr
+  )
+  for ((index = retention_limit; index < ${#managed_logs[@]}; index++)); do
+    entry="${managed_logs[index]}"
+    old_log="${entry#*$'\t'}"
+    [[ "$old_log" == "$log_file" ]] && continue
+    rm -f -- "$old_log" || {
+      echo "kof_observed: could not remove old log: $old_log" >&2
+    }
+  done
 fi
 
 history_enabled=1

@@ -3,6 +3,20 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- `kof_observed.sh` now removes generated build logs older than 30 days and
+  keeps at most 200 generated logs in its managed directory. Explicit `--log`
+  paths remain untouched. A local audit found 1,100 small logs using 3.9 MiB
+  of allocated `/tmp` space; the new bounded-retention gate passes in an
+  isolated directory. The history file had only 11 rows.
+- A five-minute paced dedicated soak (18,000 measured ticks after 600 warm-up)
+  kept resource signature `520690` stable and passed the p95 timing budget at
+  504 µs, but RSS grew 10,368 KiB over 61 samples and failed the 4 MiB plateau
+  gate. This confirms memory stability is unqualified; RSS growth alone does
+  not identify a leak.
+- The dedicated soak now has an opt-in `KOOKIE_SOAK_HEAPTRACK=1` mode that
+  retains heaptrack output for allocation-level diagnosis; the normal RSS gate
+  remains unchanged. Install on Arch/EndeavourOS with
+  `sudo pacman -S --needed heaptrack`; run the soak without `sudo`.
 - Multiplayer deaths and ring-outs now use authoritative shared respawn waves:
   two seconds per connected player, capped at six seconds. Respawning restores
   full health while preserving player ID, species, and team; spawn selection

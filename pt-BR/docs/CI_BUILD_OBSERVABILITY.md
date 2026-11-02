@@ -40,6 +40,16 @@ ativo.
 | `KOOKIE_BUILD_LOG_DIR` | `/tmp/kookie-build-logs` | Diretório dos logs completos. |
 | `KOOKIE_KOF_BUILD_HISTORY_DIR` | `$XDG_CACHE_HOME/kookie` | Diretório de `build-times.tsv`. |
 
+Os logs gerados são retidos automaticamente no diretório gerenciado: arquivos
+com mais de 30 dias são removidos e permanecem somente os 200 logs mais recentes
+criados pelo wrapper. Configure `KOOKIE_BUILD_LOG_MAX_AGE_DAYS` ou
+`KOOKIE_BUILD_LOG_MAX_FILES` para alterar os limites. Um `--log PATH` explícito
+fica sob responsabilidade do usuário e nunca é removido pelo wrapper. A limpeza
+roda antes de cada comando com log gerenciado; o acúmulo existente é reduzido
+gradualmente conforme o wrapper é usado. A retenção limita a quantidade de
+arquivos, não o tamanho individual. Logs temporários de soak/servidor usam
+diretório `mktemp` e são removidos ao sair do script.
+
 Os jobs native do Verify e de release sobrescrevem
 `KOOKIE_KOF_BUILD_TIMEOUT_SECONDS` para `2700` segundos (45 minutos); o job
 native/package do Verify recebe timeout externo de 150 minutos. Stages

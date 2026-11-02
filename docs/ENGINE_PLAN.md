@@ -907,6 +907,15 @@ simulation p95 passed the declared 4 ms budget. The native profile and soak run
 both show substantial process-memory growth; allocation-level profiling is
 still needed to identify its source before changing engine data structures.
 
+The five-minute rerun measured 18,000 ticks after 600 warm-up ticks. RSS grew
+10,368 KiB over 61 samples, failing the same 4 MiB gate, while resource
+signature `520690` and simulation p95 (504 µs) remained stable. This is measured
+process growth, not proof of a leak. `KOOKIE_SOAK_HEAPTRACK=1` now captures
+allocation stacks and prints a report/profile path while preserving the temp
+directory. On Arch/EndeavourOS, install heaptrack with
+`sudo pacman -S --needed heaptrack`. The profiling run remains diagnostic and
+can exit nonzero at the existing RSS gate; run it without `sudo`.
+
 `scripts/verify_dedicated_network.sh` runs one authenticated host and two client
 processes through content admission and a complete four-chunk state update on
 every one of 256 ticks. Both clients finish with state checksum `569221` and

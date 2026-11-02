@@ -16,6 +16,7 @@ actual_kof_version="$(kof version)"
   exit 2
 }
 
+bash scripts/verify_kof_observed_retention.sh
 python3 scripts/lint_kf.py src probes apps
 python3 scripts/lsp_verify.py src
 bash scripts/verify_font_assets.sh

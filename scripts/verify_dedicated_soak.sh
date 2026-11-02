@@ -4,9 +4,23 @@ IFS=$'\n\t'
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT_DIR/scripts/kof_pin.sh"
+heaptrack_enabled="${KOOKIE_SOAK_HEAPTRACK:-0}"
+if [[ "$heaptrack_enabled" != 0 && "$heaptrack_enabled" != 1 ]]; then
+  echo 'verify_dedicated_soak: KOOKIE_SOAK_HEAPTRACK must be 0 or 1' >&2
+  exit 2
+fi
+if [[ "$heaptrack_enabled" == 1 ]]; then
+  for required_command in heaptrack heaptrack_print; do
+    command -v "$required_command" >/dev/null || {
+      echo "verify_dedicated_soak: required command missing: $required_command" >&2
+      exit 2
+    }
+  done
+fi
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kookie-dedicated-soak.XXXXXX")"
 cleanup() {
-  if [[ "${KOOKIE_KEEP_DEDICATED_SOAK_WORK_DIR:-0}" == 1 ]]; then
+  if [[ "${KOOKIE_KEEP_DEDICATED_SOAK_WORK_DIR:-0}" == 1 ||
+        "$heaptrack_enabled" == 1 ]]; then
     printf 'preserved-work-dir=%s\n' "$WORK_DIR"
   else
     rm -rf -- "$WORK_DIR"
@@ -43,6 +57,12 @@ sample_ticks="${KOOKIE_SOAK_RSS_SAMPLE_TICKS:-600}"
 p95_budget_us="${KOOKIE_SERVER_P95_BUDGET_US:-4000}"
 server_log="$WORK_DIR/server.log"
 server_status=0
+run_command=("$BUILD_DIR/Default/Main")
+heaptrack_profile=""
+if [[ "$heaptrack_enabled" == 1 ]]; then
+  heaptrack_profile="$WORK_DIR/dedicated-server.heaptrack.zst"
+  run_command=(heaptrack --output "$heaptrack_profile" "$BUILD_DIR/Default/Main")
+fi
 (
   cd "$SOURCE_DIR"
   LD_LIBRARY_PATH="$SOURCE_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
@@ -51,12 +71,18 @@ server_status=0
   KOOKIE_SERVER_RSS_SAMPLE_TICKS="$sample_ticks" \
   KOOKIE_SERVER_P95_BUDGET_US="$p95_budget_us" \
   KOOKIE_SERVER_REALTIME=1 \
-    "$BUILD_DIR/Default/Main"
+    "${run_command[@]}"
 ) >"$server_log" 2>&1 || server_status=$?
 cat "$server_log"
 if [[ "$server_status" -ne 0 ]]; then
   printf 'dedicated-soak-status=%s\n' "$server_status" >&2
   exit "$server_status"
+fi
+if [[ -n "$heaptrack_profile" ]]; then
+  report_file="$WORK_DIR/heaptrack-report.txt"
+  heaptrack_print "$heaptrack_profile" >"$report_file"
+  printf 'heaptrack-profile=%s\n' "$heaptrack_profile"
+  printf 'heaptrack-report=%s\n' "$report_file"
 fi
 
 python3 - "$server_log" "$warmup_ticks" "$measured_ticks" "$sample_ticks" "$p95_budget_us" <<'PY'
