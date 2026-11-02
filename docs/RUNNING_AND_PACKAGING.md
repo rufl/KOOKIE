@@ -167,12 +167,16 @@ scripts/b2teams4.py "$server_dir/kookie-web-server" 8080
 In the browser, open **Settings → Open game console**, choose **Spectator**,
 then connect to `ws://SERVER_HOST:8080`. The default console command `/b2teams4`
 spawns four goose bots on red and four cat bots on blue; `/stop` disconnects
-them. The CLI default battle ends on elimination or after two minutes. Use
-`--geese N --cats N --duration SECONDS` to customize team sizes (up to eight
-total) and timeout; `--duration 0` removes both end conditions: dead bots
-disconnect and immediately rejoin their team, and the match continues until
-Ctrl+C. `--run` starts immediately instead of prompting. The CLI runner also
-joins as a spectator to monitor and log the match.
+them. The CLI battle runs for its configured duration instead of stopping when
+one team is temporarily eliminated; bots respawn together on authoritative
+respawn waves. Use `--geese N --cats N --duration SECONDS` to customize team
+sizes (up to eight total) and observation time. `--duration 0` runs indefinitely
+until Ctrl+C. `--run` starts immediately instead of prompting. The CLI runner
+also joins as a spectator to monitor and log the match.
+
+For a damage-but-not-combat-death test, add `--ringout-only-deaths`: bots
+attack only while the target has more than 200 health and do not throw items;
+movement and physical ringouts remain active.
 
 Browser bots seek eligible powerups when they have no active effect, then use
 jump, roll, dash, glide/fly, melee, ranged fire, special attacks, and throwables

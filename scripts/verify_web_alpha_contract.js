@@ -212,6 +212,20 @@ function extendedMultiplayerWords(
   words.push(messageChecksum(words));
   return words;
 }
+function multiplayerSnapshotWithRespawnMetadata(sequence, tick) {
+  const words = [
+    2, 6, sequence, 7, tick,
+    2, 0, 4, 0, 4, 0, 0, 300, 100, 99, 2, 1, 2,
+    1, 50, 0, 52, 100, 0, 1, 0,
+    2, 60, 0, 62, 100, 0, 2, 180,
+    0, 0, 0, 1,
+    1, 8, 1, 2, 50, 0, 52, 20,
+    0, 32, 1, 52, 0, 0, 0, 0, 0, 0,
+    1, 0, 240, 0, 0, 0, 0,
+  ];
+  words.push(messageChecksum(words));
+  return words;
+}
 function multiplayerPositionWords(sequence, tick, localX) {
   const words = extendedMultiplayerWords(5, 15);
   words[2] = sequence;
@@ -924,6 +938,7 @@ async function main() {
   roleSelect.value = "spectator";
   window.kookieSessionTransport.connect();
   await waitFor(() => FakeWebSocket.connections.at(-1).joined === true);
+  const spectatorSession = FakeWebSocket.active;
   if (frameCallbacks.length > 0) frameCallbacks.shift()(1035);
   const consoleButton = collectElements(document.body).find((element) =>
     element.attributes["aria-label"] === "Open game console");
@@ -952,6 +967,14 @@ async function main() {
   consoleForm.listeners.submit({ preventDefault() {} });
   await waitFor(() => consoleDialog.children.some((element) =>
     element.tagName === "PRE" && element.textContent.includes("Battle stopped by console command.")));
+  spectatorSession.emit(encodeFrame(
+    6, 5000, multiplayerSnapshotWithRespawnMetadata(5000, 5000)));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.ok(document.getElementById("kookie-authoritative-scene")
+    .attributes["aria-label"].includes("tick 5000"),
+  "multiplayer snapshots with a seven-word match/respawn trailer are accepted");
+  assert.doesNotMatch(document.getElementById("kookie-session-status").textContent,
+    /session message rejected/);
 }
 
 main().catch((error) => {

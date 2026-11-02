@@ -84,7 +84,7 @@ def latest_snapshot(client, expected_players=BOT_COUNT, expected_spectators=None
 
 def run_battle(port, duration=None, log_path=None,
                goose_count=4, cat_count=4, wait_for_spectator=False,
-               spectator_url=None):
+               spectator_url=None, ringout_only_deaths=False):
     bot_count = goose_count + cat_count
     if goose_count <= 0 or cat_count <= 0 or bot_count > 8:
         raise ValueError("team sizes must be positive and total at most 8")
@@ -100,6 +100,7 @@ def run_battle(port, duration=None, log_path=None,
     animation_states_by_player = {}
     observed_animation_states = set()
     driver_errors = []
+    melee_range_observed = [False]
     try:
         if wait_for_spectator:
             url = spectator_url or f"ws://127.0.0.1:{port}/spectate"
@@ -231,13 +232,18 @@ def run_battle(port, duration=None, log_path=None,
                             continue
                         held = 0
                         edge = 0
-                        if combat_distance <= 120 and now >= next_shot:
+                        attacks_allowed = (
+                            not ringout_only_deaths or target[4] > 200
+                        )
+                        if attacks_allowed and combat_distance <= 5:
+                            melee_range_observed[0] = True
+                        if attacks_allowed and combat_distance <= 120 and now >= next_shot:
                             held |= ACTION_SHOOT
                             next_shot = now + (0.6 if combat_distance <= 12 else 2.0)
-                        if combat_distance <= 5 and now >= next_melee:
+                        if attacks_allowed and combat_distance <= 5 and now >= next_melee:
                             edge |= EDGE_MELEE
                             next_melee = now + 0.45
-                        if now >= next_special:
+                        if attacks_allowed and now >= next_special:
                             edge |= EDGE_SPECIAL
                             next_special = now + (1.8 if active_powerup == 5 else 1.1)
                         if now >= next_burst:
@@ -261,7 +267,9 @@ def run_battle(port, duration=None, log_path=None,
                             edge |= ACTION_JUMP
                             double_jump_due = now + .1
                             next_jump = now + 1.6
-                        if throwable_phase == 1:
+                        if ringout_only_deaths:
+                            throwable_phase = 0
+                        elif throwable_phase == 1:
                             throwable_phase = 2 if carrying else 0
                         elif throwable_phase == 2:
                             held |= ACTION_THROWABLE
@@ -276,7 +284,7 @@ def run_battle(port, duration=None, log_path=None,
                                 throwable_phase = 4
                         elif throwable_phase == 4 and pickup_active:
                             throwable_phase = 0
-                        if throwable_phase == 0 and pickup_active:
+                        if not ringout_only_deaths and throwable_phase == 0 and pickup_active:
                             throwable_dx = pickup_x - me[1]
                             throwable_dz = pickup_z - me[3]
                             if (throwable_dx * throwable_dx +
@@ -341,7 +349,6 @@ def run_battle(port, duration=None, log_path=None,
         minimum_health = bot_count * GAME_MAXIMUM_HEALTH
         minimum_alive = bot_count
         last_report = 0.0
-        winner = None
         while not stop.is_set() and (duration is None or
                                      time.monotonic() - start < duration):
             scene = latest_snapshot(spectator, bot_count)
@@ -377,20 +384,8 @@ def run_battle(port, duration=None, log_path=None,
             alive = sum(scene[22 + index * 8] > 0
                         for index in range(scene[17]))
             minimum_alive = min(minimum_alive, alive)
-            with roster_lock:
-                red_ids = set(goose_ids)
-            goose_alive = sum(scene[22 + index * 8] > 0
-                              for index in range(scene[17])
-                              if scene[18 + index * 8] in red_ids)
-            cat_alive = alive - goose_alive
-            if duration is not None:
-                if goose_alive == 0:
-                    winner = "blue cats"
-                elif cat_alive == 0:
-                    winner = "red geese"
-                if winner is not None:
-                    print(f"Round complete: {winner} win.")
-                    break
+            # A zero-alive team is temporary: eliminated bots respawn on
+            # authoritative waves. Keep spectating until the requested timer.
             now = time.monotonic()
             if now - last_report >= .8:
                 print(f"tick={scene[4]} alive={alive}/{bot_count} "
@@ -424,8 +419,10 @@ def run_battle(port, duration=None, log_path=None,
                     raise AssertionError(
                         f"bot {player_id} did not use actions: {', '.join(sorted(missing))}"
                     )
-            if "melee" not in action_usage:
-                raise AssertionError("battle bots did not use melee in range")
+            if melee_range_observed[0] and "melee" not in action_usage:
+                raise AssertionError(
+                    "battle bots entered melee range but did not use melee"
+                )
             required_animation_states = {2, 6, 7}
             missing_animation_states = required_animation_states - observed_animation_states
             if missing_animation_states:
@@ -446,8 +443,7 @@ def run_battle(port, duration=None, log_path=None,
                   f"powerup kinds={','.join(map(str, sorted(powerups_acquired)))}; "
                   f"per-bot={per_bot}")
         else:
-            print(f"Battle finished: {winner} win." if winner else
-                  "Battle timer elapsed.")
+            print("Battle stopped.")
     finally:
         stop.set()
         if battle_log is not None:
@@ -478,8 +474,8 @@ def main():
                         help="persist server stdout/stderr separately")
     parser.add_argument("--wait-for-spectator", action="store_true",
                         help="wait until a browser spectator joins before spawning bots")
-    parser.add_argument("--spectator-url",
-                        help="public spectator WebSocket URL to print")
+    parser.add_argument("--ringout-only-deaths", action="store_true",
+                        help="bots stop damaging opponents below 200 health; ringouts still kill")
     parser.add_argument("--keep-server", action="store_true",
                         help="keep the server running after a --run battle")
     args = parser.parse_args()
@@ -525,7 +521,7 @@ def main():
                 goose_count=args.geese,
                 cat_count=args.cats,
                 wait_for_spectator=args.wait_for_spectator,
-                spectator_url=args.spectator_url,
+                ringout_only_deaths=args.ringout_only_deaths,
             )
             if args.keep_server and args.run and not args.smoke:
                 print("Match complete; server remains available until Ctrl-C.",
@@ -552,7 +548,7 @@ def main():
                         log_path=args.log, goose_count=args.geese,
                         cat_count=args.cats,
                         wait_for_spectator=args.wait_for_spectator,
-                        spectator_url=args.spectator_url)
+                        ringout_only_deaths=args.ringout_only_deaths)
                 except KeyboardInterrupt:
                     print("\nBattle stopped.")
             elif command:

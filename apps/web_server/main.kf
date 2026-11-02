@@ -814,6 +814,11 @@ Int webActorYaw(Int yaw) {
     if (value < 0) { value = value + 360 }
     return value
 }
+Int webSnapshotCoordinate(Int value, Int minimum, Int maximum) {
+    if (value < minimum) { return minimum }
+    if (value > maximum) { return maximum }
+    return value
+}
 Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot) {
     var id = metrics.connectionPlayerIds[slot]
     var spectator = metrics.connectionSpectators[slot]
@@ -827,7 +832,13 @@ Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot) {
     if (!spectator) {
         var own = metrics.simulation.playerState(id)
         if (!own.active) { return new Int[0] }
-        x = own.x; y = own.y; z = own.z; yaw = own.yaw; pitch = own.pitch
+        x = webSnapshotCoordinate(own.x,
+            sessionWebGameWorldMinimumX(), sessionWebGameWorldMaximumX())
+        y = webSnapshotCoordinate(own.y,
+            sessionWebGameWorldMinimumY(), sessionWebGameWorldMaximumY())
+        z = webSnapshotCoordinate(own.z,
+            sessionWebGameWorldMinimumZ(), sessionWebGameWorldMaximumZ())
+        yaw = own.yaw; pitch = own.pitch
         health = own.health; ammo = own.ammo
     }
     var actors = new Int[
@@ -839,8 +850,16 @@ Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot) {
             !metrics.connectionSpectators[actorSlot]) {
             var actor = metrics.simulation.playerState(metrics.connectionPlayerIds[actorSlot])
             if (actor.active) {
-                actors[cursor] = actor.playerId; actors[cursor + 1] = actor.x
-                actors[cursor + 2] = actor.y; actors[cursor + 3] = actor.z
+                actors[cursor] = actor.playerId
+                actors[cursor + 1] = webSnapshotCoordinate(actor.x,
+                    sessionWebGameWorldMinimumX(),
+                    sessionWebGameWorldMaximumX())
+                actors[cursor + 2] = webSnapshotCoordinate(actor.y,
+                    sessionWebGameWorldMinimumY(),
+                    sessionWebGameWorldMaximumY())
+                actors[cursor + 3] = webSnapshotCoordinate(actor.z,
+                    sessionWebGameWorldMinimumZ(),
+                    sessionWebGameWorldMaximumZ())
                 actors[cursor + 4] = actor.health; actors[cursor + 5] = actor.state
                 actors[cursor + 6] = actor.animal; actors[cursor + 7] = webActorYaw(actor.yaw)
                 cursor = cursor + 8
@@ -850,9 +869,15 @@ Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot) {
     for (var dummy = 0;
         dummy < metrics.simulation.trainingDummyCount(); dummy = dummy + 1) {
         actors[cursor] = -(dummy + 1)
-        actors[cursor + 1] = metrics.simulation.trainingDummyX(dummy)
-        actors[cursor + 2] = metrics.simulation.trainingDummyY(dummy)
-        actors[cursor + 3] = metrics.simulation.trainingDummyZ(dummy)
+        actors[cursor + 1] = webSnapshotCoordinate(
+            metrics.simulation.trainingDummyX(dummy),
+            sessionWebGameWorldMinimumX(), sessionWebGameWorldMaximumX())
+        actors[cursor + 2] = webSnapshotCoordinate(
+            metrics.simulation.trainingDummyY(dummy),
+            sessionWebGameWorldMinimumY(), sessionWebGameWorldMaximumY())
+        actors[cursor + 3] = webSnapshotCoordinate(
+            metrics.simulation.trainingDummyZ(dummy),
+            sessionWebGameWorldMinimumZ(), sessionWebGameWorldMaximumZ())
         actors[cursor + 4] = metrics.simulation.trainingDummyHealth(dummy)
         actors[cursor + 5] = 0
         actors[cursor + 6] = 3

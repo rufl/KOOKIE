@@ -2626,7 +2626,8 @@
                 words[suffixOffset + 8] > GAME_MAXIMUM_SEED_AMMO ||
                 !Number.isInteger(sliceCount) || sliceCount < 0 || sliceCount > 4 ||
                 (suffixLength !== 10 + sliceCount * 4 &&
-                  suffixLength !== 16 + sliceCount * 4)) return false;
+                  suffixLength !== 16 + sliceCount * 4 &&
+                  suffixLength !== 17 + sliceCount * 4)) return false;
             const sliceIds = new Set();
             for (let index = 0; index < sliceCount; index += 1) {
               const sliceOffset = suffixOffset + 10 + index * 4;
@@ -2640,7 +2641,8 @@
                   words[sliceOffset + 3] > GAME_WORLD_MAXIMUM_Z) return false;
               sliceIds.add(words[sliceOffset]);
             }
-            if (suffixLength === 16 + sliceCount * 4) {
+            if (suffixLength === 16 + sliceCount * 4 ||
+                suffixLength === 17 + sliceCount * 4) {
               const metadata = suffixOffset + 10 + sliceCount * 4;
               const totalVotes = words[metadata + 3] + words[metadata + 4];
               if ((words[metadata] !== 1 && words[metadata] !== 2) ||
@@ -2648,7 +2650,10 @@
                   words[metadata + 2] < 0 || words[metadata + 2] > 7200 ||
                   words[metadata + 3] < 0 || words[metadata + 3] > 8 ||
                   words[metadata + 4] < 0 || words[metadata + 4] > 8 ||
-                  words[metadata + 5] !== totalVotes) return false;
+                  words[metadata + 5] !== totalVotes ||
+                  (suffixLength === 17 + sliceCount * 4 &&
+                    (words[metadata + 6] < 0 ||
+                      words[metadata + 6] > 360))) return false;
             }
           }
         }

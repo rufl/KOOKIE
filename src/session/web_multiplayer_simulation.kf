@@ -1406,7 +1406,6 @@ class WebMultiplayerSimulation {
         ammoValues[slot] = ammoValues[slot] - 1
         firedCountValue = firedCountValue + 1
         healthValues[target] = healthValues[target] - result.applied()
-        if (healthValues[target] < 0) { healthValues[target] = 0 }
         return pushImpact(
             1, playerIds[slot], playerIds[target],
             movement.positionX(target + 1), movement.positionY(target + 1),
@@ -1435,7 +1434,6 @@ class WebMultiplayerSimulation {
         if (!result.accepted()) { return false }
         meleeCountValue = meleeCountValue + 1
         healthValues[target] = healthValues[target] - result.applied()
-        if (healthValues[target] < 0) { healthValues[target] = 0 }
         return pushImpact(
             2, playerIds[slot], playerIds[target],
             movement.positionX(target + 1), movement.positionY(target + 1),
@@ -1452,7 +1450,6 @@ class WebMultiplayerSimulation {
             if (!honk.accepted()) { return false }
             var applied = honk.applied()
             healthValues[target] = healthValues[target] - applied
-            if (healthValues[target] < 0) { healthValues[target] = 0 }
             return pushImpact(2, playerIds[slot], playerIds[target],
                 movement.positionX(target + 1), movement.positionY(target + 1),
                 movement.positionZ(target + 1), applied)
@@ -1777,7 +1774,6 @@ class WebMultiplayerSimulation {
                     if (!resolution.accepted()) { return false }
                     var applied = resolution.applied()
                     healthValues[hit] = healthValues[hit] - applied
-                    if (healthValues[hit] < 0) { healthValues[hit] = 0 }
                     if (!pushImpact(
                             if (projectileKinds[index] == 3) 8 else 3,
                             projectileOwners[index], playerIds[hit],
@@ -1822,7 +1818,6 @@ class WebMultiplayerSimulation {
                                         if (!resolution.accepted()) { return false }
                                         var applied = resolution.applied()
                                         healthValues[actor] = healthValues[actor] - applied
-                                        if (healthValues[actor] < 0) { healthValues[actor] = 0 }
                                         if (itemType == 1 &&
                                             !pushImpact(4, projectileOwners[index], playerIds[actor],
                                                 projectileX[index], projectileY[index],

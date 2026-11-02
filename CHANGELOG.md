@@ -3,6 +3,11 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Multiplayer snapshot serialization now clamps actor coordinates to the
+  protocol's declared world bounds. A live actor reached z=3 while the
+  snapshot contract required z>=4; the resulting invalid base snapshot closed
+  the player's WebSocket.
+
 - Upgraded the repository Kof pin to official `0.6.10` at commit
 `e579132bb3f17db64faba33b9be1d27837851fa0`; verified archive SHA-256
 `1ac8e99ad7778534160c288ea51e53b789fe303dd881d24e59a3ddc503e1e789`.

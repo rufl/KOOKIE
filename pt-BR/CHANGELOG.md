@@ -3,6 +3,11 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- A serialização de snapshots multiplayer agora limita as coordenadas dos
+  atores aos limites de mundo declarados pelo protocolo. Um ator ativo chegou
+  a z=3, enquanto o contrato exigia z>=4; o snapshot inválido fechava o
+  WebSocket do jogador.
+
 - Atualizamos o pin do Kof para o release oficial `0.6.10`, commit
   `e579132bb3f17db64faba33b9be1d27837851fa0`; SHA-256 verificado do archive:
   `1ac8e99ad7778534160c288ea51e53b789fe303dd881d24e59a3ddc503e1e789`.
