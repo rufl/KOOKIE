@@ -917,14 +917,18 @@ retention, not proof of a live-object leak.
 
 The budgeted AI path now evaluates and steps enemies in place, avoiding
 `BehaviorDecision` and `EnemyStepResult` records on each AI tick. The pinned
-Kof `0.6.8` 18,000-tick rerun reduced RSS growth to 8,320 KiB (from 10,368 KiB)
-with resource signature `520690` stable and p95 671 µs, still within the 4 ms
-simulation budget. Memory still fails the 4 MiB gate. The optimization reduced
-growth but does not fix the remaining allocator/arena retention; the soak
-remains unqualified. Heaptrack's headless report path works; install on
-Arch/EndeavourOS with `sudo pacman -S --needed heaptrack` and run without
-`sudo`. `scripts/verify_dedicated_soak.sh` rejects Kof versions other than the
-pinned `0.6.8` before building or running.
+Kof `0.6.8` reruns measured 8,320 KiB and then 7,176 KiB RSS growth over
+18,000 ticks; both exceed the unchanged 4 MiB gate. The latest run had stable
+resource signature `520690` and p95 638 µs, within the 4 ms simulation budget.
+Heaptrack reported 121 allocations: the largest retained allocation was
+73.73 KiB from the dynamic loader/`libstdc++`; the other recorded allocations
+were from RSS sampling. It did not expose allocations inside Kof's native
+arena, so it cannot account for the observed RSS growth or prove a live-object
+leak. The optimization reduced measured growth, but memory still fails the
+gate. The verifier now reports RSS growth/range/sample count and exits cleanly
+instead of raising a Python assertion traceback. Heaptrack is available on
+Arch/EndeavourOS with `sudo pacman -S --needed heaptrack`; run without `sudo`.
+The soak rejects Kof versions other than pinned `0.6.8`.
 
 `scripts/verify_dedicated_network.sh` runs one authenticated host and two client
 processes through content admission and a complete four-chunk state update on

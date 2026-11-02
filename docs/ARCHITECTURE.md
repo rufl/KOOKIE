@@ -1097,12 +1097,15 @@ runtime's 4 GiB arena and rising anonymous RSS with flat file-backed RSS.
 Heaptrack did not attribute that RSS growth to simulation heap allocations,
 so this indicates arena/page retention, not a proven live-object leak.
 
-The budgeted enemy AI now avoids constructing decision/step result records on
-the common path. The pinned `0.6.8` rerun reduced five-minute RSS growth to
-8,320 KiB, with resource signature `520690` stable and p95 671 µs; the
-simulation timing budget passes, but RSS still exceeds the 4 MiB limit.
-Memory stability remains unqualified. The soak script now rejects compiler
-versions other than the pinned `0.6.8`.
+The budgeted enemy AI avoids constructing decision/step result records on the
+common path. Pinned `0.6.8` five-minute reruns measured 8,320 KiB and then
+7,176 KiB RSS growth, both above the 4 MiB gate. The latest p95 was 638 µs and
+resource signature `520690` remained stable. Heaptrack's 121 recorded
+allocations were attributable to the loader and RSS-sampling path; its largest
+retained allocation was 73.73 KiB. The Kof native arena is not visible to
+heaptrack, so the RSS increase remains unattributed and memory stability is
+unqualified. The verifier now prints a direct RSS gate failure instead of a
+Python assertion traceback.
 
 The authenticated same-host host plus two clients replicate complete state
 every tick, assemble four chunks transactionally, reject stale/tampered state,

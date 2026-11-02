@@ -81,6 +81,17 @@ respawn after 45 server ticks. WebGL and SDL use the imported nine-frame smoke
 flipbook (horizontal atlas in WebGL, cooked 3x3 atlas in SDL) for grounded
 movement and takeoff/landing cues. `scripts/verify_native_presentation_smoke.sh`
 exercises all three triggers and confirms SDL stages the flipbook in its GPU pass.
+The prototype content includes the uploaded coffee mug model for coffee speed
+power-up ID 1. Its source archive does not include license terms, so the FBX,
+texture and GLB are marked prototype-only pending rights confirmation.
+The prototype content also includes the CC0 WizardHat model from Devil's
+Work.shop for wizard-hat power-up ID 9. The renderer loads its GLB only for
+that pickup; creator credit and source archive provenance are retained in the
+asset manifest.
+All power-ups use a small vertical bob, continuous rotation, a pulsing floor
+halo and two orbiting highlights. This applies to both imported models and
+fallback pickup meshes.
+
 
 `apps/web_server/main.kf` runs an authoritative fixed-tick WebSocket server
 with eight-player/four-spectator admission. `scripts/verify_kof_web_server.sh`

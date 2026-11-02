@@ -47,6 +47,21 @@
       "id": "smoke-fx-lite-user-upload",
       "archive_name": "Smoke FX Lite Zip 5.25.23.rar",
       "license": "user-uploaded; license terms not verified"
+    },
+    {
+      "id": "coffee-from-stardew-valley-user-upload",
+      "archive_name": "C__Users_rafael_Downloads_coffee-from-stardew-valley.zip",
+      "archive_sha256": "c2e21c3f09077f86a6cbf74266f422b1b0af42094d39f6ade1ce327b9e37b778",
+      "license": "user-uploaded; license terms not verified",
+      "license_file": "licenses/coffee-mug-user-upload.txt"
+    },
+    {
+      "id": "devils-workshop-rpg-assets",
+      "archive_name": "C__Users_rafael_Downloads_LowPoly_Pixel_RPG_Assets_devilsworkshop_v02.zip",
+      "archive_sha256": "08707c24147afa31cb126b72e248bf6757f337028a9c0fc423b9a160613ab944",
+      "license": "CC0-1.0",
+      "license_file": "licenses/devils-workshop-rpg-cc0.txt",
+      "creator": "Ajay Karat / Devil's Work.shop"
     }
   ],
   "direct_sources": [
@@ -89,15 +104,53 @@
       "license": "upstream-prototype-only",
       "license_file": "licenses/echo-studios-heart-terms.txt",
       "redistribution": "prototype-only; standard license not stated on source page"
+    },
+    {
+      "id": "user-uploaded-coffee-mug",
+      "source_name": "coffee-from-stardew-valley.zip",
+      "source_archive": "coffee-from-stardew-valley-user-upload",
+      "source_files": [
+        {
+          "path": "models/coffee_mug/source/coffee.fbx",
+          "sha256": "5841689f95b0273a8b6c0bc27e5132a69f08e7c38e014db734e05a17fec7fa21"
+        },
+        {
+          "path": "models/coffee_mug/source/coffee_uv.png",
+          "sha256": "f2974f0df558f392d078f71448dcd3545c5e6a26760ea1a65394125902077074"
+        }
+      ],
+      "license": "user-uploaded; license terms not verified",
+      "license_file": "licenses/coffee-mug-user-upload.txt",
+      "redistribution": "prototype-only; obtain/confirm rights before redistribution outside the project"
+    },
+    {
+      "id": "devils-workshop-rpg-assets",
+      "source_url": "https://devilsworkshop.itch.io/low-poly-3d-and-pixel-2d-rpg-game-assets",
+      "source_name": "WizardHat.fbx, props_base_color.png",
+      "source_archive": "devils-workshop-rpg-assets",
+      "source_files": [
+        {
+          "path": "models/wizard_hat/source/WizardHat.fbx",
+          "sha256": "62b8798c7b3208392b27fb17de491bedd3cd052d38b42ee994890674def30c6e"
+        },
+        {
+          "path": "models/wizard_hat/source/props_base_color.png",
+          "sha256": "74d96fdf98552165b394e377d4038126b6b8b8f01870ac55743756cf1793008c"
+        }
+      ],
+      "license": "CC0-1.0",
+      "license_file": "licenses/devils-workshop-rpg-cc0.txt",
+      "redistribution": "CC0; creator credit retained as appreciated provenance"
     }
   ],
   "asset_policy": {
     "all_sources_claimed_cc0": false,
-    "cc0_assets": "The modular, Brackeys VFX and Classic64 source notices are retained verbatim.",
-    "restricted_assets": ["model.goose", "model.prildarill-cat", "ui.player-hearts", "ui.player-hearts-blue"],
+    "cc0_assets": "The modular, Brackeys VFX, Classic64 and Devil's Work.shop source notices are retained.",
+    "restricted_assets": ["model.goose", "model.prildarill-cat", "model.coffee-mug", "ui.player-hearts", "ui.player-hearts-blue"],
     "goose_warning": "The source page permits commercial use and editing but prohibits reselling or redistributing the model file. The converted GLB remains prototype-only and must not be treated as CC0.",
     "cat_warning": "The source page permits use in own projects, editing and no-credit use. It does not name a standard license or separately grant standalone raw-file redistribution; keep the cat prototype-only until that boundary is confirmed.",
     "heart_warning": "The Echo Studios page offers the heart sheet as a name-your-own-price download but does not state a standard license or standalone redistribution terms; keep the sheet prototype-only until that boundary is confirmed.",
+    "coffee_mug_warning": "The uploaded archive contains no license terms. The source FBX, UV texture and converted GLB are prototype-only; do not redistribute them outside the project until rights are confirmed.",
     "credits_required": false,
     "credits_retained": true
   },
@@ -114,6 +167,18 @@
       "animations": ["idle", "walk", "run", "attack", "damage_taken", "death", "eat"],
       "license": "upstream-commercial-use-with-no-model-redistribution",
       "cook_status": "swan Unity Asset Store animations retargeted onto existing goose skeleton; wing tracks omitted because current model has no wing bones"
+    },
+    {
+      "id": "model.coffee-mug",
+      "kind": "model",
+      "source": "direct_sources.user-uploaded-coffee-mug",
+      "authored_path": "models/coffee_mug/coffee_mug.glb",
+      "runtime_path": "models/coffee_mug/coffee_mug.glb",
+      "format": "glb",
+      "conversion_tool": "Blender 5.2.3",
+      "license": "user-uploaded; license terms not verified",
+      "license_file": "licenses/coffee-mug-user-upload.txt",
+      "cook_status": "prototype-only; rendered for coffee speed power-up ID 1"
     },
     {
       "id": "model.modular-character",
@@ -576,6 +641,18 @@
       "web_runtime_dimensions": "576x64",
       "web_runtime_path": "vfx/predrawn/smoke_ground_1a_1.png",
       "web_frames": "9x1"
+    },
+    {
+      "id": "model.wizard-hat",
+      "kind": "model",
+      "source": "direct_sources.devils-workshop-rpg-assets",
+      "authored_path": "models/wizard_hat/wizard_hat.glb",
+      "runtime_path": "models/wizard_hat/wizard_hat.glb",
+      "format": "glb",
+      "conversion_tool": "Blender 5.2.3",
+      "license": "CC0-1.0",
+      "license_file": "licenses/devils-workshop-rpg-cc0.txt",
+      "cook_status": "textured 254-triangle WizardHat model; rendered for wizard-hat power-up ID 9"
     }
   ]
 }

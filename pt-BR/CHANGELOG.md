@@ -3,6 +3,16 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Power-ups agora flutuam pouco acima do chão, com balanço sutil, rotação
+  contínua, halo pulsante no piso e dois brilhos orbitando. O efeito vale para
+  os modelos de caneca/chapéu e para os pickups fallback.
+- Importamos o FBX e a textura UV enviados da caneca para um GLB texturizado e
+  o ligamos ao power-up de velocidade Coffee, ID 1, no renderer WebGL. O
+  arquivo não contém licença; fonte e derivado ficam restritos ao protótipo
+  até a confirmação dos direitos.
+- Adicionamos o WizardHat texturizado e CC0 de Devil's Work.shop à cena WebGL
+  para o power-up Wizard Hat, ID 9; autoria e procedência estão registradas
+  no manifesto de assets do protótipo.
 - `kof_observed.sh` agora remove logs de build gerados há mais de 30 dias e
   mantém no máximo 200 arquivos gerados no diretório gerenciado. Caminhos
   explícitos de `--log` não são alterados. A auditoria local encontrou 1.100
@@ -15,14 +25,14 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   retida de 73,73 KiB por `libstdc++`/loader; `/proc` mostrou crescimento de
   RSS anônimo na arena nativa de 4 GiB do Kof, sem atribuição pelo heaptrack
   ao heap da simulação. Isso não prova vazamento de objetos vivos.
-- O caminho de IA com orçamento agora avalia/atualiza in-place e evita criar
-  registros de decisão/resultado nos ticks comuns. O soak fixado de 18.000
-  ticks reduziu o crescimento de RSS para 8.320 KiB, com assinatura `520690`
-  estável e p95 de 671 µs; o tempo passa, mas o gate de memória continua
-  falhando. A retenção de RSS/arena nativa segue como problema aberto do
-  engine/runtime. O script de soak rejeita Kof diferente da versão `0.6.8`
-  fixada. No Arch/EndeavourOS, instale heaptrack com
-  `sudo pacman -S --needed heaptrack`; execute sem sudo.
+- Um soak posterior com Kof `0.6.8` e heaptrack mediu crescimento de RSS de
+  7.176 KiB em 18.000 ticks (abaixo dos 8.320 KiB anteriores), ainda acima do
+  gate de 4 MiB. p95 foi 638 µs e a assinatura `520690` permaneceu estável.
+  As 121 alocações do heaptrack vieram do loader dinâmico e da amostragem de
+  RSS; a maior alocação retida foi de 73,73 KiB em `libstdc++`/loader. A arena
+  customizada do Kof não aparece nesse relatório, então o crescimento de RSS
+  segue sem causa atribuída. O verificador agora informa diretamente os
+  valores que falharam, sem traceback de assertion do Python.
 - Mortes e quedas no multiplayer agora usam ondas autoritativas compartilhadas:
   dois segundos por jogador conectado, limitados a seis segundos. O respawn
   restaura a vida completa e preserva ID, espécie e equipe; o spawn prioriza

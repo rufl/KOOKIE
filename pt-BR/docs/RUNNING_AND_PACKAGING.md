@@ -65,6 +65,16 @@ a cena autoritativa, desenha snapshots e envia ações de teclado, ponteiro e
 toque. O renderer WebGL2 desenha o jogador, até oito jogadores/dummies, vida,
 VFX, projéteis e objetos arremessáveis sem dependência de Three.js. WebGL2 é
 obrigatório; o cliente falha fechado quando indisponível.
+O conteúdo do protótipo inclui o modelo de caneca enviado para o power-up de
+velocidade Coffee, ID 1. O arquivo enviado não contém licença; FBX, textura e
+GLB ficam restritos ao protótipo até a confirmação dos direitos.
+O conteúdo também inclui o modelo CC0 WizardHat de Devil's Work.shop para o
+power-up Wizard Hat, ID 9. O renderer carrega o GLB somente para esse pickup;
+autoria e procedência do archive constam no manifesto de assets.
+Todos os power-ups usam um balanço vertical curto, rotação contínua, halo
+pulsante no piso e dois brilhos orbitando. O efeito vale para os modelos
+importados e para os meshes fallback.
+
 
 
 Execute o caminho canônico local da cena completa pelo servidor native do Kof.

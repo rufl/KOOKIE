@@ -155,13 +155,19 @@ assert p95 <= p95_budget, (
     f"simulation p95 {p95}us exceeds budget {p95_budget}us")
 assert int(fields["simulation-budget-us"]) == p95_budget
 assert fields["simulation-budget-pass"] == "true"
-assert int(fields["rss-growth-kib"]) <= 4096
-assert int(fields["rss-range-kib"]) <= 4096
+rss_growth = int(fields["rss-growth-kib"])
+rss_range = int(fields["rss-range-kib"])
+rss_plateau = fields["rss-plateau"] == "true"
+if rss_growth > 4096 or rss_range > 4096 or not rss_plateau:
+    raise SystemExit(
+        "dedicated-soak: RSS plateau failed: "
+        f"growth={rss_growth} KiB, range={rss_range} KiB, "
+        f"samples={fields['rss-samples']}, plateau={rss_plateau}; "
+        "limits are 4096 KiB")
 expected_samples = 1 + measured // sample_interval
 if measured % sample_interval:
     expected_samples += 1
 assert int(fields["rss-samples"]) == expected_samples
-assert fields["rss-plateau"] == "true"
 assert fields["realtime"] == "true"
 assert fields["resource-plateau"] == "true"
 assert fields["phase-telemetry"] == "true"

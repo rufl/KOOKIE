@@ -25,9 +25,10 @@ assert manifest["schema"] == "kookie.prototype-content/v1"
 assert manifest["asset_policy"]["all_sources_claimed_cc0"] is False
 assert "model.goose" in manifest["asset_policy"]["restricted_assets"]
 assert "model.prildarill-cat" in manifest["asset_policy"]["restricted_assets"]
+assert "model.coffee-mug" in manifest["asset_policy"]["restricted_assets"]
 assert "ui.player-hearts" in manifest["asset_policy"]["restricted_assets"]
 assets = manifest["assets"]
-assert len(assets) == 43
+assert len(assets) == 48
 catalog_path = root / manifest["editor_catalog"]
 catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
 assert catalog["schema"] == "kookie.greybox-module-catalog/v1"
@@ -70,6 +71,34 @@ heart_asset = next(asset for asset in assets if asset["id"] == "ui.player-hearts
 heart_authored = root / heart_asset["authored_path"]
 assert heart_authored.is_file() and not heart_authored.is_symlink()
 assert hashlib.sha256(heart_authored.read_bytes()).hexdigest() == heart_source["source_sha256"]
+coffee_source = next(
+    source for source in manifest["direct_sources"]
+    if source["id"] == "user-uploaded-coffee-mug"
+)
+for source_file in coffee_source["source_files"]:
+    relative = pathlib.PurePosixPath(source_file["path"])
+    assert not relative.is_absolute() and ".." not in relative.parts
+    path = root.joinpath(*relative.parts)
+    assert path.is_file() and not path.is_symlink()
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == source_file["sha256"]
+coffee_asset = next(asset for asset in assets if asset["id"] == "model.coffee-mug")
+assert coffee_asset["runtime_path"] == "models/coffee_mug/coffee_mug.glb"
+assert coffee_asset["license"] == "user-uploaded; license terms not verified"
+assert "prototype-only" in coffee_asset["cook_status"]
+hat_source = next(
+    source for source in manifest["direct_sources"]
+    if source["id"] == "devils-workshop-rpg-assets"
+)
+for source_file in hat_source["source_files"]:
+    relative = pathlib.PurePosixPath(source_file["path"])
+    assert not relative.is_absolute() and ".." not in relative.parts
+    path = root.joinpath(*relative.parts)
+    assert path.is_file() and not path.is_symlink()
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == source_file["sha256"]
+hat_asset = next(asset for asset in assets if asset["id"] == "model.wizard-hat")
+assert hat_asset["runtime_path"] == "models/wizard_hat/wizard_hat.glb"
+assert hat_asset["license"] == "CC0-1.0"
+assert "power-up ID 9" in hat_asset["cook_status"]
 seen = set()
 for asset in assets:
     assert asset["id"] and asset["kind"] and asset["license"]
@@ -109,6 +138,7 @@ for license_file in (
     "licenses/modular-cc0.txt",
     "licenses/brackeys-vfx-cc0-credits.txt",
     "licenses/classic64-cc0-readme.txt",
+    "licenses/devils-workshop-rpg-cc0.txt",
 ):
     assert "CC0" in (root / license_file).read_text(encoding="utf-8")
 goose_terms = (root / "licenses/goose-upstream-terms.txt").read_text(encoding="utf-8")
@@ -120,6 +150,10 @@ assert "prototype-only" in cat_terms
 heart_terms = (root / "licenses/echo-studios-heart-terms.txt").read_text(encoding="utf-8")
 assert "No SPDX license" in heart_terms
 assert "prototype-only" in heart_terms
+coffee_terms = (root / "licenses/coffee-mug-user-upload.txt").read_text(encoding="utf-8")
+assert "license terms are not verified" in coffee_terms
+assert "prototype-only" in coffee_terms
+assert "CC0 1.0 Universal" in (root / "licenses/devils-workshop-rpg-cc0.txt").read_text(encoding="utf-8")
 print(f"manifest assets={len(assets)} declared-files={len(seen)}")
 PY
 

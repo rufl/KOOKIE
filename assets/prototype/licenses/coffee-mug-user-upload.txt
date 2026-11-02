@@ -1,0 +1,7 @@
+Coffee mug model supplied by the KOOKIE user
+
+Uploaded archive: C__Users_rafael_Downloads_coffee-from-stardew-valley.zip
+Archive SHA-256: c2e21c3f09077f86a6cbf74266f422b1b0af42094d39f6ade1ce327b9e37b778
+Included source files: coffee.fbx and coffee_uv.png
+
+The uploaded archive contains no license file or source attribution. The original model's author and license terms are not verified. The FBX, texture, and converted GLB are retained only for the requested KOOKIE prototype integration; treat them as prototype-only and do not redistribute them outside the project until the user confirms the applicable rights.

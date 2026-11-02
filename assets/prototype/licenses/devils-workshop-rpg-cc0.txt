@@ -1,0 +1,12 @@
+Devil's Work.shop Low Poly 3D and Pixel 2D RPG Game Assets
+
+Creator: Ajay Karat / Devil's Work.shop
+Source page: https://devilsworkshop.itch.io/low-poly-3d-and-pixel-2d-rpg-game-assets
+License shown on the source page: CC0 1.0 Universal (CC0 1.0), Public Domain Dedication.
+Credit is appreciated by the creator; it is not a license condition.
+
+The source page identifies the pack's 3D formats as FBX and Unity package and lists PNG/TGA textures. The uploaded ZIP was named:
+C__Users_rafael_Downloads_LowPoly_Pixel_RPG_Assets_devilsworkshop_v02.zip
+Archive SHA-256: 08707c24147afa31cb126b72e248bf6757f337028a9c0fc423b9a160613ab944
+
+Imported for KOOKIE: 3D/FBX/WizardHat.fbx and the shared 3D/PNG/props_base_color.png atlas. The FBX was converted to the runtime GLB with Blender 5.2.3; no other collection files were imported for this feature.

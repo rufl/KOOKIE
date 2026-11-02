@@ -967,16 +967,20 @@ da simulação. Isso evidencia retenção de RSS/arena nativa, não prova um
 vazamento de objetos vivos.
 
 O caminho de IA com orçamento agora avalia e atualiza inimigos in-place,
-evitando registros `BehaviorDecision` e `EnemyStepResult` a cada tick de IA.
-No soak de 18.000 ticks com Kof `0.6.8`, o crescimento de RSS caiu para
-8.320 KiB (de 10.368 KiB), com assinatura `520690` estável e p95 de 671 µs,
-ainda dentro do orçamento de simulação de 4 ms. A memória continua falhando o
-gate de 4 MiB. A otimização reduziu o crescimento, mas não corrige a retenção
-restante do allocator/arena; o soak segue sem qualificação. O relatório
-headless do heaptrack funciona; no Arch/EndeavourOS, instale com
-`sudo pacman -S --needed heaptrack` e execute sem `sudo`.
-`scripts/verify_dedicated_soak.sh` rejeita versões Kof diferentes da `0.6.8`
-fixada antes de compilar ou executar.
+evitando registros `BehaviorDecision` e `EnemyStepResult` em cada tick de IA.
+Os soaks com Kof `0.6.8` fixado mediram crescimento de RSS de 8.320 KiB e,
+depois, 7.176 KiB em 18.000 ticks; ambos excedem o gate inalterado de 4 MiB.
+A execução mais recente manteve a assinatura `520690` e p95 de 638 µs, abaixo
+do orçamento de simulação de 4 ms. O heaptrack registrou 121 alocações: a maior
+alocação retida foi de 73,73 KiB no loader dinâmico/`libstdc++`; as demais
+alocações registradas vieram da amostragem de RSS. Ele não expôs alocações
+dentro da arena nativa do Kof, portanto não explica o crescimento observado
+nem prova vazamento de objetos vivos. A otimização reduziu o crescimento
+medido, mas a memória continua falhando o gate. O verificador agora informa
+crescimento/faixa/amostras de RSS e encerra sem traceback de assertion do
+Python. No Arch/EndeavourOS, instale heaptrack com
+`sudo pacman -S --needed heaptrack`; execute sem `sudo`. O soak rejeita Kof
+diferente da versão `0.6.8` fixada.
 
 `scripts/verify_dedicated_network.sh` executa um host autenticado e dois
 processos clientes com admissão de conteúdo e uma atualização completa em

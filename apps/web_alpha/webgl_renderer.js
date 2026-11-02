@@ -553,6 +553,33 @@
     ];
     return createMesh(gl, positions, null, null, indices, color);
   }
+  function pickupRingGeometry(gl, color, segmentCount = 48) {
+    const positions = new Float32Array(segmentCount * 4 * 3);
+    const normals = new Float32Array(segmentCount * 4 * 3);
+    const indices = [];
+    for (let segment = 0; segment < segmentCount; segment += 1) {
+      const start = segment * 4;
+      const firstAngle = segment * Math.PI * 2 / segmentCount;
+      const secondAngle = (segment + 1) * Math.PI * 2 / segmentCount;
+      const innerFirstX = Math.cos(firstAngle) * 0.78;
+      const innerFirstZ = Math.sin(firstAngle) * 0.78;
+      const outerFirstX = Math.cos(firstAngle);
+      const outerFirstZ = Math.sin(firstAngle);
+      const innerSecondX = Math.cos(secondAngle) * 0.78;
+      const innerSecondZ = Math.sin(secondAngle) * 0.78;
+      const outerSecondX = Math.cos(secondAngle);
+      const outerSecondZ = Math.sin(secondAngle);
+      positions.set([
+        innerFirstX, 0, innerFirstZ, outerFirstX, 0, outerFirstZ,
+        outerSecondX, 0, outerSecondZ, innerSecondX, 0, innerSecondZ,
+      ], start * 3);
+      for (let vertex = 0; vertex < 4; vertex += 1) {
+        normals[(start + vertex) * 3 + 1] = 1;
+      }
+      indices.push(start, start + 1, start + 2, start, start + 2, start + 3);
+    }
+    return createMesh(gl, positions, normals, null, indices, color);
+  }
   function createWorldMaterialTexture(gl) {
     const width = 256;
     const height = 128;
@@ -1329,8 +1356,10 @@
       shadow: horizontalPlaneGeometry(gl, COLORS.shadow, blobShadowTexture),
       actor: boxGeometry(gl, [8, 14, 8], COLORS.actor),
       pickup: diamondGeometry(gl, COLORS.pickup),
+      pickupGlint: diamondGeometry(gl, [1, 1, 1, 1]),
       projectile: boxGeometry(gl, [2.5, 2.5, 2.5], COLORS.projectile),
       vfx: boxGeometry(gl, [12, 1, 12], COLORS.vfx),
+      pickupRing: pickupRingGeometry(gl, [0.45, 0.82, 1, 1]),
     };
     const shadowMesh = [fallbackMeshes.shadow];
     const shadowTint = [
@@ -1345,7 +1374,8 @@
     );
 
     const assets = {
-      goose: null, cat: null, hearts: null, heartsBlue: null,
+      goose: null, cat: null, coffeeMug: null, wizardHat: null,
+      hearts: null, heartsBlue: null,
     };
     const vfxTextures = new Array(VFX_ASSETS.length).fill(null);
     const vfxMeshes = new Array(VFX_ASSETS.length).fill(null);
@@ -1363,6 +1393,8 @@
     const assetLoads = [
       ["goose", assetBase + "goose/goose.glb"],
       ["cat", assetBase + "cat/cat.glb"],
+      ["coffeeMug", assetBase + "coffee_mug/coffee_mug.glb"],
+      ["wizardHat", assetBase + "wizard_hat/wizard_hat.glb"],
       ["hearts", "assets/prototype/runtime/ui/hearts_0001.png"],
       ["heartsBlue", "assets/prototype/runtime/ui/hearts_blue.png"],
     ].map(async ([name, url]) => {
@@ -1876,16 +1908,55 @@
             SCENE_OBJECT_COLORS.floatable, time, viewProjection,
           );
         } else if (object.kind === SCENE_OBJECT_KINDS.powerup) {
-          const bob = Math.sin(time * 0.004 + object.id) * 0.65;
+          const bob = Math.sin(time * 0.0028 + object.id) * 0.16;
+          const powerUpMeshes = object.id === 1
+            ? assets.coffeeMug?.meshes
+            : object.id === 9 ? assets.wizardHat?.meshes : null;
+          const usePowerUpModel = Boolean(powerUpMeshes?.length);
+          const powerUpScale = object.id === 1 ? 1.3 : 3.2;
+          const modelBaseOffset = object.id === 1 ? 0.28
+            : object.id === 9 ? powerUpScale * 0.5911 + 0.18 : object.sizeY;
+          const powerUpY = object.y + modelBaseOffset + bob;
+          const spin = time * 0.0011 + object.id * 0.2;
+          const ringPulse = 0.86 + Math.sin(time * 0.004 + object.id) * 0.12;
+          const ringRadius = Math.max(2, Math.min(5, Math.max(width, depth) * 0.58));
+          gl.enable(gl.BLEND);
+          gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
           draw(
-            [fallbackMeshes.pickup],
-            transform(
-              [object.x, object.y + object.sizeY + bob, object.z],
-              [Math.max(2, width), Math.max(2, height), Math.max(2, depth)],
-              time * 0.001,
-            ),
-            SCENE_OBJECT_COLORS.powerup, time, viewProjection,
+            [fallbackMeshes.pickupRing],
+            transform([object.x, object.y + 0.06, object.z],
+              [ringRadius, 1, ringRadius]),
+            [0.42 * ringPulse, 0.78 * ringPulse, ringPulse, 0.72],
+            time, viewProjection,
           );
+          gl.disable(gl.BLEND);
+          draw(
+            usePowerUpModel ? powerUpMeshes : [fallbackMeshes.pickup],
+            transform(
+              [object.x, powerUpY, object.z],
+              usePowerUpModel
+                ? [powerUpScale, powerUpScale, powerUpScale] : [
+                  Math.max(2, width), Math.max(2, height), Math.max(2, depth),
+                ],
+              spin,
+            ),
+            usePowerUpModel ? [1, 1, 1, 1] : SCENE_OBJECT_COLORS.powerup,
+            time, viewProjection,
+          );
+          const sparkleOrbit = ringRadius * 0.78;
+          const sparkleHeight = object.id === 1 ? powerUpScale * 1.62 : 0.55;
+          for (let sparkle = 0; sparkle < 2; sparkle += 1) {
+            const angle = spin * 1.8 + object.id + sparkle * Math.PI;
+            draw(
+              [fallbackMeshes.pickupGlint],
+              transform([
+                object.x + Math.cos(angle) * sparkleOrbit,
+                powerUpY + sparkleHeight + Math.sin(angle * 2) * 0.18,
+                object.z + Math.sin(angle) * sparkleOrbit,
+              ], [0.5, 0.7, 0.5], angle),
+              [1, 0.96, 0.72, 1], time, viewProjection,
+            );
+          }
         } else if (object.kind === SCENE_OBJECT_KINDS.lootBeam) {
           draw(
             [fallbackMeshes.solid],

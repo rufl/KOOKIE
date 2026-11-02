@@ -3,6 +3,16 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Power-ups now hover just above their floor position with a subtle bob,
+  continuous rotation, a pulsing ground halo, and two orbiting glints. The same
+  presentation covers the coffee/wizard models and fallback pickup meshes.
+- Imported the uploaded coffee mug FBX and UV texture into a textured GLB and
+  bound it to coffee speed power-up ID 1 in the WebGL renderer. The archive has
+  no license terms; source and derivative are marked prototype-only pending
+  rights confirmation.
+- Added the textured CC0 WizardHat from Devil's Work.shop to the WebGL scene
+  for wizard-hat power-up ID 9; retained creator credit and collection
+  provenance in the prototype asset manifest.
 - `kof_observed.sh` now removes generated build logs older than 30 days and
   keeps at most 200 generated logs in its managed directory. Explicit `--log`
   paths remain untouched. A local audit found 1,100 small logs using 3.9 MiB
@@ -15,13 +25,14 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   `libstdc++`/the loader; `/proc` showed anonymous RSS growth in Kof's 4 GiB
   native arena, not simulation heap growth attributed by heaptrack. This is
   not proof of a live-object leak.
-- The budgeted AI path now evaluates/steps in place and avoids constructing
-  decision/result records on common AI ticks. The pinned 18,000-tick rerun
-  reduced RSS growth to 8,320 KiB, with stable resource signature `520690`
-  and p95 671 µs; timing passes, but the memory gate still fails. The native
-  arena/RSS retention remains an open engine/runtime issue. The soak script
-  rejects Kof versions other than pinned `0.6.8`. Install heaptrack on
-  Arch/EndeavourOS with `sudo pacman -S --needed heaptrack`; run without sudo.
+- A later pinned Kof `0.6.8` profiled soak measured 7,176 KiB RSS growth over
+  18,000 ticks (down from 8,320 KiB in the previous run), still above the 4 MiB
+  gate. p95 was 638 µs and resource signature `520690` stayed stable.
+  Heaptrack's 121 allocations were from the dynamic loader and RSS-sampling
+  path; its largest retained allocation was 73.73 KiB in `libstdc++`/the
+  loader. The custom Kof arena is not visible in that report, so the RSS growth
+  remains unexplained. The verifier now reports the failed RSS values directly
+  instead of a Python assertion traceback.
 - Multiplayer deaths and ring-outs now use authoritative shared respawn waves:
   two seconds per connected player, capped at six seconds. Respawning restores
   full health while preserving player ID, species, and team; spawn selection
