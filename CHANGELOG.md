@@ -3,6 +3,22 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Upgraded the repository Kof pin to official `0.6.10` at commit
+`e579132bb3f17db64faba33b9be1d27837851fa0`; verified archive SHA-256
+`1ac8e99ad7778534160c288ea51e53b789fe303dd881d24e59a3ddc503e1e789`.
+`scripts/verify.sh` passed against that archive: 167 JVM tests, lint/LSP,
+JVM/native SIMD and external-LAN parity, server/network and package gates,
+native adapter plus Vulkan renderer, and canonical JVM/native runtime smoke.
+The native LAN probe now runs from its staged runtime directory so relative
+adapter libraries resolve. Renderer evidence: Intel Graphics (ARL), 600 frames,
+one draw call, p95 1,691 µs. Kof `0.6.10` accepts bounded WASM/WASI scalar
+check/build cases, but a full program using `println` fails `WASM002`; KOOKIE
+gameplay remains on the native server and separately packaged WebGL client.
+- Replaced throwable bomb type 1's placeholder with the imported 3D Leap Land
+  bomb model in WebGL and added the same textured GLB to the Kof bounded asset
+  loader. The uploaded archive's notes state CC0; archive/source hashes and
+  license notice are recorded in `assets/prototype/manifest.json`. No fuse,
+  damage, or explosion mechanics changed.
 - Added the textured picoCAD watermelon, a collectible slice model, and eight
   impact frames. WebGL plays the 05–12 breakup sequence (55 ms per frame), then
   renders the four existing slice pickups. Watermelon source licensing is not

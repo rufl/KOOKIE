@@ -62,6 +62,13 @@
       "license": "CC0-1.0",
       "license_file": "licenses/devils-workshop-rpg-cc0.txt",
       "creator": "Ajay Karat / Devil's Work.shop"
+    },
+    {
+      "id": "3d-leap-land",
+      "archive_name": "C__Users_rafael_Downloads_3D Leap Land.zip",
+      "archive_sha256": "a160949fe0e135a9c6d0ee8d81983bc99fa360313725a0cef0842c9c3608e5dc",
+      "license": "CC0",
+      "license_file": "licenses/3d-leap-land-cc0.txt"
     }
   ],
   "direct_sources": [
@@ -188,6 +195,28 @@
       "license": "no license stated by source listing",
       "license_file": "licenses/watermelon-itch-terms.txt",
       "redistribution": "prototype-only; do not redistribute until rights are confirmed"
+    },
+    {
+      "id": "3d-leap-land-bomb",
+      "source_name": "bomb.fbx, bomb.obj, palette.png",
+      "source_archive": "3d-leap-land",
+      "source_files": [
+        {
+          "path": "models/bomb/source/bomb.fbx",
+          "sha256": "1f11e6f2e3d97a85a58e123d7af5e39c358edeb3a679a5edfb4fb3c7002c75c2"
+        },
+        {
+          "path": "models/bomb/source/bomb.obj",
+          "sha256": "d66a86eb28b94752efca1b4cb9083246a5f418cd01d8e4bed7cf7f5f0dfb233f"
+        },
+        {
+          "path": "models/bomb/source/palette.png",
+          "sha256": "7b08b3982fa31d6b91d5158469a30c50c0d57c07e2daac2a2d364706d0cd5b31"
+        }
+      ],
+      "license": "CC0",
+      "license_file": "licenses/3d-leap-land-cc0.txt",
+      "redistribution": "CC0 per the uploaded archive's Notes.txt"
     }
   ],
   "asset_policy": {
@@ -844,6 +873,18 @@
       "license": "CC0-1.0",
       "license_file": "licenses/devils-workshop-rpg-cc0.txt",
       "cook_status": "textured woodenBarrel.fbx model used by throwable ID 6"
+    },
+    {
+      "id": "model.throwable-bomb",
+      "kind": "model",
+      "source": "direct_sources.3d-leap-land-bomb",
+      "authored_path": "models/bomb/bomb.glb",
+      "runtime_path": "models/bomb/bomb.glb",
+      "format": "glb",
+      "conversion_tool": "KOOKIE OBJ-to-GLB conversion",
+      "license": "CC0",
+      "license_file": "licenses/3d-leap-land-cc0.txt",
+      "cook_status": "512 triangles with embedded 128x128 palette texture; throwable type 1 uses this model"
     }
   ]
 }

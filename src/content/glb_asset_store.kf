@@ -5,20 +5,24 @@ class BoundedExternalGlbAssetStore {
     Int[] catSourceValue
     Int[] coffeeMugSourceValue
     Int[] wizardHatSourceValue
+    Int[] bombSourceValue
     Bool gooseAttemptedValue
     Bool catAttemptedValue
     Bool coffeeMugAttemptedValue
     Bool wizardHatAttemptedValue
+    Bool bombAttemptedValue
 
     public constructor() {
         maximumBytesValue = 1048576
         gooseSourceValue = new Int[0]
         catSourceValue = new Int[0]
         coffeeMugSourceValue = new Int[0]
+        bombSourceValue = new Int[0]
         wizardHatSourceValue = new Int[0]
         gooseAttemptedValue = false
         catAttemptedValue = false
         coffeeMugAttemptedValue = false
+        bombAttemptedValue = false
         wizardHatAttemptedValue = false
     }
 
@@ -27,6 +31,7 @@ class BoundedExternalGlbAssetStore {
         if (model == 2) { return "models/cat/cat.glb" }
         if (model == 3) { return "models/coffee_mug/coffee_mug.glb" }
         if (model == 4) { return "models/wizard_hat/wizard_hat.glb" }
+        if (model == 5) { return "models/bomb/bomb.glb" }
         return ""
     }
 
@@ -48,7 +53,7 @@ class BoundedExternalGlbAssetStore {
     }
 
     Bool load(Int model) {
-        if (model < 1 || model > 4) { return false }
+        if (model < 1 || model > 5) { return false }
         if (model == 1 && gooseAttemptedValue) {
             return gooseSourceValue.length > 0
         }
@@ -61,10 +66,14 @@ class BoundedExternalGlbAssetStore {
         if (model == 4 && wizardHatAttemptedValue) {
             return wizardHatSourceValue.length > 0
         }
+        if (model == 5 && bombAttemptedValue) {
+            return bombSourceValue.length > 0
+        }
         if (model == 1) { gooseAttemptedValue = true }
         if (model == 2) { catAttemptedValue = true }
         if (model == 3) { coffeeMugAttemptedValue = true }
         if (model == 4) { wizardHatAttemptedValue = true }
+        if (model == 5) { bombAttemptedValue = true }
         var roots = 0
         while (roots < 2) {
             var root = "content/prototype"
@@ -75,6 +84,7 @@ class BoundedExternalGlbAssetStore {
                 if (model == 2) { catSourceValue = candidate }
                 if (model == 3) { coffeeMugSourceValue = candidate }
                 if (model == 4) { wizardHatSourceValue = candidate }
+                if (model == 5) { bombSourceValue = candidate }
                 return true
             }
             roots = roots + 1
@@ -97,6 +107,7 @@ class BoundedExternalGlbAssetStore {
         if (model == 2) { return catSourceValue }
         if (model == 3) { return coffeeMugSourceValue }
         if (model == 4) { return wizardHatSourceValue }
+        if (model == 5) { return bombSourceValue }
         return new Int[0]
     }
 }

@@ -88,9 +88,9 @@ only generated mechanical shader metadata and GPU handles. Kof continues to own
 camera/projection semantics, bounded staging, material/pass selection and render
 ordering; it never parses or composes SPIR-V at runtime.
 
-The active Kof4j `0.6.8` pin is the official `kof-0.6.8-linux-x86_64`
+The active Kof4j `0.6.10` pin is the official `kof-0.6.10-linux-x86_64`
 release tag at source commit
-`2971d2fe4cc873eb50fcd1b7d7d3e097381281c8`. The existing
+`e579132bb3f17db64faba33b9be1d27837851fa0`. The existing
 `scripts/verify_simd_dispatch.sh` qualifies the bounded synchronous
 `Buffer(U8)` producer/copy-back path on JVM and native x86-64, and provides
 freestanding syntax proofs for AArch64 Linux, RISC-V Linux and x86-64/AArch64
@@ -1098,7 +1098,7 @@ Heaptrack did not attribute that RSS growth to simulation heap allocations,
 so this indicates arena/page retention, not a proven live-object leak.
 
 The budgeted enemy AI avoids constructing decision/step result records on the
-common path. Pinned `0.6.8` five-minute reruns measured 8,320 KiB and then
+common path. Pinned `0.6.10` five-minute reruns measured 8,320 KiB and then
 7,176 KiB RSS growth, both above the 4 MiB gate. The latest p95 was 638 µs and
 resource signature `520690` remained stable. Heaptrack's 121 recorded
 allocations were attributable to the loader and RSS-sampling path; its largest

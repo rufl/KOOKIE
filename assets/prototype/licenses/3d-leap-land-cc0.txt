@@ -1,0 +1,4 @@
+3D Leap Land asset package — CC0
+
+Source: user-uploaded `C__Users_rafael_Downloads_3D Leap Land.zip`.
+The archive's `3D Leap Land/Notes.txt` states that the assets are free for personal and commercial use under Creative Commons Zero (CC0), with no attribution required. The archive provides no creator name or public source URL; its notes point to `http://twitter.com/AEssssam` for updates. Palette/material notes are retained from the archive.

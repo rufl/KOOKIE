@@ -27,9 +27,10 @@ renderer.
 ## Measured Kof 0.6.6 ABI boundary (historical)
 
 The active KOOKIE source pin is Kof4j
-[`2971d2fe4cc873eb50fcd1b7d7d3e097381281c8`](https://github.com/KofLang/Kof4j/tree/2971d2fe4cc873eb50fcd1b7d7d3e097381281c8) (`0.6.8`).
-The Buffer qualification below was run with Kof `0.6.6`; do not treat it as
-evidence for the active pin until rerun.
+[`e579132bb3f17db64faba33b9be1d27837851fa0`](https://github.com/KofLang/Kof4j/tree/e579132bb3f17db64faba33b9be1d27837851fa0) (`0.6.10`).
+The measurements and source links below are historical Kof `0.6.6` evidence.
+The active `0.6.10` Buffer SIMD qualification was rerun and passed on JVM and
+native x86-64; see [the native-boundary qualification](KOF_NATIVE_BOUNDARY_PLAN.md#p1--batch-abi-qualification).
 
 The pinned implementation and the latest upstream documentation are not
 identical:

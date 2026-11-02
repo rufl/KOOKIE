@@ -3,6 +3,23 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Atualizamos o pin do Kof para o release oficial `0.6.10`, commit
+  `e579132bb3f17db64faba33b9be1d27837851fa0`; SHA-256 verificado do archive:
+  `1ac8e99ad7778534160c288ea51e53b789fe303dd881d24e59a3ddc503e1e789`.
+  `scripts/verify.sh` passou com esse archive: 167 testes JVM, lint/LSP,
+  SIMD e paridade de LAN externa em JVM/native, gates de servidor/rede e
+  packages, adapter nativo com renderer Vulkan e smoke dos runtimes JVM/native
+  canônicos. O probe LAN native agora executa no diretório de runtime preparado
+  para resolver as bibliotecas relativas do adapter. Evidência de renderer:
+  Intel Graphics (ARL), 600 frames, um draw call, p95 de 1.691 µs. Kof `0.6.10`
+  aceita casos limitados de check/build escalar WASM/WASI, mas um programa
+  completo que usa `println` falha com `WASM002`; gameplay continua no servidor
+  native e cliente WebGL empacotado separadamente.
+- Substituímos o placeholder da bomba arremessável tipo 1 pelo modelo 3D Leap
+  Land no WebGL e adicionamos o mesmo GLB texturizado ao carregador limitado de
+  assets Kof. As notas do archive declaram CC0; hashes e aviso de licença estão
+  em `assets/prototype/manifest.json`. Mecânicas de fusível, dano e explosão
+  não foram alteradas.
 - Adicionamos a melancia texturizada em picoCAD, um modelo de fatia coletável e
   oito quadros de impacto. O WebGL reproduz a quebra dos quadros 05–12 (55 ms
   por quadro) e depois exibe as quatro fatias já geradas pela simulação. A

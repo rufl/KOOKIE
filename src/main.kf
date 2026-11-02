@@ -5815,15 +5815,27 @@ test "power-up JSON definitions stage named pickups" {
         "power-up world must stage resource-backed diamond pickups")
 }
 
-test "Kof stages imported coffee and wizard pickup models" {
+test "Kof loads shared coffee, wizard, and throwable bomb GLBs" {
     var assets = BoundedExternalGlbAssetStore()
     var coffee = BoundedExternalGlbModelReader()
     var wizard = BoundedExternalGlbModelReader()
+    var bomb = BoundedExternalGlbModelReader()
     assert(assets.available(3) && assets.available(4) &&
-        coffee.read(assets.bytes(3), 3) &&
-        wizard.read(assets.bytes(4), 4) &&
-        coffee.valid() && wizard.valid(),
-        "Kof must load the same bounded pickup GLBs as WebGL")
+        assets.available(5),
+        "Kof must find coffee, wizard, and bomb GLB assets")
+    assert(coffee.read(assets.bytes(3), 3),
+        "Kof must parse the coffee mug GLB")
+    assert(wizard.read(assets.bytes(4), 4),
+        "Kof must parse the wizard hat GLB")
+    assert(bomb.read(assets.bytes(5), 5),
+        "Kof must parse the bomb GLB")
+    assert(coffee.valid() && wizard.valid() && bomb.valid(),
+        "Kof must accept all imported pickup models")
+    assert(bomb.triangleCount() == 512,
+        "Kof must preserve all 512 bomb triangles")
+    assert(bomb.textureWidth() == 128 && bomb.textureHeight() == 128 &&
+        bomb.textureLength() > 0,
+        "Kof must preserve the bomb's embedded 128x128 texture")
     var world = PowerUpWorld(2)
     assert(world.add(PowerUpDefinition(
             1, powerUpKindCoffeeMug(), 32, 1, 52, 3, 600, 2, 2, 9)) &&

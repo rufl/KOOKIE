@@ -277,7 +277,7 @@
     8: 15,
   });
   const THROWABLE_VISUALS = Object.freeze({
-    1: { mesh: "projectile", scale: [2.2, 2.2, 2.2], pickupScale: [4.0, 4.0, 4.0], color: [0.9, 0.12, 0.12, 1] },
+    1: { mesh: "projectile", model: "bomb", scale: [2.2, 2.2, 2.2], pickupScale: [4.0, 4.0, 4.0], color: [1, 1, 1, 1] },
     2: { mesh: "solid", scale: [2.2, 3.0, 2.2], pickupScale: [4.0, 5.4, 4.0], color: [0.94, 0.91, 0.8, 1] },
     3: { mesh: "pickup", model: "watermelon", scale: [1.0, 1.0, 1.0], pickupScale: [1.35, 1.35, 1.35], color: [1, 1, 1, 1] },
     4: { mesh: "solid", model: "woodenBox", scale: [1.0, 1.0, 1.0], pickupScale: [1.35, 1.35, 1.35], color: [1, 1, 1, 1] },
@@ -1376,7 +1376,7 @@
 
     const assets = {
       goose: null, cat: null, coffeeMug: null, wizardHat: null,
-      watermelon: null, watermelonSlice: null, watermelonImpact: [],
+      bomb: null, watermelon: null, watermelonSlice: null, watermelonImpact: [],
       rock: null, woodenBox: null, woodenBarrel: null,
       hearts: null, heartsBlue: null,
     };
@@ -1398,6 +1398,7 @@
       ["cat", assetBase + "cat/cat.glb"],
       ["coffeeMug", assetBase + "coffee_mug/coffee_mug.glb"],
       ["wizardHat", assetBase + "wizard_hat/wizard_hat.glb"],
+      ["bomb", assetBase + "bomb/bomb.glb"],
       ["watermelon", assetBase + "watermelon/watermelon.glb"],
       ["watermelonSlice", assetBase + "watermelon/slice.glb"],
       ["rock", assetBase + "rock/rock.glb"],

@@ -79,9 +79,9 @@ responsável pela semântica de câmera/projeção, staging limitado, seleção 
 material/passe e ordenação de renderização; ele nunca faz parse nem composição
 de SPIR-V no runtime.
 
-A pinagem ativa do Kof4j `0.6.8` é o release oficial
-`kof-0.6.8-linux-x86_64`, no commit de fonte
-`2971d2fe4cc873eb50fcd1b7d7d3e097381281c8`. O
+A pinagem ativa do Kof4j `0.6.10` é o release oficial
+`kof-0.6.10-linux-x86_64`, no commit de fonte
+`e579132bb3f17db64faba33b9be1d27837851fa0`. O
 `scripts/verify_simd_dispatch.sh` qualifica o caminho síncrono e limitado de
 producer/copy-back `Buffer(U8)` em JVM e native x86-64; o suporte cross continua
 sem qualificação. O caminho selecionado `GPU_SCENE_VERTEX_V1` é um batch de

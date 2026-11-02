@@ -157,6 +157,7 @@ if [[ "$lan_mode" == "processes" ]]; then
     export KOOKIE_EXTERNAL_LAN_ROLE="$role"
     if [[ "$target" == native ]]; then
       (
+        cd "$runtime_dir"
         LD_LIBRARY_PATH="$runtime_dir/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
           "$build_dir/$target-$role/Default/Main"
       ) >"$log" 2>&1 &
@@ -201,6 +202,7 @@ else
   set +e
   if [[ "$target" == native ]]; then
     (
+      cd "$runtime_dir"
       LD_LIBRARY_PATH="$runtime_dir/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" "$binary"
     ) >"$probe_log" 2>&1
   else
