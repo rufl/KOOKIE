@@ -433,7 +433,7 @@ def main():
             assert scene[5] == 2 and scene[6] == 0
             assert scene[17] == 8
             suffix = throwable_suffix(scene)
-            assert suffix[0] == 1 and 1 <= suffix[4] <= 5, (
+            assert suffix[0] == 1 and 1 <= suffix[4] <= 6, (
                 "initial shared throwable must have a valid randomized item type")
             assert 4 <= suffix[1] <= 316 and 0 <= suffix[2] <= 100 and \
                 4 <= suffix[3] <= 276, (
@@ -742,14 +742,48 @@ def main():
         scene = wait_for_input_ack(mover, pickup_sequence)
         assert throwable_suffix(scene)[0] == 0 and \
             throwable_suffix(scene)[5:7] == [1, 0] and \
-            throwable_suffix(scene)[7] in range(1, 6), (
+            throwable_suffix(scene)[7] in range(1, 7), (
             f"a press within pickup radius must disable pickup and carry the "
             f"throwable: suffix={throwable_suffix(scene)}, "
             f"actor={actor_record(scene, mover.player_id)}, tick={scene[4]}")
         carried_type = throwable_suffix(scene)[7]
+        throw_scene = spectators[0].snapshot(8, 4)
+        thrower = actor_record(throw_scene, mover.player_id)
+        other_actors = [
+            actor_record(throw_scene, player.player_id)
+            for player in players if player.player_id != mover.player_id
+        ]
+        clear_yaw = 0
+        clear_distance = -1
+        for candidate in range(-180, 180, 45):
+            radians = math.radians(candidate)
+            direction_x, direction_z = math.sin(radians), math.cos(radians)
+            boundary_distance = 1000
+            if direction_x > 0:
+                boundary_distance = min(
+                    boundary_distance, (316 - thrower[1]) / direction_x)
+            elif direction_x < 0:
+                boundary_distance = min(
+                    boundary_distance, (4 - thrower[1]) / direction_x)
+            if direction_z > 0:
+                boundary_distance = min(
+                    boundary_distance, (276 - thrower[3]) / direction_z)
+            elif direction_z < 0:
+                boundary_distance = min(
+                    boundary_distance, (4 - thrower[3]) / direction_z)
+            clearance = boundary_distance
+            for other in other_actors:
+                dx, dz = other[1] - thrower[1], other[3] - thrower[3]
+                forward = dx * direction_x + dz * direction_z
+                lateral = abs(dx * direction_z - dz * direction_x)
+                if 0 < forward < clearance and lateral < 7:
+                    clearance = max(0, forward - 7)
+            if clearance > clear_distance:
+                clear_yaw, clear_distance = candidate, clearance
+        throw_yaw_delta = (clear_yaw - thrower[7] + 180) % 360 - 180
         release_sequence = mover.input(held=0)
         wait_for_input_ack(mover, release_sequence)
-        charge_sequence = mover.input(held=256)
+        charge_sequence = mover.input(look_yaw=throw_yaw_delta * 10, held=256)
         scene = wait_for_input_ack(mover, charge_sequence)
         charge_deadline = time.monotonic() + 2
         while time.monotonic() < charge_deadline:
@@ -796,6 +830,7 @@ def main():
             if event[0] > last_impact_sequence
         }
         last_throwable_record = None
+        watermelon_heights = []
         last_throwable_y = None
         watermelon_descending = False
         watermelon_bounced = False
@@ -820,6 +855,7 @@ def main():
                     throwable_cursor + item_index * 8 + 8]
                 if carried_type == 3:
                     watermelon_y = last_throwable_record[3]
+                    watermelon_heights.append(watermelon_y)
                     if last_throwable_y is not None:
                         if watermelon_y < last_throwable_y:
                             watermelon_descending = True
@@ -856,17 +892,21 @@ def main():
             assert 7 in kinds and throwable_suffix(scene)[9] == 4, (
                 "watermelon must shatter into four collectible slices")
             assert watermelon_bounced, (
-                "watermelon must bounce once from the ground before shattering")
+                f"watermelon must bounce once from the ground before shattering; "
+                f"heights={watermelon_heights}, last={last_throwable_record}, "
+                f"impacts={sorted(kinds)}")
         else:
             assert 5 in kinds or 3 in kinds, (
                 "crate/boulder must resolve as a generic non-explosive prop")
         if carried_type == 3:
+            scene = spectators[0].snapshot(8, 4)
             slice_record = throwable_suffix(scene)[10:14]
             mover_state = actor_record(scene, mover.player_id)
             dx, dz = slice_record[1] - mover_state[1], \
                 slice_record[3] - mover_state[3]
             pickup_deadline = time.monotonic() + 3
-            while dx * dx + dz * dz > 36 and time.monotonic() < pickup_deadline:
+            while (abs(dx) > 3 or abs(dz) > 3) and \
+                    time.monotonic() < pickup_deadline:
                 sequence = mover.input(
                     move_x=0 if dx == 0 else (1000 if dx > 0 else -1000),
                     move_z=0 if dz == 0 else (1000 if dz > 0 else -1000))
@@ -874,7 +914,19 @@ def main():
                 mover_state = actor_record(scene, mover.player_id)
                 dx, dz = slice_record[1] - mover_state[1], \
                     slice_record[3] - mover_state[3]
-            assert dx * dx + dz * dz <= 36, "player could not reach watermelon slice"
+            assert abs(dx) <= 3 and abs(dz) <= 3, (
+                "player could not reach watermelon slice")
+            projectile_clear_deadline = time.monotonic() + 3
+            while projectile_records(scene) and \
+                    time.monotonic() < projectile_clear_deadline:
+                scene = spectators[0].snapshot(8, 4)
+            assert not projectile_records(scene), (
+                "projectiles must clear before isolated slice reward check")
+            mover_state = actor_record(scene, mover.player_id)
+            dx, dz = slice_record[1] - mover_state[1], \
+                slice_record[3] - mover_state[3]
+            assert abs(dx) <= 3 and abs(dz) <= 3, (
+                "player left the slice pickup radius while waiting")
             seed_ammo_before = throwable_suffix(scene)[8]
             slice_health_before = actor_record(scene, mover.player_id)[4]
             slice_count_before = throwable_suffix(scene)[9]
@@ -886,8 +938,11 @@ def main():
                 min(30, seed_ammo_before + picked_slices * 3), (
                     "each collected slice must add three capped seed rounds")
             assert actor_record(scene, mover.player_id)[4] == \
-                min(100, slice_health_before + picked_slices * 8), (
-                    "each slice must restore eight health up to the maximum")
+                min(300, slice_health_before + picked_slices * 8), (
+                    f"each collected slice must restore eight health; "
+                    f"before={slice_health_before}, "
+                    f"after={actor_record(scene, mover.player_id)[4]}, "
+                    f"collected={picked_slices}")
             seed_scene = mover.snapshot(8, 4)
             seed_trailer = 18 + seed_scene[17] * 8
             seed_projectiles_before = seed_scene[seed_trailer + 1]
@@ -909,7 +964,7 @@ def main():
             raise AssertionError(
                 "shared throwable did not respawn 180 ticks after resolution")
         respawn_suffix = throwable_suffix(scene)
-        assert 1 <= respawn_suffix[4] <= 5 and \
+        assert 1 <= respawn_suffix[4] <= 6 and \
             4 <= respawn_suffix[1] <= 316 and 4 <= respawn_suffix[3] <= 276, (
                 "respawn must randomize a valid item type and in-bounds location")
         collision_mover = players[1]

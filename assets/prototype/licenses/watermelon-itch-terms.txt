@@ -1,0 +1,7 @@
+Watermelon picoCAD models
+
+Source: https://koppikuoriainen.itch.io/watermelon
+Creator: koppikuoriainen
+The itch.io listing describes twelve picoCAD frames and a 32x32 texture, but the listing does not state a license or grant redistribution rights. The texture download is 128x128 with the artwork confined to its upper-left 32x32 pixels.
+
+Included only for this user-requested prototype integration. The source text files, texture, and converted GLBs are prototype-only. Do not redistribute or use outside this project until the creator's terms are confirmed.

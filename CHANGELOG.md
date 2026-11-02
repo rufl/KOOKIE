@@ -3,6 +3,15 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Added the textured picoCAD watermelon, a collectible slice model, and eight
+  impact frames. WebGL plays the 05–12 breakup sequence (55 ms per frame), then
+  renders the four existing slice pickups. Watermelon source licensing is not
+  stated by the listing; source and derivatives remain prototype-only.
+- Replaced the generic crate and boulder visuals with Devil's Work.shop
+  `boxWooden.fbx` and `Rock.fbx`, and added `woodenBarrel.fbx` as throwable
+  type 6. Kof simulation/snapshot validation now accepts types 1–6; WebGL
+  clients render the imported crate, rock, and barrel GLBs. The source pack is
+  CC0 and attribution remains in the asset manifest.
 - Native Kof staging can now load and emit the same coffee-mug and wizard-hat
   GLB geometry and UVs used in WebGL; other power-ups retain the bounded
   diamond fallback. Coffee IDs 1 and 8 share the mug, wizard-hat ID 9 uses the

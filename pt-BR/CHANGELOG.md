@@ -3,6 +3,16 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Adicionamos a melancia texturizada em picoCAD, um modelo de fatia coletável e
+  oito quadros de impacto. O WebGL reproduz a quebra dos quadros 05–12 (55 ms
+  por quadro) e depois exibe as quatro fatias já geradas pela simulação. A
+  página não informa a licença da melancia; fonte e derivados ficam restritos
+  ao protótipo.
+- Substituímos os visuais genéricos de caixa e pedregulho por `boxWooden.fbx` e
+  `Rock.fbx` de Devil's Work.shop e adicionamos `woodenBarrel.fbx` como item
+  arremessável tipo 6. Simulação/validação de snapshot Kof aceita tipos 1–6;
+  clientes WebGL renderizam os GLBs de caixa, rocha e barril. O pack-fonte é
+  CC0; os créditos permanecem no manifesto de assets.
 - O staging Kof nativo agora carrega e emite a mesma geometria GLB e UVs da
   caneca e do chapéu de mago usados no WebGL; os outros power-ups mantêm o
   fallback limitado em forma de diamante. Os IDs 1 e 8 usam a caneca, e o ID 9

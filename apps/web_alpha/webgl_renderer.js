@@ -279,9 +279,10 @@
   const THROWABLE_VISUALS = Object.freeze({
     1: { mesh: "projectile", scale: [2.2, 2.2, 2.2], pickupScale: [4.0, 4.0, 4.0], color: [0.9, 0.12, 0.12, 1] },
     2: { mesh: "solid", scale: [2.2, 3.0, 2.2], pickupScale: [4.0, 5.4, 4.0], color: [0.94, 0.91, 0.8, 1] },
-    3: { mesh: "pickup", scale: [2.8, 2.8, 2.8], pickupScale: [5.0, 5.0, 5.0], color: [0.12, 0.66, 0.23, 1] },
-    4: { mesh: "solid", scale: [3.5, 3.0, 3.5], pickupScale: [6.3, 5.4, 6.3], color: [0.48, 0.25, 0.12, 1] },
-    5: { mesh: "projectile", scale: [3.0, 2.4, 3.0], pickupScale: [5.4, 4.3, 5.4], color: [0.48, 0.52, 0.57, 1] },
+    3: { mesh: "pickup", model: "watermelon", scale: [1.0, 1.0, 1.0], pickupScale: [1.35, 1.35, 1.35], color: [1, 1, 1, 1] },
+    4: { mesh: "solid", model: "woodenBox", scale: [1.0, 1.0, 1.0], pickupScale: [1.35, 1.35, 1.35], color: [1, 1, 1, 1] },
+    5: { mesh: "projectile", model: "rock", scale: [1.0, 1.0, 1.0], pickupScale: [1.3, 1.3, 1.3], color: [1, 1, 1, 1] },
+    6: { mesh: "solid", model: "woodenBarrel", scale: [1.0, 1.0, 1.0], pickupScale: [1.3, 1.3, 1.3], color: [1, 1, 1, 1] },
   });
 
   const MAX_MULTIPLAYER_IMPACT_EFFECTS = 32;
@@ -1375,6 +1376,8 @@
 
     const assets = {
       goose: null, cat: null, coffeeMug: null, wizardHat: null,
+      watermelon: null, watermelonSlice: null, watermelonImpact: [],
+      rock: null, woodenBox: null, woodenBarrel: null,
       hearts: null, heartsBlue: null,
     };
     const vfxTextures = new Array(VFX_ASSETS.length).fill(null);
@@ -1395,6 +1398,11 @@
       ["cat", assetBase + "cat/cat.glb"],
       ["coffeeMug", assetBase + "coffee_mug/coffee_mug.glb"],
       ["wizardHat", assetBase + "wizard_hat/wizard_hat.glb"],
+      ["watermelon", assetBase + "watermelon/watermelon.glb"],
+      ["watermelonSlice", assetBase + "watermelon/slice.glb"],
+      ["rock", assetBase + "rock/rock.glb"],
+      ["woodenBox", assetBase + "box_wooden/box_wooden.glb"],
+      ["woodenBarrel", assetBase + "wooden_barrel/wooden_barrel.glb"],
       ["hearts", "assets/prototype/runtime/ui/hearts_0001.png"],
       ["heartsBlue", "assets/prototype/runtime/ui/hearts_blue.png"],
     ].map(async ([name, url]) => {
@@ -1414,6 +1422,14 @@
         assetFailures.push(name + ": " + error.message);
       }
     });
+    const watermelonImpactLoads = Array.from({ length: 8 }, (_, index) =>
+      loadGlb(
+        assetBase + "watermelon/impact_" +
+          String(index + 5).padStart(2, "0") + ".glb", gl,
+      ).then((meshes) => { assets.watermelonImpact[index] = meshes; })
+        .catch((error) => {
+          assetFailures.push("watermelon impact " + (index + 5) + ": " + error.message);
+        }));
     const vfxLoads = VFX_ASSETS.map(async (asset) => {
       try {
         vfxTextures[asset.id] = await loadTextureUrl(gl, asset.path);
@@ -1428,7 +1444,8 @@
     let contextLost = false;
     let heartMesh = null;
     let blueHeartMesh = null;
-    Promise.all([...assetLoads, ...vfxLoads]).then(() => { assetReady = true; });
+    Promise.all([...assetLoads, ...watermelonImpactLoads, ...vfxLoads])
+      .then(() => { assetReady = true; });
     function rendererStatus() {
       if (contextLost) return "WebGL2 / context lost";
       if (!assetReady) return "WebGL2 / loading GLB assets";
@@ -2160,30 +2177,27 @@
         const heldZ = scene.playerZ + Math.cos(playerYaw) * 2.5;
         const visual = THROWABLE_VISUALS[scene.carryType] ||
           THROWABLE_VISUALS[1];
-        draw([fallbackMeshes[visual.mesh]], transform(
-          [heldX, scene.playerY + 2.8, heldZ], visual.scale,
-          time * 0.002,
+        draw(visual.model ? assets[visual.model] || [fallbackMeshes[visual.mesh]]
+          : [fallbackMeshes[visual.mesh]], transform(
+          [heldX, scene.playerY + 2.8, heldZ], visual.scale, time * 0.002,
         ), visual.color, time, viewProjection);
       }
       if (scene.pickup) {
         const bob = Math.sin(time * 0.004) * 0.7;
         const visual = THROWABLE_VISUALS[scene.pickup.type] ||
           THROWABLE_VISUALS[1];
-        draw([fallbackMeshes[visual.mesh]], transform(
+        draw(visual.model ? assets[visual.model] || [fallbackMeshes[visual.mesh]]
+          : [fallbackMeshes[visual.mesh]], transform(
           [scene.pickup.x, scene.pickup.y + 3 + bob, scene.pickup.z],
           visual.pickupScale, time * 0.001,
         ), visual.color, time, viewProjection);
       }
       for (const slice of scene.slicePickups || []) {
         const bob = Math.sin(time * 0.005 + slice.id) * 0.3;
-        draw([fallbackMeshes.solid], transform(
-          [slice.x, slice.y + 1.1 + bob, slice.z], [2.4, 1.1, 1.5],
+        draw(assets.watermelonSlice || [fallbackMeshes.solid], transform(
+          [slice.x, slice.y + 0.2 + bob, slice.z], [1, 1, 1],
           time * 0.002,
-        ), [0.92, 0.08, 0.13, 1], time, viewProjection);
-        draw([fallbackMeshes.solid], transform(
-          [slice.x, slice.y + 1.7 + bob, slice.z], [2.5, 0.35, 1.6],
-          time * 0.002,
-        ), [0.2, 0.62, 0.22, 1], time, viewProjection);
+        ), [1, 1, 1, 1], time, viewProjection);
       }
       if (Array.isArray(scene.throwPreview)) {
         for (let index = 0; index < scene.throwPreview.length; index += 1) {
@@ -2213,7 +2227,8 @@
           (melonSpin ? throwable.id * 0.7 : 0);
         const tumbleZ = melonSpin ? Math.sin(phase * 0.7) * 0.65 : 0;
         const tumbleX = melonSpin ? Math.cos(phase * 0.9) * 0.55 : 0;
-        draw([fallbackMeshes[visual.mesh]], transform(
+        draw(visual.model ? assets[visual.model] || [fallbackMeshes[visual.mesh]]
+          : [fallbackMeshes[visual.mesh]], transform(
           [throwable.x, throwable.y, throwable.z], visual.scale,
           phase, tumbleZ, tumbleX,
         ), visual.color, time, viewProjection);
@@ -2231,6 +2246,20 @@
         }
       }
       for (const [key, effect] of impactEffects) {
+        if (effect.impact.kind === 7 && assets.watermelonImpact.length === 8 &&
+            assets.watermelonImpact.every(Boolean)) {
+          const age = time - effect.startedAt;
+          const frame = Math.floor(age / 55);
+          if (frame >= assets.watermelonImpact.length) {
+            impactEffects.delete(key);
+            continue;
+          }
+          draw(assets.watermelonImpact[frame], transform(
+            [effect.impact.x, effect.impact.y, effect.impact.z],
+            [1, 1, 1], time * 0.001,
+          ), [1, 1, 1, 1], time, viewProjection);
+          continue;
+        }
         const asset = VFX_ASSETS[effect.assetId];
         const frameCount = asset.frameCount || asset.columns * asset.rows;
         const age = time - effect.startedAt;

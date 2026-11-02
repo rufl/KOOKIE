@@ -918,7 +918,7 @@ class WebMultiplayerSimulation {
         return throwableRngState
     }
     void reseedThrowablePickup() {
-        throwablePickupType = nextThrowableRandom() % 5 + 1
+        throwablePickupType = nextThrowableRandom() % 6 + 1
         var safe = false
         for (var attempt = 0; attempt < 16; attempt = attempt + 1) {
             var x = 8 + nextThrowableRandom() %
@@ -1494,6 +1494,7 @@ class WebMultiplayerSimulation {
             (kind == 2 &&
                 throwableCount() >= webMultiplayerThrowableCapacity())) { return false }
         projectileItemTypes[free] = if (kind == 2) carriedThrowableType else 0
+        projectileAge[free] = 0
         watermelonGroundBounces[free] = 0
         projectileIds[free] = nextProjectileId
         projectileOwners[free] = playerIds[slot]
@@ -1703,7 +1704,7 @@ class WebMultiplayerSimulation {
                 if (watermelonGroundBounce) {
                     watermelonGroundBounces[index] = 1
                     projectileDX[index] = projectileDX[index] * 3 / 4
-                    projectileDY[index] = 250
+                    projectileDY[index] = 1000
                     projectileDZ[index] = projectileDZ[index] * 3 / 4
                     newY = sessionWebGameWorldMinimumY()
                     collisionBlocked = false
@@ -1836,16 +1837,25 @@ class WebMultiplayerSimulation {
                         }
                     }
                     if (itemType == 3) {
+                        var scatterRotation = nextThrowableRandom() % 4
                         for (var slice = 0; slice < 4; slice = slice + 1) {
                             if (!sliceActive[slice]) {
                                 sliceActive[slice] = true
                                 sliceIds[slice] = nextSliceId
                                 nextSliceId = nextSliceId + 1
-                                sliceX[slice] = projectileX[index] +
-                                    (nextThrowableRandom() % 9) - 4
+                                var direction = (slice + scatterRotation) % 4
+                                sliceX[slice] = projectileX[index]
                                 sliceY[slice] = projectileY[index]
-                                sliceZ[slice] = projectileZ[index] +
-                                    (nextThrowableRandom() % 9) - 4
+                                sliceZ[slice] = projectileZ[index]
+                                if (direction == 0) {
+                                    sliceX[slice] = sliceX[slice] - 9
+                                } else if (direction == 1) {
+                                    sliceX[slice] = sliceX[slice] + 9
+                                } else if (direction == 2) {
+                                    sliceZ[slice] = sliceZ[slice] - 9
+                                } else {
+                                    sliceZ[slice] = sliceZ[slice] + 9
+                                }
                                 if (sliceX[slice] < sessionWebGameWorldMinimumX()) {
                                     sliceX[slice] = sessionWebGameWorldMinimumX()
                                 }

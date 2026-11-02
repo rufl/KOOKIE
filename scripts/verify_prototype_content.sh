@@ -27,8 +27,9 @@ assert "model.goose" in manifest["asset_policy"]["restricted_assets"]
 assert "model.prildarill-cat" in manifest["asset_policy"]["restricted_assets"]
 assert "model.coffee-mug" in manifest["asset_policy"]["restricted_assets"]
 assert "ui.player-hearts" in manifest["asset_policy"]["restricted_assets"]
+assert "model.watermelon" in manifest["asset_policy"]["restricted_assets"]
 assets = manifest["assets"]
-assert len(assets) == 48
+assert len(assets) == 61
 catalog_path = root / manifest["editor_catalog"]
 catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
 assert catalog["schema"] == "kookie.greybox-module-catalog/v1"
@@ -99,6 +100,30 @@ hat_asset = next(asset for asset in assets if asset["id"] == "model.wizard-hat")
 assert hat_asset["runtime_path"] == "models/wizard_hat/wizard_hat.glb"
 assert hat_asset["license"] == "CC0-1.0"
 assert "power-up ID 9" in hat_asset["cook_status"]
+watermelon_source = next(
+    source for source in manifest["direct_sources"]
+    if source["id"] == "watermelon-picocad"
+)
+for source_file in watermelon_source["source_files"]:
+    relative = pathlib.PurePosixPath(source_file["path"])
+    assert not relative.is_absolute() and ".." not in relative.parts
+    path = root.joinpath(*relative.parts)
+    assert path.is_file() and not path.is_symlink()
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == source_file["sha256"]
+for asset_id, runtime_path in (
+    ("model.watermelon", "models/watermelon/watermelon.glb"),
+    ("model.watermelon-slice", "models/watermelon/slice.glb"),
+    ("model.rock", "models/rock/rock.glb"),
+    ("model.wooden-box-throwable", "models/box_wooden/box_wooden.glb"),
+    ("model.wooden-barrel-throwable", "models/wooden_barrel/wooden_barrel.glb"),
+    *((f"model.watermelon-impact-{frame:02}", f"models/watermelon/impact_{frame:02}.glb")
+      for frame in range(5, 13)),
+):
+    asset = next(asset for asset in assets if asset["id"] == asset_id)
+    assert asset["runtime_path"] == runtime_path
+watermelon_terms = (root / "licenses/watermelon-itch-terms.txt").read_text(encoding="utf-8")
+assert "does not state a license" in watermelon_terms
+assert "prototype-only" in watermelon_terms
 seen = set()
 for asset in assets:
     assert asset["id"] and asset["kind"] and asset["license"]

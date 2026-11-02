@@ -2226,8 +2226,8 @@
   }
 
   const THROWABLE_NAMES = Object.freeze({
-    1: "bomb", 2: "flour package", 3: "watermelon", 4: "crate",
-    5: "small boulder",
+    1: "bomb", 2: "flour package", 3: "watermelon", 4: "wooden crate",
+    5: "boulder", 6: "wooden barrel",
   });
   const throwableName = (type) => THROWABLE_NAMES[type] || "throwable";
   const THROW_CHARGE_TICKS = 30;
@@ -2555,7 +2555,7 @@
                 words[offset + 4] < GAME_WORLD_MINIMUM_Z ||
                 words[offset + 4] > GAME_WORLD_MAXIMUM_Z ||
                 words[offset + 5] < 0 || words[offset + 6] < 1 ||
-                words[offset + 6] > 5 || words[offset + 7] < 0 ||
+                words[offset + 6] > 6 || words[offset + 7] < 0 ||
                 words[offset + 7] > GAME_MAXIMUM_THROWABLE_FUSE_TICKS) return false;
           }
           for (let index = 0; index < impactCount; index += 1, offset += 8) {
@@ -2617,11 +2617,11 @@
                 words[suffixOffset + 2] > GAME_WORLD_MAXIMUM_Y ||
                 words[suffixOffset + 3] < GAME_WORLD_MINIMUM_Z ||
                 words[suffixOffset + 3] > GAME_WORLD_MAXIMUM_Z ||
-                words[suffixOffset + 4] < 0 || words[suffixOffset + 4] > 5 ||
+                words[suffixOffset + 4] < 0 || words[suffixOffset + 4] > 6 ||
                 (words[suffixOffset + 5] !== 0 && words[suffixOffset + 5] !== 1) ||
                 words[suffixOffset + 6] < 0 ||
                 words[suffixOffset + 6] > THROW_CHARGE_TICKS ||
-                words[suffixOffset + 7] < 0 || words[suffixOffset + 7] > 5 ||
+                words[suffixOffset + 7] < 0 || words[suffixOffset + 7] > 6 ||
                 words[suffixOffset + 8] < 0 ||
                 words[suffixOffset + 8] > GAME_MAXIMUM_SEED_AMMO ||
                 !Number.isInteger(sliceCount) || sliceCount < 0 || sliceCount > 4 ||

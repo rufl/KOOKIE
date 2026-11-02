@@ -126,7 +126,7 @@
     {
       "id": "devils-workshop-rpg-assets",
       "source_url": "https://devilsworkshop.itch.io/low-poly-3d-and-pixel-2d-rpg-game-assets",
-      "source_name": "WizardHat.fbx, props_base_color.png",
+      "source_name": "WizardHat.fbx, Rock.fbx, boxWooden.fbx, woodenBarrel.fbx, props_base_color.png, boxA.png",
       "source_archive": "devils-workshop-rpg-assets",
       "source_files": [
         {
@@ -136,21 +136,69 @@
         {
           "path": "models/wizard_hat/source/props_base_color.png",
           "sha256": "74d96fdf98552165b394e377d4038126b6b8b8f01870ac55743756cf1793008c"
+        },
+        {
+          "path": "models/rock/source/Rock.fbx",
+          "sha256": "ddfd87e8dca979f5389515966aad6be76263f7778a7b97f50265b5e1e74a59ae"
+        },
+        {
+          "path": "models/rock/source/props_base_color.png",
+          "sha256": "74d96fdf98552165b394e377d4038126b6b8b8f01870ac55743756cf1793008c"
+        },
+        {
+          "path": "models/box_wooden/source/boxWooden.fbx",
+          "sha256": "be6d19d0a18501fe4b5ae12bf7efec1ce6085074ce71312fff02f843c77edb67"
+        },
+        {
+          "path": "models/box_wooden/source/boxA.png",
+          "sha256": "d00c1f963233e160e38f5be815aa1792d5517dfb33ed34d80d477d9b76672823"
+        },
+        {
+          "path": "models/wooden_barrel/source/woodenBarrel.fbx",
+          "sha256": "b1196a1d445225c22474823c1cc8cf20e17bc87d59fbc6bc531d10f029513b11"
+        },
+        {
+          "path": "models/wooden_barrel/source/props_base_color.png",
+          "sha256": "74d96fdf98552165b394e377d4038126b6b8b8f01870ac55743756cf1793008c"
         }
       ],
       "license": "CC0-1.0",
       "license_file": "licenses/devils-workshop-rpg-cc0.txt",
       "redistribution": "CC0; creator credit retained as appreciated provenance"
+    },
+    {
+      "id": "watermelon-picocad",
+      "source_url": "https://koppikuoriainen.itch.io/watermelon",
+      "source_name": "Watermelon picoCAD Jam Submission (twelve frames + texture)",
+      "source_files": [
+        {"path":"models/watermelon/source/01.txt","sha256":"e7e69062fcacd4f3efa56fa6c92dcb44b8d0039163b42d1ba3c4004e1c55b6bf"},
+        {"path":"models/watermelon/source/02.txt","sha256":"89fd045973f54afe049da7e72e5cc9c5252fff392d8f4a6008ab9de4e7aab973"},
+        {"path":"models/watermelon/source/03.txt","sha256":"853dd4f02602806883b074a27e07410bcf0a1de21ebe10eb678c19d9b6a40be3"},
+        {"path":"models/watermelon/source/04.txt","sha256":"640471e6c520f591d135786569d7ec52a84a685ca1d67958a705c3057bbefde1"},
+        {"path":"models/watermelon/source/05.txt","sha256":"96744cd47ed05db4aab301d13a34f06669ffa0be9ac4a4337cff0504b6c66ad7"},
+        {"path":"models/watermelon/source/06.txt","sha256":"7b04740f9445c7985bcf7dfbf6feb2b8914595ada287f24e9c2fbb9c9fecfdb2"},
+        {"path":"models/watermelon/source/07.txt","sha256":"d09d306d987e74d9b7e7106182f87f50de6b32ee3463fac7ff76151b8b23da24"},
+        {"path":"models/watermelon/source/08.txt","sha256":"880416934c20d2287e13ac43488bd1d151eb2ee05810a274b4c3716c1fc55605"},
+        {"path":"models/watermelon/source/09.txt","sha256":"850d2382fb3c9279b98a6f7e3486f971d939a405fbcd6a9f385b392200eb9970"},
+        {"path":"models/watermelon/source/10.txt","sha256":"f56958b4a5ff117a4e3e8cd61d8fba8455c0b76ea046f333a43e92ddacc9ad5d"},
+        {"path":"models/watermelon/source/11.txt","sha256":"a9af4e8d47b21ec9b2874d4839a6db26d92d554306d0ee3cc21b11c62440237c"},
+        {"path":"models/watermelon/source/12.txt","sha256":"f56958b4a5ff117a4e3e8cd61d8fba8455c0b76ea046f333a43e92ddacc9ad5d"},
+        {"path":"models/watermelon/source/texture.png","sha256":"28ab45042725527a8c64dc0effd158405f6758471795c4329df06692573103d6"}
+      ],
+      "license": "no license stated by source listing",
+      "license_file": "licenses/watermelon-itch-terms.txt",
+      "redistribution": "prototype-only; do not redistribute until rights are confirmed"
     }
   ],
   "asset_policy": {
     "all_sources_claimed_cc0": false,
     "cc0_assets": "The modular, Brackeys VFX, Classic64 and Devil's Work.shop source notices are retained.",
-    "restricted_assets": ["model.goose", "model.prildarill-cat", "model.coffee-mug", "ui.player-hearts", "ui.player-hearts-blue"],
+    "restricted_assets": ["model.goose", "model.prildarill-cat", "model.coffee-mug", "model.watermelon", "model.watermelon-slice", "model.watermelon-impact-05", "model.watermelon-impact-06", "model.watermelon-impact-07", "model.watermelon-impact-08", "model.watermelon-impact-09", "model.watermelon-impact-10", "model.watermelon-impact-11", "model.watermelon-impact-12", "ui.player-hearts", "ui.player-hearts-blue"],
     "goose_warning": "The source page permits commercial use and editing but prohibits reselling or redistributing the model file. The converted GLB remains prototype-only and must not be treated as CC0.",
     "cat_warning": "The source page permits use in own projects, editing and no-credit use. It does not name a standard license or separately grant standalone raw-file redistribution; keep the cat prototype-only until that boundary is confirmed.",
     "heart_warning": "The Echo Studios page offers the heart sheet as a name-your-own-price download but does not state a standard license or standalone redistribution terms; keep the sheet prototype-only until that boundary is confirmed.",
     "coffee_mug_warning": "The uploaded archive contains no license terms. The source FBX, UV texture and converted GLB are prototype-only; do not redistribute them outside the project until rights are confirmed.",
+    "watermelon_warning": "The itch.io listing does not state a license. Watermelon source frames, texture, and converted GLBs are prototype-only; obtain rights before redistribution.",
     "credits_required": false,
     "credits_retained": true
   },
@@ -653,6 +701,149 @@
       "license": "CC0-1.0",
       "license_file": "licenses/devils-workshop-rpg-cc0.txt",
       "cook_status": "textured 254-triangle WizardHat model; rendered for wizard-hat power-up ID 9"
+    },
+    {
+      "id": "model.watermelon",
+      "kind": "model",
+      "source": "direct_sources.watermelon-picocad",
+      "authored_path": "models/watermelon/watermelon.glb",
+      "runtime_path": "models/watermelon/watermelon.glb",
+      "format": "glb",
+      "license": "no license stated; prototype-only",
+      "license_file": "licenses/watermelon-itch-terms.txt",
+      "cook_status": "textured whole watermelon model based on picoCAD frame 04; used by WebGL throwable ID 3"
+    },
+    {
+      "id": "model.watermelon-slice",
+      "kind": "model",
+      "source": "direct_sources.watermelon-picocad",
+      "authored_path": "models/watermelon/slice.glb",
+      "runtime_path": "models/watermelon/slice.glb",
+      "format": "glb",
+      "license": "no license stated; prototype-only",
+      "license_file": "licenses/watermelon-itch-terms.txt",
+      "cook_status": "textured individual watermelon piece used for the four collectible slices"
+    },
+    {
+      "id": "model.watermelon-impact-05",
+      "kind": "model",
+      "source": "direct_sources.watermelon-picocad",
+      "authored_path": "models/watermelon/impact_05.glb",
+      "runtime_path": "models/watermelon/impact_05.glb",
+      "format": "glb",
+      "license": "no license stated; prototype-only",
+      "license_file": "licenses/watermelon-itch-terms.txt",
+      "cook_status": "first breakup animation frame; WebGL impact kind 7"
+    },
+    {
+      "id": "model.watermelon-impact-06",
+      "kind": "model",
+      "source": "direct_sources.watermelon-picocad",
+      "authored_path": "models/watermelon/impact_06.glb",
+      "runtime_path": "models/watermelon/impact_06.glb",
+      "format": "glb",
+      "license": "no license stated; prototype-only",
+      "license_file": "licenses/watermelon-itch-terms.txt",
+      "cook_status": "breakup animation frame; WebGL impact kind 7"
+    },
+    {
+      "id": "model.watermelon-impact-07",
+      "kind": "model",
+      "source": "direct_sources.watermelon-picocad",
+      "authored_path": "models/watermelon/impact_07.glb",
+      "runtime_path": "models/watermelon/impact_07.glb",
+      "format": "glb",
+      "license": "no license stated; prototype-only",
+      "license_file": "licenses/watermelon-itch-terms.txt",
+      "cook_status": "breakup animation frame; WebGL impact kind 7"
+    },
+    {
+      "id": "model.watermelon-impact-08",
+      "kind": "model",
+      "source": "direct_sources.watermelon-picocad",
+      "authored_path": "models/watermelon/impact_08.glb",
+      "runtime_path": "models/watermelon/impact_08.glb",
+      "format": "glb",
+      "license": "no license stated; prototype-only",
+      "license_file": "licenses/watermelon-itch-terms.txt",
+      "cook_status": "breakup animation frame; WebGL impact kind 7"
+    },
+    {
+      "id": "model.watermelon-impact-09",
+      "kind": "model",
+      "source": "direct_sources.watermelon-picocad",
+      "authored_path": "models/watermelon/impact_09.glb",
+      "runtime_path": "models/watermelon/impact_09.glb",
+      "format": "glb",
+      "license": "no license stated; prototype-only",
+      "license_file": "licenses/watermelon-itch-terms.txt",
+      "cook_status": "outward-flying fruit piece animation frame; WebGL impact kind 7"
+    },
+    {
+      "id": "model.watermelon-impact-10",
+      "kind": "model",
+      "source": "direct_sources.watermelon-picocad",
+      "authored_path": "models/watermelon/impact_10.glb",
+      "runtime_path": "models/watermelon/impact_10.glb",
+      "format": "glb",
+      "license": "no license stated; prototype-only",
+      "license_file": "licenses/watermelon-itch-terms.txt",
+      "cook_status": "outward-flying fruit piece animation frame; WebGL impact kind 7"
+    },
+    {
+      "id": "model.watermelon-impact-11",
+      "kind": "model",
+      "source": "direct_sources.watermelon-picocad",
+      "authored_path": "models/watermelon/impact_11.glb",
+      "runtime_path": "models/watermelon/impact_11.glb",
+      "format": "glb",
+      "license": "no license stated; prototype-only",
+      "license_file": "licenses/watermelon-itch-terms.txt",
+      "cook_status": "outward-flying fruit piece animation frame; WebGL impact kind 7"
+    },
+    {
+      "id": "model.watermelon-impact-12",
+      "kind": "model",
+      "source": "direct_sources.watermelon-picocad",
+      "authored_path": "models/watermelon/impact_12.glb",
+      "runtime_path": "models/watermelon/impact_12.glb",
+      "format": "glb",
+      "license": "no license stated; prototype-only",
+      "license_file": "licenses/watermelon-itch-terms.txt",
+      "cook_status": "final outward-fragment animation frame; WebGL impact kind 7"
+    },
+    {
+      "id": "model.rock",
+      "kind": "model",
+      "source": "direct_sources.devils-workshop-rpg-assets",
+      "authored_path": "models/rock/rock.glb",
+      "runtime_path": "models/rock/rock.glb",
+      "format": "glb",
+      "license": "CC0-1.0",
+      "license_file": "licenses/devils-workshop-rpg-cc0.txt",
+      "cook_status": "textured Rock.fbx model used by throwable ID 5"
+    },
+    {
+      "id": "model.wooden-box-throwable",
+      "kind": "model",
+      "source": "direct_sources.devils-workshop-rpg-assets",
+      "authored_path": "models/box_wooden/box_wooden.glb",
+      "runtime_path": "models/box_wooden/box_wooden.glb",
+      "format": "glb",
+      "license": "CC0-1.0",
+      "license_file": "licenses/devils-workshop-rpg-cc0.txt",
+      "cook_status": "textured boxWooden.fbx model replacing generic crate for throwable ID 4"
+    },
+    {
+      "id": "model.wooden-barrel-throwable",
+      "kind": "model",
+      "source": "direct_sources.devils-workshop-rpg-assets",
+      "authored_path": "models/wooden_barrel/wooden_barrel.glb",
+      "runtime_path": "models/wooden_barrel/wooden_barrel.glb",
+      "format": "glb",
+      "license": "CC0-1.0",
+      "license_file": "licenses/devils-workshop-rpg-cc0.txt",
+      "cook_status": "textured woodenBarrel.fbx model used by throwable ID 6"
     }
   ]
 }

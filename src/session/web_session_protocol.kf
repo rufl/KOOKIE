@@ -678,7 +678,7 @@ Bool validSessionWebGameMultiplayerSnapshot(Int[] words) {
             if (words[cursor] <= 0 || words[cursor + 1] <= 0 ||
                 words[cursor + 2] < 0 || words[cursor + 3] < 0 ||
                 words[cursor + 4] < 0 || words[cursor + 5] < 0 ||
-                words[cursor + 6] < 1 || words[cursor + 6] > 5 ||
+                words[cursor + 6] < 1 || words[cursor + 6] > 6 ||
                 words[cursor + 7] < 0 ||
                 words[cursor + 7] >
                     sessionWebGameMaximumThrowableFuseTicks()) { return false }
@@ -785,10 +785,10 @@ Bool validSessionWebGameMultiplayerSnapshot(Int[] words) {
                 words[suffix + 2] > sessionWebGameWorldMaximumY() ||
                 words[suffix + 3] < sessionWebGameWorldMinimumZ() ||
                 words[suffix + 3] > sessionWebGameWorldMaximumZ() ||
-                words[suffix + 4] < 0 || words[suffix + 4] > 5 ||
+                words[suffix + 4] < 0 || words[suffix + 4] > 6 ||
                 (words[suffix + 5] != 0 && words[suffix + 5] != 1) ||
                 words[suffix + 6] < 0 || words[suffix + 6] > 30 ||
-                words[suffix + 7] < 0 || words[suffix + 7] > 5 ||
+                words[suffix + 7] < 0 || words[suffix + 7] > 6 ||
                 words[suffix + 8] < 0 || words[suffix + 8] > 30 ||
                 (words[suffix] == 1 && words[suffix + 4] == 0) ||
                 (words[suffix] == 0 && words[suffix + 4] != 0) ||
