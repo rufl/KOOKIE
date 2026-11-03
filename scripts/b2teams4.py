@@ -555,8 +555,7 @@ def main():
         [binary], cwd=os.path.dirname(binary), env=env,
         stdout=(server_log if server_log else
                 (sys.stderr if args.smoke else subprocess.DEVNULL)),
-        stderr=(subprocess.STDOUT if server_log else
-                (sys.stderr if args.smoke else subprocess.PIPE)),
+        stderr=(subprocess.STDOUT if server_log else sys.stderr),
     )
     try:
         wait_healthy(port, process)

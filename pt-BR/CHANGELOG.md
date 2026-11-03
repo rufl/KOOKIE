@@ -3,6 +3,9 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+
+- O runner `/b2teams4` agora encaminha o stderr do servidor, em vez de deixar
+  um pipe do subprocesso sem leitura que poderia bloquear sessões longas.
 - O estado autoritativo multiplayer agora diferencia ataque corpo a corpo,
   dano, rolamento/salto duplo, nado, tontura deitado/sentado, quique ao pisar
   na cabeça e três fases cíclicas de idle. Gatos alcançam cerca de 2× a altura

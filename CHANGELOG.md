@@ -3,6 +3,9 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+
+- The `/b2teams4` runner now forwards the server's stderr instead of leaving an
+  unread subprocess pipe that could block during long sessions.
 - The authoritative multiplayer state now distinguishes melee attacks, damage,
   rolls/double jumps, swim, dizzy lay/sit, head-bounce, and three cycling idle
   phases. Cats reach approximately 2× the goose jump height; geese swim 2× as
