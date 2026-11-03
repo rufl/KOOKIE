@@ -528,7 +528,7 @@ Kof-owned collision modules:
 - Zero-length movement, starting penetration, grazing edges, opposing contacts and high-speed pass-through are explicit cases. Never use only destination overlap.
 - Static/moving door platforms modeled with owned transforms and consistent query data. Player, AI LOS, bullets and editor picking query the same authoritative cooked world.
 
-Movement profiles define ground friction/acceleration, air acceleration, speed caps, jump buffering/coyote time, bunnyhop/dash policy and crouch. Keep intent and jump contracts explicit; implement projection-based Quake-like acceleration as a deliberate profile rather than mislabeling vector-approach acceleration.
+Movement profiles define ground friction/acceleration, air acceleration, speed caps, jump buffering/coyote time, bunnyhop/dash policy and crouch. The current fixed-step `FpsMovementController` uses normalized wish-direction projection, ground acceleration 3, air acceleration 2, air braking 1, 100 ms coyote/jump-buffer windows, jump-cut-on-release, and alternating gravity near the apex while jump is held. Keep these integer-tick contracts authoritative and test profile changes against landing and steering behavior.
 
 A rigidbody library is not initially required. If later demanded for piles/vehicles/destruction, assess it as an explicit external-library exception; never move player/combat authority into it by default.
 

@@ -15,7 +15,8 @@ estado mais nova e histórico de rewind novo após restaurar checkpoint. As pág
 de pesquisa mantêm intencionalmente seus snapshots datados de toolchain; atualize
 seus limites de escopo e evidência sem reescrever medições históricas.
 
-O README da raiz é a página inicial.
+O README da raiz é a página inicial do repositório no GitHub; não há um site
+separado de GitHub Pages configurado.
 [Execução e empacotamento](RUNNING_AND_PACKAGING.md) reúne comandos de
 desenvolvimento, release, kooker e qualificação. [Prontidão da release demo](DEMO_RELEASE.md)
 é a autoridade para a diferença entre qualificação da engine e uma demo jogável

@@ -15,7 +15,8 @@ fresh rewind history after checkpoint restore. Research pages retain their
 dated toolchain snapshots intentionally; refresh their scope and evidence
 limits without rewriting historical measurements.
 
-The root README is the landing page.
+The root README is the GitHub repository landing page; no separate GitHub Pages
+site is configured.
 [Running and packaging](RUNNING_AND_PACKAGING.md) holds developer, release,
 kooker and qualification commands. [Demo release readiness](DEMO_RELEASE.md)
 is the authority for the gap between engine qualification and a playable

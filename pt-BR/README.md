@@ -217,6 +217,13 @@ TTFs originais e o aviso da SIL Open Font License permanecem em `assets/fonts`.
   direito usa o special/power-up selecionado. Dois toques em `W`/`A`/`S`/`D`
   fazem dash naquela direção; um segundo toque em `Espaço` faz double jump, e
   manter o salto no ar faz glide.
+- O controlador de movimento compartilhado a 60 Hz oferece coyote time e
+  buffer de pulo de 100 ms, maior aceleração direcional no ar (`2`, antes `1`)
+  e uma breve sustentação no ápice alternando a gravidade enquanto o salto
+  continua pressionado (até três ticks extras). Soltar o botão ainda encurta o
+  arco. A poeira do WebGL aumenta em deslocamentos rápidos; decolagem e
+  aterrissagem mantêm efeitos distintos.
+
 - Roll, dash, double jump e glide compartilham uma barra de stamina de 100
   pontos. Roll custa 25, dash 30, double jump 20 e glide 2 por tick aéreo;
   a stamina recupera 1 ponto por tick fixo. `Tab` alterna o placar, `Enter`

@@ -397,6 +397,13 @@ o movimento de produção continua no `FpsMovementController` e no resolvedor de
 triângulos do Kof; a troca quebraria a travessia da rampa. Box3D não é o backend
 de colisão de produção até passar paridade de rampas/degraus G1, sondagem do
 chão, contatos entre atores e determinismo.
+O controlador compartilhado `FpsMovementController`, em passo fixo, agora usa
+aceleração direcional aérea maior (`2`, antes `1`) e alterna a gravidade perto
+do ápice enquanto o salto está pressionado, acrescentando no máximo três ticks
+fixos de sustentação. Coyote time e buffer de pulo continuam em 100 ms; soltar
+o botão ainda encurta o arco. Snapshots online replicam esse resultado
+autoritativo para ambos os renderers.
+
 
 Esse servidor local é somente TCP e é qualificado com `ws://`. Ele não afirma
 identidade hospedada, admissão bearer ou terminação TLS. A matriz de runtime

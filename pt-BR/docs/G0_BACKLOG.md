@@ -76,6 +76,11 @@ uma release de demo voltada ao jogador. O gate D1 aberto está em
   aceleração por projeção, preservando coyote time, buffer de pulo, controle
   aéreo e frenagem suave no passo fixo. A regressão de diagonalização é segura
   para JVM/nativo e não exige execução de GPU.
+- O controlador compartilhado aumenta a aceleração aérea de 1 para 2 e alterna
+  a gravidade inteira no ápice enquanto o salto fica pressionado, adicionando
+  até três ticks. A regressão verifica direção no ar e maior duração da
+  velocidade vertical positiva ao segurar o salto em vez de tocar.
+
 - Contatos físicos estáticos e dinâmicos agora zeram componentes de velocidade
   bloqueados; a regressão verifica que um bloqueador dinâmico não retém
   velocidade horizontal obsoleta.

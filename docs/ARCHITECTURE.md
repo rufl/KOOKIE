@@ -496,6 +496,11 @@ handshake, full-scene movement and malformed-request rejection.
   watermelons receive one authoritative soft ground bounce before their impact
   event spawns four slice pickups; wall and actor contacts still resolve
   immediately.
+- The shared fixed-step `FpsMovementController` now uses stronger directional
+  air acceleration (`2`, previously `1`) and alternates gravity near the jump
+  apex while jump is held, adding at most three fixed ticks of hang time.
+  Coyote time and jump buffering remain 100 ms; releasing jump still cuts the
+  arc. Online snapshots replicate this authoritative result to both renderers.
 - Startup gates differentially compare Kof and Box3D movement through floor,
   ramp/raised-lane and jump/landing routes. G1's four perimeter walls are
   excluded from Box3D triangle meshes because long mesh faces generated distant

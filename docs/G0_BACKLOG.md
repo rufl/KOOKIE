@@ -94,6 +94,11 @@ player-facing demo release. The open D1 gate is tracked in
   projection-based acceleration, while preserving fixed-step coyote time,
   jump buffering, air control and eased braking. The diagonal normalization
   regression is JVM/native-safe and does not require GPU execution.
+- The shared movement controller raises air acceleration from 1 to 2 and
+  alternates integer gravity at the held-jump apex for up to three extra ticks.
+  Regression coverage checks directional air steering and that a held jump
+  keeps positive vertical velocity longer than a tap jump.
+
 - Static and dynamic physics contacts clip blocked velocity components; the
   physics regression now asserts that a dynamic blocker does not retain stale
   horizontal velocity.

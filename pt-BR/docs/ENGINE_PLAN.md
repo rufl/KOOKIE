@@ -549,7 +549,7 @@ Módulos de colisão pertencentes ao Kof:
 - Movimento de comprimento zero, início em penetração, tangência de arestas, contatos opostos e passagem em alta velocidade são casos explícitos. Nunca use apenas a sobreposição no destino.
 - Plataformas de portas estáticas/móveis modeladas com transformações próprias e dados de consulta consistentes. O jogador, a LOS da IA, as balas e a seleção do editor consultam o mesmo mundo cozido autoritativo.
 
-Os perfis de movimento definem atrito/aceleração no chão, aceleração no ar, limites de velocidade, buffer de salto/tempo de coyote, política de bunnyhop/dash e agachamento. Mantenha explícitos os contratos de intenção e salto; implemente a aceleração semelhante à de Quake baseada em projeção como um perfil deliberado, em vez de rotular incorretamente a aceleração de aproximação vetorial.
+Os perfis de movimento definem atrito/aceleração no chão, aceleração no ar, limites de velocidade, buffer de salto/tempo de coyote, política de bunnyhop/dash e agachamento. O `FpsMovementController` atual, em passo fixo, usa projeção de wish direction normalizada, aceleração no chão 3, aceleração aérea 2, frenagem aérea 1, janelas de 100 ms para coyote/jump buffer, corte do salto ao soltar e gravidade alternada perto do ápice enquanto o salto está pressionado. Mantenha esses contratos em ticks inteiros sob autoridade e teste mudanças de perfil em aterrissagens e direção no ar.
 
 Uma biblioteca de corpos rígidos não é inicialmente necessária. Se posteriormente for exigida para pilhas/veículos/destruição, avalie-a como uma exceção explícita de biblioteca externa; nunca mova a autoridade do jogador/combate para ela por padrão.
 

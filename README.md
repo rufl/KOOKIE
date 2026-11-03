@@ -234,6 +234,12 @@ the original TTF files and SIL Open Font License notice remain in
   melee, and right mouse uses the selected special/power-up. Double-tapping
   `W`/`A`/`S`/`D` dashes in that direction; a second `Space` press performs
   the stamina-backed double jump, and holding jump while airborne glides.
+- The shared 60 Hz movement controller provides 100 ms coyote time and jump
+  buffering, stronger directional air acceleration (`2`, up from `1`), and a
+  brief apex hang by alternating gravity while jump remains held (up to three
+  extra ticks). Releasing jump still shortens the arc. Web ground puffs scale
+  up on fast bursts; takeoff and landing puffs stay distinct.
+
 - Roll, dash, double jump and glide share a 100-point stamina bar. Roll costs
   25, dash 30, double jump 20 and glide 2 per airborne tick; stamina recovers
   by 1 point per fixed tick. `Tab` toggles the scoreboard, `Enter` confirms
