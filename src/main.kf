@@ -5670,11 +5670,32 @@ test "species movement gives cats higher jumps and geese faster swimming" {
         jumps.addActor(1, 20, 1, 30) &&
         jumps.addActor(2, 40, 1, 30) &&
         jumps.configureAnimalActor(1, animalKindGoose()) &&
-        jumps.configureAnimalActor(2, animalKindCat()) &&
-        jumps.step(1, 0, 0, true, true) &&
-        jumps.step(2, 0, 0, true, true) &&
-        jumps.velocityY(2) > jumps.velocityY(1) * 2,
-        "cat jump impulse must be twice the goose impulse")
+        jumps.configureAnimalActor(2, animalKindCat()),
+        "jump comparison must configure matched goose and cat actors")
+    var gooseStartY = jumps.positionY(1)
+    var catStartY = jumps.positionY(2)
+    var goosePeakY = gooseStartY
+    var catPeakY = catStartY
+    assert(jumps.step(1, 0, 0, true, false) &&
+        jumps.step(2, 0, 0, true, false),
+        "both species must launch the same tap jump")
+    for (var tick = 0; tick < 48; tick = tick + 1) {
+        assert(jumps.step(1, 0, 0, false, false) &&
+            jumps.step(2, 0, 0, false, false),
+            "both jump arcs must remain accepted")
+        if (jumps.positionY(1) > goosePeakY) {
+            goosePeakY = jumps.positionY(1)
+        }
+        if (jumps.positionY(2) > catPeakY) {
+            catPeakY = jumps.positionY(2)
+        }
+    }
+    var gooseJumpHeight = goosePeakY - gooseStartY
+    var catJumpHeight = catPeakY - catStartY
+    assert(gooseJumpHeight > 0 &&
+        catJumpHeight * 100 >= gooseJumpHeight * 180 &&
+        catJumpHeight * 100 <= gooseJumpHeight * 220,
+        "cat's tap-jump height must be approximately twice the goose height")
     assert(swimmers.configure(arena.authoredCollision()) &&
         swimmers.addActor(1, 20, 2, 30) &&
         swimmers.addActor(2, 40, 2, 30) &&

@@ -5,10 +5,10 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 ## Não lançado
 - O estado autoritativo multiplayer agora diferencia ataque corpo a corpo,
   dano, rolamento/salto duplo, nado, tontura deitado/sentado, quique ao pisar
-  na cabeça e três fases cíclicas de idle. O impulso de pulo do gato é 2×; a
-  velocidade horizontal de nado do ganso é 2×. O movimento vertical para no
-  teto da colisão, sem rejeitar o salto alto. Os lookups de clipes WebGL e KOF
-  reconhecem os novos nomes de ação.
+  na cabeça e três fases cíclicas de idle. Gatos alcançam cerca de 2× a altura
+  de pulo dos gansos; gansos nadam 2× mais rápido na horizontal. O movimento
+  vertical para no teto da colisão, sem rejeitar o salto alto. Os lookups de
+  clipes WebGL e KOF reconhecem os novos nomes de ação.
   Os GLBs atuais de gato e ganso só contêm idle, walk, run, attack,
   damage_taken, death e eat; deitar, sentar, quique, nado, rolamento e idles
   extras precisam de clipes animados nos modelos para renderizar essas poses.

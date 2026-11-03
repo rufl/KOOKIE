@@ -36,7 +36,9 @@ Int fpsMovementJumpVelocity() {
 }
 Int fpsMovementBaseJumpVelocityForAnimal(Int animalKind) {
     var velocity = fpsMovementJumpVelocity()
-    if (animalKind == animalKindCat()) { velocity = velocity * 2 }
+    if (animalKind == animalKindCat()) {
+        velocity = velocity * 1414 / 1000
+    }
     return velocity
 }
 
