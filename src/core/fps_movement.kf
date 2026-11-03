@@ -34,6 +34,12 @@ Int fpsMovementApexHangVelocity() { return 3 }
 Int fpsMovementJumpVelocity() {
     return fpsMovementGravity() * (fpsMovementAirTimeTicks() / 2)
 }
+Int fpsMovementBaseJumpVelocityForAnimal(Int animalKind) {
+    var velocity = fpsMovementJumpVelocity()
+    if (animalKind == animalKindCat()) { velocity = velocity * 2 }
+    return velocity
+}
+
 Int fpsMovementMaximumAirJumps() { return 1 }
 Int fpsMovementFlapImpulse() { return fpsMovementGravity() * 2 }
 Int fpsMovementFlapIntervalTicks() { return 3 }
@@ -300,6 +306,9 @@ class FpsMovementController {
         if (magnitudeFixed <= 0) { return 0 }
         return value * 1024 * 1024 / magnitudeFixed
     }
+    Int jumpVelocityForSlot(Int slot) {
+        return fpsMovementBaseJumpVelocityForAnimal(animalKinds[slot])
+    }
 
     void applyHorizontalFriction(Int slot, Int braking) {
         var speed = horizontalMagnitude(
@@ -436,7 +445,8 @@ class FpsMovementController {
                 jumpBufferTicksValues[slot] = 0
                 apexGravityPhaseValues[slot] = 0
                 airJumpValues[slot] = 0
-                velocityYValues[slot] = fpsMovementJumpVelocity()
+                velocityYValues[slot] =
+                    jumpVelocityForSlot(slot) + powerUpJumpBonuses[slot]
                 jumpCutArmedValues[slot] = true
                 flapCooldownValues[slot] = fpsMovementFlapIntervalTicks()
                 coyoteTicksValues[slot] = 0
@@ -734,7 +744,8 @@ class FpsMovementController {
                 coyoteTicksValues[slot] = 0
                 groundedValues[slot] = false
                 apexGravityPhaseValues[slot] = 0
-                velocityYValues[slot] = fpsMovementJumpVelocity() +
+                velocityYValues[slot] =
+                    jumpVelocityForSlot(slot) + powerUpJumpBonuses[slot]
                     powerUpJumpBonuses[slot]
                 jumpCutArmedValues[slot] = true
                 flapCooldownValues[slot] = fpsMovementFlapIntervalTicks()
@@ -747,7 +758,8 @@ class FpsMovementController {
                 jumpBufferTicksValues[slot] = 0
                 groundedValues[slot] = false
                 apexGravityPhaseValues[slot] = 0
-                velocityYValues[slot] = fpsMovementJumpVelocity() +
+                velocityYValues[slot] =
+                    jumpVelocityForSlot(slot) + powerUpJumpBonuses[slot]
                     powerUpJumpBonuses[slot]
                 jumpCutArmedValues[slot] = true
                 flapCooldownValues[slot] = fpsMovementFlapIntervalTicks()
@@ -863,7 +875,7 @@ class FpsMovementController {
                 jumped = true
                 airJumpValues[slot] = 0
                 jumpBufferTicksValues[slot] = 0
-                velocityYValues[slot] = fpsMovementJumpVelocity()
+                velocityYValues[slot] = jumpVelocityForSlot(slot)
                 jumpCutArmedValues[slot] = true
                 flapCooldownValues[slot] = fpsMovementFlapIntervalTicks()
                 coyoteTicksValues[slot] = 0

@@ -188,10 +188,15 @@ Int sessionWebActorAnimationAirborne() { return 6 }
 Int sessionWebActorAnimationRoll() { return 7 }
 Int sessionWebActorAnimationSwim() { return 8 }
 Int sessionWebActorAnimationWalk() { return 9 }
+Int sessionWebActorAnimationLay() { return 10 }
+Int sessionWebActorAnimationSit() { return 11 }
+Int sessionWebActorAnimationBounce() { return 12 }
+Int sessionWebActorAnimationIdleVariantOne() { return 13 }
+Int sessionWebActorAnimationIdleVariantTwo() { return 14 }
 Int sessionWebActorAnimationShift() { return 7 }
 Int sessionWebActorRollNegativeSideBit() { return 64 }
 Int sessionWebActorDizzyBit() { return 2048 }
-Int sessionWebGameMaximumActorState() { return 3327 }
+Int sessionWebGameMaximumActorState() { return 3959 }
 
 
 Int sessionWebChecksumMix(Int state, Int value) {

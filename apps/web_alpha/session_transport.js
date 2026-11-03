@@ -112,7 +112,7 @@
   const GAME_MAXIMUM_VFX = 15;
   const GAME_VFX_LIQUID = 14;
   const GAME_MAXIMUM_ACTORS = 4;
-  const GAME_MAXIMUM_ACTOR_STATE = 3327;
+  const GAME_MAXIMUM_ACTOR_STATE = 3959;
 
   const root = document.getElementById("kof-root") || document.body;
   let statusTimer = null;
@@ -2740,7 +2740,7 @@
               z < GAME_WORLD_MINIMUM_Z || z > GAME_WORLD_MAXIMUM_Z ||
               health < 0 || health > GAME_MAXIMUM_HEALTH ||
               state < 0 || state > GAME_MAXIMUM_ACTOR_STATE ||
-              Math.floor(state / 128) % 16 > 9 ||
+              Math.floor(state / 128) % 16 > 14 ||
               (actorKind !== 3 && (actorKind < 1 || actorKind > 2)) ||
               (actorKind === 3 && state !== 0) ||
               actorYaw < 0 || actorYaw > 359) {
