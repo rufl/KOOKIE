@@ -3,6 +3,32 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- WebGL ground puffs now scale up for fast grounded bursts such as dashes;
+  existing takeoff and landing puffs remain distinct.
+
+- The authoritative 60 Hz controller now applies stronger directional air
+  acceleration and alternates gravity near the jump apex while jump is held,
+  adding steerable momentum and a short controllable hang without float math.
+
+- Browser hit-confirmation now adds a brief camera kick and warm impact flash
+  when the controlled player deals damage; it follows the selected player in
+  spectator mode and respects reduced-motion settings.
+
+- WebGL now renders projectile cubes through one instanced draw for the active
+  projectile batch. The native KOF renderer already batches world geometry and
+  UI overlays into one draw per pass; the G5 hardware check measured 984
+  reference instances in one scene draw (p95 2,076 µs).
+
+[pt-BR/CHANGELOG.md#D959]
+- O WebGL agora renderiza os cubos dos projéteis em um único draw instanciado
+  por lote ativo. O renderer nativo da KOF já agrupa a geometria do mundo e
+  as camadas da interface em um draw por passe; a verificação G5 em hardware
+  mediu 984 instâncias de referência em um draw de cena (p95 de 2.076 µs).
+
+- WebGL now draws short, fading semitransparent white streaks along observed
+  projectile movement; trails expire with projectiles and do not affect
+  simulation state.
+
 - CLI and browser bots now maintain a changing orbit around opponents instead
   of charging straight in or strafing in one direction; roll/dash bursts are
   spaced out, and double-jump remains part of their movement. A live 4v4 smoke

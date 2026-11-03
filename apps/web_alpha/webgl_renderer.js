@@ -12,15 +12,19 @@
     layout(location = 2) in vec2 aUv;
     layout(location = 3) in vec4 aJoints;
     layout(location = 4) in vec4 aWeights;
+    layout(location = 5) in mat4 aInstanceModel;
+    layout(location = 9) in vec4 aInstanceColor;
     uniform mat4 uViewProjection;
     uniform mat4 uModel;
     uniform mat4 uJoints[32];
     uniform vec2 uUvScale;
     uniform vec2 uUvOffset;
     uniform bool uUseSkinning;
+    uniform bool uUseInstancing;
     out vec3 vNormal;
     out vec3 vWorld;
     out vec2 vUv;
+    out vec4 vInstanceColor;
     void main() {
       vec4 localPosition = vec4(aPosition, 1.0);
       vec3 localNormal = aNormal;
@@ -33,10 +37,12 @@
         localPosition = skin * localPosition;
         localNormal = mat3(skin) * localNormal;
       }
-      vec4 world = uModel * localPosition;
+      mat4 model = uUseInstancing ? aInstanceModel : uModel;
+      vec4 world = model * localPosition;
       vWorld = world.xyz;
-      vNormal = mat3(uModel) * localNormal;
+      vNormal = mat3(model) * localNormal;
       vUv = aUv * uUvScale + uUvOffset;
+      vInstanceColor = uUseInstancing ? aInstanceColor : vec4(1.0);
       gl_Position = uViewProjection * world;
     }
   `;
@@ -45,6 +51,7 @@
     in vec3 vNormal;
     in vec3 vWorld;
     in vec2 vUv;
+    in vec4 vInstanceColor;
     uniform vec4 uColor;
     uniform vec3 uLight;
     uniform float uTime;
@@ -71,12 +78,12 @@
       float toon = floor(clamp(diffuse * 0.86 + 0.14, 0.0, 1.0) * 3.0) / 3.0;
       vec4 albedo = uUseTexture ? texture(uAlbedo, vUv) : vec4(1.0);
       if (albedo.a < 0.08) discard;
-      vec3 lit = uColor.rgb * albedo.rgb * (0.24 + toon * 0.76);
-      lit += uColor.rgb * albedo.rgb *
+      vec3 lit = uColor.rgb * vInstanceColor.rgb * albedo.rgb * (0.24 + toon * 0.76);
+      lit += uColor.rgb * vInstanceColor.rgb * albedo.rgb *
         (0.04 * sin(uTime * 4.0 + vWorld.x * 0.04));
       float fog = clamp((length(vWorld - vec3(160.0, 0.0, 140.0)) - 80.0) / 600.0, 0.0, 1.0);
       lit = mix(lit, vec3(0.015, 0.035, 0.06), fog * 0.08);
-      outColor = vec4(lit, albedo.a * uColor.a);
+      outColor = vec4(lit, albedo.a * uColor.a * vInstanceColor.a);
     }
   `;
 
@@ -1346,6 +1353,7 @@
       waterToon: gl.getUniformLocation(program, "uWaterToon"),
       joints: gl.getUniformLocation(program, "uJoints[0]"),
       useSkinning: gl.getUniformLocation(program, "uUseSkinning"),
+      useInstancing: gl.getUniformLocation(program, "uUseInstancing"),
     };
     const worldMaterialTexture = createWorldMaterialTexture(gl);
     const blobShadowTexture = createBlobShadowTexture(gl);
@@ -1362,6 +1370,27 @@
       vfx: boxGeometry(gl, [12, 1, 12], COLORS.vfx),
       pickupRing: pickupRingGeometry(gl, [0.45, 0.82, 1, 1]),
     };
+    const PROJECTILE_INSTANCE_CAPACITY = 256;
+    const PROJECTILE_INSTANCE_STRIDE = 20;
+    const projectileInstanceData = new Float32Array(
+      PROJECTILE_INSTANCE_CAPACITY * PROJECTILE_INSTANCE_STRIDE,
+    );
+    const projectileInstanceBuffer = gl.createBuffer();
+    gl.bindVertexArray(fallbackMeshes.projectile.vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, projectileInstanceBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, projectileInstanceData, gl.DYNAMIC_DRAW);
+    for (let column = 0; column < 4; column += 1) {
+      const location = 5 + column;
+      gl.enableVertexAttribArray(location);
+      gl.vertexAttribPointer(
+        location, 4, gl.FLOAT, false, 80, column * 16,
+      );
+      gl.vertexAttribDivisor(location, 1);
+    }
+    gl.enableVertexAttribArray(9);
+    gl.vertexAttribPointer(9, 4, gl.FLOAT, false, 80, 64);
+    gl.vertexAttribDivisor(9, 1);
+    gl.bindVertexArray(null);
     const shadowMesh = [fallbackMeshes.shadow];
     const shadowTint = [
       COLORS.shadow[0], COLORS.shadow[1], COLORS.shadow[2], COLORS.shadow[3],
@@ -1474,6 +1503,7 @@
       gl.uniform2f(locations.uvScale, uvRect[2], uvRect[3]);
       gl.uniform2f(locations.uvOffset, uvRect[0], uvRect[1]);
       gl.uniform1i(locations.water, waterStyle ? 1 : 0);
+      gl.uniform1i(locations.useInstancing, 0);
       if (waterStyle) {
         gl.uniform4f(
           locations.waterStyle, waterStyle.style[0], waterStyle.style[1],
@@ -1508,6 +1538,66 @@
         gl.uniform1i(locations.useTexture, mesh.texture ? 1 : 0);
         gl.drawElements(gl.TRIANGLES, mesh.count, gl.UNSIGNED_INT, 0);
       }
+    }
+    function drawProjectileInstances(projectiles, time) {
+      let count = 0;
+      for (const projectile of projectiles || []) {
+        if (count >= PROJECTILE_INSTANCE_CAPACITY ||
+            !Number.isFinite(projectile.x) ||
+            !Number.isFinite(projectile.y) ||
+            !Number.isFinite(projectile.z)) {
+          continue;
+        }
+        const fireball = projectile.kind === 3;
+        const scale = fireball ? 1.7 : 1;
+        const angle = time * 0.003;
+        const cosine = Math.cos(angle) * scale;
+        const sine = Math.sin(angle) * scale;
+        const offset = count * PROJECTILE_INSTANCE_STRIDE;
+        projectileInstanceData[offset] = cosine;
+        projectileInstanceData[offset + 1] = 0;
+        projectileInstanceData[offset + 2] = -sine;
+        projectileInstanceData[offset + 3] = 0;
+        projectileInstanceData[offset + 4] = 0;
+        projectileInstanceData[offset + 5] = scale;
+        projectileInstanceData[offset + 6] = 0;
+        projectileInstanceData[offset + 7] = 0;
+        projectileInstanceData[offset + 8] = sine;
+        projectileInstanceData[offset + 9] = 0;
+        projectileInstanceData[offset + 10] = cosine;
+        projectileInstanceData[offset + 11] = 0;
+        projectileInstanceData[offset + 12] = projectile.x;
+        projectileInstanceData[offset + 13] = projectile.y;
+        projectileInstanceData[offset + 14] = projectile.z;
+        projectileInstanceData[offset + 15] = 1;
+        const color = fireball ? COLORS.fireball : COLORS.projectile;
+        projectileInstanceData[offset + 16] = color[0];
+        projectileInstanceData[offset + 17] = color[1];
+        projectileInstanceData[offset + 18] = color[2];
+        projectileInstanceData[offset + 19] = color[3];
+        count += 1;
+      }
+      if (count === 0) return;
+      gl.bindBuffer(gl.ARRAY_BUFFER, projectileInstanceBuffer);
+      gl.bufferSubData(
+        gl.ARRAY_BUFFER, 0, projectileInstanceData, 0,
+        count * PROJECTILE_INSTANCE_STRIDE,
+      );
+      gl.bindVertexArray(fallbackMeshes.projectile.vao);
+      gl.uniform1i(locations.useInstancing, 1);
+      gl.uniform1i(locations.useSkinning, 0);
+      gl.uniform1i(locations.water, 0);
+      gl.uniform2f(locations.uvScale, 1, 1);
+      gl.uniform2f(locations.uvOffset, 0, 0);
+      gl.uniform4f(locations.color, 1, 1, 1, 1);
+      gl.uniform1i(locations.useTexture, 0);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, null);
+      gl.uniform1i(locations.albedo, 0);
+      gl.drawElementsInstanced(
+        gl.TRIANGLES, fallbackMeshes.projectile.count, gl.UNSIGNED_INT, 0, count,
+      );
+      gl.uniform1i(locations.useInstancing, 0);
     }
 
     let filteredCamera = null;
@@ -1589,6 +1679,9 @@
     let vfxKey = null;
     let vfxStartedAt = 0;
     let lastImpactSceneTick = null;
+    const projectileTrailHeads = new Map();
+    const projectileTrailSegmentsById = new Map();
+    const PROJECTILE_TRAIL_LIFETIME_MS = 180;
     const impactEffects = new Map();
     const movementSmokeEffects = new Map();
     const actorMovementStates = new Map();
@@ -1620,10 +1713,14 @@
           } else if (!previous.grounded && grounded) {
             emitMovementSmoke(actor, time, 9.5);
           } else if (grounded &&
-              Math.hypot(actor.x - previous.x, actor.z - previous.z) > 0.12 &&
               time - previous.lastRunPuffAt >= 125) {
-            emitMovementSmoke(actor, time, 6.5);
-            previous.lastRunPuffAt = time;
+            const distance = Math.hypot(
+              actor.x - previous.x, actor.z - previous.z,
+            );
+            if (distance > 0.12) {
+              emitMovementSmoke(actor, time, distance > 0.6 ? 10 : 6.5);
+              previous.lastRunPuffAt = time;
+            }
           }
           previous.x = actor.x;
           previous.y = actor.y;
@@ -1805,6 +1902,56 @@
       }
       updateMovementSmoke(scene.actors || [], time);
       updateActorHitFlinches(scene, time);
+      const liveProjectileIds = new Set();
+      for (const projectile of scene.projectiles || []) {
+        if (!Number.isInteger(projectile.id) ||
+            ![projectile.x, projectile.y, projectile.z].every(Number.isFinite)) {
+          continue;
+        }
+        const id = projectile.id;
+        liveProjectileIds.add(id);
+        const previous = projectileTrailHeads.get(id);
+        if (previous) {
+          const dx = projectile.x - previous.x;
+          const dy = projectile.y - previous.y;
+          const dz = projectile.z - previous.z;
+          if (dx * dx + dy * dy + dz * dz > 0.0025) {
+            let segments = projectileTrailSegmentsById.get(id);
+            if (!segments) {
+              segments = [];
+              projectileTrailSegmentsById.set(id, segments);
+            }
+            segments.push({
+              x: (previous.x + projectile.x) * 0.5,
+              y: (previous.y + projectile.y) * 0.5,
+              z: (previous.z + projectile.z) * 0.5,
+              dx, dy, dz, time,
+            });
+          }
+        }
+        projectileTrailHeads.set(id, {
+          x: projectile.x, y: projectile.y, z: projectile.z, time,
+        });
+      }
+      const projectileTrailSegments = [];
+      for (const [id, segments] of projectileTrailSegmentsById) {
+        if (!liveProjectileIds.has(id)) {
+          projectileTrailSegmentsById.delete(id);
+          continue;
+        }
+        let writeIndex = 0;
+        for (const segment of segments) {
+          segment.age = Math.max(0, time - segment.time);
+          if (segment.age >= PROJECTILE_TRAIL_LIFETIME_MS) continue;
+          segments[writeIndex] = segment;
+          projectileTrailSegments.push(segment);
+          writeIndex += 1;
+        }
+        segments.length = writeIndex;
+      }
+      for (const id of projectileTrailHeads.keys()) {
+        if (!liveProjectileIds.has(id)) projectileTrailHeads.delete(id);
+      }
       if (contextLost || (typeof gl.isContextLost === "function" && gl.isContextLost())) return;
       resize();
       const targetCamera = cameraTargetForScene(scene);
@@ -2222,13 +2369,29 @@
         }
       }
 
-      for (const projectile of scene.projectiles || []) {
-        const fireball = projectile.kind === 3;
-        draw([fallbackMeshes.projectile], transform(
-          [projectile.x, projectile.y, projectile.z],
-          fireball ? [1.7, 1.7, 1.7] : [1, 1, 1], time * 0.003,
-        ), fireball ? COLORS.fireball : COLORS.projectile, time, viewProjection);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.depthMask(false);
+      for (const segment of projectileTrailSegments) {
+        if (segment.age >= PROJECTILE_TRAIL_LIFETIME_MS) continue;
+        const horizontal = Math.hypot(segment.dx, segment.dz);
+        const length = Math.hypot(horizontal, segment.dy);
+        if (length < 0.05) continue;
+        const alpha = 0.52 * (1 - segment.age / PROJECTILE_TRAIL_LIFETIME_MS);
+        draw(
+          [fallbackMeshes.solid],
+          transform(
+            [segment.x, segment.y, segment.z],
+            [length, 0.075, 0.075],
+            Math.atan2(-segment.dz, segment.dx),
+            Math.atan2(segment.dy, horizontal),
+          ),
+          [1, 1, 1, alpha], time, viewProjection,
+        );
       }
+      gl.depthMask(true);
+      gl.disable(gl.BLEND);
+      drawProjectileInstances(scene.projectiles, time);
       for (const throwable of scene.throwables || []) {
         const type = throwable.type || throwable.kind;
         const visual = THROWABLE_VISUALS[type] || THROWABLE_VISUALS[1];
@@ -2391,6 +2554,7 @@
       captureScreenshot,
       resize,
       destroy() {
+        gl.deleteBuffer(projectileInstanceBuffer);
         canvas.removeEventListener("wheel", handleCameraWheel);
         const meshes = [
           ...Object.values(fallbackMeshes),

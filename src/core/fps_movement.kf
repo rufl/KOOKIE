@@ -26,10 +26,11 @@ Int fpsMovementAirTimeTicks() {
 
 Int fpsMovementWalkSpeed() { return 8 }
 Int fpsMovementGroundAcceleration() { return 3 }
-Int fpsMovementAirAcceleration() { return 1 }
+Int fpsMovementAirAcceleration() { return 2 }
 Int fpsMovementGroundBraking() { return 2 }
 Int fpsMovementAirBraking() { return 1 }
 Int fpsMovementGravity() { return 1 }
+Int fpsMovementApexHangVelocity() { return 3 }
 Int fpsMovementJumpVelocity() {
     return fpsMovementGravity() * (fpsMovementAirTimeTicks() / 2)
 }
@@ -77,6 +78,7 @@ class FpsMovementController {
     Int[] velocityZValues
     Int[] coyoteTicksValues
     Int[] jumpBufferTicksValues
+    Int[] apexGravityPhaseValues
     Int[] airJumpValues
     Int[] doubleJumpAnimationTicksValues
     Int[] flapCooldownValues
@@ -145,6 +147,7 @@ class FpsMovementController {
         velocityZValues = new Int[actualCapacityValue]
         coyoteTicksValues = new Int[actualCapacityValue]
         jumpBufferTicksValues = new Int[actualCapacityValue]
+        apexGravityPhaseValues = new Int[actualCapacityValue]
         airJumpValues = new Int[actualCapacityValue]
         doubleJumpAnimationTicksValues = new Int[actualCapacityValue]
         flapCooldownValues = new Int[actualCapacityValue]
@@ -189,9 +192,9 @@ class FpsMovementController {
             velocityZValues[index] = 0
             coyoteTicksValues[index] = 0
             jumpBufferTicksValues[index] = 0
+            apexGravityPhaseValues[index] = 0
             airJumpValues[index] = 0
             doubleJumpAnimationTicksValues[index] = 0
-            flapCooldownValues[index] = 0
             activeValues[index] = false
             groundedValues[index] = false
             crouchedValues[index] = false
@@ -431,6 +434,7 @@ class FpsMovementController {
                 grounded = false
                 bunnyHop = jumpHeld
                 jumpBufferTicksValues[slot] = 0
+                apexGravityPhaseValues[slot] = 0
                 airJumpValues[slot] = 0
                 velocityYValues[slot] = fpsMovementJumpVelocity()
                 jumpCutArmedValues[slot] = true
@@ -475,6 +479,7 @@ class FpsMovementController {
         velocityZValues[slot] = 0
         coyoteTicksValues[slot] = fpsMovementCoyoteTicks()
         jumpBufferTicksValues[slot] = 0
+        apexGravityPhaseValues[slot] = 0
         airJumpValues[slot] = 0
         doubleJumpAnimationTicksValues[slot] = 0
         activeValues[slot] = true
@@ -728,6 +733,7 @@ class FpsMovementController {
                 jumpBufferTicksValues[slot] = 0
                 coyoteTicksValues[slot] = 0
                 groundedValues[slot] = false
+                apexGravityPhaseValues[slot] = 0
                 velocityYValues[slot] = fpsMovementJumpVelocity() +
                     powerUpJumpBonuses[slot]
                 jumpCutArmedValues[slot] = true
@@ -740,6 +746,7 @@ class FpsMovementController {
                 doubleJumpAnimationTicksValues[slot] = 12
                 jumpBufferTicksValues[slot] = 0
                 groundedValues[slot] = false
+                apexGravityPhaseValues[slot] = 0
                 velocityYValues[slot] = fpsMovementJumpVelocity() +
                     powerUpJumpBonuses[slot]
                 jumpCutArmedValues[slot] = true
@@ -778,7 +785,20 @@ class FpsMovementController {
                 velocityYValues[slot] = liquidMaxRiseSpeeds[slot]
             }
         } else if (!wasGrounded || jumped) {
-            velocityYValues[slot] = velocityYValues[slot] - fpsMovementGravity()
+            var gravity = fpsMovementGravity()
+            if (!liquid && !wasGrounded && jumpHeld &&
+                velocityYValues[slot] > 0 &&
+                velocityYValues[slot] <= fpsMovementApexHangVelocity()) {
+                if (apexGravityPhaseValues[slot] == 0) {
+                    gravity = 0
+                    apexGravityPhaseValues[slot] = 1
+                } else {
+                    apexGravityPhaseValues[slot] = 0
+                }
+            } else {
+                apexGravityPhaseValues[slot] = 0
+            }
+            velocityYValues[slot] = velocityYValues[slot] - gravity
             if (velocityYValues[slot] < -fpsMovementMaxFallSpeed()) {
                 velocityYValues[slot] = -fpsMovementMaxFallSpeed()
             }

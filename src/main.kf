@@ -5659,6 +5659,42 @@ test "tuned FPS movement preserves air control and jump assists" {
         "held jump must flap the airborne goose")
 
 }
+
+test "FPS movement adds steerable air momentum and apex hang" {
+    var arena = G1Arena()
+    var steering = FpsMovementController(1)
+    var held = FpsMovementController(1)
+    var tapped = FpsMovementController(1)
+    assert(arena.ready() &&
+        steering.configure(arena.authoredCollision()) &&
+        held.configure(arena.authoredCollision()) &&
+        tapped.configure(arena.authoredCollision()) &&
+        steering.addActor(1, 6, 1, 6) &&
+        held.addActor(1, 6, 1, 6) &&
+        tapped.addActor(1, 6, 1, 6) &&
+        steering.configureAnimalActor(1, animalKindCat()) &&
+        held.configureAnimalActor(1, animalKindCat()) &&
+        tapped.configureAnimalActor(1, animalKindCat()),
+        "movement controllers must share the authored arena and cat physics")
+    assert(steering.step(1, 0, 0, true, true) &&
+        steering.step(1, 4, 0, false, true) &&
+        steering.velocityX(1) >= fpsMovementAirAcceleration(),
+        "air steering must accelerate toward directional input")
+    assert(held.step(1, 0, 0, true, true) &&
+        tapped.step(1, 0, 0, true, true),
+        "held and tap jumps must launch")
+    var heldApexTicks = 0
+    var tappedApexTicks = 0
+    for (var tick = 0; tick < 18; tick = tick + 1) {
+        assert(held.step(1, 0, 0, false, true) &&
+            tapped.step(1, 0, 0, false, false),
+            "both jump arcs must remain deterministic")
+        if (held.velocityY(1) > 0) { heldApexTicks = heldApexTicks + 1 }
+        if (tapped.velocityY(1) > 0) { tappedApexTicks = tappedApexTicks + 1 }
+    }
+    assert(heldApexTicks > tappedApexTicks,
+        "holding jump must extend controllable airtime around the apex")
+}
 test "continuous contact climbs ramps and snaps to their surface" {
     var arena = G1Arena()
     var ramp = arena.move(19, 1, 68, 26, 1, 68)

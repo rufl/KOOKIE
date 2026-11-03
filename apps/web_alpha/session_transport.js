@@ -436,8 +436,11 @@
   sceneCanvas.height = 480;
   sceneCanvas.setAttribute("role", "img");
   sceneCanvas.setAttribute("tabindex", "0");
-  sceneCanvas.setAttribute("aria-label", "GatoGanso game scene. Use the on-screen controls or keyboard.");
   sceneCanvasWrap.appendChild(sceneCanvas);
+  const dealtHitFeedback = document.createElement("div");
+  dealtHitFeedback.className = "kookie-dealt-hit-feedback";
+  dealtHitFeedback.setAttribute("aria-hidden", "true");
+  sceneCanvasWrap.appendChild(dealtHitFeedback);
   const labelOverlay = document.createElement("div");
   labelOverlay.id = "kookie-scene-labels";
   labelOverlay.className = "kookie-session-labels";
@@ -2384,6 +2387,14 @@
       damageImpactKeyOrder.push(key);
       if (damageImpactKeyOrder.length > 32) {
         seenDamageImpactKeys.delete(damageImpactKeyOrder.shift());
+      }
+      const feedbackSourceId = spectatorFollowActive
+        ? spectatorFollowTargetId : scene.playerId;
+      if (impact.sourceId === feedbackSourceId &&
+          impact.targetId !== feedbackSourceId) {
+        sceneCanvasWrap.dataset.dealtHit = "false";
+        void sceneCanvasWrap.offsetWidth;
+        sceneCanvasWrap.dataset.dealtHit = "true";
       }
       if (!clientSettings.showDamageNumbers) continue;
       const element = document.createElement("span");

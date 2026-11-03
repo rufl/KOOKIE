@@ -3,6 +3,21 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- As partículas de poeira no WebGL aumentam em deslocamentos rápidos no chão,
+  como dashes; os efeitos de decolagem e aterrissagem continuam distintos.
+
+- O controlador autoritativo de 60 Hz agora acelera mais na direção escolhida
+  durante o voo e alterna a gravidade perto do ápice enquanto o pulo está
+  pressionado, dando mais controle e uma breve sustentação sem ponto flutuante.
+
+- A confirmação de acerto no navegador agora aplica um breve tranco de câmera
+  e um clarão quente quando o jogador controlado causa dano; no modo espectador,
+  acompanha o jogador selecionado e respeita a opção de movimento reduzido.
+
+- O WebGL agora desenha rastros brancos semitransparentes e curtos ao longo do
+  movimento observado dos projéteis; eles desaparecem junto dos projéteis e
+  não alteram o estado da simulação.
+
 - Bots da CLI e do navegador agora mantêm uma órbita variável ao redor dos
   adversários, em vez de avançar em linha reta ou circular sempre na mesma
   direção; rolamentos/dashes têm intervalos maiores e o salto duplo continua
