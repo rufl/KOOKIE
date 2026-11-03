@@ -811,7 +811,7 @@ class WebMultiplayerSimulation {
     Bool setAnimation(Int slot, Int animation, Int durationTicks) {
         if (slot < 0 || slot >= animationValues.length ||
             animation < sessionWebActorAnimationIdle() ||
-            animation > sessionWebActorAnimationWalk() ||
+            animation > sessionWebActorAnimationIdleVariantTwo() ||
             durationTicks < 0 || durationTicks > 60) { return false }
         animationValues[slot] = animation
         animationUntilTicks[slot] = tickValue + durationTicks
@@ -1161,6 +1161,33 @@ class WebMultiplayerSimulation {
             return true
         }
         for (var other = 0; other < 8; other = other + 1) {
+            if (!activeValues[other] || other == slot ||
+                healthValues[other] <= 0) { continue }
+            var otherX = movement.positionX(other + 1)
+            var otherY = movement.positionY(other + 1)
+            var otherZ = movement.positionZ(other + 1)
+            if (oldY > otherY + fpsMovementCapsuleHeight() &&
+                movedY <= otherY + fpsMovementCapsuleHeight() &&
+                oldY > movedY &&
+                webMultiplayerAbs(movement.positionX(actor) - otherX) <=
+                    fpsMovementCapsuleRadius() * 2 &&
+                webMultiplayerAbs(movement.positionZ(actor) - otherZ) <=
+                    fpsMovementCapsuleRadius() * 2) {
+                if (!movement.setPosition(actor,
+                        movement.positionX(actor),
+                        otherY + fpsMovementCapsuleHeight(),
+                        movement.positionZ(actor)) ||
+                    !movement.bounce(actor, 12) ||
+                    !movement.bounce(other + 1, 10) ||
+                    !setAnimation(slot, sessionWebActorAnimationBounce(), 12) ||
+                    !setAnimation(other,
+                        sessionWebActorAnimationBounce(), 12)) {
+                    return false
+                }
+                break
+            }
+        }
+        for (var other = 0; other < 8; other = other + 1) {
             if (healthValues[slot] > 0 && activeValues[other] && other != slot &&
                 oldY == movement.positionY(actor) && !jump && !flying &&
                 (webMultiplayerSweptPlayerCollision(
@@ -1297,10 +1324,11 @@ class WebMultiplayerSimulation {
         } else if (tickValue < animationUntilTicks[slot] &&
             (animationValues[slot] == sessionWebActorAnimationRoll() ||
                 animationValues[slot] == sessionWebActorAnimationRoll() + 10)) {
-            // Keep the roll visible through its authored window, including
-            // while Space remains held after a double jump.
-        } else if (fire || melee || special ||
-            throwablePress || throwableRelease) {
+            // Keep the roll visible through its authored window.
+        } else if (tickValue < animationUntilTicks[slot] &&
+            animationValues[slot] == sessionWebActorAnimationBounce()) {
+            // Preserve head-bounce presentation through its authored window.
+        } else if (melee) {
             if (!setAnimation(slot, sessionWebActorAnimationAttack(), 12)) {
                 return false
             }
@@ -1563,17 +1591,17 @@ class WebMultiplayerSimulation {
         impactZ[index] = z
         impactDamage[index] = damage
         impactCountValue = impactCountValue + 1
-        if ((kind >= 1 && kind <= 4) || kind == 8) {
+        if (kind == 2) {
             var sourceSlot = playerSlot(source)
             if (sourceSlot >= 0 &&
                 !setAnimation(sourceSlot, sessionWebActorAnimationAttack(), 12)) {
                 return false
             }
-            var targetSlot = playerSlot(target)
-            if (targetSlot >= 0 && healthValues[targetSlot] > 0 &&
-                !setAnimation(targetSlot, sessionWebActorAnimationDamage(), 12)) {
-                return false
-            }
+        }
+        var targetSlot = playerSlot(target)
+        if (damage > 0 && targetSlot >= 0 && healthValues[targetSlot] > 0 &&
+            !setAnimation(targetSlot, sessionWebActorAnimationDamage(), 12)) {
+            return false
         }
         if (damage > 0 && victimSlot >= 0 &&
             healthValues[victimSlot] <= 0) {
@@ -1903,6 +1931,10 @@ class WebMultiplayerSimulation {
         var rollDirection = 1
         if (healthValues[slot] <= 0) {
             animation = sessionWebActorAnimationDeath()
+        } else if (tickValue < dizzyUntilTicks[slot]) {
+            animation = if (dizzyUntilTicks[slot] - tickValue > 78)
+                sessionWebActorAnimationLay()
+                else sessionWebActorAnimationSit()
         } else if (tickValue < animationUntilTicks[slot]) {
             animation = animationValues[slot]
             if (animation == sessionWebActorAnimationRoll() + 10) {
@@ -1917,6 +1949,13 @@ class WebMultiplayerSimulation {
             animation = sessionWebActorAnimationAirborne()
         } else if (movingValues[slot]) {
             animation = sessionWebActorAnimationWalk()
+        } else {
+            var idleCycle = (tickValue / 90 + slot) % 3
+            if (idleCycle == 1) {
+                animation = sessionWebActorAnimationIdleVariantOne()
+            } else if (idleCycle == 2) {
+                animation = sessionWebActorAnimationIdleVariantTwo()
+            }
         }
         state = state + effectAt(slot).activeKind() * 8
         if (animation == sessionWebActorAnimationRoll() &&

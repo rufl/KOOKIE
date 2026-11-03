@@ -1223,18 +1223,28 @@
         : action === 4 ? "damage_taken"
         : action === 5 ? "eat"
         : action === 1 ? "run"
+        : action === 7 ? "roll"
         : action === 8 ? "swim"
-        : action === 6 || action === 7 || action === 9 ? "walk" : "idle";
+        : action === 10 ? "lay"
+        : action === 11 ? "sit"
+        : action === 12 ? "bounce"
+        : action === 13 ? "idle2"
+        : action === 14 ? "idle3"
+        : action === 6 || action === 9 ? "walk" : "idle";
       const fallback = action === 3 ? ["damage_taken", "idle"]
         : action === 2 ? ["walk", "idle"]
         : action === 4 ? ["attack", "idle"]
-        : action === 5 ? ["idle"]
+        : action === 5 || action === 10 || action === 11 ||
+          action === 13 || action === 14 ? ["idle"]
+        : action === 12 ? ["walk", "idle"]
         : ["walk", "idle"];
       const clip = clipsByName.get(requested) ||
         fallback.map((name) => clipsByName.get(name)).find(Boolean) || clips[0];
       const seconds = Math.max(0, Number.isFinite(timeMs) ? timeMs : 0) / 1000;
       const looping = action === 0 || action === 1 || action === 6 ||
-        action === 7 || action === 8 || action === 9;
+        action === 7 || action === 8 || action === 9 ||
+        action === 10 || action === 11 || action === 12 ||
+        action === 13 || action === 14;
       const sampleTime = clip.duration > 0
         ? looping ? seconds % clip.duration : Math.min(seconds, clip.duration)
         : 0;

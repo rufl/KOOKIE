@@ -704,6 +704,9 @@ class FpsMovementController {
             baseSpeed = fpsMovementCrouchSpeed()
         }
         var targetSpeed = baseSpeed + powerUpSpeedBonuses[slot]
+        if (liquid && animalKinds[slot] == animalKindGoose()) {
+            targetSpeed = targetSpeed * 2
+        }
         var acceleration = if (liquid)
             liquidHorizontalAccelerations[slot] else fpsMovementAirAcceleration()
         var braking = if (liquid)
@@ -714,8 +717,7 @@ class FpsMovementController {
         }
         if (moveX != 0 || moveZ != 0) {
             accelerateHorizontal(
-                slot, moveX, moveZ, baseSpeed + powerUpSpeedBonuses[slot],
-                acceleration)
+                slot, moveX, moveZ, targetSpeed, acceleration)
         } else if (!liquid && wasGrounded) {
             applyHorizontalFriction(slot, braking)
         } else {
@@ -746,7 +748,6 @@ class FpsMovementController {
                 apexGravityPhaseValues[slot] = 0
                 velocityYValues[slot] =
                     jumpVelocityForSlot(slot) + powerUpJumpBonuses[slot]
-                    powerUpJumpBonuses[slot]
                 jumpCutArmedValues[slot] = true
                 flapCooldownValues[slot] = fpsMovementFlapIntervalTicks()
             } else if (jumpBufferTicksValues[slot] > 0 &&
@@ -760,7 +761,6 @@ class FpsMovementController {
                 apexGravityPhaseValues[slot] = 0
                 velocityYValues[slot] =
                     jumpVelocityForSlot(slot) + powerUpJumpBonuses[slot]
-                    powerUpJumpBonuses[slot]
                 jumpCutArmedValues[slot] = true
                 flapCooldownValues[slot] = fpsMovementFlapIntervalTicks()
                 lastDoubleJumpValue = true
@@ -822,11 +822,19 @@ class FpsMovementController {
             velocityYValues[slot] = 0
         }
 
+        var targetY = positionYValues[slot] + velocityYValues[slot]
+        if (!externalCollisionValue) {
+            var verticalLimit =
+                collisionValue.maximumY() - scaled(fpsMovementCapsuleHeight())
+            if (targetY > verticalLimit) {
+                targetY = verticalLimit
+                if (velocityYValues[slot] > 0) { velocityYValues[slot] = 0 }
+            }
+        }
         if (externalCollisionValue) {
             positionXValues[slot] = positionXValues[slot] +
                 velocityXValues[slot]
-            positionYValues[slot] = positionYValues[slot] +
-                velocityYValues[slot]
+            positionYValues[slot] = targetY
             positionZValues[slot] = positionZValues[slot] +
                 velocityZValues[slot]
             groundedValues[slot] = false
@@ -843,7 +851,7 @@ class FpsMovementController {
         var movement = capsuleValue.move(
             positionXValues[slot], positionYValues[slot], positionZValues[slot],
             positionXValues[slot] + velocityXValues[slot],
-            positionYValues[slot] + velocityYValues[slot],
+            targetY,
             positionZValues[slot] + velocityZValues[slot])
         if (!movement.accepted()) {
             lastActorValue = actorId
@@ -928,6 +936,20 @@ class FpsMovementController {
         if (slot < 0 || !activeValues[slot]) { return 0 }
         return velocityYValues[slot]
     }
+    Bool bounce(Int actorId, Int upwardVelocity) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || !activeValues[slot] ||
+            upwardVelocity <= 0 || upwardVelocity > fpsMovementMaxFallSpeed()) {
+            return false
+        }
+        velocityYValues[slot] = upwardVelocity
+        groundedValues[slot] = false
+        airJumpValues[slot] = 0
+        jumpCutArmedValues[slot] = false
+        apexGravityPhaseValues[slot] = 0
+        return true
+    }
+
 
     Int velocityZ(Int actorId) {
         var slot = slotFor(actorId)

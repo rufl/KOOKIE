@@ -3,6 +3,15 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- The authoritative multiplayer state now distinguishes melee attacks, damage,
+  rolls/double jumps, swim, dizzy lay/sit, head-bounce, and three cycling idle
+  phases. Cat jump impulse is 2×; goose horizontal swim speed is 2×. Vertical
+  movement clamps at the authored collision ceiling instead of rejecting the
+  high jump. WebGL and KOF GLB clip lookup recognize the added action names.
+  Current goose/cat GLBs contain only idle, walk, run, attack, damage_taken,
+  death, and eat clips; lay, sit, bounce, swim, roll, and extra idle clips
+  require authored model clips before those specific poses can render.
+
 - WebGL ground puffs now scale up for fast grounded bursts such as dashes;
   existing takeoff and landing puffs remain distinct.
 

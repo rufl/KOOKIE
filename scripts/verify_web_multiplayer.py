@@ -577,8 +577,8 @@ def main():
         print("Authoritative team-wave respawn preserved player ID, species, team, and health",
               flush=True)
 
-        mover = players[0]
-        flyer = players[1]
+        mover = players[1]
+        flyer = players[0]
         _, flyer_start = wait_for_actor(
             spectators[0], 8, 4, flyer.player_id, lambda state, snapshot: True)
         flight_start_y = flyer_start[2]
@@ -608,10 +608,15 @@ def main():
         mover.input()
 
         jump_start = settled_actor[2]
-        mover.input(held=1, edge=1)
-        jump_peak = jump_start
-        saw_jump_animation = False
-        jump_deadline = time.monotonic() + 1.5
+        jump_sequence = mover.input(held=1, edge=1)
+        wait_for_input_ack(mover, jump_sequence)
+        _, rising_actor = wait_for_actor(
+            spectators[0], 8, 4, mover.player_id,
+            lambda state, snapshot: state[2] > jump_start + 12)
+        jump_peak = rising_actor[2]
+        saw_jump_animation = rising_actor[5] // 128 == 6
+        mover.input(held=0)
+        jump_deadline = time.monotonic() + 2.5
         landed = False
         while time.monotonic() < jump_deadline:
             scene = spectators[0].snapshot(expected_players=8,
@@ -619,13 +624,15 @@ def main():
             actor = actor_record(scene, mover.player_id)
             jump_peak = max(jump_peak, actor[2])
             saw_jump_animation |= actor[5] // 128 == 6
-            if actor[2] <= jump_start and jump_peak > jump_start:
+            if actor[5] & 1 and jump_peak > jump_start:
                 landed = True
                 break
         mover.input(held=0)
         assert jump_peak >= jump_start + 12, (
             f"authoritative jump arc too low: start={jump_start}, peak={jump_peak}")
-        assert landed, "jump did not land within 1.5 seconds"
+        assert landed, (
+            f"jump did not land within 2.5 seconds: start={jump_start}, "
+            f"peak={jump_peak}, actor={actor}")
         assert saw_jump_animation, f"jump animation missing: {actor}"
         double_jump_start = actor[2]
         mover.input(held=1, edge=1)

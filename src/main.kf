@@ -5660,6 +5660,37 @@ test "tuned FPS movement preserves air control and jump assists" {
 
 }
 
+test "species movement gives cats higher jumps and geese faster swimming" {
+    var arena = G1Arena()
+    var jumps = FpsMovementController(2)
+    var swimmers = FpsMovementController(2)
+    var swimProfile = LiquidMovementProfile(4, 2, 1, 250, 1, 1, 3, 6, 6)
+    assert(arena.ready() &&
+        jumps.configure(arena.authoredCollision()) &&
+        jumps.addActor(1, 20, 1, 30) &&
+        jumps.addActor(2, 40, 1, 30) &&
+        jumps.configureAnimalActor(1, animalKindGoose()) &&
+        jumps.configureAnimalActor(2, animalKindCat()) &&
+        jumps.step(1, 0, 0, true, true) &&
+        jumps.step(2, 0, 0, true, true) &&
+        jumps.velocityY(2) > jumps.velocityY(1) * 2,
+        "cat jump impulse must be twice the goose impulse")
+    assert(swimmers.configure(arena.authoredCollision()) &&
+        swimmers.addActor(1, 20, 2, 30) &&
+        swimmers.addActor(2, 40, 2, 30) &&
+        swimmers.configureAnimalActor(1, animalKindCat()) &&
+        swimmers.configureAnimalActor(2, animalKindGoose()) &&
+        swimmers.configureLiquidActor(1, true, swimProfile) &&
+        swimmers.configureLiquidActor(2, true, swimProfile),
+        "both species must use identical swim profiles before species scaling")
+    for (var tick = 0; tick < 12; tick = tick + 1) {
+        assert(swimmers.step(1, 4, 0, false, false) &&
+            swimmers.step(2, 4, 0, false, false),
+            "both underwater movement steps must be accepted")
+    }
+    assert(swimmers.positionX(2) > swimmers.positionX(1),
+        "goose horizontal swim speed must exceed the cat speed")
+}
 test "FPS movement adds steerable air momentum and apex hang" {
     var arena = G1Arena()
     var steering = FpsMovementController(1)
@@ -5672,10 +5703,10 @@ test "FPS movement adds steerable air momentum and apex hang" {
         steering.addActor(1, 6, 1, 6) &&
         held.addActor(1, 6, 1, 6) &&
         tapped.addActor(1, 6, 1, 6) &&
-        steering.configureAnimalActor(1, animalKindCat()) &&
-        held.configureAnimalActor(1, animalKindCat()) &&
-        tapped.configureAnimalActor(1, animalKindCat()),
-        "movement controllers must share the authored arena and cat physics")
+        steering.configureAnimalActor(1, animalKindGoose()) &&
+        held.configureAnimalActor(1, animalKindGoose()) &&
+        tapped.configureAnimalActor(1, animalKindGoose()),
+        "movement controllers must share the authored arena and goose physics")
     assert(steering.step(1, 0, 0, true, true) &&
         steering.step(1, 4, 0, false, true) &&
         steering.velocityX(1) >= fpsMovementAirAcceleration(),
@@ -6366,10 +6397,11 @@ test "FPS action input drives melee special dash double jump glide and stamina" 
         "action input fixture must admit a watermelon powerup")
     var session = LoopbackSession(32, 8)
     assert(arena.ready() &&
-        session.configureEnemySpatialBounds(0, 0, 0, 50, 10, 50) &&
+        session.configureEnemySpatialBounds(0, 0, 0, 50, 1000, 50) &&
         session.loadAuthoredBroadPhase(arena.authoredCollision()) &&
         session.enableFpsMovement(true) &&
-        session.configurePowerUps(world),
+        session.configurePowerUps(world) &&
+        session.configurePlayerAnimal(2, animalKindGoose()),
         "action input fixture must configure arena, movement and powerups")
     assert(session.configureEnemyRules(100, 20, 2) &&
         session.defineEnemyWeapon(9, 4, 0, 3, 1) &&
