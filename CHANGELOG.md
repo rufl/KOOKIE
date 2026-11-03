@@ -3,6 +3,15 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Local WebGL movement now predicts the server's short-horizon horizontal
+  acceleration and braking between snapshots, then yields back to authoritative
+  position updates. Collision and special-movement corrections remain server
+  authoritative.
+
+- WebGL throwable, carried-item, pickup, and watermelon-slice draws now pass
+  each imported model's mesh array to the renderer instead of the model
+  wrapper. This avoids a non-iterable mesh error when those objects appear.
+
 - Multiplayer snapshot serialization now clamps actor coordinates to the
   protocol's declared world bounds. A live actor reached z=3 while the
   snapshot contract required z>=4; the resulting invalid base snapshot closed

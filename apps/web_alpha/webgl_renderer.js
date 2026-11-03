@@ -2178,8 +2178,8 @@
         const heldZ = scene.playerZ + Math.cos(playerYaw) * 2.5;
         const visual = THROWABLE_VISUALS[scene.carryType] ||
           THROWABLE_VISUALS[1];
-        draw(visual.model ? assets[visual.model] || [fallbackMeshes[visual.mesh]]
-          : [fallbackMeshes[visual.mesh]], transform(
+        draw(visual.model ? assets[visual.model]?.meshes ||
+          [fallbackMeshes[visual.mesh]] : [fallbackMeshes[visual.mesh]], transform(
           [heldX, scene.playerY + 2.8, heldZ], visual.scale, time * 0.002,
         ), visual.color, time, viewProjection);
       }
@@ -2187,17 +2187,16 @@
         const bob = Math.sin(time * 0.004) * 0.7;
         const visual = THROWABLE_VISUALS[scene.pickup.type] ||
           THROWABLE_VISUALS[1];
-        draw(visual.model ? assets[visual.model] || [fallbackMeshes[visual.mesh]]
-          : [fallbackMeshes[visual.mesh]], transform(
+        draw(visual.model ? assets[visual.model]?.meshes ||
+          [fallbackMeshes[visual.mesh]] : [fallbackMeshes[visual.mesh]], transform(
           [scene.pickup.x, scene.pickup.y + 3 + bob, scene.pickup.z],
           visual.pickupScale, time * 0.001,
         ), visual.color, time, viewProjection);
       }
       for (const slice of scene.slicePickups || []) {
         const bob = Math.sin(time * 0.005 + slice.id) * 0.3;
-        draw(assets.watermelonSlice || [fallbackMeshes.solid], transform(
+        draw(assets.watermelonSlice?.meshes || [fallbackMeshes.solid], transform(
           [slice.x, slice.y + 0.2 + bob, slice.z], [1, 1, 1],
-          time * 0.002,
         ), [1, 1, 1, 1], time, viewProjection);
       }
       if (Array.isArray(scene.throwPreview)) {
@@ -2228,8 +2227,8 @@
           (melonSpin ? throwable.id * 0.7 : 0);
         const tumbleZ = melonSpin ? Math.sin(phase * 0.7) * 0.65 : 0;
         const tumbleX = melonSpin ? Math.cos(phase * 0.9) * 0.55 : 0;
-        draw(visual.model ? assets[visual.model] || [fallbackMeshes[visual.mesh]]
-          : [fallbackMeshes[visual.mesh]], transform(
+        draw(visual.model ? assets[visual.model]?.meshes ||
+          [fallbackMeshes[visual.mesh]] : [fallbackMeshes[visual.mesh]], transform(
           [throwable.x, throwable.y, throwable.z], visual.scale,
           phase, tumbleZ, tumbleX,
         ), visual.color, time, viewProjection);

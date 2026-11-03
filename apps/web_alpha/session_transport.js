@@ -1150,6 +1150,7 @@
   let previousRemoteTick = -1;
   let localMovementBlend = null;
   const localRenderPosition = { x: 0, z: 0 };
+  const localMovementVelocity = { x: 0, z: 0 };
   const remoteRenderPosition = { x: 0, y: 0, z: 0, yaw: 0 };
   let rendererFailureActive = false;
   function failRenderer(reason) {
@@ -1708,38 +1709,101 @@
     ].join(";");
     labelOverlay.appendChild(element);
   }
+  function advancePredictedHorizontalVelocity(
+    velocityX, velocityZ, axisX, axisZ, grounded,
+  ) {
+    if (axisX !== 0 || axisZ !== 0) {
+      const major = Math.max(Math.abs(axisX), Math.abs(axisZ));
+      const minor = Math.min(Math.abs(axisX), Math.abs(axisZ));
+      const magnitudeFixed = major * 1024 + minor * 384;
+      const wishX = Math.trunc(axisX * 1024 * 1024 / magnitudeFixed);
+      const wishZ = Math.trunc(axisZ * 1024 * 1024 / magnitudeFixed);
+      const currentSpeed = Math.trunc(
+        (velocityX * wishX + velocityZ * wishZ) / 1024,
+      );
+      const addSpeed = 8 - currentSpeed;
+      const acceleration = grounded ? 3 : 1;
+      if (addSpeed > 0) {
+        const applied = Math.min(acceleration, addSpeed);
+        velocityX += Math.trunc(wishX * applied / 1024);
+        velocityZ += Math.trunc(wishZ * applied / 1024);
+      }
+    } else if (grounded) {
+      const speed = Math.max(Math.abs(velocityX), Math.abs(velocityZ)) +
+        Math.min(Math.abs(velocityX), Math.abs(velocityZ)) * 3 / 8;
+      const nextSpeed = speed - 2;
+      if (nextSpeed <= 0) {
+        velocityX = 0;
+        velocityZ = 0;
+      } else {
+        velocityX *= nextSpeed / speed;
+        velocityZ *= nextSpeed / speed;
+      }
+    } else {
+      velocityX = Math.abs(velocityX) <= 1 ? 0
+        : velocityX - Math.sign(velocityX);
+      velocityZ = Math.abs(velocityZ) <= 1 ? 0
+        : velocityZ - Math.sign(velocityZ);
+    }
+    localMovementVelocity.x = velocityX;
+    localMovementVelocity.z = velocityZ;
+  }
+
   function predictPendingLocalMovement(now) {
     if (!sceneState || pendingInputFrames.size === 0 ||
-        remoteSnapshots.length < 2) return false;
+        remoteSnapshots.length === 0) return false;
     let latestInput = null;
     for (const input of pendingInputFrames.values()) latestInput = input;
-    if (!latestInput || (latestInput.moveX === 0 && latestInput.moveZ === 0)) return false;
+    if (!latestInput) return false;
     const latest = remoteSnapshots[remoteSnapshots.length - 1];
     const previous = remoteSnapshots[remoteSnapshots.length - 2];
-    const span = latest.receivedAt - previous.receivedAt;
-    if (span <= 0) return false;
-    let latestActor = null;
-    let previousActor = null;
-    for (const actor of latest.actors) {
-      if (actor.id === sceneState.playerId) { latestActor = actor; break; }
+    const latestActor = latest.actors.find(
+      (actor) => actor.id === sceneState.playerId,
+    );
+    if (!latestActor) return false;
+    let velocityX = 0;
+    let velocityZ = 0;
+    if (previous) {
+      const previousActor = previous.actors.find(
+        (actor) => actor.id === sceneState.playerId,
+      );
+      const tickSpan = latest.tick - previous.tick;
+      if (previousActor && tickSpan > 0) {
+        velocityX = (latestActor.x - previousActor.x) / tickSpan;
+        velocityZ = (latestActor.z - previousActor.z) / tickSpan;
+      }
     }
-    for (const actor of previous.actors) {
-      if (actor.id === sceneState.playerId) { previousActor = actor; break; }
-    }
-    if (!latestActor || !previousActor) return false;
-    const velocityX = (latestActor.x - previousActor.x) / span;
-    const velocityZ = (latestActor.z - previousActor.z) / span;
-    const speed = Math.hypot(velocityX, velocityZ);
-    const elapsed = Math.min(LOCAL_MAX_EXTRAPOLATION_MS,
+    const elapsedMs = Math.min(LOCAL_MAX_EXTRAPOLATION_MS,
       Math.max(0, now - Math.max(latest.receivedAt, latestInput.sentAt)));
-    if (speed <= 0 || elapsed <= 0) return false;
-    const magnitude = Math.hypot(latestInput.moveX, latestInput.moveZ);
+    if (elapsedMs <= 0) return false;
+    const axisX = Math.trunc(latestInput.moveX * 4 / GAME_MAXIMUM_INPUT_AXIS);
+    const axisZ = Math.trunc(latestInput.moveZ * 4 / GAME_MAXIMUM_INPUT_AXIS);
+    const grounded = latestActor.y <= 0.5;
+    const elapsedTicks = elapsedMs / REMOTE_BASE_TICK_MS;
+    const wholeTicks = Math.floor(elapsedTicks);
+    let x = latestActor.x;
+    let z = latestActor.z;
+    for (let tick = 0; tick < wholeTicks; tick += 1) {
+      advancePredictedHorizontalVelocity(
+        velocityX, velocityZ, axisX, axisZ, grounded,
+      );
+      velocityX = localMovementVelocity.x;
+      velocityZ = localMovementVelocity.z;
+      x += velocityX;
+      z += velocityZ;
+    }
+    const fraction = elapsedTicks - wholeTicks;
+    if (fraction > 0) {
+      advancePredictedHorizontalVelocity(
+        velocityX, velocityZ, axisX, axisZ, grounded,
+      );
+      x += localMovementVelocity.x * fraction;
+      z += localMovementVelocity.z * fraction;
+    }
     localRenderPosition.x = Math.max(GAME_WORLD_MINIMUM_X,
-      Math.min(GAME_WORLD_MAXIMUM_X,
-        latestActor.x + latestInput.moveX / magnitude * speed * elapsed));
+      Math.min(GAME_WORLD_MAXIMUM_X, x));
     localRenderPosition.z = Math.max(GAME_WORLD_MINIMUM_Z,
-      Math.min(GAME_WORLD_MAXIMUM_Z,
-        latestActor.z + latestInput.moveZ / magnitude * speed * elapsed));
+      Math.min(GAME_WORLD_MAXIMUM_Z, z));
     return true;
   }
 

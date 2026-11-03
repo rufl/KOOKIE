@@ -3,6 +3,16 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- A movimentação WebGL local agora prevê aceleração e frenagem horizontais do
+  servidor no curto intervalo entre snapshots e volta a usar as posições
+  autoritativas ao recebê-los. Colisões e movimentos especiais continuam sob
+  autoridade do servidor.
+
+- As renderizações WebGL de arremessáveis, itens carregados, coletas e fatias
+  de melancia agora passam ao renderer o array de meshes do modelo importado,
+  não o objeto-wrapper. Isso evita erro de mesh não iterável quando esses
+  objetos aparecem.
+
 - A serialização de snapshots multiplayer agora limita as coordenadas dos
   atores aos limites de mundo declarados pelo protocolo. Um ator ativo chegou
   a z=3, enquanto o contrato exigia z>=4; o snapshot inválido fechava o
