@@ -3,6 +3,9 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Corrigida a falha de renderização do espectador por `targetCamera is not
+  defined`; o renderer WebGL agora inicializa a câmera da cena antes de aplicar
+  suavização e trauma de impacto.
 - Ao acompanhar um jogador como espectador, a câmera agora usa o mesmo
   enquadramento atrás do personagem, suavização e zoom da partida. A visão
   acompanhada oculta os corações sobre as cabeças, identifica gatos, gansos e
@@ -1053,6 +1056,13 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   acessibilidade e adicionamos regressão para escala do HUD, visibilidade do
   minimapa e alto contraste ao vivo. O menu principal agora possui linhas
   explícitas para Accessibility e Quit, preservando o acesso ao Kutter.
+
+- Bots da CLI continuam se movendo enquanto carregam um arremessável e só
+  ativam voo/planagem no ar ou quando a diferença de altura exige, em vez de
+  desperdiçar essas ações no chão. O smoke autoritativo 4x4 passou com
+  movimentação, dano, power-ups e lançamento de arremessável. O protocolo atual
+  de entrada dos jogadores não possui ação de aparar/desviar projéteis; os bots
+  esquivam de projéteis direcionados.
 
 ## 2026-10-02
 ### Polimento da shell de GUI e qualificação Linux atual

@@ -1807,6 +1807,7 @@
       updateActorHitFlinches(scene, time);
       if (contextLost || (typeof gl.isContextLost === "function" && gl.isContextLost())) return;
       resize();
+      const targetCamera = cameraTargetForScene(scene);
       const camera = { ...smoothCamera(targetCamera, time, scene) };
       const traumaElapsed = time - cameraTraumaStartedAt;
       if (scene.playerId > 0 && traumaElapsed >= 0 && traumaElapsed < 260) {

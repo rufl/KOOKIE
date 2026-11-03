@@ -3,6 +3,9 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Fixed spectator rendering failing with `targetCamera is not defined`; the
+  WebGL renderer now initializes the scene camera before applying smoothing
+  and hit trauma.
 - Following a player as a spectator now uses the same behind-player camera
   smoothing and zoom as gameplay. Follow view removes overhead hearts, labels
   visible cats, geese, and dummies by type and server ID, and replays the
@@ -1515,6 +1518,12 @@ gameplay remains on the native server and separately packaged WebGL client.
   camera-relative arena mapping, bounded marker geometry, and native/Kof
   regression coverage.
 
+
+- CLI bots now keep moving while charging a throwable and only activate
+  flight/glide when airborne or when elevation requires it, instead of wasting
+  those actions on the ground. The authoritative 4v4 smoke passed with movement,
+  damage, powerups, and a launched throwable. No parry/deflect action exists in
+  the current player input protocol; bots evade targeted projectiles instead.
 
 ## 2026-10-02
 ### GUI shell polish and current Linux qualification

@@ -237,8 +237,6 @@ def run_battle(port, duration=None, log_path=None,
                                 move_dx, move_dz = -dz * side, dx * side
                         if pickup_active and throwable_phase == 0 and distance > 10:
                             move_dx, move_dz = pickup_x - me[1], pickup_z - me[3]
-                        if throwable_phase in (1, 2, 3):
-                            move_dx = move_dz = 0
                         move_dx += (16 - me[1]) * 1.2 if me[1] < 16 else \
                             (304 - me[1]) * 1.2 if me[1] > 304 else 0
                         move_dz += (16 - me[3]) * 1.2 if me[3] < 16 else \
@@ -319,7 +317,13 @@ def run_battle(port, duration=None, log_path=None,
                                     throwable_dz * throwable_dz <= 36):
                                 held |= ACTION_THROWABLE
                                 throwable_phase = 1
-                        held |= ACTION_FLY if animal == 1 else ACTION_GLIDE
+                        airborne = not (me[5] & 1) and me[2] > 1
+                        if animal == 1 and (
+                                airborne or dy > 3 or
+                                active_powerup == 2 and distance > 12):
+                            held |= ACTION_FLY
+                        elif animal == 2 and (airborne or dy > 3):
+                            held |= ACTION_GLIDE
                         client.input(
                             move_x=move_x, move_z=move_z,
                             look_yaw=max(-1800, min(1800, yaw_delta * 10)),
