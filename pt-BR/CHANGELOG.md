@@ -3,6 +3,20 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Ao acompanhar um jogador como espectador, a câmera agora usa o mesmo
+  enquadramento atrás do personagem, suavização e zoom da partida. A visão
+  acompanhada oculta os corações sobre as cabeças, identifica gatos, gansos e
+  bonecos visíveis pelo tipo e ID do servidor e reproduz o flash vermelho,
+  indicador de direção e breve trauma de câmera ao receber dano.
+- Os bots de batalha no navegador e na CLI agora buscam coletas e power-ups
+  ativos, circulam ou recuam dos adversários, evitam as bordas da arena,
+  esquivam de projéteis direcionados com rolamento/dash e usam o conjunto
+  completo de movimentos e ações de combate. A sequência de pegar/carregar/
+  arremessar foi corrigida; o teste 4x4 verifica um arremesso real.
+- Espectadores podem alternar entre jogadores vivos e acompanhá-los com uma
+  câmera em terceira pessoa com movimento suave, ou voltar à câmera livre. Os
+  controles também têm alvos de toque adequados para dispositivos móveis.
+
 - A movimentação WebGL local agora prevê aceleração e frenagem horizontais do
   servidor no curto intervalo entre snapshots e volta a usar as posições
   autoritativas ao recebê-los. Colisões e movimentos especiais continuam sob

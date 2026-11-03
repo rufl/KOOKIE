@@ -13,7 +13,7 @@ import urllib.error
 from pathlib import Path
 
 from verify_web_multiplayer import (
-    Client, actor_record, health, throwable_suffix,
+    Client, actor_record, health, projectile_records, throwable_suffix,
 )
 from kookie_websocket_session import GAME_MAXIMUM_HEALTH
 
@@ -101,6 +101,9 @@ def run_battle(port, duration=None, log_path=None,
     observed_animation_states = set()
     driver_errors = []
     melee_range_observed = [False]
+    throwable_launch_observed = [False]
+    throwable_pickup_observed = [False]
+    throwable_carry_observed = [False]
     try:
         if wait_for_spectator:
             url = spectator_url or f"ws://127.0.0.1:{port}/spectate"
@@ -188,35 +191,58 @@ def run_battle(port, duration=None, log_path=None,
                         yaw_delta = (desired_yaw - me[7] + 180) % 360 - 180
                         now = time.monotonic()
                         active_powerup = (me[5] // 8) % 16
-                        (pickup_active, pickup_x, pickup_y, pickup_z,
-                         carrying, _) = throwable_suffix(scene)[:6]
+                        throwable_state = throwable_suffix(scene)
+                        pickup_active, pickup_x, pickup_y, pickup_z = \
+                            throwable_state[:4]
+                        carrying = len(throwable_state) > 5 and \
+                            throwable_state[5] == 1
+                        if pickup_active:
+                            throwable_pickup_observed[0] = True
+                        if carrying:
+                            throwable_carry_observed[0] = True
                         move_dx, move_dz = dx, dz
                         if active_powerup == 0:
                             pickup = min(
-                                ((abs(item["x"] - me[1]) +
-                                  abs(item["y"] - me[2]) +
-                                  abs(item["z"] - me[3]), index, item)
+                                ((math.dist((item["x"], item["y"], item["z"]),
+                                            (me[1], me[2], me[3])),
+                                  index, item)
                                  for index, item in enumerate(powerup_waypoints)
                                  if bot_can_use_powerup(animal, item["kind"]) and
                                  now >= tried_pickups.get(index, 0)),
                                 default=None,
                             )
                             if pickup is not None:
-                                _, pickup_index, item = pickup
+                                pickup_distance, pickup_index, item = pickup
                                 pickup_dx = item["x"] - me[1]
                                 pickup_dz = item["z"] - me[3]
-                                pickup_distance = math.hypot(pickup_dx, pickup_dz)
-                                if (pickup_distance <= 4 and
-                                        abs(item["y"] - me[2]) <= 5):
+                                if pickup_distance <= 4 and abs(item["y"] - me[2]) <= 5:
                                     tried_pickups[pickup_index] = now + 30
-                                elif pickup_distance < distance * 1.4:
+                                elif pickup_distance < distance * 1.35:
                                     move_dx, move_dz = pickup_dx, pickup_dz
-                        if throwable_phase == 0 and pickup_active:
-                            move_dx = pickup_x - me[1]
-                            move_dz = pickup_z - me[3]
-                        elif throwable_phase in (1, 2, 3):
-                            move_dx = 0
-                            move_dz = 0
+                        dodging = False
+                        for projectile in projectile_records(scene):
+                            if projectile[2] != client.player_id:
+                                continue
+                            px, py, pz = projectile[3], projectile[4], projectile[5]
+                            if math.dist((px, py, pz),
+                                         (me[1], me[2], me[3])) <= 30:
+                                move_dx, move_dz = pz - me[3], me[1] - px
+                                dodging = True
+                                break
+                        if not dodging and distance <= 24:
+                            if distance < 11:
+                                move_dx, move_dz = -dx, -dz
+                            else:
+                                side = -1 if client.player_id % 2 else 1
+                                move_dx, move_dz = -dz * side, dx * side
+                        if pickup_active and throwable_phase == 0 and distance > 10:
+                            move_dx, move_dz = pickup_x - me[1], pickup_z - me[3]
+                        if throwable_phase in (1, 2, 3):
+                            move_dx = move_dz = 0
+                        move_dx += (16 - me[1]) * 1.2 if me[1] < 16 else \
+                            (304 - me[1]) * 1.2 if me[1] > 304 else 0
+                        move_dz += (16 - me[3]) * 1.2 if me[3] < 16 else \
+                            (264 - me[3]) * 1.2 if me[3] > 264 else 0
                         move_distance = max(1, math.hypot(move_dx, move_dz))
                         move_x = round(move_dx * 1000 / move_distance)
                         move_z = round(move_dz * 1000 / move_distance)
@@ -231,7 +257,7 @@ def run_battle(port, duration=None, log_path=None,
                             next_burst = now + .05
                             continue
                         held = 0
-                        edge = 0
+                        edge = ACTION_ROLL if dodging else 0
                         attacks_allowed = (
                             not ringout_only_deaths or target[4] > 200
                         )
@@ -242,8 +268,9 @@ def run_battle(port, duration=None, log_path=None,
                             next_shot = now + (0.6 if combat_distance <= 12 else 2.0)
                         if attacks_allowed and combat_distance <= 5 and now >= next_melee:
                             edge |= EDGE_MELEE
-                            next_melee = now + 0.45
-                        if attacks_allowed and now >= next_special:
+                            next_melee = now + .45
+                        if (attacks_allowed and now >= next_special and
+                                (combat_distance <= 80 or active_powerup in (3, 8))):
                             edge |= EDGE_SPECIAL
                             next_special = now + (1.8 if active_powerup == 5 else 1.1)
                         if now >= next_burst:
@@ -282,7 +309,7 @@ def run_battle(port, duration=None, log_path=None,
                                 held |= ACTION_THROWABLE
                             else:
                                 throwable_phase = 4
-                        elif throwable_phase == 4 and pickup_active:
+                        elif throwable_phase == 4 and not carrying:
                             throwable_phase = 0
                         if not ringout_only_deaths and throwable_phase == 0 and pickup_active:
                             throwable_dx = pickup_x - me[1]
@@ -354,6 +381,9 @@ def run_battle(port, duration=None, log_path=None,
             scene = latest_snapshot(spectator, bot_count)
             positions = [tuple(scene[19 + index * 8:22 + index * 8])
                          for index in range(scene[17])]
+            trailer = 18 + scene[17] * 8
+            if scene[trailer + 2] > 0:
+                throwable_launch_observed[0] = True
             if previous_positions is not None and positions != previous_positions:
                 samples += 1
             previous_positions = positions
@@ -408,6 +438,12 @@ def run_battle(port, duration=None, log_path=None,
                 raise AssertionError("bot positions did not change during smoke run")
             if minimum_health == bot_count * GAME_MAXIMUM_HEALTH:
                 raise AssertionError("teams did not exchange authoritative damage")
+            if not ringout_only_deaths and not throwable_launch_observed[0]:
+                raise AssertionError(
+                    "bots never launched a throwable "
+                    f"(pickup={throwable_pickup_observed[0]}, "
+                    f"carried={throwable_carry_observed[0]})"
+                )
             if not powerups_acquired:
                 raise AssertionError("bots did not acquire an authoritative powerup")
             for player_id in goose_ids | cat_ids:

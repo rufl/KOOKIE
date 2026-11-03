@@ -557,6 +557,35 @@
   touchLookHint.setAttribute("aria-hidden", "true");
   touchLookHint.textContent = "RIGHT STICK TO LOOK";
   sceneCanvasWrap.appendChild(touchLookHint);
+  const spectatorCameraControls = document.createElement("section");
+  spectatorCameraControls.className = "kookie-spectator-camera";
+  spectatorCameraControls.hidden = true;
+  spectatorCameraControls.setAttribute("aria-label", "Spectator camera controls");
+  const spectatorPreviousButton = document.createElement("button");
+  spectatorPreviousButton.type = "button";
+  spectatorPreviousButton.textContent = "PREV";
+  spectatorPreviousButton.setAttribute("aria-label", "Follow previous player");
+  const spectatorTargetLabel = document.createElement("span");
+  spectatorTargetLabel.className = "kookie-spectator-target";
+  spectatorTargetLabel.setAttribute("role", "status");
+  spectatorTargetLabel.setAttribute("aria-live", "polite");
+  spectatorTargetLabel.textContent = "FREE CAMERA";
+  const spectatorNextButton = document.createElement("button");
+  spectatorNextButton.type = "button";
+  spectatorNextButton.textContent = "NEXT";
+  spectatorNextButton.setAttribute("aria-label", "Follow next player");
+  const spectatorFreeButton = document.createElement("button");
+  spectatorFreeButton.type = "button";
+  spectatorFreeButton.textContent = "FREE CAM";
+  spectatorFreeButton.setAttribute("aria-label", "Switch to free camera");
+  spectatorCameraControls.append(
+    spectatorPreviousButton, spectatorTargetLabel, spectatorNextButton,
+    spectatorFreeButton
+  );
+  sceneCanvasWrap.appendChild(spectatorCameraControls);
+  spectatorPreviousButton.addEventListener("click", () => cycleSpectatorTarget(-1));
+  spectatorNextButton.addEventListener("click", () => cycleSpectatorTarget(1));
+  spectatorFreeButton.addEventListener("click", returnToFreeSpectatorCamera);
   sceneGrid.appendChild(sceneCanvasWrap);
   panel.appendChild(sceneGrid);
 
@@ -1125,6 +1154,64 @@
   let spectatorMoveZ = 0;
   let spectatorVerticalKeys = new Set();
   let lastSpectatorCameraUpdateAt = 0;
+  let spectatorFollowTargetId = 0;
+  let spectatorFollowActive = false;
+  let spectatorCameraYaw = spectatorCameraHome.yaw;
+  let spectatorCameraPitch = spectatorCameraHome.pitch;
+  function spectatorTargets() {
+    return sceneState.actors
+      .filter((actor) => actor.id > 0 && actor.health > 0)
+      .sort((left, right) => left.id - right.id);
+  }
+  function updateSpectatorCameraControls() {
+    const visible = authoritativeReady && joinedRole === GAME_ROLE_SPECTATOR;
+    spectatorCameraControls.hidden = !visible;
+    if (!visible) return;
+    const targets = spectatorTargets();
+    spectatorPreviousButton.disabled = targets.length < 1;
+    spectatorNextButton.disabled = targets.length < 1;
+    const target = targets.find((actor) => actor.id === spectatorFollowTargetId);
+    const targetName = target
+      ? (target.kind === 2 ? "CAT" : "GOOSE") + " #" + target.id : "";
+    spectatorTargetLabel.textContent = spectatorFollowActive && target
+      ? "FOLLOW " + targetName
+      : targets.length ? "FREE CAMERA · " + targets.length + " PLAYERS"
+        : "FREE CAMERA · NO PLAYERS";
+    spectatorFreeButton.setAttribute(
+      "aria-pressed", spectatorFollowActive ? "false" : "true"
+    );
+  }
+  function cycleSpectatorTarget(direction) {
+    const targets = spectatorTargets();
+    if (!targets.length) {
+      spectatorFollowActive = false;
+      spectatorFollowTargetId = 0;
+      updateSpectatorCameraControls();
+      return;
+    }
+    const currentIndex = targets.findIndex(
+      (actor) => actor.id === spectatorFollowTargetId
+    );
+    const nextIndex = currentIndex < 0
+      ? direction > 0 ? 0 : targets.length - 1
+      : (currentIndex + direction + targets.length) % targets.length;
+    spectatorFollowTargetId = targets[nextIndex].id;
+    spectatorFollowActive = true;
+    spectatorLookYawOffset = 0;
+    spectatorLookPitchOffset = 0;
+    updateSpectatorCameraControls();
+  }
+  function returnToFreeSpectatorCamera() {
+    if (spectatorFollowActive) {
+      spectatorLookYawOffset =
+        ((spectatorCameraYaw - spectatorCameraHome.yaw + 540) % 360) - 180;
+      spectatorLookPitchOffset = Math.max(-80, Math.min(80,
+        spectatorCameraPitch - spectatorCameraHome.pitch));
+    }
+    spectatorFollowActive = false;
+    spectatorFollowTargetId = 0;
+    updateSpectatorCameraControls();
+  }
   let sceneRenderer = null;
   let renderFrameHandle = 0;
   let renderSceneState = null;
@@ -1647,12 +1734,10 @@
     const bounds = typeof labelOverlay.getBoundingClientRect === "function"
       ? labelOverlay.getBoundingClientRect()
       : { width: sceneCanvas.width, height: sceneCanvas.height };
-    for (const label of scene.labels || []) {
-      if (!label.visible) continue;
-      const actor = (scene.actors || []).find((candidate) =>
-        candidate.id === label.id && candidate.health > 0
-      );
-      if (!actor) continue;
+    const visibleActors = (scene.actors || []).filter((actor) =>
+      actor.id > 0 && actor.health > 0
+    );
+    for (const actor of visibleActors) {
       const headHeight = actor.kind === 2 ? 16 : 20;
       const projection = sceneRenderer?.projectWorld?.(
         scene, actor.x, actor.y + headHeight, actor.z,
@@ -1665,12 +1750,10 @@
       const dzCamera = actor.z - (scene.camera?.z ?? scene.playerZ - 16);
       if (dxCamera * dxCamera + dyCamera * dyCamera +
           dzCamera * dzCamera > 180 * 180) continue;
-      // Tags are target cues, not persistent overhead clutter.
-      if (Math.abs(projection.x - 0.5) > 0.09 ||
-          Math.abs(projection.y - 0.5) > 0.16) continue;
       const element = document.createElement("span");
       element.className = "kookie-scene-label";
-      element.textContent = SCENE_LABEL_TEXT[label.textId] || "ACTOR";
+      element.textContent = (actor.kind === 2 ? "CAT"
+        : actor.kind === 3 ? "DUMMY" : "GOOSE") + " #" + actor.id;
       element.setAttribute("aria-label", element.textContent);
       element.style.cssText = [
         "position:absolute;transform:translate(-50%,-100%)",
@@ -1684,10 +1767,11 @@
       labelOverlay.appendChild(element);
     }
     const localName = clientSettings.playerName.trim();
-    const localActor = (scene.actors || []).find((actor) =>
-      actor.id === scene.playerId && actor.health > 0
+    const localActor = visibleActors.find((actor) =>
+      actor.id === scene.playerId
     );
-    if (!localName || scene.playerId <= 0 || !localActor) return;
+    if (spectatorFollowActive || !localName ||
+        scene.playerId <= 0 || !localActor) return;
     const headHeight = localActor.kind === 2 ? 16 : 20;
     const projection = sceneRenderer?.projectWorld?.(
       scene, localActor.x, localActor.y + headHeight, localActor.z,
@@ -2112,13 +2196,60 @@
       beginLocalMovementBlend(displayed.playerX, displayed.playerZ, 90, now);
     }
     updateScene(displayed);
+    updateSpectatorCameraControls();
     updateDamageNumbers(displayed, now);
   }
   function updateSpectatorCamera(now) {
     const deltaSeconds = lastSpectatorCameraUpdateAt === 0 ? 0
       : Math.min(0.05, Math.max(0, (now - lastSpectatorCameraUpdateAt) / 1000));
     lastSpectatorCameraUpdateAt = now;
-    const yaw = (spectatorCameraHome.yaw + spectatorLookYawOffset) * Math.PI / 180;
+    const followActor = spectatorFollowActive
+      ? sceneState.actors.find((actor) =>
+        actor.id === spectatorFollowTargetId && actor.health > 0)
+      : null;
+    if (spectatorFollowActive && !followActor) {
+      spectatorFollowActive = false;
+      spectatorFollowTargetId = 0;
+      updateSpectatorCameraControls();
+    }
+    const target = followActor
+      ? sampleRemoteActor(followActor.id, now - remoteRenderDelayMs, 0) ||
+        followActor
+      : null;
+    const desiredYaw = target
+      ? (target.yaw + spectatorLookYawOffset + 360) % 360
+      : (spectatorCameraHome.yaw + spectatorLookYawOffset + 360) % 360;
+    const desiredPitch = target
+      ? Math.max(-80, Math.min(80, -12 + spectatorLookPitchOffset))
+      : Math.max(-80, Math.min(80,
+        spectatorCameraHome.pitch + spectatorLookPitchOffset));
+    const blend = 1 - Math.exp(-deltaSeconds / 0.14);
+    const yawDelta = ((desiredYaw - spectatorCameraYaw + 540) % 360) - 180;
+    spectatorCameraYaw =
+      (spectatorCameraYaw + yawDelta * blend + 360) % 360;
+    spectatorCameraPitch += (desiredPitch - spectatorCameraPitch) * blend;
+    if (target) {
+      const yaw = target.yaw * Math.PI / 180;
+      const desiredPosition = {
+        x: target.x - Math.sin(yaw) * 18,
+        y: target.y + 9,
+        z: target.z - Math.cos(yaw) * 18,
+      };
+      spectatorCameraPosition.x +=
+        (desiredPosition.x - spectatorCameraPosition.x) * blend;
+      spectatorCameraPosition.y +=
+        (desiredPosition.y - spectatorCameraPosition.y) * blend;
+      spectatorCameraPosition.z +=
+        (desiredPosition.z - spectatorCameraPosition.z) * blend;
+      spectatorCameraPosition.x = Math.max(GAME_WORLD_MINIMUM_X,
+        Math.min(GAME_WORLD_MAXIMUM_X, spectatorCameraPosition.x));
+      spectatorCameraPosition.z = Math.max(GAME_WORLD_MINIMUM_Z,
+        Math.min(GAME_WORLD_MAXIMUM_Z, spectatorCameraPosition.z));
+      spectatorCameraPosition.y = Math.max(2,
+        Math.min(GAME_WORLD_MAXIMUM_Y + 20, spectatorCameraPosition.y));
+      return;
+    }
+    const yaw = spectatorCameraYaw * Math.PI / 180;
     let forward = spectatorMoveZ / GAME_MAXIMUM_INPUT_AXIS;
     let strafe = spectatorMoveX / GAME_MAXIMUM_INPUT_AXIS;
     const horizontalMagnitude = Math.hypot(forward, strafe);
@@ -2170,9 +2301,11 @@
     }
     lastLocalHitSceneTick = scene.tick;
     const impacts = scene.impacts || [];
+    const feedbackTargetId = spectatorFollowActive
+      ? spectatorFollowTargetId : scene.playerId;
     if (!localHitFeedbackReady) {
       for (const impact of impacts) {
-        if (impact.targetId === scene.playerId && impact.damage > 0) {
+        if (impact.targetId === feedbackTargetId && impact.damage > 0) {
           rememberLocalHitImpact([impact.sequence, impact.sourceId,
             impact.targetId, impact.kind, impact.x, impact.y, impact.z,
             impact.damage].join(":"));
@@ -2181,10 +2314,10 @@
       localHitFeedbackReady = true;
       return;
     }
-    if (!(scene.playerId > 0)) return;
-    const player = scene.actors.find((actor) => actor.id === scene.playerId);
+    if (!(feedbackTargetId > 0)) return;
+    const player = scene.actors.find((actor) => actor.id === feedbackTargetId);
     for (const impact of impacts) {
-      if (impact.targetId !== scene.playerId || impact.damage <= 0) continue;
+      if (impact.targetId !== feedbackTargetId || impact.damage <= 0) continue;
       const key = [impact.sequence, impact.sourceId, impact.targetId,
         impact.kind, impact.x, impact.y, impact.z, impact.damage].join(":");
       if (seenLocalHitImpactKeys.has(key)) continue;
@@ -2198,7 +2331,8 @@
         const directionZ = source.z - playerZ;
         if (Math.hypot(directionX, directionZ) > 0.01) {
           directionAngle = Math.atan2(directionX, directionZ) -
-            (Number.isFinite(scene.yaw) ? scene.yaw : 0) * Math.PI / 180;
+            (Number.isFinite(scene.camera?.yaw) ? scene.camera.yaw : scene.yaw)
+              * Math.PI / 180;
         }
       }
       localHitFeedback = { startedAt: now, directionAngle };
@@ -2372,15 +2506,38 @@
     const position = currentLocalRenderPosition(now);
     renderSceneState.playerX = position.x;
     renderSceneState.playerZ = position.z;
+    updateRemoteRenderActors(now);
     if (joinedRole === GAME_ROLE_SPECTATOR) {
       updateSpectatorCamera(now);
-      renderSceneState.camera.x = spectatorCameraPosition.x;
-      renderSceneState.camera.y = spectatorCameraPosition.y;
-      renderSceneState.camera.z = spectatorCameraPosition.z;
-      renderSceneState.camera.yaw =
-        (spectatorCameraHome.yaw + spectatorLookYawOffset + 360) % 360;
-      renderSceneState.camera.pitch = Math.max(-80, Math.min(80,
-        spectatorCameraHome.pitch + spectatorLookPitchOffset));
+      const followedActor = spectatorFollowActive
+        ? renderSceneState.actors.find((actor) =>
+          actor.id === spectatorFollowTargetId && actor.health > 0)
+        : null;
+      if (followedActor) {
+        renderSceneState.playerId = followedActor.id;
+        renderSceneState.playerX = followedActor.x;
+        renderSceneState.playerY = followedActor.y;
+        renderSceneState.playerZ = followedActor.z;
+        renderSceneState.yaw = followedActor.yaw;
+        renderSceneState.pitch = followedActor.pitch || 0;
+        const yaw = followedActor.yaw * Math.PI / 180;
+        renderSceneState.camera = {
+          x: followedActor.x - Math.sin(yaw) * 16,
+          y: followedActor.y + 8,
+          z: followedActor.z - Math.cos(yaw) * 16,
+          yaw: followedActor.yaw,
+          pitch: followedActor.pitch || 0,
+        };
+        renderSceneState.spectatorFollow = true;
+      } else {
+        renderSceneState.playerId = 0;
+        renderSceneState.spectatorFollow = false;
+        renderSceneState.camera.x = spectatorCameraPosition.x;
+        renderSceneState.camera.y = spectatorCameraPosition.y;
+        renderSceneState.camera.z = spectatorCameraPosition.z;
+        renderSceneState.camera.yaw = spectatorCameraYaw;
+        renderSceneState.camera.pitch = spectatorCameraPitch;
+      }
     }
     updateThrowableHud(renderSceneState);
     renderSceneState.throwPreview = buildThrowPreview(renderSceneState);
@@ -2388,7 +2545,7 @@
       renderSceneState.camera.x += position.x - sceneState.playerX;
       renderSceneState.camera.z += position.z - sceneState.playerZ;
     }
-    updateRemoteRenderActors(now);
+    updateProjectedLabels(renderSceneState);
     updateHitFeedbackOverlay(now);
     try {
       sceneRenderer.render(renderSceneState, time);
@@ -2979,8 +3136,75 @@
     return (kind !== 3 && kind !== 5 || animal === 1) &&
       (kind !== 6 || animal === 2);
   }
+  function botSceneData(words) {
+    const trailer = 18 + words[17] * 8;
+    if (words.length === 19 + words[17] * 8) {
+      return {
+        projectiles: [], pickup: null, carriesThrowable: false,
+        chargeTicks: 0, carryType: 0, seedAmmo: 0,
+      };
+    }
+    let cursor = trailer + 4;
+    const projectileCount = words[trailer + 1];
+    const throwableCount = words[trailer + 2];
+    const impactCount = words[trailer + 3];
+    const projectiles = [];
+    for (let index = 0; index < projectileCount; index += 1, cursor += 8) {
+      projectiles.push({
+        targetId: words[cursor + 2], x: words[cursor + 3],
+        y: words[cursor + 4], z: words[cursor + 5],
+      });
+    }
+    cursor += throwableCount * 8 + impactCount * 8;
+    let suffixLength = words.length - cursor - 1;
+    const sliceCount = words[cursor + 9];
+    const hasNewSuffix = suffixLength >= 10 && suffixLength <= 33 &&
+      Number.isInteger(sliceCount) && sliceCount >= 0 && sliceCount <= 4 &&
+      (suffixLength === 10 + sliceCount * 4 ||
+        suffixLength === 16 + sliceCount * 4 ||
+        suffixLength === 17 + sliceCount * 4);
+    const isKnownSuffixLength = (length) => length === 0 || length === 6 ||
+      (length >= 10 && length <= 33 &&
+        ((length - 10) % 4 === 0 || (length >= 16 && (length - 16) % 4 === 0) ||
+          (length >= 17 && (length - 17) % 4 === 0)));
+    const hasOxygen = !hasNewSuffix && !isKnownSuffixLength(suffixLength) &&
+      isKnownSuffixLength(suffixLength - words[17]);
+    if (hasOxygen) {
+      cursor += words[17];
+      suffixLength -= words[17];
+    }
+    if (suffixLength === 6) {
+      return {
+        projectiles,
+        pickup: words[cursor] === 1
+          ? { x: words[cursor + 1], y: words[cursor + 2],
+            z: words[cursor + 3], type: 0 }
+          : null,
+        carriesThrowable: words[cursor + 4] === 1,
+        chargeTicks: words[cursor + 5],
+        carryType: 0,
+        seedAmmo: 0,
+      };
+    }
+    if (suffixLength < 10) {
+      return {
+        projectiles, pickup: null, carriesThrowable: false,
+        chargeTicks: 0, carryType: 0, seedAmmo: 0,
+      };
+    }
+    return {
+      projectiles,
+      pickup: words[cursor] === 1
+        ? { x: words[cursor + 1], y: words[cursor + 2],
+          z: words[cursor + 3], type: words[cursor + 4] }
+        : null,
+      carriesThrowable: words[cursor + 5] === 1,
+      chargeTicks: words[cursor + 6],
+      carryType: words[cursor + 7],
+      seedAmmo: words[cursor + 8],
+    };
+  }
   function nearestBotPowerup(bot, own, now) {
-    if (Math.floor(own[5] / 8) % 16 !== 0) return null;
     let nearest = null;
     let nearestDistance = Infinity;
     for (let index = 0; index < (botPowerupWaypoints?.length || 0); index += 1) {
@@ -2989,35 +3213,48 @@
           (bot.triedPickups.has(index) && now < bot.triedPickups.get(index))) {
         continue;
       }
-      const distance = Math.abs(pickup.x - own[1]) +
-        Math.abs(pickup.y - own[2]) + Math.abs(pickup.z - own[3]);
+      const distance = Math.hypot(
+        pickup.x - own[1], pickup.y - own[2], pickup.z - own[3]
+      );
       if (distance < nearestDistance) {
         nearest = { ...pickup, index };
         nearestDistance = distance;
       }
     }
-    return nearest;
+    return nearest ? { ...nearest, distance: nearestDistance } : null;
   }
   function botMoveToward(dx, dz, distance) {
     if (distance <= 1) return { x: 0, z: 0 };
     return { x: Math.round(dx * 1000 / distance), z: Math.round(dz * 1000 / distance) };
   }
+  function botAvoidProjectile(bot, own, projectiles) {
+    for (const projectile of projectiles) {
+      if (projectile.targetId !== bot.playerId) continue;
+      const dx = projectile.x - own[1];
+      const dy = projectile.y - own[2];
+      const dz = projectile.z - own[3];
+      if (dx * dx + dy * dy + dz * dz > 30 * 30) continue;
+      const horizontal = Math.hypot(dx, dz) || 1;
+      return { x: Math.round(dz * 1000 / horizontal),
+        z: Math.round(-dx * 1000 / horizontal) };
+    }
+    return null;
+  }
   function botPickupMovement(bot, own, now) {
     const pickup = nearestBotPowerup(bot, own, now);
     if (!pickup) return null;
-    const dx = pickup.x - own[1];
-    const dz = pickup.z - own[3];
-    const distance = Math.hypot(dx, dz);
-    if (distance <= 4 && Math.abs(pickup.y - own[2]) <= 5) {
+    if (pickup.distance <= 4 && Math.abs(pickup.y - own[2]) <= 5) {
       bot.triedPickups.set(pickup.index, now + 30000);
       return null;
     }
-    return { ...botMoveToward(dx, dz, distance), distance, pickup };
+    return { ...botMoveToward(pickup.x - own[1], pickup.z - own[3],
+      pickup.distance), distance: pickup.distance, pickup };
   }
   function botShouldJump(bot, own, target, distance, now) {
     if (now < bot.nextJumpAt) return false;
-    if (Math.abs(target[2] - own[2]) > 3 || distance < 18) {
-      bot.nextJumpAt = now + 1600 + bot.index * 70;
+    if (Math.abs(target[2] - own[2]) > 3 || distance < 18 ||
+        (own[5] & 1) !== 0) {
+      bot.nextJumpAt = now + 1200 + bot.index * 110;
       return true;
     }
     return false;
@@ -3048,9 +3285,11 @@
       animal, team, index, sequence: 0, joinSequence: 0, playerId: 0,
       joined: false, scene: null, socket: null, nextShotAt: 0,
       nextBurstAt: Date.now() + 300, nextMeleeAt: 0, nextSpecialAt: 0,
-      nextThrowableAt: 0, nextJumpAt: 0, burstAction: ACTION_DASH,
-      openingRollSent: false,
+      nextJumpAt: 0, burstAction: ACTION_DASH,
+      openingRollSent: false, throwPhase: 0, throwPhaseAt: 0,
       triedPickups: new Map(), intentionalClose: false,
+      wanderTarget: null, nextWanderAt: 0, previousX: 0, previousZ: 0,
+      lastProgressAt: Date.now(), evasiveUntil: 0,
     };
     browserBattleBots.push(bot);
     return new Promise((resolve, reject) => {
@@ -3131,7 +3370,8 @@
   }
   function updateBrowserBattleBot(bot, now) {
     const words = bot.scene;
-    if (!bot.joined || !words || words[3] !== GAME_MULTIPLAYER_SNAPSHOT_MARKER) return;
+    if (!bot.joined || !words ||
+        words[3] !== GAME_MULTIPLAYER_SNAPSHOT_MARKER) return;
     const actors = [];
     let own = null;
     let redAlive = 0;
@@ -3155,75 +3395,176 @@
       browserBattleLastReportAt = now;
     }
     if (!own || own[4] <= 0) return;
+    const scene = botSceneData(words);
+    const activePowerup = Math.floor(own[5] / 8) % 16;
     let target = null;
-    let nearest = Infinity;
+    let targetScore = Infinity;
     for (const actor of actors) {
       if (actor[4] <= 0 || actor[6] === bot.team) continue;
-      const distance = Math.abs(actor[1] - own[1]) +
-        Math.abs(actor[2] - own[2]) + Math.abs(actor[3] - own[3]);
-      if (distance < nearest) {
-        nearest = distance;
+      const dx = actor[1] - own[1];
+      const dy = actor[2] - own[2];
+      const dz = actor[3] - own[3];
+      const distance = Math.hypot(dx, dy, dz);
+      const score = distance - Math.min(20, (300 - actor[4]) * 0.08);
+      if (score < targetScore) {
         target = actor;
+        targetScore = score;
       }
     }
-    if (!target) return;
-    const enemyDx = target[1] - own[1];
-    const enemyDy = target[2] - own[2];
-    const enemyDz = target[3] - own[3];
-    const enemyDistance = Math.max(1, Math.hypot(enemyDx, enemyDz));
-    const desiredYaw = Math.round(Math.atan2(enemyDx, enemyDz) * 180 / Math.PI);
-    const yawDelta = ((desiredYaw - own[7] + 540) % 360) - 180;
-    const pickupMovement = botPickupMovement(bot, own, now);
-    const movement = pickupMovement && pickupMovement.distance < enemyDistance * 1.4
-      ? pickupMovement : botMoveToward(enemyDx, enemyDz, enemyDistance);
-    if (!bot.openingRollSent) {
-      if (sendBrowserBotFrame(bot, GAME, [
-        GAME_INPUT_MARKER, words[4], movement.x, movement.z,
-        Math.max(-1800, Math.min(1800, yawDelta * 10)),
-        Math.max(-1800, Math.min(1800, -enemyDy * 10)), 0, ACTION_ROLL,
-      ])) {
-        bot.openingRollSent = true;
-        bot.nextBurstAt = now + 150;
-      }
-      return;
+    if (Math.hypot(own[1] - bot.previousX, own[3] - bot.previousZ) > 1) {
+      bot.previousX = own[1];
+      bot.previousZ = own[3];
+      bot.lastProgressAt = now;
+    } else if (now - bot.lastProgressAt > 1200) {
+      bot.evasiveUntil = now + 800;
+      bot.lastProgressAt = now;
     }
-    const close = enemyDistance <= 8;
-    const combatDistance = Math.abs(enemyDx) + Math.abs(enemyDy) + Math.abs(enemyDz);
-    const activePowerup = Math.floor(own[5] / 8) % 16;
+    let moveX = 0;
+    let moveZ = 0;
+    let targetDistance = Infinity;
+    let combatDistance = Infinity;
+    let enemyDx = 0;
+    let enemyDy = 0;
+    let enemyDz = 0;
+    if (target) {
+      enemyDx = target[1] - own[1];
+      enemyDy = target[2] - own[2];
+      enemyDz = target[3] - own[3];
+      targetDistance = Math.hypot(enemyDx, enemyDz);
+      combatDistance = Math.abs(enemyDx) + Math.abs(enemyDy) + Math.abs(enemyDz);
+      const rangeError = targetDistance > 24
+        ? targetDistance - 18 : targetDistance < 11 ? -10 : 0;
+      const approach = botMoveToward(enemyDx, enemyDz, targetDistance);
+      const strafeDirection = (bot.index + Math.floor(now / 1800)) % 2 ? 1 : -1;
+      const strafe = { x: -approach.z * strafeDirection,
+        z: approach.x * strafeDirection };
+      const retreating = targetDistance < 11;
+      const stride = rangeError > 0
+        ? botMoveToward(enemyDx, enemyDz, targetDistance)
+        : retreating ? botMoveToward(-enemyDx, -enemyDz, targetDistance)
+          : { x: 0, z: 0 };
+      moveX = Math.round(stride.x * 0.72 + strafe.x * 0.55);
+      moveZ = Math.round(stride.z * 0.72 + strafe.z * 0.55);
+    } else {
+      if (!bot.wanderTarget || now >= bot.nextWanderAt ||
+          Math.hypot(bot.wanderTarget.x - own[1],
+            bot.wanderTarget.z - own[3]) < 10) {
+        const phase = (now / 1000 + bot.index * 2.4 + bot.team * 3) % 6.28;
+        bot.wanderTarget = {
+          x: 36 + ((bot.index * 67 + Math.floor(now / 4000) * 43) % 250),
+          z: 30 + ((Math.round((Math.sin(phase) + 1) * 112) +
+            bot.index * 29) % 218),
+        };
+        bot.nextWanderAt = now + 2400 + bot.index * 180;
+      }
+      const wander = botMoveToward(bot.wanderTarget.x - own[1],
+        bot.wanderTarget.z - own[3],
+        Math.hypot(bot.wanderTarget.x - own[1],
+          bot.wanderTarget.z - own[3]));
+      moveX = wander.x;
+      moveZ = wander.z;
+    }
+    const powerupMovement = activePowerup === 0
+      ? botPickupMovement(bot, own, now) : null;
+    if (powerupMovement &&
+        (!target || powerupMovement.distance < targetDistance * 1.35)) {
+      moveX = powerupMovement.x;
+      moveZ = powerupMovement.z;
+    }
+    const carrying = scene.carriesThrowable;
+    if (bot.throwPhase === 4 && !carrying) bot.throwPhase = 0;
+    if (bot.throwPhase === 1) {
+      if (carrying) bot.throwPhase = 2;
+      else if (now - bot.throwPhaseAt > 500) bot.throwPhase = 0;
+    }
+    if (bot.throwPhase === 3 && scene.chargeTicks >= 18) {
+      bot.throwPhase = 4;
+      bot.throwPhaseAt = now;
+    }
+    if (!carrying && bot.throwPhase !== 1) bot.throwPhase = 0;
+    if (scene.pickup && !carrying && bot.throwPhase === 0) {
+      const dx = scene.pickup.x - own[1];
+      const dz = scene.pickup.z - own[3];
+      const distance = Math.hypot(dx, dz);
+      if (distance > 5 && (!target || targetDistance > 10)) {
+        const itemRoute = botMoveToward(dx, dz, distance);
+        moveX = itemRoute.x;
+        moveZ = itemRoute.z;
+      }
+    }
+    const boundaryPushX = own[1] < 18 ? 1 : own[1] > 302 ? -1 : 0;
+    const boundaryPushZ = own[3] < 18 ? 1 : own[3] > 262 ? -1 : 0;
+    moveX = Math.max(-1000, Math.min(1000, moveX + boundaryPushX * 700));
+    moveZ = Math.max(-1000, Math.min(1000, moveZ + boundaryPushZ * 700));
+    const evasion = botAvoidProjectile(bot, own, scene.projectiles);
+    if (evasion) {
+      moveX = evasion.x;
+      moveZ = evasion.z;
+      bot.evasiveUntil = now + 500;
+    } else if (now < bot.evasiveUntil && !target) {
+      moveX = Math.max(-1000, Math.min(1000, moveX + 500));
+    }
+    const moveMagnitude = Math.hypot(moveX, moveZ);
+    if (moveMagnitude > 1000) {
+      moveX = Math.round(moveX * 1000 / moveMagnitude);
+      moveZ = Math.round(moveZ * 1000 / moveMagnitude);
+    }
+    let yawDelta = 0;
+    if (target) {
+      const desiredYaw = Math.round(Math.atan2(enemyDx, enemyDz) * 180 / Math.PI);
+      yawDelta = ((desiredYaw - own[7] + 540) % 360) - 180;
+    } else if (moveMagnitude > 50) {
+      const desiredYaw = Math.round(Math.atan2(moveX, moveZ) * 180 / Math.PI);
+      yawDelta = ((desiredYaw - own[7] + 540) % 360) - 180;
+    }
     let held = 0;
     let edge = 0;
-    if (now >= bot.nextShotAt && combatDistance <= 120) {
+    if (target && now >= bot.nextShotAt && combatDistance <= 150) {
       held |= ACTION_SHOOT;
-      bot.nextShotAt = now + (combatDistance <= 12 ? 600 : 2000);
+      bot.nextShotAt = now + (combatDistance <= 14 ? 550 : 1250);
     }
-    if (combatDistance <= 5 && now >= bot.nextMeleeAt) {
+    if (target && combatDistance <= 6 && now >= bot.nextMeleeAt) {
       edge |= ACTION_MELEE;
-      bot.nextMeleeAt = now + 450;
+      bot.nextMeleeAt = now + 360;
     }
-    if (combatDistance <= 12 && now >= bot.nextSpecialAt) {
+    if (target && now >= bot.nextSpecialAt &&
+        (combatDistance <= 24 || activePowerup === 8 || activePowerup === 3)) {
       edge |= ACTION_SPECIAL;
-      bot.nextSpecialAt = now + (activePowerup === 5 ? 1800 : 1100);
-    } else if (enemyDistance <= 20 && now >= bot.nextThrowableAt) {
-      edge |= ACTION_THROWABLE;
-      bot.nextThrowableAt = now + 2200;
+      bot.nextSpecialAt = now + (activePowerup === 8 ? 650 : 1000);
     }
     if (now >= bot.nextBurstAt) {
-      edge |= bot.burstAction;
+      edge |= evasion ? ACTION_ROLL : bot.burstAction;
       bot.burstAction = bot.burstAction === ACTION_DASH ? ACTION_ROLL : ACTION_DASH;
-      bot.nextBurstAt = now + 700 + bot.index * 50;
+      bot.nextBurstAt = now + (evasion ? 360 : 850 + bot.index * 70);
     }
-    if (botShouldJump(bot, own, target, enemyDistance, now)) {
+    if (target && botShouldJump(bot, own, target, targetDistance, now)) {
       edge |= ACTION_JUMP;
     }
-    if (enemyDy > 3 || own[2] > 3 || enemyDistance < 18) {
-      held |= bot.animal === 1 ? ACTION_FLY : ACTION_GLIDE;
-    }
-    if (bot.animal === 1 && activePowerup === 2 && enemyDistance > 12) {
+    const airborne = (own[5] & 1) === 0 && own[2] > 1;
+    if (bot.animal === 1 &&
+        (airborne || enemyDy > 3 || activePowerup === 2 && targetDistance > 12)) {
       held |= ACTION_FLY;
+    } else if (bot.animal === 2 && (airborne || enemyDy > 3)) {
+      held |= ACTION_GLIDE;
+    }
+    if (carrying && bot.throwPhase === 2) {
+      bot.throwPhase = 3;
+      bot.throwPhaseAt = now;
+    } else if (carrying && bot.throwPhase === 3) {
+      held |= ACTION_THROWABLE;
+    } else if (!carrying && scene.pickup && bot.throwPhase === 0) {
+      const dx = scene.pickup.x - own[1];
+      const dy = scene.pickup.y - own[2];
+      const dz = scene.pickup.z - own[3];
+      if (dx * dx + dy * dy + dz * dz <= 36) {
+        held |= ACTION_THROWABLE;
+        bot.throwPhase = 1;
+        bot.throwPhaseAt = now;
+      }
     }
     sendBrowserBotFrame(bot, GAME, [
       GAME_INPUT_MARKER, words[4],
-      movement.x, movement.z,
+      moveX, moveZ,
       Math.max(-1800, Math.min(1800, yawDelta * 10)),
       Math.max(-1800, Math.min(1800, -enemyDy * 10)), held, edge,
     ]);
@@ -3829,6 +4170,8 @@
     pingSentTimes.clear();
     pendingMovement.clear();
     pendingInputFrames.clear();
+    spectatorFollowActive = false;
+    spectatorFollowTargetId = 0;
     lastSnapshotSequence = 0;
     spectatorMoveX = 0;
     spectatorMoveZ = 0;
@@ -3919,6 +4262,10 @@
         : roleSelect.value === "admin" ? GAME_ROLE_ADMIN
         : GAME_ROLE_PLAYER;
       if (!isReconnect) {
+        spectatorFollowActive = false;
+        spectatorFollowTargetId = 0;
+        spectatorCameraYaw = spectatorCameraHome.yaw;
+        spectatorCameraPitch = spectatorCameraHome.pitch;
         spectatorLookYawOffset = 0;
         spectatorLookPitchOffset = 0;
         spectatorCameraPosition = { ...spectatorCameraHome };

@@ -3,6 +3,19 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Following a player as a spectator now uses the same behind-player camera
+  smoothing and zoom as gameplay. Follow view removes overhead hearts, labels
+  visible cats, geese, and dummies by type and server ID, and replays the
+  followed player's red damage flash, direction cue, and brief camera trauma.
+- Browser and CLI battle bots now seek active pickups and powerups, orbit or
+  retreat around opponents, steer away from arena edges, evade targeted
+  projectiles with roll/dash, and use the full movement and combat action set.
+  Throwable pickup/charge/release is corrected; the 4v4 smoke verifies a
+  throwable actually launches.
+- Spectators can cycle through living players and smoothly follow them with a
+  third-person camera, or return to free camera. The controls also fit mobile
+  touch targets.
+
 - Local WebGL movement now predicts the server's short-horizon horizontal
   acceleration and braking between snapshots, then yields back to authoritative
   position updates. Collision and special-movement corrections remain server

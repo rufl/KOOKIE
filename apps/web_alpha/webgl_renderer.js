@@ -1597,6 +1597,7 @@
     const seenHitImpactKeys = new Set();
     const hitImpactKeyOrder = [];
     const actorAnimationStarts = new Map();
+    let cameraTraumaStartedAt = -Infinity;
     const rollDurationMs = 12 * (1000 / 60);
 
     function emitMovementSmoke(actor, time, scale) {
@@ -1667,6 +1668,7 @@
           }
         }
         if (!target || !Number.isInteger(target.id)) continue;
+        if (target.id === scene.playerId) cameraTraumaStartedAt = time;
         if (target.id !== scene.playerId) {
           actorHitFlashStarts.set(target.id, time);
         }
@@ -1805,9 +1807,15 @@
       updateActorHitFlinches(scene, time);
       if (contextLost || (typeof gl.isContextLost === "function" && gl.isContextLost())) return;
       resize();
-      const targetCamera = cameraTargetForScene(scene);
+      const camera = { ...smoothCamera(targetCamera, time, scene) };
+      const traumaElapsed = time - cameraTraumaStartedAt;
+      if (scene.playerId > 0 && traumaElapsed >= 0 && traumaElapsed < 260) {
+        const strength = (1 - traumaElapsed / 260) * 0.42;
+        camera.x += Math.sin(time * 0.071) * strength;
+        camera.y += Math.cos(time * 0.083) * strength * 0.55;
+        camera.z += Math.sin(time * 0.097) * strength;
+      }
       playerCameraActive = scene.playerId > 0;
-      const camera = smoothCamera(targetCamera, time, scene);
       const yaw = (camera.yaw || 0) * Math.PI / 180;
       const pitch = (camera.pitch || 0) * Math.PI / 180;
       const direction = [
@@ -2127,6 +2135,7 @@
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.depthMask(false);
         for (const actor of actors) {
+          if (scene.spectatorFollow === true) break;
           if (actor.health <= 0 || actor.id === scene.playerId) continue;
           const flinchOffset = actorHitFlinchOffset(actor.id, time);
           const health = Math.max(0, Math.min(100, actor.health));
