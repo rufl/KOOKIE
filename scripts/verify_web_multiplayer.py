@@ -979,8 +979,8 @@ def main():
         collision_mover_state = actor_record(
             collision_scene, collision_mover.player_id)
         alive_targets = [
-            client for client in players
-            if client.player_id != collision_mover.player_id and
+            client for index, client in enumerate(players)
+            if index >= 2 and
             actor_record(collision_scene, client.player_id)[4] > 0
         ]
         collision_target = min(
@@ -1020,7 +1020,10 @@ def main():
             collision_target_state[3] - collision_mover_state[3],
         )))
         yaw_delta = (desired_yaw - collision_mover_state[7] + 180) % 360 - 180
-        collision_mover.input(look_yaw=yaw_delta * 10, edge=64)
+        melee_sequence = collision_mover.input(
+            look_yaw=yaw_delta * 10, edge=64)
+        melee_ack = wait_for_input_ack(collision_mover, melee_sequence)
+        assert input_acknowledgement(melee_ack) >= melee_sequence
         _, melee_target = wait_for_actor(
             spectators[0], 8, 4, collision_target.player_id,
             lambda state, snapshot: state[4] < target_health)
