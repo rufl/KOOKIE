@@ -3,6 +3,11 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Bots da CLI e do navegador agora mantêm uma órbita variável ao redor dos
+  adversários, em vez de avançar em linha reta ou circular sempre na mesma
+  direção; rolamentos/dashes têm intervalos maiores e o salto duplo continua
+  ativo. Um smoke 4x4 ao vivo confirmou movimento, dano, coleta de power-ups e
+  uso de salto, rolamento e dash.
 - Corrigida a falha de renderização do espectador por `targetCamera is not
   defined`; o renderer WebGL agora inicializa a câmera da cena antes de aplicar
   suavização e trauma de impacto.

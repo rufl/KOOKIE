@@ -3,6 +3,10 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- CLI and browser bots now maintain a changing orbit around opponents instead
+  of charging straight in or strafing in one direction; roll/dash bursts are
+  spaced out, and double-jump remains part of their movement. A live 4v4 smoke
+  confirmed movement, damage, powerup pickups, and jump/roll/dash actions.
 - Fixed spectator rendering failing with `targetCamera is not defined`; the
   WebGL renderer now initializes the scene camera before applying smoothing
   and hit trauma.

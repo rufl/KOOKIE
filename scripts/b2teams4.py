@@ -201,6 +201,7 @@ def run_battle(port, duration=None, log_path=None,
                         if carrying:
                             throwable_carry_observed[0] = True
                         move_dx, move_dz = dx, dz
+                        pickup = None
                         if active_powerup == 0:
                             pickup = min(
                                 ((math.dist((item["x"], item["y"], item["z"]),
@@ -229,12 +230,19 @@ def run_battle(port, duration=None, log_path=None,
                                 move_dx, move_dz = pz - me[3], me[1] - px
                                 dodging = True
                                 break
-                        if not dodging and distance <= 24:
-                            if distance < 11:
-                                move_dx, move_dz = -dx, -dz
-                            else:
-                                side = -1 if client.player_id % 2 else 1
-                                move_dx, move_dz = -dz * side, dx * side
+                        chasing_powerup = pickup is not None and \
+                            pickup_distance < distance * 1.35
+                        if not dodging and not chasing_powerup:
+                            orbit_side = -1 if (
+                                int(now // 6) + client.player_id) % 2 else 1
+                            radial = 1 if distance > 20 else \
+                                -.85 if distance < 12 else .18
+                            tangent = .32 if distance > 24 else \
+                                .82 if distance >= 12 else .58
+                            move_dx = dx / distance * radial - \
+                                dz / distance * tangent * orbit_side
+                            move_dz = dz / distance * radial + \
+                                dx / distance * tangent * orbit_side
                         if pickup_active and throwable_phase == 0 and distance > 10:
                             move_dx, move_dz = pickup_x - me[1], pickup_z - me[3]
                         move_dx += (16 - me[1]) * 1.2 if me[1] < 16 else \
@@ -252,7 +260,7 @@ def run_battle(port, duration=None, log_path=None,
                                 ("roll", "dash"))
                             action_usage.update(("roll", "dash"))
                             opening_roll = False
-                            next_burst = now + .05
+                            next_burst = now + 1.15
                             continue
                         held = 0
                         edge = ACTION_ROLL if dodging else 0
@@ -275,7 +283,7 @@ def run_battle(port, duration=None, log_path=None,
                             edge |= burst_action
                             burst_action = (ACTION_ROLL if burst_action == ACTION_DASH
                                             else ACTION_DASH)
-                            next_burst = now + .7 + (client.player_id % 4) * .05
+                            next_burst = now + 1.15 + (client.player_id % 5) * .13
                         grounded = (me[5] & 1) != 0
                         if double_jump_due is not None:
                             if not grounded:

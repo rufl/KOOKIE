@@ -3435,16 +3435,21 @@
       const rangeError = targetDistance > 24
         ? targetDistance - 18 : targetDistance < 11 ? -10 : 0;
       const approach = botMoveToward(enemyDx, enemyDz, targetDistance);
-      const strafeDirection = (bot.index + Math.floor(now / 1800)) % 2 ? 1 : -1;
-      const strafe = { x: -approach.z * strafeDirection,
-        z: approach.x * strafeDirection };
-      const retreating = targetDistance < 11;
-      const stride = rangeError > 0
-        ? botMoveToward(enemyDx, enemyDz, targetDistance)
-        : retreating ? botMoveToward(-enemyDx, -enemyDz, targetDistance)
+      const orbitDirection = (bot.index + Math.floor(now / 6000)) % 2 ? 1 : -1;
+      const tangent = {
+        x: -approach.z * orbitDirection,
+        z: approach.x * orbitDirection,
+      };
+      const radial = rangeError > 0
+        ? approach : targetDistance < 11
+          ? botMoveToward(-enemyDx, -enemyDz, targetDistance)
           : { x: 0, z: 0 };
-      moveX = Math.round(stride.x * 0.72 + strafe.x * 0.55);
-      moveZ = Math.round(stride.z * 0.72 + strafe.z * 0.55);
+      const radialWeight = rangeError > 0
+        ? targetDistance > 24 ? 1 : 0.45 : targetDistance < 11 ? 0.85 : 0.18;
+      const tangentWeight = targetDistance > 24 ? 0.32
+        : targetDistance < 11 ? 0.58 : 0.82;
+      moveX = Math.round(radial.x * radialWeight + tangent.x * tangentWeight);
+      moveZ = Math.round(radial.z * radialWeight + tangent.z * tangentWeight);
     } else {
       if (!bot.wanderTarget || now >= bot.nextWanderAt ||
           Math.hypot(bot.wanderTarget.x - own[1],
@@ -3535,7 +3540,7 @@
     if (now >= bot.nextBurstAt) {
       edge |= evasion ? ACTION_ROLL : bot.burstAction;
       bot.burstAction = bot.burstAction === ACTION_DASH ? ACTION_ROLL : ACTION_DASH;
-      bot.nextBurstAt = now + (evasion ? 360 : 850 + bot.index * 70);
+      bot.nextBurstAt = now + (evasion ? 360 : 1100 + bot.index * 90);
     }
     if (target && botShouldJump(bot, own, target, targetDistance, now)) {
       edge |= ACTION_JUMP;
