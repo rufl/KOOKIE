@@ -3,6 +3,13 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Adicionamos `assets/prototype/runtime/bot_ai.json` como contrato único de
+  ajuste da IA nos clientes web e CLI. Perfis, persistência de metas, foco em
+  alvos, utilidade de pickups, exploração, recuo, alcances/recargas de combate,
+  limites de movimento, tamanho dos times e padrões do runner são configuráveis.
+  O CLI aceita `--bot-ai-config`; builds/pacotes incluem o JSON. Bots mantêm
+  metas de luta/coleta, avaliam itens por necessidade e buff ativo, coordenam
+  foco no alvo, exploram sem inimigo e recuam quando estão feridos sob ameaça.
 - Restauramos a vida máxima do multiplayer Web para 100 e ajustamos o combate
   após reproduzir uma rajada de tiros sem recarga: cinco acertos de 20 pontos
   ocorreram em cinco ticks consecutivos (cerca de 83 ms) e eliminaram um

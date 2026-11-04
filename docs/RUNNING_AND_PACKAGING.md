@@ -177,15 +177,25 @@ snapshots while retaining the latest state and control/chat events, preventing
 per-client snapshot queues from growing without limit in long battles.
 
 For a damage-but-not-combat-death test, add `--ringout-only-deaths`: bots
-attack only while the target has more than 200 health and do not throw items;
-movement and physical ringouts remain active.
+attack only while the target has more than the configured health threshold and do
+not throw items; movement and physical ringouts remain active.
 
-Browser bots seek eligible powerups when they have no active effect, then use
-jump, roll, dash, glide/fly, melee, ranged fire, special attacks, and throwables
-based on range and vertical separation. Browser and CLI battle bots spawn with
-100 health; the browser HUD displays the same maximum.
+Browser bots score eligible powerups against target pursuit using configured
+item value, health need, current buff, profile, and detour distance. They use
+jump, roll, dash, glide/fly, melee, ranged fire, special attacks, and throwables.
+Browser and CLI battle bots spawn with 100 health; the browser HUD displays the
+same maximum.
 Melee selection uses horizontal reach plus a vertical capsule-height limit;
 visual proximity across different platform heights does not count as contact.
+
+Bot behavior is data-driven by `assets/prototype/runtime/bot_ai.json`, bundled
+for the browser and copied to `config/runtime/bot_ai.json` in server packages.
+The same schema configures browser and CLI profiles, aggression, roaming,
+scavenging, retreat thresholds, goal persistence/switching, team focus, item
+utility, combat ranges/cooldowns, movement bounds, and runner defaults. Edit the
+JSON to tune both controllers; the CLI also accepts `--bot-ai-config PATH`, with
+`--geese`, `--cats`, `--duration`, and `--ringout-only-deaths` available as
+session-specific overrides.
 
 The Web multiplayer HUD shows 100 maximum health, team-colored hearts (blue for
 blue players; red for red), and one shared ammo card for bullets, watermelon

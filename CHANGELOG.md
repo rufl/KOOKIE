@@ -3,6 +3,13 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Added `assets/prototype/runtime/bot_ai.json` as the shared browser/CLI bot
+  tuning contract. Profiles, goal persistence, target focus, pickup utility,
+  roaming, retreat, combat timing/ranges, movement bounds, team sizes, and
+  runner defaults are configurable; the CLI accepts `--bot-ai-config` and the
+  build/package scripts include the JSON. Bots now retain fight/pickup goals,
+  value pickups by need and active buffs, focus team targets, roam without a
+  target, and retreat when low on health and threatened.
 - Restored the browser multiplayer health contract to 100 and tuned online
   combat after reproducing an unthrottled hitscan burst: five 20-damage shots
   landed on five consecutive simulation ticks (about 83 ms), eliminating a

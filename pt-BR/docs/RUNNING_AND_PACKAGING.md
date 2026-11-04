@@ -350,14 +350,22 @@ scripts/b2teams4.py "$server_dir/kookie-web-server" 8080
 No navegador, abra **Configurações → Abrir console do jogo**, selecione
 **Espectador** e conecte a `ws://SERVER_HOST:8080`. Execute `/b2teams4` para
 criar quatro gansos no time vermelho e quatro gatos no azul, e assistir à
-batalha nessa página; `/stop` desconecta os bots. A partida termina quando um
-time é eliminado ou após dois minutos. O console exige um espectador conectado,
-mas não exige um processo CLI separado. Ao entrar, a câmera acompanha o primeiro
-lutador vivo e troca de alvo quando ele é eliminado; **PREV/NEXT** ciclam os
-jogadores; **FREE CAM** retorna à câmera livre. Os bots procuram power-ups
-quando não têm efeito ativo e voltam ao combate; usam pulo, rolamento, dash,
-voo/deslizamento, melee, tiro, especial e arremessáveis conforme distância e
-separação vertical.
+batalha nessa página; `/stop` desconecta os bots. A batalha usa duração
+configurada em `bot_ai.json`. O console exige um espectador conectado, mas não
+um processo CLI separado. A câmera acompanha o primeiro lutador vivo; **PREV/NEXT**
+ciclam os jogadores e **FREE CAM** retorna à câmera livre. Os bots pontuam
+power-ups elegíveis contra o combate usando valor do item, necessidade de vida,
+buff ativo, perfil e desvio da rota; usam pulo, rolamento, dash,
+voo/deslizamento, melee, tiro, especial e arremessáveis.
+
+O comportamento dos bots é configurado em
+`assets/prototype/runtime/bot_ai.json`; o build web o inclui e os pacotes do
+servidor copiam a configuração para `config/runtime/bot_ai.json`. Browser e CLI
+usam os mesmos perfis, pesos de agressividade/exploração/coleta/equipe, metas
+persistentes, limiares de recuo, utilidade de itens, alcances, recargas e limites
+de movimento. Edite o JSON para ajustar ambos; o CLI aceita `--bot-ai-config
+CAMINHO` e substituições por sessão `--geese`, `--cats`, `--duration` e
+`--ringout-only-deaths`.
 No modo espectador, o HUD mostra lutadores vivos, gansos/gatos ativos, mapa,
 fase e contagem regressiva, além de quedas recentes. O minimapa maior marca o
 lutador seguido. Durante tentativas de reconexão, a última cena e a câmera

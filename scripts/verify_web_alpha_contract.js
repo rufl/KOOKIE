@@ -434,7 +434,7 @@ async function main() {
     performance: { now: () => monotonicNow },
     navigator: { userAgent: "Bugfeed browser smoke", clipboard: { writeText: async () => {} } },
     fetch: async (url, options) => {
-      if (url.startsWith("assets/prototype/runtime/power_ups/")) {
+      if (url.startsWith("assets/prototype/runtime/")) {
         const configPath = path.resolve(__dirname, "..", url);
         return {
           ok: true,

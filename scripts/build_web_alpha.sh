@@ -60,6 +60,7 @@ for required in \
   assets/prototype/manifest.json \
   assets/prototype/greybox_modules.json \
   assets/prototype/runtime/liquid_physics.json \
+  assets/prototype/runtime/bot_ai.json \
   assets/prototype/runtime/power_ups/watermelon.json \
   assets/prototype/models/goose/goose_albedo.png \
   assets/prototype/runtime/ui/hearts_0001.png \

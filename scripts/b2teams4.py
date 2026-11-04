@@ -51,18 +51,99 @@ def load_bot_ai_config(config_path=BOT_AI_CONFIG_PATH):
                 not isinstance(profile.get(key), (int, float)) or
                 not 0 <= profile[key] <= 1 for key in profile_keys):
             raise ValueError(f"invalid bot AI profile {name!r}: {config_path}")
-    for section in ("planner", "combat", "runtime"):
+    required = {
+        "planner": (
+            "goalHoldMilliseconds", "pickupRetryMilliseconds",
+            "pickupRecheckMilliseconds", "pickupReachDistance",
+            "pickupVerticalTolerance", "pickupDetourFactor",
+            "pickupBaseUtility", "fightBaseUtility", "roamBaseUtility",
+            "lowHealthFraction", "retreatHealthFraction",
+            "emergencyHealthFraction", "retreatThreatMultiplier",
+            "threatRadius", "stuckMilliseconds", "evasionMilliseconds",
+            "roamTargetRefreshMilliseconds", "roamTargetReachDistance",
+            "healthMaximum", "healthUrgencyWeight", "activePowerupPenalty",
+            "retreatGoalMultiplier", "retreatSurvivalBase",
+            "retreatRiskToleranceFactor", "goalSwitchAdvantage",
+            "teamFocusBonusPerTeammate", "powerupValueByKind",
+            "powerupAnimalRestrictions", "powerupConfigFiles",
+            "roamPhaseMilliseconds", "roamPhaseByBotIndex", "roamPhaseByTeam",
+            "roamTargetBaseX", "roamTargetStrideXByBot",
+            "roamTargetStrideXByCycle", "roamTargetCycleMilliseconds",
+            "roamTargetSpanX", "roamTargetBaseZ", "roamTargetWaveScale",
+            "roamTargetStrideZByBot", "roamTargetSpanZ",
+            "goalPickupOverrideHealthFraction",
+        ),
+        "combat": (
+            "approachRange", "retreatRange", "approachWeight",
+            "retreatWeight", "orbitWeight", "orbitSidePeriodMilliseconds",
+            "woundedTargetHealthWeight", "woundedTargetScoreCap",
+            "shootRange", "closeShootRange", "closeShootCooldownMilliseconds",
+            "farShootCooldownMilliseconds", "meleeRange",
+            "meleeCooldownMilliseconds", "specialRange",
+            "specialCooldownMilliseconds", "poweredSpecialCooldownMilliseconds",
+            "jumpVerticalThreshold", "jumpCombatDistance",
+            "jumpCooldownMilliseconds", "jumpBotStaggerMilliseconds",
+            "burstCooldownMilliseconds", "burstBotStaggerMilliseconds",
+            "evasiveBurstCooldownMilliseconds", "throwChargeTicks",
+            "throwPickupDistance", "throwCombatDistance",
+            "throwPickupCombatDistance", "throwableChargeMilliseconds",
+            "worldMinX", "worldMaxX", "worldMinZ", "worldMaxZ",
+            "worldBoundaryPush", "movementMax", "lookMax", "lookScale",
+            "yawHalfTurn", "yawFullTurn", "yawWrapOffset",
+            "airborneHeightThreshold", "gooseAnimalId", "catAnimalId",
+            "flightPowerupId", "flightPowerupRange", "poweredSpecialIds",
+            "fastSpecialPowerupId", "ringoutTargetHealthThreshold",
+            "openingBurstDelayMilliseconds", "doubleJumpDelayMilliseconds",
+            "doubleJumpExpireMilliseconds", "doubleJumpRecoveryMilliseconds",
+        ),
+        "runtime": (
+            "browserDecisionIntervalMilliseconds",
+            "runnerDecisionIntervalMilliseconds",
+            "browserReportIntervalMilliseconds",
+            "browserMatchDurationMilliseconds", "moveProgressThreshold",
+            "evasionDriftWeight", "movementFacingThreshold", "defaultGeese",
+            "defaultCats", "browserBotTeamSize",
+            "defaultBattleDurationSeconds", "defaultRingoutOnlyDeaths",
+            "smokeDurationSeconds",
+        ),
+    }
+    for section, required_keys in required.items():
         values = config.get(section)
         if not isinstance(values, dict) or any(
-                isinstance(value, float) and not math.isfinite(value)
-                for value in values.values()):
-            raise ValueError(f"invalid bot AI section {section}: {config_path}")
+                key not in values for key in required_keys):
+            raise ValueError(f"invalid or incomplete bot AI section {section}: {config_path}")
+        for key, value in values.items():
+            if section == "runtime" and key == "defaultRingoutOnlyDeaths":
+                valid = isinstance(value, bool)
+            elif key == "powerupValueByKind":
+                valid = isinstance(value, dict) and all(
+                    isinstance(item, (int, float)) and math.isfinite(item)
+                    for item in value.values())
+            elif key == "powerupAnimalRestrictions":
+                valid = isinstance(value, dict) and all(
+                    isinstance(animals, list) and
+                    all(isinstance(animal, int) for animal in animals)
+                    for animals in value.values())
+            elif key == "powerupConfigFiles":
+                valid = isinstance(value, list) and all(
+                    isinstance(name, str) for name in value)
+            elif isinstance(value, list):
+                valid = all(isinstance(item, (int, float)) and
+                            math.isfinite(item) for item in value)
+            else:
+                valid = isinstance(value, (int, float)) and \
+                    not isinstance(value, bool) and math.isfinite(value)
+            if not valid:
+                raise ValueError(f"invalid bot AI setting {section}.{key}: {config_path}")
     return config
 
 
-def load_powerup_waypoints():
+def load_powerup_waypoints(config_names):
     waypoints = []
-    for config_path in sorted(POWERUP_CONFIG_DIR.glob("*.json")):
+    for name in config_names:
+        if not isinstance(name, str) or Path(name).name != name:
+            raise ValueError(f"invalid power-up config name: {name!r}")
+        config_path = POWERUP_CONFIG_DIR / f"{name}.json"
         with config_path.open(encoding="utf-8") as config_file:
             config = json.load(config_file)
         if not all(isinstance(config.get(key), int)
@@ -74,8 +155,9 @@ def load_powerup_waypoints():
     return waypoints
 
 
-def bot_can_use_powerup(animal, kind):
-    return (kind not in (3, 5) or animal == 1) and (kind != 6 or animal == 2)
+def bot_can_use_powerup(animal, kind, planner):
+    allowed = planner["powerupAnimalRestrictions"].get(str(kind))
+    return allowed is None or animal in allowed
 
 
 
@@ -170,26 +252,32 @@ def run_battle(port, duration=None, log_path=None,
         cat_ids = {client.player_id for client in cats}
         kinds = {first_scene[18 + index * 8]: first_scene[24 + index * 8]
                  for index in range(first_scene[17])}
-        if any(kinds.get(player_id) != 1 for player_id in goose_ids):
+        if any(kinds.get(player_id) != combat["gooseAnimalId"]
+               for player_id in goose_ids):
             raise AssertionError("goose bot route did not spawn goose actors")
-        if any(kinds.get(player_id) != 2 for player_id in cat_ids):
+        if any(kinds.get(player_id) != combat["catAnimalId"]
+               for player_id in cat_ids):
             raise AssertionError("cat bot route did not spawn cat actors")
 
-        powerup_waypoints = load_powerup_waypoints()
+        powerup_waypoints = load_powerup_waypoints(
+            planner["powerupConfigFiles"])
 
         def drive(client, own_team):
             action_start = time.monotonic()
-            profile = profiles[profile_names[(client.player_id - 1) %
-                                             len(profile_names)]]
+            team_index = sorted(own_team).index(client.player_id)
+            profile = profiles[profile_names[team_index % len(profile_names)]]
             next_shot = action_start + combat["farShootCooldownMilliseconds"] / 1000
             next_burst = action_start
             next_melee = action_start + combat["meleeCooldownMilliseconds"] / 1000
             next_special = action_start + combat["specialCooldownMilliseconds"] / 1000
             throwable_phase = 0
             throwable_charge_started = 0.0
+            next_jump = action_start
+            double_jump_due = None
             tried_pickups = {}
             goal_pickup_index = None
-            pickup_goal_until = 0.0
+            cached_pickup = None
+            next_pickup_check = 0.0
             burst_action = ACTION_DASH
             animal = combat["gooseAnimalId"] if client.player_id in goose_ids \
                 else combat["catAnimalId"]
@@ -279,10 +367,12 @@ def run_battle(port, duration=None, log_path=None,
                         client.input(
                             move_x=round(roam_dx / roam_length *
                                          combat["movementMax"] *
-                                         profile["roaming"]),
+                                         profile["roaming"] *
+                                         planner["roamBaseUtility"]),
                             move_z=round(roam_dz / roam_length *
                                          combat["movementMax"] *
-                                         profile["roaming"]),
+                                         profile["roaming"] *
+                                         planner["roamBaseUtility"]),
                         )
                     else:
                         dx, dy, dz = (target[1] - me[1],
@@ -305,32 +395,44 @@ def run_battle(port, duration=None, log_path=None,
                         if carrying:
                             throwable_carry_observed[0] = True
                         move_dx, move_dz = dx, dz
-                        pickup = min(
-                            ((math.dist((item["x"], item["y"], item["z"]),
-                                        (me[1], me[2], me[3])),
-                              index, item)
-                             for index, item in enumerate(powerup_waypoints)
-                             if bot_can_use_powerup(animal, item["kind"]) and
-                             now >= tried_pickups.get(index, 0)),
-                            key=lambda candidate: -(
-                                planner["powerupValueByKind"].get(
-                                    str(candidate[2]["kind"]), 0) *
-                                profile["scavenging"] *
-                                (1 + max(0, 1 - me[4] /
-                                         planner["healthMaximum"]) *
-                                 planner["healthUrgencyWeight"]) *
-                                (planner["activePowerupPenalty"]
-                                 if active_powerup else 1) /
-                                max(1, candidate[0]) /
-                                (planner["goalSwitchAdvantage"]
-                                 if candidate[1] == goal_pickup_index and
-                                 now < pickup_goal_until else 1)
-                            ),
-                            default=None,
-                        )
+                        if cached_pickup is None or now >= next_pickup_check:
+                            cached_pickup = min(
+                                ((math.dist(
+                                    (item["x"], item["y"], item["z"]),
+                                    (me[1], me[2], me[3])),
+                                  index, item)
+                                 for index, item in enumerate(powerup_waypoints)
+                                 if bot_can_use_powerup(
+                                     animal, item["kind"], planner) and
+                                 now >= tried_pickups.get(index, 0)),
+                                key=lambda candidate: -(
+                                    planner["powerupValueByKind"].get(
+                                        str(candidate[2]["kind"]), 0) *
+                                    profile["scavenging"] *
+                                    (1 + max(0, (planner["lowHealthFraction"] -
+                                                 me[4] /
+                                                 planner["healthMaximum"]) /
+                                                planner["lowHealthFraction"]) *
+                                     planner["healthUrgencyWeight"]) *
+                                    (planner["activePowerupPenalty"]
+                                     if active_powerup else 1) /
+                                    max(1, candidate[0]) /
+                                    (planner["goalSwitchAdvantage"]
+                                     if candidate[1] == goal_pickup_index and
+                                     now < pickup_goal_until else 1)
+                                ),
+                                default=None,
+                            )
+                            next_pickup_check = now + \
+                                planner["pickupRecheckMilliseconds"] / 1000
+                        pickup = cached_pickup
                         pickup_distance = math.inf
                         if pickup is not None:
                             pickup_distance, pickup_index, item = pickup
+                            pickup_distance = math.dist(
+                                (item["x"], item["y"], item["z"]),
+                                (me[1], me[2], me[3]))
+                            cached_pickup = (pickup_distance, pickup_index, item)
                             pickup_dx = item["x"] - me[1]
                             pickup_dz = item["z"] - me[3]
                             if (pickup_distance <= planner["pickupReachDistance"] and
@@ -338,10 +440,13 @@ def run_battle(port, duration=None, log_path=None,
                                     planner["pickupVerticalTolerance"]):
                                 tried_pickups[pickup_index] = now + \
                                     planner["pickupRetryMilliseconds"] / 1000
+                                cached_pickup = None
+                                next_pickup_check = now + \
+                                    planner["pickupRetryMilliseconds"] / 1000
                             elif (pickup_distance <
                                   distance * planner["pickupDetourFactor"] or
                                   me[4] / planner["healthMaximum"] <
-                                  planner["lowHealthFraction"]):
+                                  planner["goalPickupOverrideHealthFraction"]):
                                 move_dx, move_dz = pickup_dx, pickup_dz
                                 goal_pickup_index = pickup_index
                                 pickup_goal_until = now + \
@@ -357,16 +462,37 @@ def run_battle(port, duration=None, log_path=None,
                                 move_dx, move_dz = pz - me[3], me[1] - px
                                 dodging = True
                                 break
-                        chasing_powerup = pickup is not None and \
-                            (pickup_distance <
-                             distance * planner["pickupDetourFactor"] or
-                             me[4] / planner["healthMaximum"] <
-                             planner["lowHealthFraction"])
                         health_fraction = me[4] / planner["healthMaximum"]
+                        fight_utility = planner["fightBaseUtility"] * \
+                            profile["aggression"] / distance
+                        pickup_utility = 0.0
+                        if pickup is not None:
+                            health_need = max(
+                                0, (planner["lowHealthFraction"] -
+                                    health_fraction) /
+                                planner["lowHealthFraction"])
+                            pickup_utility = (
+                                planner["powerupValueByKind"].get(
+                                    str(item["kind"]), 0) *
+                                planner["pickupBaseUtility"] *
+                                (profile["scavenging"] +
+                                 health_need * planner["healthUrgencyWeight"]) *
+                                (planner["activePowerupPenalty"]
+                                 if active_powerup else 1) /
+                                max(1, pickup_distance)
+                            )
+                        chasing_powerup = pickup is not None and (
+                            (pickup_distance <
+                             distance * planner["pickupDetourFactor"] and
+                             pickup_utility >= fight_utility) or
+                            health_fraction <
+                            planner["goalPickupOverrideHealthFraction"])
                         retreating = (
                             health_fraction <= planner["retreatHealthFraction"] *
-                            (0.5 + profile["survival"]) *
-                            (1 - profile["riskTolerance"] * 0.5) and
+                            (planner["retreatSurvivalBase"] +
+                             profile["survival"]) *
+                            (1 - profile["riskTolerance"] *
+                             planner["retreatRiskToleranceFactor"]) and
                             distance <= planner["threatRadius"] *
                             planner["retreatThreatMultiplier"]
                         ) or health_fraction <= planner["emergencyHealthFraction"]
@@ -557,6 +683,7 @@ def run_battle(port, duration=None, log_path=None,
                                 actions_by_player[client.player_id].add(name)
                         powerup_kind = (me[5] // 8) % 16
                         if powerup_kind:
+                            powerups_acquired.add(powerup_kind)
                     stop.wait(runtime["runnerDecisionIntervalMilliseconds"] / 1000)
                 except Exception as error:
                     if not stop.is_set():
@@ -712,10 +839,12 @@ def main():
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--run", action="store_true",
                         help="start the battle immediately instead of prompting")
-    parser.add_argument("--geese", type=int, default=4)
-    parser.add_argument("--cats", type=int, default=4)
-    parser.add_argument("--duration", type=float, default=120,
+    parser.add_argument("--geese", type=int)
+    parser.add_argument("--cats", type=int)
+    parser.add_argument("--duration", type=float,
                         help="battle seconds; 0 enables endless bot respawns")
+    parser.add_argument("--bot-ai-config", type=Path,
+                        help="JSON file with all bot behavior/tuning parameters")
     parser.add_argument("--log", type=Path,
                         help="write per-tick kookie-battle-v1 JSONL snapshots")
     parser.add_argument("--server-log", type=Path,
@@ -723,14 +852,24 @@ def main():
     parser.add_argument("--wait-for-spectator", action="store_true",
                         help="wait until a browser spectator joins before spawning bots")
     parser.add_argument("--ringout-only-deaths", action="store_true",
-                        help="bots stop damaging opponents below 200 health; ringouts still kill")
+                        help="bots stop damaging opponents below configured health; ringouts still kill")
     parser.add_argument("--keep-server", action="store_true",
                         help="keep the server running after a --run battle")
     args = parser.parse_args()
-    if args.geese <= 0 or args.cats <= 0 or args.geese + args.cats > 8:
-        parser.error("team sizes must be positive and total at most 8")
-    if args.duration < 0:
-        parser.error("--duration must be non-negative (0 disables the timer)")
+    if args.bot_ai_config is None:
+        bundled_config = Path(args.server_binary).resolve().parent / \
+            "config" / "runtime" / "bot_ai.json"
+        args.bot_ai_config = bundled_config if bundled_config.is_file() \
+            else BOT_AI_CONFIG_PATH
+    bot_ai = load_bot_ai_config(args.bot_ai_config)
+    args.geese = bot_ai["runtime"]["defaultGeese"] \
+        if args.geese is None else args.geese
+    args.cats = bot_ai["runtime"]["defaultCats"] \
+        if args.cats is None else args.cats
+    args.duration = bot_ai["runtime"]["defaultBattleDurationSeconds"] \
+        if args.duration is None else args.duration
+    args.ringout_only_deaths = args.ringout_only_deaths or \
+        bot_ai["runtime"]["defaultRingoutOnlyDeaths"]
     if args.smoke and args.run:
         parser.error("--smoke and --run cannot be combined")
 
@@ -762,13 +901,14 @@ def main():
         if args.smoke or args.run:
             run_battle(
                 port,
-                duration=(12 if args.smoke else
-                          (args.duration or None)),
+                duration=(bot_ai["runtime"]["smokeDurationSeconds"]
+                          if args.smoke else (args.duration or None)),
                 log_path=args.log,
                 goose_count=args.geese,
                 cat_count=args.cats,
                 wait_for_spectator=args.wait_for_spectator,
                 ringout_only_deaths=args.ringout_only_deaths,
+                bot_ai_config=args.bot_ai_config,
             )
             if args.keep_server and args.run and not args.smoke:
                 print("Match complete; server remains available until Ctrl-C.",
@@ -795,7 +935,8 @@ def main():
                         log_path=args.log, goose_count=args.geese,
                         cat_count=args.cats,
                         wait_for_spectator=args.wait_for_spectator,
-                        ringout_only_deaths=args.ringout_only_deaths)
+                        ringout_only_deaths=args.ringout_only_deaths,
+                        bot_ai_config=args.bot_ai_config)
                 except KeyboardInterrupt:
                     print("\nBattle stopped.")
             elif command:

@@ -3220,10 +3220,6 @@
   }
 
   const browserBattleBots = [];
-  const BOT_POWERUP_CONFIGS = [
-    "coffee_mug", "jetpack", "megaphone", "scuba_kit", "watermelon",
-    "wool_ball", "flour_bag", "multiplayer_coffee", "wizard_hat",
-  ];
   let botPowerupWaypoints = null;
   let botAISettings = null;
   async function loadBrowserBotAIConfig() {
@@ -3241,6 +3237,58 @@
           !config[section] || typeof config[section] !== "object")) {
       throw new Error("invalid bot AI config schema");
     }
+    const required = {
+      planner: ["goalHoldMilliseconds", "pickupRetryMilliseconds",
+        "pickupRecheckMilliseconds", "pickupReachDistance",
+        "pickupVerticalTolerance", "pickupDetourFactor", "pickupBaseUtility",
+        "fightBaseUtility", "roamBaseUtility", "lowHealthFraction",
+        "retreatHealthFraction", "emergencyHealthFraction",
+        "retreatThreatMultiplier", "threatRadius", "stuckMilliseconds",
+        "evasionMilliseconds", "roamTargetRefreshMilliseconds",
+        "roamTargetReachDistance", "healthMaximum", "healthUrgencyWeight",
+        "activePowerupPenalty", "retreatGoalMultiplier",
+        "retreatSurvivalBase", "retreatRiskToleranceFactor",
+        "goalSwitchAdvantage", "teamFocusBonusPerTeammate",
+        "powerupValueByKind", "powerupAnimalRestrictions",
+        "powerupConfigFiles", "roamPhaseMilliseconds",
+        "roamTargetStrideXByBot", "roamTargetStrideXByCycle",
+        "roamTargetCycleMilliseconds", "roamTargetSpanX", "roamTargetBaseZ",
+        "roamTargetWaveScale", "roamTargetStrideZByBot", "roamTargetSpanZ",
+        "goalPickupOverrideHealthFraction"],
+      combat: ["approachRange", "retreatRange", "approachWeight",
+        "retreatWeight", "orbitWeight", "orbitSidePeriodMilliseconds",
+        "woundedTargetHealthWeight", "woundedTargetScoreCap", "shootRange",
+        "closeShootRange", "closeShootCooldownMilliseconds",
+        "farShootCooldownMilliseconds", "meleeRange",
+        "meleeCooldownMilliseconds", "specialRange",
+        "specialCooldownMilliseconds", "poweredSpecialCooldownMilliseconds",
+        "jumpVerticalThreshold", "jumpCombatDistance",
+        "jumpCooldownMilliseconds", "jumpBotStaggerMilliseconds",
+        "burstCooldownMilliseconds", "burstBotStaggerMilliseconds",
+        "evasiveBurstCooldownMilliseconds", "throwChargeTicks",
+        "throwPickupDistance", "throwCombatDistance",
+        "throwPickupCombatDistance", "throwableChargeMilliseconds",
+        "worldMinX", "worldMaxX", "worldMinZ", "worldMaxZ",
+        "worldBoundaryPush", "movementMax", "lookMax", "lookScale",
+        "yawHalfTurn", "yawFullTurn", "yawWrapOffset",
+        "airborneHeightThreshold", "gooseAnimalId", "catAnimalId",
+        "flightPowerupId", "flightPowerupRange", "poweredSpecialIds",
+        "fastSpecialPowerupId", "ringoutTargetHealthThreshold",
+        "openingBurstDelayMilliseconds", "doubleJumpDelayMilliseconds",
+        "doubleJumpExpireMilliseconds", "doubleJumpRecoveryMilliseconds"],
+      runtime: ["browserDecisionIntervalMilliseconds",
+        "runnerDecisionIntervalMilliseconds",
+        "browserReportIntervalMilliseconds",
+        "browserMatchDurationMilliseconds", "moveProgressThreshold",
+        "evasionDriftWeight", "movementFacingThreshold", "defaultGeese",
+        "defaultCats", "browserBotTeamSize", "defaultBattleDurationSeconds",
+        "defaultRingoutOnlyDeaths", "smokeDurationSeconds"],
+    };
+    for (const [section, keys] of Object.entries(required)) {
+      if (keys.some((key) => !Object.hasOwn(config[section], key))) {
+        throw new Error("bot AI config is missing " + section + " settings");
+      }
+    }
     for (const name of config.profileByBotIndex) {
       const profile = config.profiles[name];
       if (!profile || ["aggression", "roaming", "scavenging", "survival",
@@ -3251,7 +3299,21 @@
     }
     for (const section of sections) {
       for (const [key, value] of Object.entries(config[section])) {
-        if (typeof value === "number" && !Number.isFinite(value)) {
+        const validValue = section === "runtime" &&
+          key === "defaultRingoutOnlyDeaths"
+          ? typeof value === "boolean"
+          : key === "powerupValueByKind"
+            ? Object.values(value).every(Number.isFinite)
+            : key === "powerupAnimalRestrictions"
+              ? Object.values(value).every((allowed) =>
+                Array.isArray(allowed) && allowed.every(Number.isInteger))
+              : key === "powerupConfigFiles"
+                ? Array.isArray(value) &&
+                  value.every((name) => typeof name === "string")
+                : Array.isArray(value)
+                  ? value.every(Number.isFinite)
+                  : Number.isFinite(value);
+        if (!validValue) {
           throw new Error("invalid bot AI setting: " + section + "." + key);
         }
       }
@@ -3261,7 +3323,8 @@
   }
   async function loadBotPowerupWaypoints() {
     if (botPowerupWaypoints) return botPowerupWaypoints;
-    const definitions = await Promise.all(BOT_POWERUP_CONFIGS.map(async (name) => {
+    const definitions = await Promise.all(
+      botAISettings.planner.powerupConfigFiles.map(async (name) => {
       const url = "assets/prototype/runtime/power_ups/" + name + ".json";
       const response = await fetch(url, { cache: "force-cache" });
       if (!response.ok) throw new Error("powerup config HTTP " + response.status + " / " + url);
@@ -3277,8 +3340,8 @@
     return definitions;
   }
   function botCanUsePowerup(animal, kind) {
-    return (kind !== 3 && kind !== 5 || animal === 1) &&
-      (kind !== 6 || animal === 2);
+    const allowed = botAISettings.planner.powerupAnimalRestrictions[String(kind)];
+    return !allowed || allowed.includes(animal);
   }
   function botSceneData(words) {
     const trailer = 18 + words[17] * 8;
@@ -3368,8 +3431,10 @@
         pickup.x - own[1], pickup.y - own[2], pickup.z - own[3]
       );
       const itemValue = planner.powerupValueByKind[String(pickup.kind)] || 0;
+      const healthFraction = own[4] / planner.healthMaximum;
       const healthNeed = Math.max(0,
-        1 - own[4] / planner.healthMaximum);
+        (planner.lowHealthFraction - healthFraction) /
+          planner.lowHealthFraction);
       const activePowerup = Math.floor(own[5] / 8) % 16;
       const activePenalty = activePowerup === 0 ? 1
         : planner.activePowerupPenalty;
@@ -3406,16 +3471,23 @@
     return null;
   }
   function botPickupMovement(bot, own, now) {
-    const pickup = nearestBotPowerup(bot, own, now);
-    if (!pickup) return null;
     const planner = botAISettings.planner;
-    if (pickup.distance <= planner.pickupReachDistance &&
+    if (!bot.cachedPickup || now >= bot.nextPickupCheckAt) {
+      bot.cachedPickup = nearestBotPowerup(bot, own, now);
+      bot.nextPickupCheckAt = now + planner.pickupRecheckMilliseconds;
+    }
+    const pickup = bot.cachedPickup;
+    if (!pickup) return null;
+    const distance = Math.hypot(
+      pickup.x - own[1], pickup.y - own[2], pickup.z - own[3]);
+    if (distance <= planner.pickupReachDistance &&
         Math.abs(pickup.y - own[2]) <= planner.pickupVerticalTolerance) {
       bot.triedPickups.set(pickup.index, now + planner.pickupRetryMilliseconds);
+      bot.cachedPickup = null;
       return null;
     }
     return { ...botMoveToward(pickup.x - own[1], pickup.z - own[3],
-      pickup.distance), distance: pickup.distance, pickup };
+      distance), distance, pickup };
   }
   function botShouldJump(bot, own, target, distance, now) {
     const combat = botAISettings.combat;
@@ -3453,7 +3525,8 @@
     const bot = {
       animal, team, index, sequence: 0, joinSequence: 0, playerId: 0,
       joined: false, scene: null, socket: null, nextShotAt: 0,
-      nextBurstAt: Date.now() + 300, nextMeleeAt: 0, nextSpecialAt: 0,
+      nextBurstAt: Date.now() +
+        botAISettings.combat.openingBurstDelayMilliseconds,
       nextJumpAt: 0, burstAction: ACTION_DASH,
       openingRollSent: false, throwPhase: 0, throwPhaseAt: 0,
       triedPickups: new Map(), intentionalClose: false,
@@ -3623,7 +3696,11 @@
       combatDistance = Math.abs(enemyDx) + Math.abs(enemyDy) + Math.abs(enemyDz);
       const healthFraction = own[4] / planner.healthMaximum;
       retreating = healthFraction <= planner.retreatHealthFraction *
-        (0.5 + profile.survival) && targetDistance <= planner.threatRadius;
+        (planner.retreatSurvivalBase + profile.survival) *
+        (1 - profile.riskTolerance * planner.retreatRiskToleranceFactor) &&
+        targetDistance <= planner.threatRadius *
+          planner.retreatThreatMultiplier ||
+        healthFraction <= planner.emergencyHealthFraction;
       const approach = botMoveToward(enemyDx, enemyDz, targetDistance);
       const orbitDirection = (bot.index +
         Math.floor(now / combat.orbitSidePeriodMilliseconds)) % 2 ? 1 : -1;
@@ -3654,7 +3731,7 @@
               planner.roamTargetReachDistance) {
         const phase = (now / planner.roamPhaseMilliseconds +
           bot.index * planner.roamPhaseByBotIndex +
-          bot.team * planner.roamPhaseByTeam) % 6.28;
+          bot.team * planner.roamPhaseByTeam) % (Math.PI * 2);
         bot.wanderTarget = {
           x: planner.roamTargetBaseX +
             ((bot.index * planner.roamTargetStrideXByBot +
@@ -3673,15 +3750,25 @@
         bot.wanderTarget.z - own[3],
         Math.hypot(bot.wanderTarget.x - own[1],
           bot.wanderTarget.z - own[3]));
-      moveX = wander.x * profile.roaming;
-      moveZ = wander.z * profile.roaming;
+      moveX = wander.x * profile.roaming * planner.roamBaseUtility;
+      moveZ = wander.z * profile.roaming * planner.roamBaseUtility;
     }
-    const powerupMovement = activePowerup === 0
-      ? botPickupMovement(bot, own, now) : null;
+    const powerupMovement = botPickupMovement(bot, own, now);
+    const healthFraction = own[4] / planner.healthMaximum;
+    const fightUtility = target
+      ? planner.fightBaseUtility * profile.aggression /
+        Math.max(1, targetDistance) : 0;
+    const pickupUtility = powerupMovement
+      ? powerupMovement.pickup.score : 0;
+    const pickupGoalCommitted = powerupMovement &&
+      powerupMovement.pickup.index === bot.goalPickupIndex &&
+      now < bot.goalUntil;
     const pickupWanted = powerupMovement &&
-      (!target || powerupMovement.distance <
-        targetDistance * planner.pickupDetourFactor ||
-        own[4] / planner.healthMaximum < planner.lowHealthFraction);
+      (healthFraction < planner.goalPickupOverrideHealthFraction ||
+        !target && profile.scavenging > 0 ||
+        powerupMovement.distance < targetDistance *
+          planner.pickupDetourFactor &&
+          (pickupUtility >= fightUtility || pickupGoalCommitted));
     if (pickupWanted) {
       moveX = powerupMovement.x;
       moveZ = powerupMovement.z;
@@ -3728,7 +3815,7 @@
       bot.evasiveUntil = now + planner.evasionMilliseconds;
     } else if (now < bot.evasiveUntil && !target) {
       moveX = Math.max(-movementMax, Math.min(movementMax,
-        moveX + combat.evasionDriftWeight));
+        moveX + botAISettings.runtime.evasionDriftWeight));
     }
     const moveMagnitude = Math.hypot(moveX, moveZ);
     if (moveMagnitude > movementMax) {
@@ -3749,7 +3836,6 @@
     }
     let held = 0;
     let edge = 0;
-    const healthFraction = own[4] / planner.healthMaximum;
     const canAttack = !retreating &&
       healthFraction > planner.emergencyHealthFraction;
     if (target && canAttack && now >= bot.nextShotAt &&
@@ -3832,13 +3918,15 @@
       throw new Error("session token must be 8-128 safe ASCII characters");
     }
     browserBattleLastReportAt = 0;
-    logGameConsole("Starting 4v4 battle; connecting bot players...");
+    logGameConsole("Starting configurable goose-vs-cat bot battle...");
+    let teamSize;
     try {
       await loadBrowserBotAIConfig();
       await loadBotPowerupWaypoints();
-      await Promise.all(Array.from({ length: 4 }, (_, index) =>
+      teamSize = botAISettings.runtime.browserBotTeamSize;
+      await Promise.all(Array.from({ length: teamSize }, (_, index) =>
         connectBrowserBattleBot(1, 1, index + 1)));
-      await Promise.all(Array.from({ length: 4 }, (_, index) =>
+      await Promise.all(Array.from({ length: teamSize }, (_, index) =>
         connectBrowserBattleBot(2, 2, index + 1)));
     } catch (error) {
       stopBrowserBotBattle("Battle setup failed: " + error.message);
@@ -3854,7 +3942,8 @@
       }
       for (const bot of browserBattleBots) updateBrowserBattleBot(bot, now);
     }, botAISettings.runtime.browserDecisionIntervalMilliseconds);
-    logGameConsole("Battle live: 4 red geese vs 4 blue cats. Spectate from this page.");
+    logGameConsole("Battle live: " + teamSize +
+      " red geese vs " + teamSize + " blue cats; spectate from this page.");
   }
   function runRemoteAdminCommand(command) {
     const normalized = command.toLowerCase();

@@ -67,7 +67,8 @@ cp -- "$source_dir/lib/libkookie_box3d.so" \
 mkdir -p "$output_dir/config/runtime/power_ups"
 cp -- "$root_dir"/assets/prototype/runtime/power_ups/*.json \
   "$output_dir/config/runtime/power_ups/"
-chmod +x "$output_dir/kookie-web-server"
+cp -- "$root_dir/assets/prototype/runtime/bot_ai.json" \
+  "$output_dir/config/runtime/bot_ai.json"
 mkdir -p "$output_dir/config/runtime/water_bodies"
 cp -- "$root_dir/assets/prototype/runtime/liquid_physics.json" \
   "$output_dir/config/runtime/liquid_physics.json"

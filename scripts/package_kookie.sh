@@ -631,6 +631,7 @@ bundle_demo_runtime_configs() {
   local destination_root="$PACKAGE_ROOT/config/runtime"
   local relative_path
   local -a paths=(
+    bot_ai.json
     liquid_physics.json
     enemy_tuning.json
     water_bodies/pool.json

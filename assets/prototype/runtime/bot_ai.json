@@ -14,9 +14,9 @@
     "pickupReachDistance": 4,
     "pickupVerticalTolerance": 5,
     "pickupDetourFactor": 1.35,
-    "pickupBaseUtility": 1.0,
+    "pickupBaseUtility": 0.35,
     "fightBaseUtility": 1.0,
-    "roamBaseUtility": 0.25,
+    "roamBaseUtility": 0.7,
     "lowHealthFraction": 0.55,
     "retreatHealthFraction": 0.3,
     "emergencyHealthFraction": 0.15,
@@ -30,11 +30,17 @@
     "healthUrgencyWeight": 1.5,
     "activePowerupPenalty": 0.35,
     "retreatGoalMultiplier": 1.5,
+    "retreatSurvivalBase": 0.5,
+    "retreatRiskToleranceFactor": 0.5,
     "goalSwitchAdvantage": 1.2,
     "powerupValueByKind": {
       "1": 1.0, "2": 0.8, "3": 0.9, "4": 0.7, "5": 0.9,
       "6": 0.9, "7": 0.8, "8": 0.9, "9": 0.8, "10": 0.7
     },
+    "powerupAnimalRestrictions": {"3": [1], "5": [1], "6": [2]},
+    "powerupConfigFiles": ["coffee_mug", "jetpack", "megaphone",
+      "scuba_kit", "watermelon", "wool_ball", "flour_bag",
+      "multiplayer_coffee", "wizard_hat"],
     "roamPhaseMilliseconds": 1000,
     "roamPhaseByBotIndex": 2.4,
     "roamPhaseByTeam": 3,
@@ -51,7 +57,6 @@
     "teamFocusBonusPerTeammate": 0.35
   },
   "combat": {
-    "preferredRange": 18,
     "approachRange": 24,
     "retreatRange": 11,
     "approachWeight": 1.0,
@@ -66,7 +71,7 @@
     "farShootCooldownMilliseconds": 1250,
     "meleeRange": 6,
     "meleeCooldownMilliseconds": 360,
-    "specialRange": 24,
+    "specialRange": 80,
     "specialCooldownMilliseconds": 1000,
     "poweredSpecialCooldownMilliseconds": 650,
     "jumpVerticalThreshold": 3,
@@ -97,6 +102,7 @@
     "catAnimalId": 2,
     "flightPowerupId": 2,
     "flightPowerupRange": 12,
+    "poweredSpecialIds": [8, 3],
     "fastSpecialPowerupId": 8,
     "ringoutTargetHealthThreshold": 200,
     "openingBurstDelayMilliseconds": 1150,
@@ -112,6 +118,11 @@
     "moveProgressThreshold": 1,
     "evasionDriftWeight": 500,
     "movementFacingThreshold": 50,
-    "poweredAnimalFlightPowerupId": 2
+    "defaultGeese": 4,
+    "defaultCats": 4,
+    "browserBotTeamSize": 4,
+    "defaultBattleDurationSeconds": 120,
+    "defaultRingoutOnlyDeaths": false,
+    "smokeDurationSeconds": 12
   }
 }
