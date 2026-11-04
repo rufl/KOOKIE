@@ -3370,9 +3370,12 @@
       const itemValue = planner.powerupValueByKind[String(pickup.kind)] || 0;
       const healthNeed = Math.max(0,
         1 - own[4] / planner.healthMaximum);
+      const activePowerup = Math.floor(own[5] / 8) % 16;
+      const activePenalty = activePowerup === 0 ? 1
+        : planner.activePowerupPenalty;
       const score = (itemValue * planner.pickupBaseUtility *
-        (profile.scavenging + healthNeed * planner.healthUrgencyWeight)) /
-        Math.max(1, distance);
+        (profile.scavenging + healthNeed * planner.healthUrgencyWeight) *
+        activePenalty) / Math.max(1, distance);
       if (score > bestScore) {
         best = { ...pickup, index, score };
         bestScore = score;
@@ -3577,7 +3580,12 @@
       const woundBias = Math.min(combat.woundedTargetScoreCap,
         Math.max(0, planner.healthMaximum - actor[4]) *
           combat.woundedTargetHealthWeight);
+      const focusedByTeammates = browserBattleBots.filter((teammate) =>
+        teammate !== bot && teammate.team === bot.team &&
+        teammate.goalTargetId === actor[0]).length;
       let score = distance - woundBias * profile.aggression;
+      score /= 1 + focusedByTeammates * profile.teamwork *
+        planner.teamFocusBonusPerTeammate;
       if (actor[0] === bot.goalTargetId && now < bot.goalUntil) {
         score /= planner.goalSwitchAdvantage;
       }
@@ -3591,7 +3599,7 @@
       bot.goalUntil = now + planner.goalHoldMilliseconds;
     }
     if (Math.hypot(own[1] - bot.previousX, own[3] - bot.previousZ) >
-        planner.roamTargetReachDistance / 10) {
+        botAISettings.runtime.moveProgressThreshold) {
       bot.previousX = own[1];
       bot.previousZ = own[3];
       bot.lastProgressAt = now;

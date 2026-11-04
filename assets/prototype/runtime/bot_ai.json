@@ -47,7 +47,8 @@
     "roamTargetWaveScale": 112,
     "roamTargetStrideZByBot": 29,
     "roamTargetSpanZ": 218,
-    "goalPickupOverrideHealthFraction": 0.55
+    "goalPickupOverrideHealthFraction": 0.55,
+    "teamFocusBonusPerTeammate": 0.35
   },
   "combat": {
     "preferredRange": 18,
@@ -96,8 +97,12 @@
     "catAnimalId": 2,
     "flightPowerupId": 2,
     "flightPowerupRange": 12,
-    "poweredSpecialIds": [8, 3],
-    "fastSpecialPowerupId": 8
+    "fastSpecialPowerupId": 8,
+    "ringoutTargetHealthThreshold": 200,
+    "openingBurstDelayMilliseconds": 1150,
+    "doubleJumpDelayMilliseconds": 100,
+    "doubleJumpExpireMilliseconds": 500,
+    "doubleJumpRecoveryMilliseconds": 500
   },
   "runtime": {
     "browserDecisionIntervalMilliseconds": 50,

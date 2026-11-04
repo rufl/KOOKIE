@@ -130,6 +130,7 @@ def run_battle(port, duration=None, log_path=None,
     action_usage = set()
     actions_by_player = {}
     powerups_acquired = set()
+    target_by_player = {}
     animation_states_by_player = {}
     observed_animation_states = set()
     driver_errors = []
@@ -199,6 +200,8 @@ def run_battle(port, duration=None, log_path=None,
             opening_roll = True
             previous_position = None
             last_progress_at = action_start
+            wander_target = None
+            next_wander_at = action_start
             while not stop.is_set():
                 try:
                     now = time.monotonic()
@@ -218,6 +221,12 @@ def run_battle(port, duration=None, log_path=None,
                                scene[22 + index * 8] > 0]
                     target = None
                     if enemies:
+                        with roster_lock:
+                            allied_targets = {
+                                target_by_player.get(player_id)
+                                for player_id in own_team
+                                if player_id != client.player_id
+                            }
                         def target_score(actor):
                             target_distance = math.dist(
                                 (actor[1], actor[2], actor[3]),
@@ -226,15 +235,55 @@ def run_battle(port, duration=None, log_path=None,
                                 max(0, planner["healthMaximum"] - actor[4]) *
                                 combat["woundedTargetHealthWeight"])
                             score = target_distance - wounded_bias * profile["aggression"]
+                            if actor[0] in allied_targets:
+                                score /= (1 + profile["teamwork"] *
+                                          planner["teamFocusBonusPerTeammate"])
                             if actor[0] == goal_target_id and now < goal_until:
                                 score /= planner["goalSwitchAdvantage"]
                             return score
                         target = min(enemies, key=target_score)
+                        with roster_lock:
+                            target_by_player[client.player_id] = target[0]
                         if target[0] != goal_target_id:
                             goal_target_id = target[0]
                             goal_until = now + planner["goalHoldMilliseconds"] / 1000
                     if not target:
-                        client.input()
+                        if (wander_target is None or now >= next_wander_at or
+                                math.dist(wander_target, (me[1], me[3])) <
+                                planner["roamTargetReachDistance"]):
+                            phase = (
+                                now * 1000 / planner["roamPhaseMilliseconds"] +
+                                client.player_id * planner["roamPhaseByBotIndex"] +
+                                me[6] * planner["roamPhaseByTeam"]
+                            ) % math.tau
+                            wander_target = (
+                                planner["roamTargetBaseX"] +
+                                ((client.player_id *
+                                  planner["roamTargetStrideXByBot"] +
+                                  int(now * 1000 /
+                                      planner["roamTargetCycleMilliseconds"]) *
+                                  planner["roamTargetStrideXByCycle"]) %
+                                 planner["roamTargetSpanX"]),
+                                planner["roamTargetBaseZ"] +
+                                ((round((math.sin(phase) + 1) *
+                                        planner["roamTargetWaveScale"]) +
+                                  client.player_id *
+                                  planner["roamTargetStrideZByBot"]) %
+                                 planner["roamTargetSpanZ"]),
+                            )
+                            next_wander_at = now + \
+                                planner["roamTargetRefreshMilliseconds"] / 1000
+                        roam_dx = wander_target[0] - me[1]
+                        roam_dz = wander_target[1] - me[3]
+                        roam_length = max(1, math.hypot(roam_dx, roam_dz))
+                        client.input(
+                            move_x=round(roam_dx / roam_length *
+                                         combat["movementMax"] *
+                                         profile["roaming"]),
+                            move_z=round(roam_dz / roam_length *
+                                         combat["movementMax"] *
+                                         profile["roaming"]),
+                        )
                     else:
                         dx, dy, dz = (target[1] - me[1],
                                       target[2] - me[2],
@@ -303,32 +352,67 @@ def run_battle(port, duration=None, log_path=None,
                                 continue
                             px, py, pz = projectile[3], projectile[4], projectile[5]
                             if math.dist((px, py, pz),
-                                         (me[1], me[2], me[3])) <= 30:
+                                         (me[1], me[2], me[3])) <= \
+                                    planner["threatRadius"]:
                                 move_dx, move_dz = pz - me[3], me[1] - px
                                 dodging = True
                                 break
                         chasing_powerup = pickup is not None and \
-                            pickup_distance < distance * 1.35
+                            (pickup_distance <
+                             distance * planner["pickupDetourFactor"] or
+                             me[4] / planner["healthMaximum"] <
+                             planner["lowHealthFraction"])
+                        health_fraction = me[4] / planner["healthMaximum"]
+                        retreating = (
+                            health_fraction <= planner["retreatHealthFraction"] *
+                            (0.5 + profile["survival"]) *
+                            (1 - profile["riskTolerance"] * 0.5) and
+                            distance <= planner["threatRadius"] *
+                            planner["retreatThreatMultiplier"]
+                        ) or health_fraction <= planner["emergencyHealthFraction"]
                         if not dodging and not chasing_powerup:
                             orbit_side = -1 if (
-                                int(now // 6) + client.player_id) % 2 else 1
-                            radial = 1 if distance > 20 else \
-                                -.85 if distance < 12 else .18
-                            tangent = .32 if distance > 24 else \
-                                .82 if distance >= 12 else .58
+                                int(now // (combat["orbitSidePeriodMilliseconds"] /
+                                            1000)) + client.player_id) % 2 else 1
+                            radial = (
+                                -planner["retreatGoalMultiplier"] if retreating
+                                else combat["approachWeight"]
+                                if distance > combat["approachRange"]
+                                else -combat["retreatWeight"]
+                                if distance < combat["retreatRange"] else 0
+                            )
+                            tangent = combat["orbitWeight"]
                             move_dx = dx / distance * radial - \
                                 dz / distance * tangent * orbit_side
                             move_dz = dz / distance * radial + \
                                 dx / distance * tangent * orbit_side
-                        if pickup_active and throwable_phase == 0 and distance > 10:
+                        if pickup_active and throwable_phase == 0 and \
+                                distance > combat["throwCombatDistance"]:
                             move_dx, move_dz = pickup_x - me[1], pickup_z - me[3]
-                        move_dx += (16 - me[1]) * 1.2 if me[1] < 16 else \
-                            (304 - me[1]) * 1.2 if me[1] > 304 else 0
-                        move_dz += (16 - me[3]) * 1.2 if me[3] < 16 else \
-                            (264 - me[3]) * 1.2 if me[3] > 264 else 0
+                        if previous_position is not None and \
+                                math.dist(previous_position, (me[1], me[3])) > \
+                                runtime["moveProgressThreshold"]:
+                            last_progress_at = now
+                        elif now - last_progress_at > \
+                                planner["stuckMilliseconds"] / 1000:
+                            move_dx, move_dz = -dz, dx
+                            last_progress_at = now
+                        previous_position = (me[1], me[3])
+                        move_dx += (combat["worldMinX"] - me[1]) * \
+                            combat["worldBoundaryPush"] / combat["movementMax"] \
+                            if me[1] < combat["worldMinX"] else \
+                            (combat["worldMaxX"] - me[1]) * \
+                            combat["worldBoundaryPush"] / combat["movementMax"] \
+                            if me[1] > combat["worldMaxX"] else 0
+                        move_dz += (combat["worldMinZ"] - me[3]) * \
+                            combat["worldBoundaryPush"] / combat["movementMax"] \
+                            if me[3] < combat["worldMinZ"] else \
+                            (combat["worldMaxZ"] - me[3]) * \
+                            combat["worldBoundaryPush"] / combat["movementMax"] \
+                            if me[3] > combat["worldMaxZ"] else 0
                         move_distance = max(1, math.hypot(move_dx, move_dz))
-                        move_x = round(move_dx * 1000 / move_distance)
-                        move_z = round(move_dz * 1000 / move_distance)
+                        move_x = round(move_dx * combat["movementMax"] / move_distance)
+                        move_z = round(move_dz * combat["movementMax"] / move_distance)
                         if opening_roll:
                             client.input(
                                 move_x=move_x, move_z=move_z,
@@ -337,31 +421,54 @@ def run_battle(port, duration=None, log_path=None,
                                 ("roll", "dash"))
                             action_usage.update(("roll", "dash"))
                             opening_roll = False
-                            next_burst = now + 1.15
+                            next_burst = now + \
+                                combat["openingBurstDelayMilliseconds"] / 1000
                             continue
                         held = 0
                         edge = ACTION_ROLL if dodging else 0
                         attacks_allowed = (
-                            not ringout_only_deaths or target[4] > 200
+                            not retreating and
+                            health_fraction > planner["emergencyHealthFraction"] and
+                            (not ringout_only_deaths or
+                             target[4] > combat["ringoutTargetHealthThreshold"])
                         )
-                        if attacks_allowed and combat_distance <= 5:
+                        if attacks_allowed and \
+                                combat_distance <= combat["meleeRange"]:
                             melee_range_observed[0] = True
-                        if attacks_allowed and combat_distance <= 120 and now >= next_shot:
+                        if attacks_allowed and \
+                                combat_distance <= combat["shootRange"] and \
+                                now >= next_shot:
                             held |= ACTION_SHOOT
-                            next_shot = now + (0.6 if combat_distance <= 12 else 2.0)
-                        if attacks_allowed and combat_distance <= 5 and now >= next_melee:
+                            next_shot = now + (
+                                combat["closeShootCooldownMilliseconds"] / 1000
+                                if combat_distance <= combat["closeShootRange"]
+                                else combat["farShootCooldownMilliseconds"] / 1000
+                            )
+                        if attacks_allowed and \
+                                combat_distance <= combat["meleeRange"] and \
+                                now >= next_melee:
                             edge &= ~(ACTION_JUMP | ACTION_ROLL | ACTION_DASH)
                             edge |= EDGE_MELEE
-                            next_melee = now + .45
+                            next_melee = now + \
+                                combat["meleeCooldownMilliseconds"] / 1000
                         if (attacks_allowed and now >= next_special and
-                                (combat_distance <= 80 or active_powerup in (3, 8))):
+                                (combat_distance <= combat["specialRange"] or
+                                 active_powerup in combat["poweredSpecialIds"])):
                             edge |= EDGE_SPECIAL
-                            next_special = now + (1.8 if active_powerup == 5 else 1.1)
+                            next_special = now + (
+                                combat["poweredSpecialCooldownMilliseconds"] / 1000
+                                if active_powerup == combat["fastSpecialPowerupId"]
+                                else combat["specialCooldownMilliseconds"] / 1000
+                            )
                         if now >= next_burst:
                             edge |= burst_action
                             burst_action = (ACTION_ROLL if burst_action == ACTION_DASH
                                             else ACTION_DASH)
-                            next_burst = now + 1.15 + (client.player_id % 5) * .13
+                            next_burst = now + (
+                                combat["burstCooldownMilliseconds"] +
+                                (client.player_id % 5) *
+                                combat["burstBotStaggerMilliseconds"]
+                            ) / 1000
                         grounded = (me[5] & 1) != 0
                         if double_jump_due is not None:
                             if not grounded:
@@ -370,14 +477,19 @@ def run_battle(port, duration=None, log_path=None,
                                     "double_jump")
                                 action_usage.add("double_jump")
                                 double_jump_due = None
-                                next_jump = now + 1.6
-                            elif now >= double_jump_due + .5:
+                                next_jump = now + \
+                                    combat["jumpCooldownMilliseconds"] / 1000
+                            elif now >= double_jump_due + \
+                                    combat["doubleJumpExpireMilliseconds"] / 1000:
                                 double_jump_due = None
-                                next_jump = now + .5
+                                next_jump = now + \
+                                    combat["doubleJumpRecoveryMilliseconds"] / 1000
                         elif grounded and now >= next_jump:
                             edge |= ACTION_JUMP
-                            double_jump_due = now + .1
-                            next_jump = now + 1.6
+                            double_jump_due = now + \
+                                combat["doubleJumpDelayMilliseconds"] / 1000
+                            next_jump = now + \
+                                combat["jumpCooldownMilliseconds"] / 1000
                         if ringout_only_deaths:
                             throwable_phase = 0
                         elif throwable_phase == 1:
@@ -389,31 +501,42 @@ def run_battle(port, duration=None, log_path=None,
                         elif throwable_phase == 3:
                             if not carrying:
                                 throwable_phase = 0
-                            elif now - throwable_charge_started < .5:
+                            elif now - throwable_charge_started < \
+                                    combat["throwableChargeMilliseconds"] / 1000:
                                 held |= ACTION_THROWABLE
                             else:
                                 throwable_phase = 4
                         elif throwable_phase == 4 and not carrying:
                             throwable_phase = 0
-                        if not ringout_only_deaths and throwable_phase == 0 and pickup_active:
+                        if not ringout_only_deaths and throwable_phase == 0 and \
+                                pickup_active:
                             throwable_dx = pickup_x - me[1]
+                            throwable_dy = pickup_y - me[2]
                             throwable_dz = pickup_z - me[3]
-                            if (throwable_dx * throwable_dx +
-                                    (pickup_y - me[2]) * (pickup_y - me[2]) +
-                                    throwable_dz * throwable_dz <= 36):
+                            pickup_distance = math.sqrt(
+                                throwable_dx * throwable_dx +
+                                throwable_dy * throwable_dy +
+                                throwable_dz * throwable_dz)
+                            if pickup_distance <= combat["throwPickupDistance"]:
                                 held |= ACTION_THROWABLE
                                 throwable_phase = 1
-                        airborne = not (me[5] & 1) and me[2] > 1
-                        if animal == 1 and (
-                                airborne or dy > 3 or
-                                active_powerup == 2 and distance > 12):
+                        airborne = not (me[5] & 1) and \
+                            me[2] > combat["airborneHeightThreshold"]
+                        if animal == combat["gooseAnimalId"] and (
+                                airborne or
+                                dy > combat["jumpVerticalThreshold"] or
+                                active_powerup == combat["flightPowerupId"] and
+                                distance > combat["flightPowerupRange"]):
                             held |= ACTION_FLY
-                        elif animal == 2 and (airborne or dy > 3):
+                        elif animal == combat["catAnimalId"] and (
+                                airborne or dy > combat["jumpVerticalThreshold"]):
                             held |= ACTION_GLIDE
                         client.input(
                             move_x=move_x, move_z=move_z,
-                            look_yaw=max(-1800, min(1800, yaw_delta * 10)),
-                            look_pitch=max(-1800, min(1800, -dy * 10)),
+                            look_yaw=max(-combat["lookMax"], min(
+                                combat["lookMax"], yaw_delta * combat["lookScale"])),
+                            look_pitch=max(-combat["lookMax"], min(
+                                combat["lookMax"], -dy * combat["lookScale"])),
                             held=held, edge=edge,
                         )
                         for bit, name in (
@@ -434,8 +557,7 @@ def run_battle(port, duration=None, log_path=None,
                                 actions_by_player[client.player_id].add(name)
                         powerup_kind = (me[5] // 8) % 16
                         if powerup_kind:
-                            powerups_acquired.add(powerup_kind)
-                    stop.wait(.045)
+                    stop.wait(runtime["runnerDecisionIntervalMilliseconds"] / 1000)
                 except Exception as error:
                     if not stop.is_set():
                         driver_errors.append(
