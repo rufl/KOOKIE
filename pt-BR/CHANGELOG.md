@@ -17,6 +17,11 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   times. Nenhum atingiu o limite configurado de snowball; essas partidas não
   comprovam equilíbrio entre humanos. Entradas históricas abaixo registram a
   configuração anterior de 300 pontos de vida.
+- O HUD do espectador Web agora mostra mapa, fase/tempo, gansos e gatos vivos,
+  quedas recentes e minimapa maior com um anel no lutador seguido. A câmera
+  continua seguindo alguém ativo, troca após uma queda e mantém PREV/NEXT/FREE
+  CAM. Durante tentativas de reconexão, a última cena autoritativa e o alvo
+  seguido permanecem visíveis, sem limpar a arena.
 - O combate corpo a corpo agora usa alcance euclidiano horizontal e rejeita
   alvos separados verticalmente por mais de uma altura de cápsula, respeitando
   a geometria de colisão e impedindo dano através de plataformas. A IA dos bots

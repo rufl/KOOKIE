@@ -529,6 +529,8 @@
   addHudStat("projectiles", "PROJECTILES", "0");
   addHudStat("oxygen", "OXYGEN", "--");
   addHudStat("ping", "PING", "--");
+  addHudStat("match", "MATCH / MAP", "--");
+  addHudStat("teams", "ALIVE · GEESE / CATS", "0 / 0");
   addHudStat("renderer", "RENDERER", "starting");
   sceneCanvasWrap.appendChild(hud);
 
@@ -586,6 +588,13 @@
     spectatorFreeButton
   );
   sceneCanvasWrap.appendChild(spectatorCameraControls);
+  const spectatorEventFeed = document.createElement("div");
+  spectatorEventFeed.className = "kookie-spectator-events";
+  spectatorEventFeed.hidden = true;
+  spectatorEventFeed.setAttribute("aria-label", "Recent match events");
+  spectatorEventFeed.setAttribute("aria-live", "polite");
+  spectatorEventFeed.setAttribute("role", "status");
+  sceneCanvasWrap.appendChild(spectatorEventFeed);
   spectatorPreviousButton.addEventListener("click", () => cycleSpectatorTarget(-1));
   spectatorNextButton.addEventListener("click", () => cycleSpectatorTarget(1));
   spectatorFreeButton.addEventListener("click", returnToFreeSpectatorCamera);
@@ -1159,6 +1168,10 @@
   let lastSpectatorCameraUpdateAt = 0;
   let spectatorFollowTargetId = 0;
   let spectatorFollowActive = false;
+  let spectatorInitialFollowChosen = false;
+  let spectatorHealthBaseline = false;
+  const spectatorActorHealth = new Map();
+  const spectatorEvents = [];
   let spectatorCameraYaw = spectatorCameraHome.yaw;
   let spectatorCameraPitch = spectatorCameraHome.pitch;
   function spectatorTargets() {
@@ -1711,17 +1724,30 @@
     minimapContext.strokeRect(8, 8, width - 16, height - 16);
     for (const actor of scene.actors) {
       if (actor.health <= 0) continue;
-      minimapContext.fillStyle = actor.kind === 2 ? "#f59e0b" : "#ef5366";
+      minimapContext.fillStyle = actor.kind === 2 ? "#60a5fa" : "#ef5366";
       minimapContext.fillRect(mapX(actor.x) - 5, mapZ(actor.z) - 5, 10, 10);
+    }
+    if (scene.role === GAME_ROLE_SPECTATOR && spectatorFollowActive) {
+      const target = scene.actors.find((actor) =>
+        actor.id === spectatorFollowTargetId && actor.health > 0);
+      if (target) {
+        minimapContext.strokeStyle = "#fffbe9";
+        minimapContext.lineWidth = 3;
+        minimapContext.beginPath();
+        minimapContext.arc(mapX(target.x), mapZ(target.z), 9, 0, Math.PI * 2);
+        minimapContext.stroke();
+      }
     }
     if (scene.pickup) {
       minimapContext.fillStyle = "#4ade80";
       minimapContext.fillRect(mapX(scene.pickup.x) - 4, mapZ(scene.pickup.z) - 4, 8, 8);
     }
-    minimapContext.fillStyle = "#60a5fa";
-    minimapContext.beginPath();
-    minimapContext.arc(mapX(scene.playerX), mapZ(scene.playerZ), 7, 0, Math.PI * 2);
-    minimapContext.fill();
+    if (scene.role !== GAME_ROLE_SPECTATOR) {
+      minimapContext.fillStyle = "#60a5fa";
+      minimapContext.beginPath();
+      minimapContext.arc(mapX(scene.playerX), mapZ(scene.playerZ), 7, 0, Math.PI * 2);
+      minimapContext.fill();
+    }
     minimapContext.fillStyle = "#facc15";
     for (const projectile of scene.projectiles) {
       minimapContext.fillRect(mapX(projectile.x) - 3, mapZ(projectile.z) - 3, 6, 6);
@@ -2071,6 +2097,44 @@
       button.disabled = scene.role !== GAME_ROLE_PLAYER;
     }
   }
+  function updateSpectatorMatchFeed(scene) {
+    if (scene.role !== GAME_ROLE_SPECTATOR) return;
+    if (!spectatorHealthBaseline) {
+      spectatorActorHealth.clear();
+      for (const actor of scene.actors) {
+        spectatorActorHealth.set(actor.id, actor.health);
+      }
+      spectatorHealthBaseline = true;
+      return;
+    }
+    for (const actor of scene.actors) {
+      const previousHealth = spectatorActorHealth.get(actor.id);
+      if (previousHealth > 0 && actor.health === 0) {
+        const source = (scene.impacts || []).find((impact) =>
+          impact.targetId === actor.id && impact.damage > 0);
+        const actorName = (actor.kind === 2 ? "CAT"
+          : actor.kind === 3 ? "DUMMY" : "GOOSE") + " #" + actor.id;
+        const sourceActor = source
+          ? scene.actors.find((candidate) => candidate.id === source.sourceId)
+          : null;
+        const sourceName = sourceActor
+          ? (sourceActor.kind === 2 ? "CAT"
+            : sourceActor.kind === 3 ? "DUMMY" : "GOOSE") +
+              " #" + sourceActor.id + " → "
+          : "";
+        spectatorEvents.unshift(sourceName + actorName + " DOWN");
+        if (spectatorEvents.length > 4) spectatorEvents.length = 4;
+      }
+      spectatorActorHealth.set(actor.id, actor.health);
+    }
+    spectatorEventFeed.hidden = spectatorEvents.length === 0;
+    spectatorEventFeed.replaceChildren(...spectatorEvents.map((text) => {
+      const event = document.createElement("span");
+      event.textContent = text;
+      return event;
+    }));
+  }
+
   function updateScene(scene) {
     const previousScene = sceneState;
     const isDead = scene.role === GAME_ROLE_PLAYER && scene.health === 0;
@@ -2101,6 +2165,20 @@
     }
     sceneState = scene;
     updateMapVotePanel(scene);
+    const spectatorView = scene.role === GAME_ROLE_SPECTATOR;
+    hud.dataset.role = spectatorView ? "spectator" : "player";
+    sceneCanvasWrap.dataset.role = spectatorView ? "spectator" : "player";
+    spectatorEventFeed.hidden = !spectatorView || spectatorEvents.length === 0;
+    hudLabels.actors.textContent = spectatorView ? "FIGHTERS" : "ACTORS";
+    if (spectatorView && !spectatorInitialFollowChosen) {
+      const firstFighter = scene.actors.find((actor) =>
+        actor.id > 0 && actor.health > 0);
+      if (firstFighter) {
+        spectatorFollowTargetId = firstFighter.id;
+        spectatorFollowActive = true;
+        spectatorInitialFollowChosen = true;
+      }
+    }
     renderSceneState = {
       ...scene,
       camera: { ...scene.camera },
@@ -2130,9 +2208,24 @@
       ? Number.isInteger(scene.seedAmmo) ? String(scene.seedAmmo) : "--"
       : ammoText;
     hudValues.combo.textContent = String(scene.combo ?? 0);
-    hudValues.actors.textContent = String(
-      scene.actors.filter((actor) => actor.health > 0).length
-    );
+    const aliveActors = scene.actors.filter((actor) => actor.health > 0);
+    hudValues.actors.textContent = spectatorView
+      ? aliveActors.length + " / " + scene.actors.length
+      : String(aliveActors.length);
+    const geeseAlive = aliveActors.filter((actor) => actor.kind === 1).length;
+    const catsAlive = aliveActors.filter((actor) => actor.kind === 2).length;
+    const otherAlive = aliveActors.length - geeseAlive - catsAlive;
+    const remainingTicks = scene.matchTicksRemaining;
+    const remainingSeconds = Number.isFinite(remainingTicks)
+      ? Math.max(0, Math.ceil(remainingTicks / 60)) : null;
+    const timeText = remainingSeconds === null ? "--:--"
+      : Math.floor(remainingSeconds / 60) + ":" +
+        String(remainingSeconds % 60).padStart(2, "0");
+    const mapName = scene.mapId === 2 ? "G2 RUINS" : "G1 POOL";
+    const phaseName = scene.matchPhase === 1 ? "BREAK" : "FIGHT";
+    hudValues.match.textContent = mapName + " · " + phaseName + " · " + timeText;
+    hudValues.teams.textContent = geeseAlive + " / " + catsAlive +
+      (otherAlive > 0 ? " · +" + otherAlive : "");
     hudValues.oxygen.textContent = localActor && Number.isInteger(localActor.oxygen)
       ? String(localActor.oxygen) : "--";
     hudValues.projectiles.textContent = String(scene.projectiles.length);
@@ -2152,6 +2245,7 @@
   }
   function applyAuthoritativeScene(scene, snapshotSequence) {
     if (snapshotSequence < lastSnapshotSequence) return;
+    updateSpectatorMatchFeed(scene);
     lastSnapshotSequence = snapshotSequence;
     const now = performance.now();
     recordRemoteSnapshot(scene, now);
@@ -2211,8 +2305,13 @@
         actor.id === spectatorFollowTargetId && actor.health > 0)
       : null;
     if (spectatorFollowActive && !followActor) {
-      spectatorFollowActive = false;
-      spectatorFollowTargetId = 0;
+      const nextFighter = spectatorTargets()[0];
+      if (nextFighter) {
+        spectatorFollowTargetId = nextFighter.id;
+      } else {
+        spectatorFollowActive = false;
+        spectatorFollowTargetId = 0;
+      }
       updateSpectatorCameraControls();
     }
     const target = followActor
@@ -4170,7 +4269,7 @@
     };
   }
 
-  function disconnect(explicit = true) {
+  function disconnect(explicit = true, preserveScene = false) {
     if (browserBattleBots.length > 0) {
       stopBrowserBotBattle("Spectator disconnected; battle bots stopped.");
     }
@@ -4186,8 +4285,11 @@
     pingSentTimes.clear();
     pendingMovement.clear();
     pendingInputFrames.clear();
-    spectatorFollowActive = false;
-    spectatorFollowTargetId = 0;
+    if (!preserveScene) {
+      spectatorFollowActive = false;
+      spectatorFollowTargetId = 0;
+      spectatorInitialFollowChosen = false;
+    }
     lastSnapshotSequence = 0;
     spectatorMoveX = 0;
     spectatorMoveZ = 0;
@@ -4198,7 +4300,7 @@
     previousRemoteArrivalAt = 0;
     previousRemoteTick = -1;
     localMovementBlend = null;
-    if (sceneState) {
+    if (sceneState && !preserveScene) {
       const disconnectedScene = {
         ...sceneState,
         actors: [],
@@ -4216,6 +4318,10 @@
     if (explicit) {
       clearReconnectTimer();
       reconnectAttempt = 0;
+      spectatorHealthBaseline = false;
+      spectatorEvents.length = 0;
+      spectatorEventFeed.replaceChildren();
+      spectatorEventFeed.hidden = true;
     }
     setAsyncButtonState(connectButton, "idle", "PLAY");
     pingButton.disabled = true;
@@ -4264,7 +4370,7 @@
     clearReconnectTimer();
     intentionalDisconnect = false;
     if (!isReconnect) reconnectAttempt = 0;
-    disconnect(false);
+    disconnect(false, isReconnect);
     intentionalDisconnect = false;
     let url;
     let token = "";
@@ -4280,6 +4386,11 @@
       if (!isReconnect) {
         spectatorFollowActive = false;
         spectatorFollowTargetId = 0;
+        spectatorInitialFollowChosen = false;
+        spectatorHealthBaseline = false;
+        spectatorActorHealth.clear();
+        spectatorEvents.length = 0;
+        spectatorEventFeed.replaceChildren();
         spectatorCameraYaw = spectatorCameraHome.yaw;
         spectatorCameraPitch = spectatorCameraHome.pitch;
         spectatorLookYawOffset = 0;
@@ -4461,6 +4572,7 @@
     };
     clientSocket.onclose = () => {
       if (socket !== clientSocket) return;
+      const wasReady = authoritativeReady;
       spectatorMoveX = 0;
       spectatorMoveZ = 0;
       spectatorVerticalKeys.clear();

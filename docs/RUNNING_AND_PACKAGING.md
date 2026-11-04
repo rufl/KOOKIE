@@ -235,27 +235,34 @@ run_dir="$PWD/build/battle-runs/goose-cat-2v2"
 python3 -m http.server 8081 --directory "$run_dir/site"
 ```
 
-In another terminal, start 2 geese versus 2 cats with no timeout. `--wait-for-spectator`
-does not spawn bots until a browser spectator joins; `--spectator-url` prints
-the address reachable from that browser. The server itself listens on loopback,
-so remote browsers need a TCP forwarder or reverse proxy to that local port.
+In another terminal, start 2 geese versus 2 cats with no timeout.
+`--wait-for-spectator` delays bot spawning until a browser spectator joins; the
+runner prints its WebSocket address. The server listens on loopback, so remote
+browsers need a TCP forwarder or reverse proxy to that local port.
 
 ```bash
 run_dir="$PWD/build/battle-runs/goose-cat-2v2"
 scripts/b2teams4.py "$run_dir/server/kookie-web-server" 8080 \
   --run --geese 2 --cats 2 --duration 0 \
-  --wait-for-spectator --spectator-url ws://SERVER_HOST:8091/spectate \
+  --wait-for-spectator \
   --log "$run_dir/battle.ndjson" \
   --server-log "$run_dir/server.log" >"$run_dir/runner.log" 2>&1
 ```
 
 Open `http://127.0.0.1:8081/`, choose **Spectator** in the game console, set
-`ws://SERVER_HOST:8091/spectate`, and connect. `--duration 0` keeps the match
-running indefinitely: each eliminated bot reconnects as the same animal/team
-and resumes fighting. Ctrl+C stops the match and server. `battle.ndjson` stores
-one `kookie-battle-v1` snapshot per observed tick; server and runner output are
-separate logs. The current analyzer supports 4v4 logs only; use raw NDJSON
-snapshots for other team sizes.
+`ws://SERVER_HOST:8080`, and connect; the client selects `/spectate` for that
+role. Spectators initially follow the first living fighter, switch to another
+living fighter when their target is eliminated, and can use **PREV/NEXT** or
+**FREE CAM** to choose a view. `--duration 0` runs indefinitely; eliminated bots
+reconnect as the same animal/team and resume fighting. Ctrl+C stops the match
+and server. `battle.ndjson` stores one `kookie-battle-v1` snapshot per observed
+tick; server and runner output are separate logs. The spectator HUD shows the
+active-fighter count, living geese/cats, current map and match phase/countdown,
+and recent knockdowns instead of empty player-only health, stamina, ammo, and
+oxygen cards. Its larger minimap marks the followed fighter. Transient
+reconnect attempts retain the last authoritative scene and camera target; an
+intentional disconnect clears them. The current analyzer supports 4v4 logs only;
+use raw NDJSON snapshots for other team sizes.
 
 The parser estimates team strength from alive-player count plus remaining
 health, then compares an early baseline with three contiguous late windows. A

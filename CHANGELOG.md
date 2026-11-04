@@ -16,6 +16,11 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   and 165/800, and neither met the configured snowball heuristic. These runs
   do not prove human-match balance. Historical entries below record the earlier
   300-health setup.
+- The Web spectator HUD now shows map, match phase/time, living geese/cats,
+  recent knockdowns, and an enlarged minimap ring around the followed fighter.
+  It still auto-follows an active fighter, retargets after a knockdown, and
+  keeps PREV/NEXT/FREE CAM. During reconnect attempts it retains the last
+  authoritative scene and follow target instead of clearing to an empty arena.
 - Melee targeting now uses Euclidean horizontal reach and rejects targets more
   than one movement-capsule height above or below; this matches the server's
   collision geometry and prevents damage through vertically separated floors.

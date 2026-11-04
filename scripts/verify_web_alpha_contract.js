@@ -46,6 +46,11 @@ class FakeElement {
   append(...children) {
     for (const child of children) this.appendChild(child);
   }
+  replaceChildren(...children) {
+    for (const child of this.children) child.parentNode = null;
+    this.children = [];
+    this.append(...children);
+  }
   removeChild(child) {
     const index = this.children.indexOf(child);
     if (index >= 0) this.children.splice(index, 1);
@@ -79,7 +84,7 @@ class FakeElement {
   getContext(type) {
     return {
       clearRect() {}, fillRect() {}, strokeRect() {}, beginPath() {},
-      arc() {}, fill() {},
+      arc() {}, fill() {}, stroke() {},
       createImageData(width, height) { return { data: new Uint8ClampedArray(width * height * 4) }; },
       putImageData() {},
     };
@@ -973,6 +978,38 @@ async function main() {
   assert.ok(document.getElementById("kookie-authoritative-scene")
     .attributes["aria-label"].includes("tick 5000"),
   "multiplayer snapshots with a seven-word match/respawn trailer are accepted");
+  const spectatorStats = collectElements(document.body).filter((element) =>
+    ["match", "teams", "actors"].includes(element.attributes["data-stat"]));
+  const spectatorValues = Object.fromEntries(spectatorStats.map((element) =>
+    [element.attributes["data-stat"], element.children[1].textContent]));
+  assert.equal(spectatorValues.teams, "1 / 1");
+  assert.equal(spectatorValues.match, "G1 POOL · FIGHT · 0:04");
+  assert.equal(spectatorValues.actors, "2 / 2");
+  const downSnapshot = multiplayerSnapshotWithRespawnMetadata(5001, 5001);
+  downSnapshot[22] = 0;
+  downSnapshot[40] = 2;
+  downSnapshot[41] = 1;
+  downSnapshot[downSnapshot.length - 1] =
+    messageChecksum(downSnapshot.slice(0, -1));
+  spectatorSession.emit(encodeFrame(6, 5001, downSnapshot));
+  await new Promise((resolve) => setImmediate(resolve));
+  const spectatorFeed = collectElements(document.body).find((element) =>
+    element.className === "kookie-spectator-events");
+  assert.equal(spectatorFeed.children[0].textContent,
+    "CAT #2 → GOOSE #1 DOWN");
+  spectatorSession.close();
+  await new Promise((resolve) => setTimeout(resolve, 700));
+  await waitFor(() => FakeWebSocket.active?.joined === true &&
+    FakeWebSocket.active !== spectatorSession);
+  assert.ok(document.getElementById("kookie-authoritative-scene")
+    .attributes["aria-label"].includes("tick 5001"),
+  "reconnect preserves the last authoritative spectator scene until a new snapshot arrives");
+  FakeWebSocket.active.emit(encodeFrame(
+    6, 5002, multiplayerSnapshotWithRespawnMetadata(5002, 5002)));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.ok(document.getElementById("kookie-authoritative-scene")
+    .attributes["aria-label"].includes("tick 5002"),
+  "reconnected spectator resumes on the new authoritative snapshot");
   assert.doesNotMatch(document.getElementById("kookie-session-status").textContent,
     /session message rejected/);
 }

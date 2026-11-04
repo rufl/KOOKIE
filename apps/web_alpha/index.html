@@ -46,8 +46,27 @@
     .kookie-session-stat[data-stat="health"] .kookie-session-stat-value::before { content: ""; flex: 0 0 24px; width: 24px; height: 24px; background: url("assets/prototype/runtime/ui/hearts_0001.png") no-repeat -96px 0 / 120px 24px; image-rendering: pixelated; }
     .kookie-session-stat[data-stat="health"][data-team="blue"] .kookie-session-stat-value::before { background-image: url("assets/prototype/runtime/ui/hearts_blue.png"); }
     .kookie-session-stat[data-stat="ammo"] { min-width: 112px; margin-left: auto; }
-    .kookie-session-stat[data-stat="tick"], .kookie-session-stat[data-stat="position"], .kookie-session-stat[data-stat="combo"], .kookie-session-stat[data-stat="actors"], .kookie-session-stat[data-stat="projectiles"], .kookie-session-stat[data-stat="ping"], .kookie-session-stat[data-stat="renderer"] { display: none; }
+    .kookie-session-stat[data-stat="tick"], .kookie-session-stat[data-stat="position"], .kookie-session-stat[data-stat="combo"], .kookie-session-stat[data-stat="actors"], .kookie-session-stat[data-stat="projectiles"], .kookie-session-stat[data-stat="ping"], .kookie-session-stat[data-stat="renderer"], .kookie-session-stat[data-stat="match"], .kookie-session-stat[data-stat="teams"] { display: none; }
     .kookie-session-stat[data-stat="ping"] { display: block; min-width: 54px; }
+    .kookie-session-hud[data-role="spectator"] .kookie-session-stat[data-stat="health"],
+    .kookie-session-hud[data-role="spectator"] .kookie-session-stat[data-stat="stamina"],
+    .kookie-session-hud[data-role="spectator"] .kookie-session-stat[data-stat="ammo"],
+    .kookie-session-hud[data-role="spectator"] .kookie-session-stat[data-stat="oxygen"],
+    .kookie-session-hud[data-role="spectator"] .kookie-session-stat[data-stat="position"],
+    .kookie-session-hud[data-role="spectator"] .kookie-session-stat[data-stat="combo"],
+    .kookie-session-hud[data-role="spectator"] .kookie-session-stat[data-stat="projectiles"],
+    .kookie-session-hud[data-role="spectator"] .kookie-session-stat[data-stat="tick"] { display: none; }
+    .kookie-session-hud[data-role="spectator"] .kookie-session-stat[data-stat="actors"] { display: block; }
+    .kookie-session-hud[data-role="spectator"] .kookie-session-stat[data-stat="ping"] { margin-left: auto; }
+    .kookie-session-hud[data-role="spectator"] .kookie-session-stat[data-stat="match"],
+    .kookie-session-hud[data-role="spectator"] .kookie-session-stat[data-stat="teams"] { display: block; }
+    .kookie-session-hud[data-role="spectator"] .kookie-session-stat[data-stat="match"] { min-width: 180px; }
+    .kookie-session-hud[data-role="spectator"] .kookie-session-stat[data-stat="match"] .kookie-session-stat-value { font-size: 16px; }
+    .kookie-session-hud[data-role="spectator"] .kookie-session-stat[data-stat="teams"] .kookie-session-stat-value { color: #e8f0d7; }
+    .kookie-session-canvas-wrap[data-role="spectator"] .kookie-session-hud { right: calc(clamp(150px, 23vw, 220px) + 36px); }
+    .kookie-session-canvas-wrap[data-role="spectator"] .kookie-session-minimap { width: clamp(150px, 23vw, 220px); }
+    .kookie-spectator-events { position: absolute; z-index: 5; right: 16px; bottom: 68px; display: grid; gap: 4px; max-width: min(250px, 45%); padding: 8px 10px; border: 1px solid #ffffff30; border-radius: 10px; background: #111c18df; color: #fffbe9; font: 700 11px/1.2 "ThaleahFat", "Pixand", sans-serif; text-align: right; text-shadow: 0 1px 3px #000; pointer-events: none; }
+    .kookie-spectator-events[hidden] { display: none; }
     .kookie-session-minimap { position: absolute; top: 14px; right: 14px; width: clamp(100px, 17vw, 164px); height: auto; min-height: 0; aspect-ratio: 3/2; border: 1px solid #ffffff35; border-radius: 14px; background: #07100de8; }
     .kookie-session-minimap[hidden] { display: none; }
     .kookie-session-runtime { position: absolute; z-index: 3; left: 14px; bottom: 14px; padding: 7px 10px; border: 1px solid #ffffff26; border-radius: 10px; background: #111c18dc; color: #dce8cc; font-size: 12px; }
@@ -61,9 +80,8 @@
     .kookie-spectator-camera button:disabled { opacity: .5; }
     .kookie-spectator-target { min-width: 120px; max-width: min(36vw, 220px); overflow: hidden; color: #fffbe9; text-align: center; text-overflow: ellipsis; white-space: nowrap; font: 700 11px/1 system-ui, sans-serif; }
     @media (max-width: 520px) {
-      .kookie-spectator-camera { gap: 4px; padding: 4px; }
-      .kookie-spectator-camera button { min-width: 44px; padding: 5px 7px; font-size: 10px; }
-      .kookie-spectator-target { min-width: 88px; max-width: 30vw; font-size: 10px; }
+      .kookie-session-canvas-wrap[data-role="spectator"] .kookie-session-hud { right: calc(clamp(126px, 32vw, 164px) + 28px); }
+      .kookie-session-canvas-wrap[data-role="spectator"] .kookie-session-minimap { width: clamp(126px, 32vw, 164px); }
     }
 .kookie-damage-number-layer { position: absolute; z-index: 5; inset: 0; pointer-events: none; overflow: hidden; }
 .kookie-damage-number { position: absolute; transform: translate(-50%, -50%); color: #fff4a6; font: 30px/1 "ThaleahFat", "Pixand", sans-serif; letter-spacing: .02em; -webkit-text-stroke: .35px #160d00; text-shadow: 0 2px 4px #160d00, 0 0 10px #f08a12; will-change: transform, opacity; }

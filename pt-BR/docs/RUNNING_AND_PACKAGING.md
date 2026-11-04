@@ -352,10 +352,16 @@ No navegador, abra **Configurações → Abrir console do jogo**, selecione
 criar quatro gansos no time vermelho e quatro gatos no azul, e assistir à
 batalha nessa página; `/stop` desconecta os bots. A partida termina quando um
 time é eliminado ou após dois minutos. O console exige um espectador conectado,
-mas não exige um processo CLI separado. Os bots procuram power-ups elegíveis
+mas não exige um processo CLI separado. Ao entrar, a câmera acompanha o primeiro
+lutador vivo e troca de alvo quando ele é eliminado; **PREV/NEXT** ciclam os
+jogadores; **FREE CAM** retorna à câmera livre. Os bots procuram power-ups
 quando não têm efeito ativo e voltam ao combate; usam pulo, rolamento, dash,
 voo/deslizamento, melee, tiro, especial e arremessáveis conforme distância e
 separação vertical.
+No modo espectador, o HUD mostra lutadores vivos, gansos/gatos ativos, mapa,
+fase e contagem regressiva, além de quedas recentes. O minimapa maior marca o
+lutador seguido. Durante tentativas de reconexão, a última cena e a câmera
+permanecem visíveis; desconectar manualmente limpa esses dados.
 
 Os bots do navegador e do CLI começam com 100 de vida; o HUD mostra o mesmo
 limite. Ele usa corações azuis para o time azul e vermelhos para o vermelho,
@@ -394,8 +400,9 @@ total), `--duration 0` para remover os limites de tempo e eliminação e `--run`
 para iniciar sem prompt. No modo sem limite, bots eliminados se desconectam e
 entram novamente no mesmo time, continuando a luta até Ctrl+C.
 `--wait-for-spectator` aguarda um espectador do navegador antes de criar os
-bots. O servidor escuta apenas em loopback; espectadores remotos precisam de
-um encaminhador TCP ou proxy reverso até a porta local.
+bots e imprime o endereço WebSocket local (`ws://127.0.0.1:<porta>/spectate`).
+O servidor escuta apenas em loopback; espectadores remotos precisam de um
+encaminhador TCP ou proxy reverso até a porta local.
 
 `--log CAMINHO` grava um snapshot JSON `kookie-battle-v1` por tick observado;
 `--server-log CAMINHO` salva a saída do servidor separadamente.
