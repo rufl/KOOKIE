@@ -541,15 +541,27 @@ def main():
             expected_players=8, expected_spectators=4)
         turn_sequence = wizard_tester.input(look_yaw=900)
         wizard_scene = wait_for_input_ack(wizard_tester, turn_sequence)
+        fireball_ticks = []
         for expected_shots in (4, 3, 2, 1, 0):
+            if fireball_ticks:
+                deadline = time.monotonic() + 5
+                while (wizard_scene[4] - fireball_ticks[-1] < 24 and
+                       time.monotonic() < deadline):
+                    wizard_scene = spectators[0].snapshot(8, 4)
+                assert wizard_scene[4] - fireball_ticks[-1] >= 24, (
+                    "Wizard Hat fireballs must respect the 24-tick cooldown")
             before_projectiles = len(projectile_records(wizard_scene))
             sequence = wizard_tester.input(edge=128)
             wizard_scene = wait_for_input_ack(wizard_tester, sequence)
+            fireball_ticks.append(wizard_scene[4])
             assert throwable_suffix(wizard_scene)[8] == expected_shots, (
                 "special action must consume one fireball charge")
             records = projectile_records(wizard_scene)
             assert len(records) == before_projectiles + 1 and records[-1][7] == 3, (
                 "each Wizard Hat action must replicate one fireball projectile")
+        assert all(right - left >= 24 for left, right in
+                   zip(fireball_ticks, fireball_ticks[1:])), (
+            f"Wizard Hat firing exceeded the 24-tick cadence: {fireball_ticks}")
         shooter = players[0]
         target = players[2]
         aim_scene = spectators[0].snapshot(8, 4)
@@ -563,14 +575,25 @@ def main():
         )))
         yaw_delta = (desired_yaw - shooter_state[7] + 180) % 360 - 180
         shooter.input(look_yaw=yaw_delta * 10, held=32)
-        _, target_after = wait_for_actor(
+        first_hit_scene, target_after = wait_for_actor(
             spectators[0], 8, 4, target.player_id,
             lambda state, snapshot: state[4] < target_before)
+        first_hitscan = [event for event in impact_events(first_hit_scene)
+                         if event[1] == 1 and
+                         event[2] == shooter.player_id and
+                         event[3] == target.player_id and event[7] > 0]
+        assert first_hitscan, "hitscan impact event was not replicated"
+        shot_ticks = [first_hit_scene[4]]
+        shot_damage = [first_hitscan[-1][7]]
+        last_shot_event_sequence = first_hitscan[-1][0]
+        assert target_after[4] == target_before - 15, (
+            f"hitscan should deal 15 damage; "
+            f"before={target_before}, after={target_after[4]}")
         assert target_after[4] < target_before, "hitscan did not damage an aimed player"
         shooter.input(held=0)
         respawn_target = players[2]
         respawn_shooter = shooter
-        for _ in range(36):
+        for _ in range(120):
             aim_scene = spectators[0].snapshot(8, 4)
             shooter_state = actor_record(aim_scene, respawn_shooter.player_id)
             target_state = actor_record(aim_scene, respawn_target.player_id)
@@ -585,13 +608,31 @@ def main():
                 look_yaw=yaw_delta * 10, held=32)
             aimed_scene = wait_for_input_ack(respawn_shooter, sequence)
             target_state = actor_record(aimed_scene, respawn_target.player_id)
+            for event in impact_events(aimed_scene):
+                if (event[0] > last_shot_event_sequence and event[1] == 1 and
+                        event[2] == respawn_shooter.player_id and
+                        event[3] == respawn_target.player_id and event[7] > 0):
+                    shot_ticks.append(aimed_scene[4])
+                    shot_damage.append(event[7])
+                    last_shot_event_sequence = event[0]
             if target_state[4] <= 0:
                 break
-        release_sequence = respawn_shooter.input(held=0)
-        wait_for_input_ack(respawn_shooter, release_sequence)
+        assert len(shot_ticks) >= (target_before + 14) // 15, (
+            f"hitscan shots were not reliably applied: "
+            f"ticks={shot_ticks}, damage={shot_damage}")
+        assert sum(shot_damage) == target_before and all(
+            0 < damage <= 15 for damage in shot_damage
+        ) and all(damage == 15 for damage in shot_damage[:-1]), (
+            f"hitscan must deal at most 15 and exactly eliminate at 100 HP: "
+            f"total={sum(shot_damage)}, damage={shot_damage}")
+        assert all(right - left >= 12
+                   for left, right in zip(shot_ticks, shot_ticks[1:])), (
+            f"hitscan cadence must be at least 12 simulation ticks: {shot_ticks}")
         assert target_state[4] == 0, (
             f"lethal damage must leave the same player visibly eliminated; "
             f"health={target_state[4]}, actor={target_state}")
+        release_sequence = respawn_shooter.input(held=0)
+        wait_for_input_ack(respawn_shooter, release_sequence)
         death_deadline = time.monotonic() + 5
         while time.monotonic() < death_deadline:
             death_scene = respawn_target.snapshot(
@@ -629,7 +670,7 @@ def main():
                 break
         else:
             raise AssertionError("player did not respawn on the next wave")
-        assert 0 < respawn_state[4] <= 300 and \
+        assert 0 < respawn_state[4] <= GAME_MAXIMUM_HEALTH and \
             respawn_state[6] == target_species, (
                 f"respawn must restore the actor and preserve species; "
                 f"actor={respawn_state}, expected species={target_species}")
@@ -1052,6 +1093,7 @@ def main():
             if index >= 2 and
             actor_record(collision_scene, client.player_id)[4] > 0
         ]
+        assert alive_targets, "melee fixture needs a living enemy target"
         collision_target = min(
             alive_targets,
             key=lambda client: abs(
@@ -1094,11 +1136,42 @@ def main():
         melee_ack = wait_for_input_ack(collision_mover, melee_sequence)
         assert input_acknowledgement(melee_ack) >= melee_sequence
         if abs(collision_target_state[2] - collision_mover_state[2]) <= 4:
-            _, melee_target = wait_for_actor(
+            melee_target_scene, melee_target = wait_for_actor(
                 spectators[0], 8, 4, collision_target.player_id,
                 lambda state, snapshot: state[4] < target_health)
-            assert melee_target[4] < target_health, (
-                "melee input did not damage a vertically reachable player")
+            assert melee_target[4] == target_health - 15, (
+                f"base melee should deal 15 damage: "
+                f"before={target_health}, after={melee_target[4]}")
+            melee_hits = [event for event in impact_events(melee_target_scene)
+                          if event[1] == 2 and
+                          event[2] == collision_mover.player_id and
+                          event[3] == collision_target.player_id and
+                          event[7] > 0]
+            assert melee_hits, "melee impact event was not replicated"
+            melee_ticks = [melee_target_scene[4]]
+            melee_damages = [melee_hits[-1][7]]
+            last_melee_event_sequence = melee_hits[-1][0]
+            for _ in range(60):
+                sequence = collision_mover.input(edge=64)
+                melee_target_scene = wait_for_input_ack(
+                    collision_mover, sequence)
+                for event in impact_events(melee_target_scene):
+                    if (event[0] > last_melee_event_sequence and
+                            event[1] == 2 and
+                            event[2] == collision_mover.player_id and
+                            event[3] == collision_target.player_id and
+                            event[7] > 0):
+                        melee_ticks.append(melee_target_scene[4])
+                        melee_damages.append(event[7])
+                        last_melee_event_sequence = event[0]
+                if len(melee_ticks) >= 3:
+                    break
+            assert len(melee_ticks) >= 3 and all(
+                damage == 15 for damage in melee_damages
+            ) and all(right - left >= 18 for left, right in
+                      zip(melee_ticks, melee_ticks[1:])), (
+                f"melee must deal 15 damage no faster than once per 18 ticks: "
+                f"ticks={melee_ticks}, damage={melee_damages}")
         else:
             _, melee_target = wait_for_actor(
                 spectators[0], 8, 4, collision_target.player_id,

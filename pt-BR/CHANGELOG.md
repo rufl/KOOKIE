@@ -3,17 +3,20 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
-- Restauramos o limite de vida do multiplayer do navegador para 100 no
-  protocolo KOF, cliente Web, modelo do servidor, HUD, fixtures dos bots e
-  documentação. Quatro fatias de melancia podem recuperar até 32 de vida e
-  conceder até 12 sementes; melee básico causa 15, tiro comum 20, Wool Mace
-  30, sementes 35 e bolas de fogo do Wizard Hat 30. Cada acerto representa
-  15–35% da vida máxima. Uma batalha 4v4 de bots, registrada por 90 segundos,
-  produziu 1.473 snapshots em movimento, mínimo transitório de 1/8 jogadores
-  vivos e 40/800 de vida somada; a heurística não detectou vantagem crescente
-  sustentada. Uma partida de IA não prova causalidade nem equilíbrio robusto,
-  então os danos permanecem iguais. Entradas antigas registram a configuração
-  anterior de 300 de vida.
+- Restauramos a vida máxima do multiplayer Web para 100 e ajustamos o combate
+  após reproduzir uma rajada de tiros sem recarga: cinco acertos de 20 pontos
+  ocorreram em cinco ticks consecutivos (cerca de 83 ms) e eliminaram um
+  jogador com vida cheia. Tiro comum agora causa 15 de dano / recarga de 12
+  ticks, melee 15 / 18 ticks e ataques especiais têm recarga de 24 ticks;
+  Wool Mace tem limite de 20, sementes 25 e bolas de fogo do Wizard Hat causam
+  20. Quatro fatias de melancia ainda recuperam até 32 de vida e concedem até
+  12 sementes. A integração verifica dano/recarga, cadência do Wizard Hat,
+  respawn e protocolo multiplayer. Dois testes 4v4 subsequentes, com 60
+  segundos cada, registraram 1.184 e 1.096 snapshots em movimento; os mínimos
+  foram 5/8 e 3/8 jogadores vivos e 225/800 e 165/800 de vida somada nos
+  times. Nenhum atingiu o limite configurado de snowball; essas partidas não
+  comprovam equilíbrio entre humanos. Entradas históricas abaixo registram a
+  configuração anterior de 300 pontos de vida.
 - O combate corpo a corpo agora usa alcance euclidiano horizontal e rejeita
   alvos separados verticalmente por mais de uma altura de cápsula, respeitando
   a geometria de colisão e impedindo dano através de plataformas. A IA dos bots

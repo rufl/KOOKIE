@@ -193,20 +193,18 @@ seeds, or Wizard Hat fireballs. HUD values use ThaleahFat; damage numbers have
 a Settings toggle. Confirmed hits briefly flinch and flash remote players; hits
 on the local player briefly flash the screen red with a direction indicator.
 Dizzy players show orbiting cartoon stars.
-With 100 maximum health, baseline hitscan deals 20, melee 15, watermelon seeds
-35, Wool Mace 30, and Wizard Hat fireballs 30. Four watermelon slices can heal
-up to 32 health and grant 12 seeds. In one 90-second logged 4v4 bot battle,
-the minimum observed was 1/8 players alive and 40/800 combined team health;
-the snowball heuristic found no sustained growing lead. This single AI run is
-not causal or statistically robust balance evidence; damage values remain
-unchanged.
-With 100 maximum health, baseline hitscan deals 20, melee 15, watermelon seeds
-35, Wool Mace 30, and Wizard Hat fireballs 30. Four watermelon slices can heal
-up to 32 health and grant 12 seeds. In one 90-second logged 4v4 bot battle,
-the minimum observed was 1/8 players alive and 40/800 combined team health;
-the snowball heuristic found no sustained growing lead. This single AI run is
-not causal or statistically robust balance evidence; damage values remain
-unchanged.
+With 100 maximum health, browser combat limits ordinary hitscan to 15 damage
+with a 12-tick cooldown, base melee to 15 with an 18-tick cooldown, and
+special attacks to a 24-tick cooldown. Wool Mace melee is capped at 20,
+watermelon seeds at 25, and Wizard Hat fireballs deal 20. At the 60 Hz
+simulation rate these cooldowns are approximately 200/300/400 ms. This
+replaces an observed no-cooldown burst where five 20-damage hits landed on
+consecutive ticks and eliminated a 100-health target in about 83 ms. These
+caps reduce peak damage but do not prove human-match balance. Two subsequent
+60-second 4v4 bot matches logged 1,184 and 1,096 moving snapshots; minimum
+alive counts were 5/8 and 3/8, minimum combined team health 225/800 and 165/800,
+and neither met the configured snowball heuristic. This is limited, bot-only
+evidence.
 
 The shared throwable pickup spawns at randomized safe arena locations and
 randomly selects a crate, boulder, bomb, flour package, or watermelon. Press the

@@ -110,10 +110,15 @@ Bool webMultiplayerBox3DParityCase(
 Int webMultiplayerPlayerCapacity() { return 8 }
 Int webMultiplayerTickMillis() { return 17 }
 Int webMultiplayerTickNanoseconds() { return 16667000 }
-Int webMultiplayerProjectileCapacity() { return 12 }
-Int webMultiplayerThrowableCapacity() { return 4 }
+Int webMultiplayerProjectileCapacity() { return 16 }
+Int webMultiplayerThrowableCapacity() { return 16 }
 Int webMultiplayerImpactCapacity() { return 8 }
-Int webMultiplayerProjectileLifetimeTicks() { return 120 }
+Int webMultiplayerProjectileLifetimeTicks() { return 180 }
+Int webMultiplayerHitscanCooldownTicks() { return 12 }
+Int webMultiplayerMeleeCooldownTicks() { return 18 }
+Int webMultiplayerSpecialCooldownTicks() { return 24 }
+Int webMultiplayerMeleePowerUpDamageCap() { return 20 }
+Int webMultiplayerProjectilePowerUpDamageCap() { return 25 }
 Int webMultiplayerThrowableFuseTicks() {
     return sessionWebGameMaximumThrowableFuseTicks()
 }
@@ -226,6 +231,9 @@ class WebMultiplayerSimulation {
     Int[] animationValues
     Int[] animationUntilTicks
     Int[] playerInputSequences
+    Int[] nextHitscanTicks
+    Int[] nextMeleeTicks
+    Int[] nextSpecialTicks
     Int[] projectileKinds
     Int[] projectileX
     Int[] projectileY
@@ -322,6 +330,9 @@ class WebMultiplayerSimulation {
         animationValues = new Int[8]
         animationUntilTicks = new Int[8]
         playerInputSequences = new Int[8]
+        nextHitscanTicks = new Int[8]
+        nextMeleeTicks = new Int[8]
+        nextSpecialTicks = new Int[8]
         projectileIds = new Int[16]
         projectileOwners = new Int[16]
         projectileTargets = new Int[16]
@@ -409,6 +420,9 @@ class WebMultiplayerSimulation {
             throwableChargeReady[index] = false
             throwableCharging[index] = false
             throwableChargeTicks[index] = 0
+            nextHitscanTicks[index] = 0
+            nextMeleeTicks[index] = 0
+            nextSpecialTicks[index] = 0
         }
         for (var p = 0; p < 16; p = p + 1) {
             projectileActive[p] = false
@@ -736,9 +750,9 @@ class WebMultiplayerSimulation {
             return false
         }
 
-        if (!combat.defineWeapon(1, 30, 90, 20, 1) ||
+        if (!combat.defineWeapon(1, 30, 90, 15, 1) ||
             !combat.setWeaponRange(1, 120) ||
-            !combat.setWeaponCooldown(1, 0)) { return false }
+            !combat.setWeaponCooldown(1, webMultiplayerHitscanCooldownTicks())) { return false }
         if (!powerUpDefinitionsLoadedValue &&
             !loadPowerUpDefinitions()) { return false }
         if (!configureLiquidWorld()) { return false }
@@ -871,6 +885,9 @@ class WebMultiplayerSimulation {
         seedAmmoValues[slot] = 0
         dizzyUntilTicks[slot] = 0
         oxygenAt(slot).reset()
+        nextHitscanTicks[slot] = 0
+        nextMeleeTicks[slot] = 0
+        nextSpecialTicks[slot] = 0
         activeValues[slot] = true
         return true
     }
@@ -1065,6 +1082,9 @@ class WebMultiplayerSimulation {
         lastDamagerValues[slot] = 0
         healthValues[slot] = 0
         ammoValues[slot] = 0
+        nextHitscanTicks[slot] = 0
+        nextMeleeTicks[slot] = 0
+        nextSpecialTicks[slot] = 0
         if (activePlayerCount() == 0) {
             trainingModeValue = false
             for (var dummy = 0; dummy < 4; dummy = dummy + 1) {
@@ -1303,16 +1323,28 @@ class WebMultiplayerSimulation {
             }
         }
         throwableButtonHeld[slot] = throwableHeld
-        if (fire && ammoValues[slot] > 0) {
+        if (fire && ammoValues[slot] > 0 &&
+            tickValue >= nextHitscanTicks[slot]) {
             if (nearestTarget(slot, 120) >= 0) {
                 if (!fireAtNearest(slot)) { return false }
             } else {
                 ammoValues[slot] = ammoValues[slot] - 1
                 firedCountValue = firedCountValue + 1
             }
+            nextHitscanTicks[slot] =
+                tickValue + webMultiplayerHitscanCooldownTicks()
         }
-        if (melee && nearestTarget(slot, 5) >= 0 && !meleeAtNearest(slot)) { return false }
-        if (special && !activateSpecial(slot)) { return false }
+        if (melee && tickValue >= nextMeleeTicks[slot] &&
+            nearestTarget(slot, 5) >= 0) {
+            if (!meleeAtNearest(slot)) { return false }
+            nextMeleeTicks[slot] =
+                tickValue + webMultiplayerMeleeCooldownTicks()
+        }
+        if (special && tickValue >= nextSpecialTicks[slot]) {
+            if (!activateSpecial(slot)) { return false }
+            nextSpecialTicks[slot] =
+                tickValue + webMultiplayerSpecialCooldownTicks()
+        }
 
         movingValues[slot] = axisX != 0 || axisZ != 0
         if (roll || movement.lastDoubleJump()) {
@@ -1456,6 +1488,9 @@ class WebMultiplayerSimulation {
         var damage = 15
         if (effectAt(slot).woolMaceActive(tickValue)) {
             damage = effectAt(slot).woolMaceDamage()
+            if (damage > webMultiplayerMeleePowerUpDamageCap()) {
+                damage = webMultiplayerMeleePowerUpDamageCap()
+            }
         }
         if (trainingModeValue && target >= 8) {
             var dummy = target - 8
@@ -1538,10 +1573,15 @@ class WebMultiplayerSimulation {
         projectileTargets[free] = 0
         if (aimedSlot >= 0) { projectileTargets[free] = playerIds[aimedSlot] }
         projectileKinds[free] = kind
-        projectileDamage[free] = if (kind == 3) 30 else 15
+        projectileDamage[free] = if (kind == 3) 20 else 15
         var effect = effectAt(slot)
         if (kind == 1 && effect.watermelonActive(tickValue)) {
             projectileDamage[free] = effect.watermelonSeedDamage()
+            if (projectileDamage[free] >
+                    webMultiplayerProjectilePowerUpDamageCap()) {
+                projectileDamage[free] =
+                    webMultiplayerProjectilePowerUpDamageCap()
+            }
         }
         projectileX[free] = movement.positionX(slot + 1)
         projectileY[free] = movement.positionY(slot + 1) + 3

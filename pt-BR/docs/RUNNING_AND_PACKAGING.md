@@ -364,13 +364,16 @@ ThaleahFat para números. Dano flutuante pode ser ativado/desativado em
 Configurações. Acertos causam breve recuo e flash nos outros personagens; dano
 no jogador local causa um flash vermelho e indicador direcional. Estrelas
 orbitam personagens atordoados.
-Com máximo de 100 de vida, tiro comum causa 20, melee 15, sementes de melancia
-35, Wool Mace 30 e bolas de fogo do Wizard Hat 30. Quatro fatias de melancia
-podem recuperar até 32 de vida e conceder 12 sementes. Em uma batalha 4v4 de
-bots registrada por 90 segundos, o mínimo observado foi 1/8 jogadores vivos e
-40/800 de vida somada entre os times; a heurística não detectou vantagem
-crescente sustentada. Uma única partida de IA não comprova causalidade nem
-equilíbrio estatisticamente robusto; os danos não foram alterados.
+Com 100 de vida máxima, o combate Web limita o tiro comum a 15 de dano com
+recarga de 12 ticks, melee básico a 15 com 18 ticks e ataques especiais a 24
+ticks. Wool Mace tem limite de 20 de dano, sementes de melancia 25 e bolas de
+fogo do Wizard Hat causam 20. A 60 Hz, essas recargas equivalem a
+aproximadamente 200/300/400 ms. Isso corrige uma rajada observada sem recarga:
+cinco tiros de 20 de dano em ticks consecutivos eliminaram um alvo com 100 de
+vida em cerca de 83 ms. Dois testes 4v4 de 60 segundos registraram 1.184 e
+1.096 snapshots em movimento; os mínimos foram 5/8 e 3/8 jogadores vivos,
+225/800 e 165/800 de vida somada nos times, e nenhum atingiu o limite da
+heurística de snowball. A amostra é limitada e usa apenas bots.
 
 O pickup compartilhado de arremessáveis surge em posições seguras aleatórias e
 seleciona entre caixa, pedregulho, bomba, pacote de farinha ou melancia.

@@ -3,17 +3,19 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
-- Restored the browser multiplayer health contract to 100 across the KOF
-  protocol, Web client, server model, HUD, bot fixtures, and documentation.
-  Four watermelon slices can restore up to 32 health and refill up to 12 seeds;
-  base melee deals 15, ordinary hitscan 20, Wool Mace 30, watermelon seeds 35,
-  and Wizard Hat fireballs 30. These values now represent 15–35% of maximum
-  health per hit. One 90-second logged 4v4 bot battle produced 1,473 moving
-  snapshots, a transient minimum of 1/8 players alive and 40/800 total team
-  health; the snowball heuristic found no sustained growing team advantage.
-  One AI run is not causal or statistically robust balance evidence, so damage
-  values remain unchanged. Historical changelog entries below record the
-  earlier 300-health configuration.
+- Restored the browser multiplayer health contract to 100 and tuned online
+  combat after reproducing an unthrottled hitscan burst: five 20-damage shots
+  landed on five consecutive simulation ticks (about 83 ms), eliminating a
+  full-health player. Hitscan is now 15 damage / 12 ticks, melee 15 / 18 ticks,
+  and specials have a 24-tick cooldown; Wool Mace caps at 20 damage, seeds at
+  25, and Wizard Hat fireballs deal 20. Four watermelon slices still heal up
+  to 32 and grant up to 12 seeds. Integration checks verify hit damage,
+  cadence, Wizard Hat shot cadence, respawn, and multiplayer protocol. Two
+  subsequent 60-second 4v4 bot matches logged 1,184 and 1,096 moving snapshots;
+  minimum alive counts were 5/8 and 3/8, minimum combined team health 225/800
+  and 165/800, and neither met the configured snowball heuristic. These runs
+  do not prove human-match balance. Historical entries below record the earlier
+  300-health setup.
 - Melee targeting now uses Euclidean horizontal reach and rejects targets more
   than one movement-capsule height above or below; this matches the server's
   collision geometry and prevents damage through vertically separated floors.
