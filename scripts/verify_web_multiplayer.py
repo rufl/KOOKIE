@@ -13,7 +13,69 @@ import time
 import urllib.request
 import queue
 import threading
+from collections import deque
+from kookie_websocket_session import GAME_MAXIMUM_HEALTH
 
+
+class FrameInbox:
+    """Bound queued snapshots while preserving the newest state and events."""
+    def __init__(self, capacity=128):
+        self._capacity = capacity
+        self._items = deque()
+        self._condition = threading.Condition()
+
+    @staticmethod
+    def _is_snapshot(item):
+        return isinstance(item, list) and len(item) >= 19 and item[3] == 7
+
+    def _drop_oldest_snapshot(self):
+        for index, item in enumerate(self._items):
+            if self._is_snapshot(item):
+                del self._items[index]
+                return True
+        return False
+
+    def put(self, item):
+        with self._condition:
+            while len(self._items) >= self._capacity:
+                if self._drop_oldest_snapshot():
+                    continue
+                if isinstance(item, BaseException):
+                    self._items.popleft()
+                    break
+                self._condition.wait()
+            self._items.append(item)
+            self._condition.notify()
+
+    def get(self, timeout=None):
+        deadline = None if timeout is None else time.monotonic() + timeout
+        with self._condition:
+            while not self._items:
+                if deadline is None:
+                    self._condition.wait()
+                    continue
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise queue.Empty
+                self._condition.wait(remaining)
+            item = self._items.popleft()
+            self._condition.notify()
+            return item
+
+    def get_nowait(self):
+        return self.get(0)
+
+
+def verify_frame_inbox_bounds():
+    inbox = FrameInbox(capacity=4)
+    for tick in range(6):
+        inbox.put([2, 3, 1, 7, tick] + [0] * 14)
+    assert [inbox.get_nowait()[4] for _ in range(4)] == [2, 3, 4, 5]
+    try:
+        inbox.get_nowait()
+    except queue.Empty:
+        return
+    raise AssertionError("bounded frame inbox did not empty")
 
 def checksum(words):
     value = 53
@@ -97,7 +159,7 @@ class Client:
             self.role = role
             self.player_id = response[6]
             self.join_response = response
-        self.inbox = queue.Queue()
+        self.inbox = FrameInbox()
         self.reader = threading.Thread(target=self._read_loop, daemon=True)
         self.reader.start()
 
@@ -288,16 +350,22 @@ def wait_for_actor(client, players, spectators, player_id, predicate, timeout=5)
     deadline = time.monotonic() + timeout
     last_actor = None
     last_tick = None
+    last_scene = None
     while time.monotonic() < deadline:
         scene = client.snapshot(players, spectators)
         actor = actor_record(scene, player_id)
         last_actor = actor
         last_tick = scene[4]
+        last_scene = scene
         if predicate(actor, scene):
             return scene, actor
+    actors = [] if last_scene is None else [
+        actor_record(last_scene, last_scene[18 + index * 8])
+        for index in range(last_scene[17])
+    ]
     raise AssertionError(
         f"authoritative state predicate failed for actor {player_id} "
-        f"at tick {last_tick}: {last_actor}")
+        f"at tick {last_tick}: {last_actor}; actors={actors}")
 
 def input_acknowledgement(scene):
     trailer = 18 + scene[17] * 8
@@ -348,6 +416,7 @@ def wait_for_input_ack(client, input_sequence, timeout=5):
     raise AssertionError(f"input sequence {input_sequence} was not acknowledged after authoritative application")
 
 def main():
+    verify_frame_inbox_bounds()
     binary, port_text = os.path.abspath(sys.argv[1]), sys.argv[2]
     port = int(port_text)
     env = dict(os.environ, KOOKIE_WEB_PORT=port_text,
@@ -945,7 +1014,7 @@ def main():
                 min(30, seed_ammo_before + picked_slices * 3), (
                     "each collected slice must add three capped seed rounds")
             assert actor_record(scene, mover.player_id)[4] == \
-                min(300, slice_health_before + picked_slices * 8), (
+                min(GAME_MAXIMUM_HEALTH, slice_health_before + picked_slices * 8), (
                     f"each collected slice must restore eight health; "
                     f"before={slice_health_before}, "
                     f"after={actor_record(scene, mover.player_id)[4]}, "
@@ -1024,11 +1093,18 @@ def main():
             look_yaw=yaw_delta * 10, edge=64)
         melee_ack = wait_for_input_ack(collision_mover, melee_sequence)
         assert input_acknowledgement(melee_ack) >= melee_sequence
-        _, melee_target = wait_for_actor(
-            spectators[0], 8, 4, collision_target.player_id,
-            lambda state, snapshot: state[4] < target_health)
-        assert melee_target[4] < target_health, (
-            "melee input did not damage the contacted player")
+        if abs(collision_target_state[2] - collision_mover_state[2]) <= 4:
+            _, melee_target = wait_for_actor(
+                spectators[0], 8, 4, collision_target.player_id,
+                lambda state, snapshot: state[4] < target_health)
+            assert melee_target[4] < target_health, (
+                "melee input did not damage a vertically reachable player")
+        else:
+            _, melee_target = wait_for_actor(
+                spectators[0], 8, 4, collision_target.player_id,
+                lambda state, snapshot: snapshot[4] >= melee_ack[4])
+            assert melee_target[4] == target_health, (
+                "melee must not damage a player beyond vertical reach")
 
         read_only = spectators[1]
         read_only.sequence += 1
@@ -1121,7 +1197,8 @@ def main():
         assert transitioned_scene[4] > previous_tick, (
             "server tick must remain monotonic across simulation replacement")
         assert transitioned_scene[17] == 6
-        assert all(actor_record(transitioned_scene, player.player_id)[4] == 300
+        assert all(actor_record(transitioned_scene, player.player_id)[4] ==
+                   GAME_MAXIMUM_HEALTH
                    for player in players[2:])
         admin.close()
         clients.remove(admin)

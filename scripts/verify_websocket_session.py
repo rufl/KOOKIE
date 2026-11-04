@@ -28,6 +28,8 @@ from kookie_websocket_session import (  # noqa: E402
     GAME_FULL_SCENE_PROBE,
     GAME_FULL_SCENE_SNAPSHOT_MARKER,
     GAME_JUMP,
+    GAME_MAXIMUM_HEALTH,
+    GAME_MAXIMUM_STAMINA,
     GAME_MELEE,
     GAME_MOVE_FORWARD,
     GAME_MOVE_LEFT,
@@ -248,8 +250,10 @@ def run_authoritative_physics() -> None:
     state.player_x = 96
     state.player_z = 80
     state.apply_command(GAME_MELEE, 0)
-    assert state.vfx == GAME_VFX_HIT and state.actor_health[0] == 82
-    for _ in range(5):
+    assert state.vfx == GAME_VFX_HIT
+    assert state.actor_health[0] == GAME_MAXIMUM_HEALTH - 18
+    for _ in range((GAME_MAXIMUM_HEALTH + 17) // 18 - 1):
+        state.stamina = GAME_MAXIMUM_STAMINA
         state.apply_command(GAME_MELEE, 0)
     assert state.vfx == GAME_VFX_DEATH and state.actor_state[0] == 4
 
@@ -346,7 +350,7 @@ def run_valid_session() -> None:
             opcode, payload = read_server_frame(sock)
             assert opcode == 2
             melee = decode_session_frame(payload)
-            assert melee.words[4:10] == (2, -8, 100, 90, 1, 5)
+            assert melee.words[4:10] == (2, -8, GAME_MAXIMUM_HEALTH, 90, 1, 5)
 
             special_words = [2, GAME, 6, GAME_COMMAND_MARKER, GAME_SPECIAL, 0]
             special_words.append(message_checksum(special_words))
@@ -354,7 +358,7 @@ def run_valid_session() -> None:
             opcode, payload = read_server_frame(sock)
             assert opcode == 2
             special = decode_session_frame(payload)
-            assert special.words[4:10] == (3, -8, 100, 65, 0, 8)
+            assert special.words[4:10] == (3, -8, GAME_MAXIMUM_HEALTH, 65, 0, 8)
 
             reset_words = [2, GAME, 7, GAME_COMMAND_MARKER, GAME_RESET, 0]
             reset_words.append(message_checksum(reset_words))
@@ -362,7 +366,7 @@ def run_valid_session() -> None:
             opcode, payload = read_server_frame(sock)
             assert opcode == 2
             reset = decode_session_frame(payload)
-            assert reset.words[4:10] == (4, 0, 100, 100, 0, 0)
+            assert reset.words[4:10] == (4, 0, GAME_MAXIMUM_HEALTH, 100, 0, 0)
 
             scene_probe_words = [2, GAME, 8, GAME_COMMAND_MARKER, GAME_SCENE_PROBE, 0]
             scene_probe_words.append(message_checksum(scene_probe_words))
@@ -372,7 +376,8 @@ def run_valid_session() -> None:
             scene = decode_session_frame(payload)
             assert scene.words[3] == GAME_SCENE_SNAPSHOT_MARKER
             assert len(scene.words) == 30
-            assert scene.words[4:13] == (4, 0, 0, 0, 100, 100, 0, 0, 3)
+            assert scene.words[4:13] == (
+                4, 0, 0, 0, GAME_MAXIMUM_HEALTH, 100, 0, 0, 3)
             assert scene.words[25:29] == (0, 0, 0, 0)
 
             scene_special_words = [2, GAME, 9, GAME_COMMAND_MARKER, GAME_SPECIAL, 0]
@@ -384,7 +389,8 @@ def run_valid_session() -> None:
             assert opcode == 2
             scene_special = decode_session_frame(payload)
             assert scene_special.words[3] == GAME_SCENE_SNAPSHOT_MARKER
-            assert scene_special.words[4:13] == (5, 0, 0, 0, 100, 75, 0, 8, 3)
+            assert scene_special.words[4:13] == (
+                5, 0, 0, 0, GAME_MAXIMUM_HEALTH, 75, 0, 8, 3)
             assert scene_special.words[25] == 1
             assert scene_special.words[26:29] == (12, 0, 6)
 
@@ -407,7 +413,8 @@ def run_valid_session() -> None:
             assert opcode == 2
             full_scene = decode_session_frame(payload)
             assert len(full_scene.words) == 185
-            assert full_scene.words[4:15] == (6, 32, 1, 52, 0, -8, 100, 100, 24, 0, 0)
+            assert full_scene.words[4:15] == (
+                6, 32, 1, 52, 0, -8, GAME_MAXIMUM_HEALTH, 100, 24, 0, 0)
             assert full_scene.words[20] == 4
             assert full_scene.words[28] == 90 and full_scene.words[36] == 180
             assert full_scene.words[53:68] == (

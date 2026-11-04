@@ -555,7 +555,7 @@ a persistent Settings option. HUD numbers and damage numbers use ThaleahFat;
 it is not the body or default display typeface.
 
 The authoritative server admits eight players and four spectators. It owns
-movement, teams, health (maximum 300), combat, power-up effects, randomized
+movement, teams, health (maximum 100), combat, power-up effects, randomized
 shared throwables, bot decisions and replication. Seven power-up definitions
 are loaded: Coffee Mug, Jetpack, Megaphone, Scuba Kit, Wool Ball, multiplayer
 Coffee and Wizard Hat. A shared randomized throwable pickup selects a bomb,

@@ -171,8 +171,10 @@ them. The CLI battle runs for its configured duration instead of stopping when
 one team is temporarily eliminated; bots respawn together on authoritative
 respawn waves. Use `--geese N --cats N --duration SECONDS` to customize team
 sizes (up to eight total) and observation time. `--duration 0` runs indefinitely
-until Ctrl+C. `--run` starts immediately instead of prompting. The CLI runner
-also joins as a spectator to monitor and log the match.
+until Ctrl+C. The CLI runner also joins as a spectator to monitor and log the
+match. Its bot WebSocket inbox is bounded to 128 frames and drops stale
+snapshots while retaining the latest state and control/chat events, preventing
+per-client snapshot queues from growing without limit in long battles.
 
 For a damage-but-not-combat-death test, add `--ringout-only-deaths`: bots
 attack only while the target has more than 200 health and do not throw items;
@@ -181,15 +183,30 @@ movement and physical ringouts remain active.
 Browser bots seek eligible powerups when they have no active effect, then use
 jump, roll, dash, glide/fly, melee, ranged fire, special attacks, and throwables
 based on range and vertical separation. Browser and CLI battle bots spawn with
-300 health (three times the former 100-health pool); the browser HUD displays
-the 300-point maximum.
+100 health; the browser HUD displays the same maximum.
+Melee selection uses horizontal reach plus a vertical capsule-height limit;
+visual proximity across different platform heights does not count as contact.
 
-The Web multiplayer HUD shows 300 maximum health, team-colored hearts (blue for
+The Web multiplayer HUD shows 100 maximum health, team-colored hearts (blue for
 blue players; red for red), and one shared ammo card for bullets, watermelon
 seeds, or Wizard Hat fireballs. HUD values use ThaleahFat; damage numbers have
 a Settings toggle. Confirmed hits briefly flinch and flash remote players; hits
 on the local player briefly flash the screen red with a direction indicator.
 Dizzy players show orbiting cartoon stars.
+With 100 maximum health, baseline hitscan deals 20, melee 15, watermelon seeds
+35, Wool Mace 30, and Wizard Hat fireballs 30. Four watermelon slices can heal
+up to 32 health and grant 12 seeds. In one 90-second logged 4v4 bot battle,
+the minimum observed was 1/8 players alive and 40/800 combined team health;
+the snowball heuristic found no sustained growing lead. This single AI run is
+not causal or statistically robust balance evidence; damage values remain
+unchanged.
+With 100 maximum health, baseline hitscan deals 20, melee 15, watermelon seeds
+35, Wool Mace 30, and Wizard Hat fireballs 30. Four watermelon slices can heal
+up to 32 health and grant 12 seeds. In one 90-second logged 4v4 bot battle,
+the minimum observed was 1/8 players alive and 40/800 combined team health;
+the snowball heuristic found no sustained growing lead. This single AI run is
+not causal or statistically robust balance evidence; damage values remain
+unchanged.
 
 The shared throwable pickup spawns at randomized safe arena locations and
 randomly selects a crate, boulder, bomb, flour package, or watermelon. Press the
@@ -263,13 +280,14 @@ Run the 12-second headless `/b2teams4` smoke check with
 
 `scripts/b2teams4.py "$server_dir/kookie-web-server" 8080 --smoke`. It verifies
 moving snapshots, actual damage, a power-up pickup, each bot's movement/action
-inputs, and observed attack, airborne and roll animation states. Throwable
-pickup and throw behavior is covered separately by
-`scripts/verify_web_multiplayer.py`; bots may not reach the shared throwable
-pickup before a short smoke round ends. Floor/arena projectile collision
-prevents out-of-bounds snapshots; projectile and blast damage use Kof's
-authoritative area-damage service after collision and team checks. Walk/run
-transition coverage is deterministic in
+inputs, and observed attack, airborne and roll animation states. Melee takes
+priority over jump/roll/dash edges when a bot is in attack reach, so the attack
+animation remains observable. Throwable pickup and throw behavior is covered
+separately by `scripts/verify_web_multiplayer.py`; bots may not reach the shared
+throwable pickup before a short smoke round ends. Floor/arena projectile
+collision prevents out-of-bounds snapshots; projectile and blast damage use
+Kof's authoritative area-damage service after collision and team checks.
+Walk/run transition coverage is deterministic in
 `scripts/verify_kof_web_server.sh`. The bot routes (`/session/goose` and
 `/session/cat`) remain benchmark-only spawn selectors; regular `/session` joins
 keep default goose/free-for-all behavior.

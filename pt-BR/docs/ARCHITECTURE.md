@@ -433,7 +433,7 @@ números de dano usam ThaleahFat; ela não é a fonte de corpo nem a fonte displ
 padrão.
 
 O servidor autoritativo admite oito jogadores e quatro espectadores. Ele possui
-movimento, times, vida (máximo 300), combate, efeitos de power-up, arremessáveis
+movimento, times, vida (máximo 100), combate, efeitos de power-up, arremessáveis
 compartilhados aleatórios, decisões dos bots e replicação. Carrega sete
 definições de power-up: Coffee Mug, Jetpack, Megaphone, Scuba Kit, Wool Ball,
 Coffee multiplayer e Wizard Hat. Um pickup compartilhado escolhe aleatoriamente

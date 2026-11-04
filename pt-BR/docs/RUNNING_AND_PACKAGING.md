@@ -357,13 +357,20 @@ quando não têm efeito ativo e voltam ao combate; usam pulo, rolamento, dash,
 voo/deslizamento, melee, tiro, especial e arremessáveis conforme distância e
 separação vertical.
 
-Os bots do navegador e do CLI começam com 300 de vida (três vezes o antigo
-limite de 100); o HUD mostra o máximo de 300. O HUD usa corações azuis para o
-time azul e vermelhos para o vermelho, uma única caixa de munição para balas,
-sementes e bolas de fogo, e a fonte ThaleahFat para números. Dano flutuante pode
-ser ativado/desativado em Configurações. Acertos causam breve recuo e flash nos
-outros personagens; dano no jogador local causa um flash vermelho e indicador
-direcional. Estrelas orbitam personagens atordoados.
+Os bots do navegador e do CLI começam com 100 de vida; o HUD mostra o mesmo
+limite. Ele usa corações azuis para o time azul e vermelhos para o vermelho,
+uma única caixa de munição para balas, sementes e bolas de fogo, e a fonte
+ThaleahFat para números. Dano flutuante pode ser ativado/desativado em
+Configurações. Acertos causam breve recuo e flash nos outros personagens; dano
+no jogador local causa um flash vermelho e indicador direcional. Estrelas
+orbitam personagens atordoados.
+Com máximo de 100 de vida, tiro comum causa 20, melee 15, sementes de melancia
+35, Wool Mace 30 e bolas de fogo do Wizard Hat 30. Quatro fatias de melancia
+podem recuperar até 32 de vida e conceder 12 sementes. Em uma batalha 4v4 de
+bots registrada por 90 segundos, o mínimo observado foi 1/8 jogadores vivos e
+40/800 de vida somada entre os times; a heurística não detectou vantagem
+crescente sustentada. Uma única partida de IA não comprova causalidade nem
+equilíbrio estatisticamente robusto; os danos não foram alterados.
 
 O pickup compartilhado de arremessáveis surge em posições seguras aleatórias e
 seleciona entre caixa, pedregulho, bomba, pacote de farinha ou melancia.

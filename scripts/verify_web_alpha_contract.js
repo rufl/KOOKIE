@@ -215,7 +215,7 @@ function extendedMultiplayerWords(
 function multiplayerSnapshotWithRespawnMetadata(sequence, tick) {
   const words = [
     2, 6, sequence, 7, tick,
-    2, 0, 4, 0, 4, 0, 0, 300, 100, 99, 2, 1, 2,
+    2, 0, 4, 0, 4, 0, 0, 100, 100, 99, 2, 1, 2,
     1, 50, 0, 52, 100, 0, 1, 0,
     2, 60, 0, 62, 100, 0, 2, 180,
     0, 0, 0, 1,
@@ -877,7 +877,7 @@ async function main() {
   "disabling damage numbers removes active labels");
   const healthValue = pageElements.find((element) =>
     element.attributes["data-stat"] === "health")?.children[1]?.textContent;
-  assert.equal(healthValue, "100 / 300",
+  assert.equal(healthValue, "100 / 100",
     "multiplayer snapshot updates authoritative health");
   const healthStat = pageElements.find((element) =>
     element.attributes["data-stat"] === "health");

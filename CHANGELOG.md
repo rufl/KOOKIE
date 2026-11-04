@@ -3,6 +3,27 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Restored the browser multiplayer health contract to 100 across the KOF
+  protocol, Web client, server model, HUD, bot fixtures, and documentation.
+  Four watermelon slices can restore up to 32 health and refill up to 12 seeds;
+  base melee deals 15, ordinary hitscan 20, Wool Mace 30, watermelon seeds 35,
+  and Wizard Hat fireballs 30. These values now represent 15–35% of maximum
+  health per hit. One 90-second logged 4v4 bot battle produced 1,473 moving
+  snapshots, a transient minimum of 1/8 players alive and 40/800 total team
+  health; the snowball heuristic found no sustained growing team advantage.
+  One AI run is not causal or statistically robust balance evidence, so damage
+  values remain unchanged. Historical changelog entries below record the
+  earlier 300-health configuration.
+- Melee targeting now uses Euclidean horizontal reach and rejects targets more
+  than one movement-capsule height above or below; this matches the server's
+  collision geometry and prevents damage through vertically separated floors.
+  Bot melee input takes priority over simultaneous jump/roll/dash edges, keeping
+  the attack animation observable. The 100-health physics fixture now expects
+  damage/death at configured health. Bot WebSocket inboxes coalesce stale
+  snapshots in a bounded 128-frame queue, avoiding unbounded spectator backlog.
+- A 60-second 4v4 bot match completed with 1,159 moving snapshots, all action
+  checks, attack/airborne/roll animations observed, health exchange, respawns,
+  and no bot WebSocket EOF.
 - WebSocket multiplayer snapshots now assemble actor state once per tick and
   reuse it across clients; each client snapshot uses one words-array allocation
   instead of separate base/extended arrays. Binary frames are staged directly
@@ -287,8 +308,8 @@ gameplay remains on the native server and separately packaged WebGL client.
 - Non-controlled characters briefly flash when hit. Local-player hits trigger a
   short red screen flash and a directional attacker indicator. The reduced-motion
   setting suppresses the flash and keeps the direction cue static.
-- Web multiplayer players spawn with 300 health, extending bot battles to three
-  times the previous health pool for longer combat and effect observation.
+- Web multiplayer players were previously changed to 300 health, extending
+  bot battles to three times the former 100-health pool.
 - The CLI 4v4 battle monitor accepts additional spectators joining before or
   during the fight instead of rejecting snapshots when the count changes.
 - The 4v4 smoke check no longer fails completed battles when bots do not reach

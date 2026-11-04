@@ -199,7 +199,7 @@ hit/death effects and liquid-transition splashes while retaining procedural VFX
 when the optional model/content path is unavailable.
 
 The separate browser multiplayer slice runs an authoritative 4v4 battle with
-spectators. Eight bots start with 300 health; randomized throwables, watermelon
+spectators. Eight bots start with 100 health; randomized throwables, watermelon
 seed ammo, Wizard Hat fireballs, team-colored hearts, hit feedback and movable
 touch action buttons are replicated/rendered in WebGL. See
 [Running and packaging](docs/RUNNING_AND_PACKAGING.md#live-4v4-battle-console)

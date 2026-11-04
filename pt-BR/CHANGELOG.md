@@ -3,6 +3,28 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Restauramos o limite de vida do multiplayer do navegador para 100 no
+  protocolo KOF, cliente Web, modelo do servidor, HUD, fixtures dos bots e
+  documentação. Quatro fatias de melancia podem recuperar até 32 de vida e
+  conceder até 12 sementes; melee básico causa 15, tiro comum 20, Wool Mace
+  30, sementes 35 e bolas de fogo do Wizard Hat 30. Cada acerto representa
+  15–35% da vida máxima. Uma batalha 4v4 de bots, registrada por 90 segundos,
+  produziu 1.473 snapshots em movimento, mínimo transitório de 1/8 jogadores
+  vivos e 40/800 de vida somada; a heurística não detectou vantagem crescente
+  sustentada. Uma partida de IA não prova causalidade nem equilíbrio robusto,
+  então os danos permanecem iguais. Entradas antigas registram a configuração
+  anterior de 300 de vida.
+- O combate corpo a corpo agora usa alcance euclidiano horizontal e rejeita
+  alvos separados verticalmente por mais de uma altura de cápsula, respeitando
+  a geometria de colisão e impedindo dano através de plataformas. A IA dos bots
+  prioriza o comando de melee sobre pulo/rolamento/dash simultâneo para manter
+  observável a animação de ataque. O teste de física com 100 pontos de vida
+  espera dano/morte conforme a saúde configurada. A fila WebSocket dos bots
+  coalesce snapshots antigos e é limitada a 128 frames, evitando backlog sem
+  limite de espectador.
+- Uma partida 4v4 de 60 segundos terminou com 1.159 snapshots em movimento,
+  todas as verificações de ações, animações de ataque/aérea/rolamento,
+  troca de dano, respawns e sem EOF de WebSocket dos bots.
 - Snapshots multiplayer do WebSocket agora montam o estado dos atores uma vez
   por tick e o reutilizam entre clientes; cada snapshot aloca um único array
   de palavras em vez de arrays base e estendido. Frames binários são montados
@@ -255,7 +277,7 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - O smoke 4v4 não falha mais uma partida concluída quando os bots não alcançam
   o arremessável compartilhado aleatório antes da eliminação.
 - O monitor CLI aceita espectadores do navegador entrando antes ou durante a
-  partida; bots 4v4 do navegador/CLI começam com 300 de vida.
+  partida; na configuração anterior, bots 4v4 começavam com 300 de vida.
 - Jogadores e bonecos de treino atingidos recuam brevemente. Personagens remotos
   piscam; dano local causa flash vermelho e indicador direcional. A opção de
   movimento reduzido suprime o flash e mantém o indicador estático.

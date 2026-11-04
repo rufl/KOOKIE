@@ -1363,7 +1363,7 @@ class WebMultiplayerSimulation {
     Int nearestTarget(Int sourceSlot, Int range) {
         var sourceActor = sourceSlot + 1
         var bestSlot = -1
-        var bestDistance = range + 1
+        var bestDistance = if (range <= 5) range * range + 1 else range + 1
         for (var index = 0; index < 8; index = index + 1) {
             if (!trainingModeValue && activeValues[index] &&
                 index != sourceSlot && healthValues[index] > 0 &&
@@ -1373,6 +1373,13 @@ class WebMultiplayerSimulation {
                 var dz = movement.positionZ(index + 1) - movement.positionZ(sourceActor)
                 var dy = movement.positionY(index + 1) - movement.positionY(sourceActor)
                 var distance = webMultiplayerAbs(dx) + webMultiplayerAbs(dy) + webMultiplayerAbs(dz)
+                var withinRange = distance <= range
+                var rankDistance = distance
+                if (range <= 5) {
+                    rankDistance = dx * dx + dz * dz
+                    withinRange = rankDistance <= range * range &&
+                        webMultiplayerAbs(dy) <= fpsMovementCapsuleHeight()
+                }
                 var forwardX = webMultiplayerSine(yawValues[sourceSlot])
                 var forwardZ = webMultiplayerSine(yawValues[sourceSlot] + 90)
                 var dot = dx * forwardX + dz * forwardZ
@@ -1389,10 +1396,11 @@ class WebMultiplayerSimulation {
                 if (sight == 2) {
                     visible = kookie_box3d_result_actor_slot() == index
                 }
-                if (distance < bestDistance && dot > 0 && cross * 1000 <= dot * 300 &&
+                if (withinRange && rankDistance < bestDistance &&
+                    dot > 0 && cross * 1000 <= dot * 300 &&
                     !effectAt(index).flourCloudBlocksSight(distance, tickValue) &&
                     visible) {
-                    bestDistance = distance
+                    bestDistance = rankDistance
                     bestSlot = index
                 }
             }
@@ -1408,14 +1416,17 @@ class WebMultiplayerSimulation {
                     movement.positionY(sourceActor)
                 var distance = webMultiplayerAbs(dx) +
                     webMultiplayerAbs(dy) + webMultiplayerAbs(dz)
+                var rankDistance = dx * dx + dz * dz
                 var forwardX = webMultiplayerSine(yawValues[sourceSlot])
                 var forwardZ = webMultiplayerSine(yawValues[sourceSlot] + 90)
                 var dot = dx * forwardX + dz * forwardZ
                 var cross = webMultiplayerAbs(
                     dx * forwardZ - dz * forwardX)
-                if (distance <= range && distance < bestDistance &&
-                    dot > 0 && cross * 1000 <= dot * 300) {
-                    bestDistance = distance
+                if (rankDistance <= range * range &&
+                    webMultiplayerAbs(dy) <= fpsMovementCapsuleHeight() &&
+                    rankDistance < bestDistance && dot > 0 &&
+                    cross * 1000 <= dot * 300) {
+                    bestDistance = rankDistance
                     bestSlot = 8 + dummy
                 }
             }

@@ -273,6 +273,7 @@ def run_battle(port, duration=None, log_path=None,
                             held |= ACTION_SHOOT
                             next_shot = now + (0.6 if combat_distance <= 12 else 2.0)
                         if attacks_allowed and combat_distance <= 5 and now >= next_melee:
+                            edge &= ~(ACTION_JUMP | ACTION_ROLL | ACTION_DASH)
                             edge |= EDGE_MELEE
                             next_melee = now + .45
                         if (attacks_allowed and now >= next_special and

@@ -185,7 +185,7 @@ selecionam a região do ganso ou do gato, mantendo tiles procedurais apenas como
 fallback.
 
 A fatia multiplayer separada no navegador executa uma batalha autoritativa 4v4
-com espectadores. Oito bots começam com 300 de vida; arremessáveis aleatórios,
+com espectadores. Oito bots começam com 100 de vida; arremessáveis aleatórios,
 sementes de melancia, bolas de fogo do Wizard Hat, corações por time, feedback
 de acerto e botões touch reposicionáveis são replicados/renderizados em WebGL.
 Consulte [Execução e empacotamento](docs/RUNNING_AND_PACKAGING.md#console-de-batalha-ao-vivo-4v4)
