@@ -3,6 +3,17 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Snapshots multiplayer do WebSocket agora montam o estado dos atores uma vez
+  por tick e o reutilizam entre clientes; cada snapshot aloca um único array
+  de palavras em vez de arrays base e estendido. Frames binários são montados
+  diretamente no buffer nativo com escrita big-endian de palavras, removendo
+  um array Kof do tamanho do frame e quatro chamadas FFI de byte por palavra.
+  O formato no fio não muda. Uma execução loopback com 8 jogadores e 4
+  espectadores (507 ticks do servidor) mediu 0,286 ms de montagem média do
+  snapshot, 0,735 ms de trabalho médio do tick, p95 de snapshot de 22,32 ms e
+  zero atrasos de agendamento. Os números caíram em relação a uma execução
+  8+4 anterior, mas as execuções não foram controladas para alegar melhora
+  estatística.
 
 - O runner `/b2teams4` agora encaminha o stderr do servidor, em vez de deixar
   um pipe do subprocesso sem leitura que poderia bloquear sessões longas.

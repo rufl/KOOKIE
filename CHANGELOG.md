@@ -3,6 +3,15 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- WebSocket multiplayer snapshots now assemble actor state once per tick and
+  reuse it across clients; each client snapshot uses one words-array allocation
+  instead of separate base/extended arrays. Binary frames are staged directly
+  with native big-endian word writes, avoiding a frame-sized Kof array and
+  four byte-level FFI calls per word. Wire format is unchanged. An 8-player /
+  4-spectator loopback run (507 server ticks) measured mean snapshot-build work
+  of 0.286 ms, mean tick work of 0.735 ms, snapshot p95 of 22.32 ms, and zero
+  schedule overruns. Compared with an earlier 8+4 run, these numbers are lower
+  but runs were not controlled for a statistical performance claim.
 
 - The `/b2teams4` runner now forwards the server's stderr instead of leaving an
   unread subprocess pipe that could block during long sessions.

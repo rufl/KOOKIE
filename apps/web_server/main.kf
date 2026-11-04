@@ -12,6 +12,7 @@ extern "./lib/libkookie_web_server.so" kookie_web_server_upgrade_websocket(Int c
 extern "./lib/libkookie_web_server.so" kookie_web_server_rcon_authorized(): Bool
 extern "./lib/libkookie_web_server.so" kookie_web_server_output_begin(Int connectionId, Int length): Bool
 extern "./lib/libkookie_web_server.so" kookie_web_server_output_write_byte(Int index, Int value): Bool
+extern "./lib/libkookie_web_server.so" kookie_web_server_output_write_u32be(Int index, Int value): Bool
 extern "./lib/libkookie_web_server.so" kookie_web_server_output_commit(): Bool
 extern "./lib/libkookie_web_server.so" kookie_web_server_close_client(Int connectionId): Bool
 extern "./lib/libkookie_web_server.so" kookie_web_server_close_client_after_output(Int connectionId): Bool
@@ -166,41 +167,50 @@ Bool webSendSessionWords(Int connectionId, Int kind, Int sequence, Int[] words) 
     var payloadLength = 16 + words.length * 4
     if (payloadLength > webMaximumWebSocketPayloadBytes()) { return false }
     var headerLength = if (payloadLength < 126) 2 else 4
-    var frame = new Int[headerLength + payloadLength]
-    frame[0] = 128 | webWebSocketOpcodeBinary()
-    if (payloadLength < 126) { frame[1] = payloadLength }
-    else {
-        frame[1] = 126
-        frame[2] = (payloadLength >>> 8) & 255
-        frame[3] = payloadLength & 255
+    var frameLength = headerLength + payloadLength
+    if (!kookie_web_server_output_begin(connectionId, frameLength)) { return false }
+    if (!kookie_web_server_output_write_byte(0, 128 | webWebSocketOpcodeBinary())) { return false }
+    if (payloadLength < 126) {
+        if (!kookie_web_server_output_write_byte(1, payloadLength)) { return false }
+    } else {
+        if (!kookie_web_server_output_write_byte(1, 126) ||
+            !kookie_web_server_output_write_byte(2, (payloadLength >>> 8) & 255) ||
+            !kookie_web_server_output_write_byte(3, payloadLength & 255)) { return false }
     }
     var base = headerLength
-    frame[base] = 75; frame[base + 1] = 87; frame[base + 2] = 83
-    frame[base + 3] = 49; frame[base + 4] = sessionWebFrameVersion()
-    frame[base + 5] = kind; frame[base + 6] = 0; frame[base + 7] = 0
-    frame[base + 8] = (sequence >>> 24) & 255
-    frame[base + 9] = (sequence >>> 16) & 255
-    frame[base + 10] = (sequence >>> 8) & 255
-    frame[base + 11] = sequence & 255
-    frame[base + 12] = (words.length >>> 8) & 255
-    frame[base + 13] = words.length & 255
+    var checksum = 0
+    for (var index = 0; index < 14; index = index + 1) {
+        var value = 0
+        if (index == 0) { value = 75 }
+        else if (index == 1) { value = 87 }
+        else if (index == 2) { value = 83 }
+        else if (index == 3) { value = 49 }
+        else if (index == 4) { value = sessionWebFrameVersion() }
+        else if (index == 5) { value = kind }
+        else if (index == 8) { value = (sequence >>> 24) & 255 }
+        else if (index == 9) { value = (sequence >>> 16) & 255 }
+        else if (index == 10) { value = (sequence >>> 8) & 255 }
+        else if (index == 11) { value = sequence & 255 }
+        else if (index == 12) { value = (words.length >>> 8) & 255 }
+        else if (index == 13) { value = words.length & 255 }
+        if (!kookie_web_server_output_write_byte(base + index, value)) { return false }
+        checksum = (checksum + value * (index + 1)) % 65536
+    }
+    if (!kookie_web_server_output_write_byte(base + 14, 0) ||
+        !kookie_web_server_output_write_byte(base + 15, 0)) { return false }
     for (var index = 0; index < words.length; index = index + 1) {
         var value = words[index]
         var offset = base + 16 + index * 4
-        frame[offset] = (value >>> 24) & 255
-        frame[offset + 1] = (value >>> 16) & 255
-        frame[offset + 2] = (value >>> 8) & 255
-        frame[offset + 3] = value & 255
+        if (!kookie_web_server_output_write_u32be(offset, value)) { return false }
+        var payloadOffset = 16 + index * 4
+        checksum = (checksum + ((value >>> 24) & 255) * (payloadOffset + 1)) % 65536
+        checksum = (checksum + ((value >>> 16) & 255) * (payloadOffset + 2)) % 65536
+        checksum = (checksum + ((value >>> 8) & 255) * (payloadOffset + 3)) % 65536
+        checksum = (checksum + (value & 255) * (payloadOffset + 4)) % 65536
     }
-    var checksum = 0
-    for (var index = 0; index < payloadLength; index = index + 1) {
-        var value = frame[base + index]
-        if (index == 14 || index == 15) { value = 0 }
-        checksum = (checksum + value * (index + 1)) % 65536
-    }
-    frame[base + 14] = (checksum >>> 8) & 255
-    frame[base + 15] = checksum & 255
-    return webSendBytes(connectionId, frame)
+    if (!kookie_web_server_output_write_byte(base + 14, (checksum >>> 8) & 255) ||
+        !kookie_web_server_output_write_byte(base + 15, checksum & 255)) { return false }
+    return kookie_web_server_output_commit()
 }
 
 class WebSessionFrame {
@@ -246,6 +256,7 @@ class WebServerMetrics {
     Int kutterImportTotal
     Int kutterImportReceived
     Int[] kutterImportWords
+    Int[] multiplayerSnapshotActors
     Int[] connectionIds
     Bool[] connectionUsed
     Bool[] connectionWebSocket
@@ -325,6 +336,7 @@ class WebServerMetrics {
         kutterImportTotal = 0
         kutterImportReceived = 0
         kutterImportWords = new Int[11 + 64 * 13 + 32 * 5]
+        multiplayerSnapshotActors = new Int[0]
         connectionIds = new Int[12]
         connectionUsed = new Bool[12]
         connectionWebSocket = new Bool[12]
@@ -819,31 +831,14 @@ Int webSnapshotCoordinate(Int value, Int minimum, Int maximum) {
     if (value > maximum) { return maximum }
     return value
 }
-Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot) {
-    var id = metrics.connectionPlayerIds[slot]
-    var spectator = metrics.connectionSpectators[slot]
-    var x = sessionWebGameWorldMinimumX()
-    var y = sessionWebGameWorldMinimumY()
-    var z = sessionWebGameWorldMinimumZ()
-    var yaw = 0
-    var pitch = 0
-    var health = sessionWebGameMaximumHealth()
-    var ammo = sessionWebGameMaximumAmmo()
-    if (!spectator) {
-        var own = metrics.simulation.playerState(id)
-        if (!own.active) { return new Int[0] }
-        x = webSnapshotCoordinate(own.x,
-            sessionWebGameWorldMinimumX(), sessionWebGameWorldMaximumX())
-        y = webSnapshotCoordinate(own.y,
-            sessionWebGameWorldMinimumY(), sessionWebGameWorldMaximumY())
-        z = webSnapshotCoordinate(own.z,
-            sessionWebGameWorldMinimumZ(), sessionWebGameWorldMaximumZ())
-        yaw = own.yaw; pitch = own.pitch
-        health = own.health; ammo = own.ammo
+Int[] webBuildMultiplayerSnapshotActors(WebServerMetrics metrics) {
+    var requiredLength = (metrics.simulation.playerCount() +
+        metrics.simulation.trainingDummyCount()) * 8
+    if (requiredLength > 64) { return new Int[0] }
+    if (metrics.multiplayerSnapshotActors.length != requiredLength) {
+        metrics.multiplayerSnapshotActors = new Int[requiredLength]
     }
-    var actors = new Int[
-        (metrics.simulation.playerCount() +
-            metrics.simulation.trainingDummyCount()) * 8]
+    var actors = metrics.multiplayerSnapshotActors
     var cursor = 0
     for (var actorSlot = 0; actorSlot < 12; actorSlot = actorSlot + 1) {
         if (metrics.connectionUsed[actorSlot] && metrics.connectionJoined[actorSlot] &&
@@ -852,14 +847,11 @@ Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot) {
             if (actor.active) {
                 actors[cursor] = actor.playerId
                 actors[cursor + 1] = webSnapshotCoordinate(actor.x,
-                    sessionWebGameWorldMinimumX(),
-                    sessionWebGameWorldMaximumX())
+                    sessionWebGameWorldMinimumX(), sessionWebGameWorldMaximumX())
                 actors[cursor + 2] = webSnapshotCoordinate(actor.y,
-                    sessionWebGameWorldMinimumY(),
-                    sessionWebGameWorldMaximumY())
+                    sessionWebGameWorldMinimumY(), sessionWebGameWorldMaximumY())
                 actors[cursor + 3] = webSnapshotCoordinate(actor.z,
-                    sessionWebGameWorldMinimumZ(),
-                    sessionWebGameWorldMaximumZ())
+                    sessionWebGameWorldMinimumZ(), sessionWebGameWorldMaximumZ())
                 actors[cursor + 4] = actor.health; actors[cursor + 5] = actor.state
                 actors[cursor + 6] = actor.animal; actors[cursor + 7] = webActorYaw(actor.yaw)
                 cursor = cursor + 8
@@ -885,35 +877,71 @@ Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot) {
         cursor = cursor + 8
     }
     if (cursor != actors.length) { return new Int[0] }
+    return actors
+}
+
+Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot, Int[] actors) {
+    var id = metrics.connectionPlayerIds[slot]
+    var spectator = metrics.connectionSpectators[slot]
+    var x = sessionWebGameWorldMinimumX()
+    var y = sessionWebGameWorldMinimumY()
+    var z = sessionWebGameWorldMinimumZ()
+    var yaw = 0
+    var pitch = 0
+    var health = sessionWebGameMaximumHealth()
+    var ammo = sessionWebGameMaximumAmmo()
+    if (!spectator) {
+        var own = metrics.simulation.playerState(id)
+        if (!own.active) { return new Int[0] }
+        x = webSnapshotCoordinate(own.x,
+            sessionWebGameWorldMinimumX(), sessionWebGameWorldMaximumX())
+        y = webSnapshotCoordinate(own.y,
+            sessionWebGameWorldMinimumY(), sessionWebGameWorldMaximumY())
+        z = webSnapshotCoordinate(own.z,
+            sessionWebGameWorldMinimumZ(), sessionWebGameWorldMaximumZ())
+        yaw = own.yaw; pitch = own.pitch
+        health = own.health; ammo = own.ammo
+    }
+    if (actors.length % 8 != 0 || actors.length > 64) {
+        return new Int[0]
+    }
     var sequence = webOutputSequence(metrics, slot)
     if (sequence <= 0 || sequence > 1000000) {
         sequence = 1
         metrics.connectionOutputSequence[slot] = 2
     }
-    var base = newSessionWebGameMultiplayerSnapshot(sequence, metrics.serverTickValue,
-        if (spectator) sessionWebRoleSpectator()
-        else if (metrics.simulation.trainingMode()) sessionWebRoleTraining()
-        else sessionWebRolePlayer(),
-        if (spectator) 0 else id, x, y, z, webActorYaw(yaw), pitch,
-        metrics.playerCount(), metrics.spectatorCount(), actors)
-    if (base.length < 19 + actors.length) { return new Int[0] }
-    base[12] = health
-    base[14] = ammo
     var projectileCount = metrics.simulation.projectileCount()
     var throwableCount = metrics.simulation.throwableCount()
     var impactCount = metrics.simulation.impactCount()
     var trailer = 18 + actors.length
     var sliceCount = metrics.simulation.sliceCount()
-    var extended = new Int[base.length + 4 + projectileCount * 8 +
+    var extended = new Int[19 + actors.length + 4 + projectileCount * 8 +
         throwableCount * 8 + impactCount * 8 + 10 + sliceCount * 4 + 7]
-    for (var i = 0; i < base.length; i = i + 1) {
-        extended[i] = base[i]
+    extended[0] = sessionWebGameProtocolVersion()
+    extended[1] = sessionWebGameKind()
+    extended[2] = sequence
+    extended[3] = sessionWebGameMultiplayerSnapshotMarker()
+    extended[4] = metrics.serverTickValue
+    extended[5] = if (spectator) sessionWebRoleSpectator()
+        else if (metrics.simulation.trainingMode()) sessionWebRoleTraining()
+        else sessionWebRolePlayer()
+    extended[6] = if (spectator) 0 else id
+    extended[7] = x; extended[8] = y; extended[9] = z
+    extended[10] = webActorYaw(yaw); extended[11] = pitch
+    extended[12] = health
+    extended[13] = sessionWebGameMaximumStamina()
+    extended[14] = ammo
+    extended[15] = metrics.playerCount()
+    extended[16] = metrics.spectatorCount()
+    extended[17] = actors.length / 8
+    for (var i = 0; i < actors.length; i = i + 1) {
+        extended[18 + i] = actors[i]
     }
     extended[trailer] = metrics.connectionAppliedInputSequence[slot]
     extended[trailer + 1] = projectileCount
     extended[trailer + 2] = throwableCount
     extended[trailer + 3] = impactCount
-    cursor = trailer + 4
+    var cursor = trailer + 4
     for (var i = 0; i < projectileCount; i = i + 1) {
         var item = metrics.simulation.projectileAt(i)
         extended[cursor] = item.id; extended[cursor + 1] = item.ownerId
@@ -983,11 +1011,12 @@ Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot) {
     return extended
 }
 Bool webBroadcastSnapshots(WebServerMetrics metrics) {
+    var actors = webBuildMultiplayerSnapshotActors(metrics)
     for (var slot = 0; slot < 12; slot = slot + 1) {
         if (metrics.connectionUsed[slot] && metrics.connectionJoined[slot]) {
             var snapshotBuildStarted =
                 kookie_web_server_monotonic_nanoseconds()
-            var snapshot = webMultiplayerSnapshot(metrics, slot)
+            var snapshot = webMultiplayerSnapshot(metrics, slot, actors)
             var snapshotBuildDuration =
                 kookie_web_server_monotonic_nanoseconds() -
                 snapshotBuildStarted

@@ -22,7 +22,8 @@
  * 24-byte Sec-WebSocket-Key and queues the RFC6455 101 response. Unmasked,
  * fragmented, reserved-bit, oversized, or unsupported frames disconnect;
  * close frames receive a close reply before disconnect. Output is staged with
- * output_begin/write_byte/commit; output overflow/backpressure disconnects.
+ * output_begin, byte or big-endian 32-bit writes, and commit; output
+ * overflow/backpressure disconnects.
  * Idle sockets expire after 30 seconds. close_client disconnects immediately;
  * close_client_after_output drains queued bytes before disconnecting. close
  * shuts down the adapter. Functions fail for stale IDs or invalid arguments.
@@ -37,6 +38,7 @@ bool kookie_web_server_upgrade_websocket(int connection_id);
 bool kookie_web_server_rcon_authorized(void);
 bool kookie_web_server_output_begin(int connection_id, int length);
 bool kookie_web_server_output_write_byte(int index, int value);
+bool kookie_web_server_output_write_u32be(int index, int value);
 bool kookie_web_server_output_commit(void);
 bool kookie_web_server_close_client(int connection_id);
 bool kookie_web_server_close_client_after_output(int connection_id);

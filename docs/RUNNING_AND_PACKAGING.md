@@ -527,6 +527,17 @@ advance, snapshot build/send, map teardown/selection/configuration and player
 restoration remain correlated. Separate process-lifetime maximum gauges expose
 map teardown/selection/configuration and player restoration durations. Tick work
 includes snapshot broadcast.
+The WebSocket snapshot path builds shared actor words once per tick, then
+reuses them for each connected player/spectator. Each client snapshot is
+assembled in one bounded words array. Binary frames are staged without a
+frame-sized Kof byte array, using the native adapter's checked big-endian
+32-bit write alongside byte writes for headers/checksums; the wire protocol is
+unchanged.
+In one loopback run with 8 players and 4 spectators, snapshot-build work
+averaged 0.286 ms and tick work averaged 0.735 ms across 507 ticks; snapshot
+inter-arrival p95 was 22.32 ms with zero schedule overruns. An earlier run had
+higher means, but the runs were not controlled and do not establish a
+statistically significant speedup.
 Per-client build/send maxima remain available separately. All values reset on
 restart. Map transitions skip startup-only Box3D movement-parity cases; startup
 still runs all three. Transitions reset the existing simulation, fixed-capacity

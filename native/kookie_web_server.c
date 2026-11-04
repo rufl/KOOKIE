@@ -293,6 +293,7 @@ bool kookie_web_server_close_client_after_output(int id) {
 }
 bool kookie_web_server_output_begin(int id,int n){if(n<0||n>NO)return false;LOCK();int ok=locate(id)>=0;UNLOCK();if(!ok)return false;sid=id;slen=n;sactive=1;return true;}
 bool kookie_web_server_output_write_byte(int i,int v){if(!sactive||i<0||i>=slen||v<0||v>255)return false;stage[i]=(unsigned char)v;return true;}
+bool kookie_web_server_output_write_u32be(int i,int v){if(!sactive||i<0||i>slen-4)return false;uint32_t n=(uint32_t)v;stage[i]=(unsigned char)(n>>24);stage[i+1]=(unsigned char)(n>>16);stage[i+2]=(unsigned char)(n>>8);stage[i+3]=(unsigned char)n;return true;}
 bool kookie_web_server_output_commit(void){if(!sactive)return false;LOCK();int i=locate(sid);if(i<0||!append_output(&cs[i],stage,(size_t)slen)){if(i>=0)drop(&cs[i]);UNLOCK();sactive=0;return false;}UNLOCK();sactive=0;return true;}
 bool kookie_web_server_upgrade_websocket(int id) {
  LOCK();

@@ -389,6 +389,16 @@ export fn kookie_web_server_output_write_byte(index: c_int, value: c_int) callco
     if (!stage_active or index < 0 or index >= stage_len or value < 0 or value > 255) return false;
     stage[@intCast(index)] = @intCast(value); return true;
 }
+export fn kookie_web_server_output_write_u32be(index: c_int, value: c_int) callconv(.c) bool {
+    if (!stage_active or index < 0 or index > stage_len - 4) return false;
+    const offset: usize = @intCast(index);
+    const bits: u32 = @bitCast(value);
+    stage[offset] = @truncate(bits >> 24);
+    stage[offset + 1] = @truncate(bits >> 16);
+    stage[offset + 2] = @truncate(bits >> 8);
+    stage[offset + 3] = @truncate(bits);
+    return true;
+}
 export fn kookie_web_server_output_commit() callconv(.c) bool {
     if (!stage_active) return false;
     lock(); const index = locate(stage_id); var ok = false;
