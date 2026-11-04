@@ -3225,6 +3225,40 @@
     "wool_ball", "flour_bag", "multiplayer_coffee", "wizard_hat",
   ];
   let botPowerupWaypoints = null;
+  let botAISettings = null;
+  async function loadBrowserBotAIConfig() {
+    if (botAISettings) return botAISettings;
+    const url = "assets/prototype/runtime/bot_ai.json";
+    const response = await fetch(url, { cache: "force-cache" });
+    if (!response.ok) throw new Error("bot AI config HTTP " +
+      response.status + " / " + url);
+    const config = await response.json();
+    const sections = ["planner", "combat", "runtime"];
+    if (config.schema !== "kookie.bot-ai/v1" ||
+        !Array.isArray(config.profileByBotIndex) ||
+        !config.profileByBotIndex.length ||
+        !config.profiles || sections.some((section) =>
+          !config[section] || typeof config[section] !== "object")) {
+      throw new Error("invalid bot AI config schema");
+    }
+    for (const name of config.profileByBotIndex) {
+      const profile = config.profiles[name];
+      if (!profile || ["aggression", "roaming", "scavenging", "survival",
+        "teamwork", "riskTolerance"].some((key) =>
+        !Number.isFinite(profile[key]) || profile[key] < 0 || profile[key] > 1)) {
+        throw new Error("invalid bot AI profile: " + name);
+      }
+    }
+    for (const section of sections) {
+      for (const [key, value] of Object.entries(config[section])) {
+        if (typeof value === "number" && !Number.isFinite(value)) {
+          throw new Error("invalid bot AI setting: " + section + "." + key);
+        }
+      }
+    }
+    botAISettings = config;
+    return config;
+  }
   async function loadBotPowerupWaypoints() {
     if (botPowerupWaypoints) return botPowerupWaypoints;
     const definitions = await Promise.all(BOT_POWERUP_CONFIGS.map(async (name) => {
@@ -3314,9 +3348,16 @@
       seedAmmo: words[cursor + 8],
     };
   }
+  function botProfile(bot) {
+    const names = botAISettings.profileByBotIndex;
+    const name = names[(bot.index - 1) % names.length];
+    return botAISettings.profiles[name];
+  }
   function nearestBotPowerup(bot, own, now) {
-    let nearest = null;
-    let nearestDistance = Infinity;
+    let best = null;
+    let bestScore = -Infinity;
+    const planner = botAISettings.planner;
+    const profile = botProfile(bot);
     for (let index = 0; index < (botPowerupWaypoints?.length || 0); index += 1) {
       const pickup = botPowerupWaypoints[index];
       if (!botCanUsePowerup(bot.animal, pickup.kind) ||
@@ -3326,45 +3367,60 @@
       const distance = Math.hypot(
         pickup.x - own[1], pickup.y - own[2], pickup.z - own[3]
       );
-      if (distance < nearestDistance) {
-        nearest = { ...pickup, index };
-        nearestDistance = distance;
+      const itemValue = planner.powerupValueByKind[String(pickup.kind)] || 0;
+      const healthNeed = Math.max(0,
+        1 - own[4] / planner.healthMaximum);
+      const score = (itemValue * planner.pickupBaseUtility *
+        (profile.scavenging + healthNeed * planner.healthUrgencyWeight)) /
+        Math.max(1, distance);
+      if (score > bestScore) {
+        best = { ...pickup, index, score };
+        bestScore = score;
       }
     }
-    return nearest ? { ...nearest, distance: nearestDistance } : null;
+    return best ? { ...best, distance: Math.hypot(
+      best.x - own[1], best.y - own[2], best.z - own[3]) } : null;
   }
   function botMoveToward(dx, dz, distance) {
     if (distance <= 1) return { x: 0, z: 0 };
-    return { x: Math.round(dx * 1000 / distance), z: Math.round(dz * 1000 / distance) };
+    const scale = botAISettings.combat.movementMax;
+    return { x: Math.round(dx * scale / distance),
+      z: Math.round(dz * scale / distance) };
   }
   function botAvoidProjectile(bot, own, projectiles) {
+    const radius = botAISettings.planner.threatRadius;
     for (const projectile of projectiles) {
       if (projectile.targetId !== bot.playerId) continue;
       const dx = projectile.x - own[1];
       const dy = projectile.y - own[2];
       const dz = projectile.z - own[3];
-      if (dx * dx + dy * dy + dz * dz > 30 * 30) continue;
+      if (dx * dx + dy * dy + dz * dz > radius * radius) continue;
       const horizontal = Math.hypot(dx, dz) || 1;
-      return { x: Math.round(dz * 1000 / horizontal),
-        z: Math.round(-dx * 1000 / horizontal) };
+      const scale = botAISettings.combat.movementMax;
+      return { x: Math.round(dz * scale / horizontal),
+        z: Math.round(-dx * scale / horizontal) };
     }
     return null;
   }
   function botPickupMovement(bot, own, now) {
     const pickup = nearestBotPowerup(bot, own, now);
     if (!pickup) return null;
-    if (pickup.distance <= 4 && Math.abs(pickup.y - own[2]) <= 5) {
-      bot.triedPickups.set(pickup.index, now + 30000);
+    const planner = botAISettings.planner;
+    if (pickup.distance <= planner.pickupReachDistance &&
+        Math.abs(pickup.y - own[2]) <= planner.pickupVerticalTolerance) {
+      bot.triedPickups.set(pickup.index, now + planner.pickupRetryMilliseconds);
       return null;
     }
     return { ...botMoveToward(pickup.x - own[1], pickup.z - own[3],
       pickup.distance), distance: pickup.distance, pickup };
   }
   function botShouldJump(bot, own, target, distance, now) {
+    const combat = botAISettings.combat;
     if (now < bot.nextJumpAt) return false;
-    if (Math.abs(target[2] - own[2]) > 3 || distance < 18 ||
-        (own[5] & 1) !== 0) {
-      bot.nextJumpAt = now + 1200 + bot.index * 110;
+    if (Math.abs(target[2] - own[2]) > combat.jumpVerticalThreshold ||
+        distance < combat.jumpCombatDistance || (own[5] & 1) !== 0) {
+      bot.nextJumpAt = now + combat.jumpCooldownMilliseconds +
+        bot.index * combat.jumpBotStaggerMilliseconds;
       return true;
     }
     return false;
@@ -3499,14 +3555,17 @@
         " win; battle bots disconnected.");
       return;
     }
-    if (now - browserBattleLastReportAt >= 1000) {
+    if (now - browserBattleLastReportAt >=
+        botAISettings.runtime.browserReportIntervalMilliseconds) {
       logGameConsole("tick " + words[4] + " / alive " + redAlive +
         " red geese, " + blueAlive + " blue cats");
       browserBattleLastReportAt = now;
     }
-    if (!own || own[4] <= 0) return;
     const scene = botSceneData(words);
     const activePowerup = Math.floor(own[5] / 8) % 16;
+    const planner = botAISettings.planner;
+    const combat = botAISettings.combat;
+    const profile = botProfile(bot);
     let target = null;
     let targetScore = Infinity;
     for (const actor of actors) {
@@ -3515,18 +3574,29 @@
       const dy = actor[2] - own[2];
       const dz = actor[3] - own[3];
       const distance = Math.hypot(dx, dy, dz);
-      const score = distance - Math.min(20, (300 - actor[4]) * 0.08);
+      const woundBias = Math.min(combat.woundedTargetScoreCap,
+        Math.max(0, planner.healthMaximum - actor[4]) *
+          combat.woundedTargetHealthWeight);
+      let score = distance - woundBias * profile.aggression;
+      if (actor[0] === bot.goalTargetId && now < bot.goalUntil) {
+        score /= planner.goalSwitchAdvantage;
+      }
       if (score < targetScore) {
         target = actor;
         targetScore = score;
       }
     }
-    if (Math.hypot(own[1] - bot.previousX, own[3] - bot.previousZ) > 1) {
+    if (target && target[0] !== bot.goalTargetId) {
+      bot.goalTargetId = target[0];
+      bot.goalUntil = now + planner.goalHoldMilliseconds;
+    }
+    if (Math.hypot(own[1] - bot.previousX, own[3] - bot.previousZ) >
+        planner.roamTargetReachDistance / 10) {
       bot.previousX = own[1];
       bot.previousZ = own[3];
       bot.lastProgressAt = now;
-    } else if (now - bot.lastProgressAt > 1200) {
-      bot.evasiveUntil = now + 800;
+    } else if (now - bot.lastProgressAt > planner.stuckMilliseconds) {
+      bot.evasiveUntil = now + planner.evasionMilliseconds;
       bot.lastProgressAt = now;
     }
     let moveX = 0;
@@ -3536,63 +3606,89 @@
     let enemyDx = 0;
     let enemyDy = 0;
     let enemyDz = 0;
+    let retreating = false;
     if (target) {
       enemyDx = target[1] - own[1];
       enemyDy = target[2] - own[2];
       enemyDz = target[3] - own[3];
       targetDistance = Math.hypot(enemyDx, enemyDz);
       combatDistance = Math.abs(enemyDx) + Math.abs(enemyDy) + Math.abs(enemyDz);
-      const rangeError = targetDistance > 24
-        ? targetDistance - 18 : targetDistance < 11 ? -10 : 0;
+      const healthFraction = own[4] / planner.healthMaximum;
+      retreating = healthFraction <= planner.retreatHealthFraction *
+        (0.5 + profile.survival) && targetDistance <= planner.threatRadius;
       const approach = botMoveToward(enemyDx, enemyDz, targetDistance);
-      const orbitDirection = (bot.index + Math.floor(now / 6000)) % 2 ? 1 : -1;
+      const orbitDirection = (bot.index +
+        Math.floor(now / combat.orbitSidePeriodMilliseconds)) % 2 ? 1 : -1;
       const tangent = {
         x: -approach.z * orbitDirection,
         z: approach.x * orbitDirection,
       };
-      const radial = rangeError > 0
-        ? approach : targetDistance < 11
-          ? botMoveToward(-enemyDx, -enemyDz, targetDistance)
-          : { x: 0, z: 0 };
-      const radialWeight = rangeError > 0
-        ? targetDistance > 24 ? 1 : 0.45 : targetDistance < 11 ? 0.85 : 0.18;
-      const tangentWeight = targetDistance > 24 ? 0.32
-        : targetDistance < 11 ? 0.58 : 0.82;
-      moveX = Math.round(radial.x * radialWeight + tangent.x * tangentWeight);
-      moveZ = Math.round(radial.z * radialWeight + tangent.z * tangentWeight);
+      const radial = retreating
+        ? botMoveToward(-enemyDx, -enemyDz, targetDistance)
+        : targetDistance > combat.approachRange
+          ? approach : targetDistance < combat.retreatRange
+            ? botMoveToward(-enemyDx, -enemyDz, targetDistance)
+            : { x: 0, z: 0 };
+      const radialWeight = retreating
+        ? planner.retreatGoalMultiplier
+        : targetDistance > combat.approachRange
+          ? combat.approachWeight
+          : targetDistance < combat.retreatRange
+            ? combat.retreatWeight : 0;
+      moveX = Math.round(radial.x * radialWeight +
+        tangent.x * combat.orbitWeight);
+      moveZ = Math.round(radial.z * radialWeight +
+        tangent.z * combat.orbitWeight);
     } else {
       if (!bot.wanderTarget || now >= bot.nextWanderAt ||
           Math.hypot(bot.wanderTarget.x - own[1],
-            bot.wanderTarget.z - own[3]) < 10) {
-        const phase = (now / 1000 + bot.index * 2.4 + bot.team * 3) % 6.28;
+            bot.wanderTarget.z - own[3]) <
+              planner.roamTargetReachDistance) {
+        const phase = (now / planner.roamPhaseMilliseconds +
+          bot.index * planner.roamPhaseByBotIndex +
+          bot.team * planner.roamPhaseByTeam) % 6.28;
         bot.wanderTarget = {
-          x: 36 + ((bot.index * 67 + Math.floor(now / 4000) * 43) % 250),
-          z: 30 + ((Math.round((Math.sin(phase) + 1) * 112) +
-            bot.index * 29) % 218),
+          x: planner.roamTargetBaseX +
+            ((bot.index * planner.roamTargetStrideXByBot +
+              Math.floor(now / planner.roamTargetCycleMilliseconds) *
+                planner.roamTargetStrideXByCycle) %
+              planner.roamTargetSpanX),
+          z: planner.roamTargetBaseZ +
+            ((Math.round((Math.sin(phase) + 1) *
+              planner.roamTargetWaveScale) +
+              bot.index * planner.roamTargetStrideZByBot) %
+              planner.roamTargetSpanZ),
         };
-        bot.nextWanderAt = now + 2400 + bot.index * 180;
+        bot.nextWanderAt = now + planner.roamTargetRefreshMilliseconds;
       }
       const wander = botMoveToward(bot.wanderTarget.x - own[1],
         bot.wanderTarget.z - own[3],
         Math.hypot(bot.wanderTarget.x - own[1],
           bot.wanderTarget.z - own[3]));
-      moveX = wander.x;
-      moveZ = wander.z;
+      moveX = wander.x * profile.roaming;
+      moveZ = wander.z * profile.roaming;
     }
     const powerupMovement = activePowerup === 0
       ? botPickupMovement(bot, own, now) : null;
-    if (powerupMovement &&
-        (!target || powerupMovement.distance < targetDistance * 1.35)) {
+    const pickupWanted = powerupMovement &&
+      (!target || powerupMovement.distance <
+        targetDistance * planner.pickupDetourFactor ||
+        own[4] / planner.healthMaximum < planner.lowHealthFraction);
+    if (pickupWanted) {
       moveX = powerupMovement.x;
       moveZ = powerupMovement.z;
+      bot.goalPickupIndex = powerupMovement.pickup.index;
+      bot.goalUntil = now + planner.goalHoldMilliseconds;
     }
     const carrying = scene.carriesThrowable;
     if (bot.throwPhase === 4 && !carrying) bot.throwPhase = 0;
     if (bot.throwPhase === 1) {
       if (carrying) bot.throwPhase = 2;
-      else if (now - bot.throwPhaseAt > 500) bot.throwPhase = 0;
+      else if (now - bot.throwPhaseAt >
+          combat.throwableChargeMilliseconds) bot.throwPhase = 0;
     }
-    if (bot.throwPhase === 3 && scene.chargeTicks >= 18) {
+    if (bot.throwPhase === 3 &&
+        scene.chargeTicks >= combat.throwChargeTicks) {
       bot.throwPhase = 4;
       bot.throwPhaseAt = now;
     }
@@ -3601,65 +3697,95 @@
       const dx = scene.pickup.x - own[1];
       const dz = scene.pickup.z - own[3];
       const distance = Math.hypot(dx, dz);
-      if (distance > 5 && (!target || targetDistance > 10)) {
+      if (distance > combat.throwPickupCombatDistance &&
+          (!target || targetDistance > combat.throwCombatDistance)) {
         const itemRoute = botMoveToward(dx, dz, distance);
         moveX = itemRoute.x;
         moveZ = itemRoute.z;
       }
     }
-    const boundaryPushX = own[1] < 18 ? 1 : own[1] > 302 ? -1 : 0;
-    const boundaryPushZ = own[3] < 18 ? 1 : own[3] > 262 ? -1 : 0;
-    moveX = Math.max(-1000, Math.min(1000, moveX + boundaryPushX * 700));
-    moveZ = Math.max(-1000, Math.min(1000, moveZ + boundaryPushZ * 700));
+    const boundaryPushX = own[1] < combat.worldMinX ? 1
+      : own[1] > combat.worldMaxX ? -1 : 0;
+    const boundaryPushZ = own[3] < combat.worldMinZ ? 1
+      : own[3] > combat.worldMaxZ ? -1 : 0;
+    const movementMax = combat.movementMax;
+    moveX = Math.max(-movementMax, Math.min(movementMax,
+      moveX + boundaryPushX * combat.worldBoundaryPush));
+    moveZ = Math.max(-movementMax, Math.min(movementMax,
+      moveZ + boundaryPushZ * combat.worldBoundaryPush));
     const evasion = botAvoidProjectile(bot, own, scene.projectiles);
     if (evasion) {
       moveX = evasion.x;
       moveZ = evasion.z;
-      bot.evasiveUntil = now + 500;
+      bot.evasiveUntil = now + planner.evasionMilliseconds;
     } else if (now < bot.evasiveUntil && !target) {
-      moveX = Math.max(-1000, Math.min(1000, moveX + 500));
+      moveX = Math.max(-movementMax, Math.min(movementMax,
+        moveX + combat.evasionDriftWeight));
     }
     const moveMagnitude = Math.hypot(moveX, moveZ);
-    if (moveMagnitude > 1000) {
-      moveX = Math.round(moveX * 1000 / moveMagnitude);
-      moveZ = Math.round(moveZ * 1000 / moveMagnitude);
+    if (moveMagnitude > movementMax) {
+      moveX = Math.round(moveX * movementMax / moveMagnitude);
+      moveZ = Math.round(moveZ * movementMax / moveMagnitude);
     }
     let yawDelta = 0;
     if (target) {
-      const desiredYaw = Math.round(Math.atan2(enemyDx, enemyDz) * 180 / Math.PI);
-      yawDelta = ((desiredYaw - own[7] + 540) % 360) - 180;
-    } else if (moveMagnitude > 50) {
-      const desiredYaw = Math.round(Math.atan2(moveX, moveZ) * 180 / Math.PI);
-      yawDelta = ((desiredYaw - own[7] + 540) % 360) - 180;
+      const desiredYaw = Math.round(Math.atan2(enemyDx, enemyDz) *
+        combat.yawHalfTurn / Math.PI);
+      yawDelta = ((desiredYaw - own[7] + combat.yawWrapOffset) %
+        combat.yawFullTurn) - combat.yawHalfTurn;
+    } else if (moveMagnitude > botAISettings.runtime.movementFacingThreshold) {
+      const desiredYaw = Math.round(Math.atan2(moveX, moveZ) *
+        combat.yawHalfTurn / Math.PI);
+      yawDelta = ((desiredYaw - own[7] + combat.yawWrapOffset) %
+        combat.yawFullTurn) - combat.yawHalfTurn;
     }
     let held = 0;
     let edge = 0;
-    if (target && now >= bot.nextShotAt && combatDistance <= 150) {
+    const healthFraction = own[4] / planner.healthMaximum;
+    const canAttack = !retreating &&
+      healthFraction > planner.emergencyHealthFraction;
+    if (target && canAttack && now >= bot.nextShotAt &&
+        combatDistance <= combat.shootRange) {
       held |= ACTION_SHOOT;
-      bot.nextShotAt = now + (combatDistance <= 14 ? 550 : 1250);
+      bot.nextShotAt = now + (combatDistance <= combat.closeShootRange
+        ? combat.closeShootCooldownMilliseconds
+        : combat.farShootCooldownMilliseconds);
     }
-    if (target && combatDistance <= 6 && now >= bot.nextMeleeAt) {
+    if (target && canAttack && combatDistance <= combat.meleeRange &&
+        now >= bot.nextMeleeAt) {
       edge |= ACTION_MELEE;
-      bot.nextMeleeAt = now + 360;
+      bot.nextMeleeAt = now + combat.meleeCooldownMilliseconds;
     }
-    if (target && now >= bot.nextSpecialAt &&
-        (combatDistance <= 24 || activePowerup === 8 || activePowerup === 3)) {
+    if (target && canAttack && now >= bot.nextSpecialAt &&
+        (combatDistance <= combat.specialRange ||
+          combat.poweredSpecialIds.includes(activePowerup))) {
       edge |= ACTION_SPECIAL;
-      bot.nextSpecialAt = now + (activePowerup === 8 ? 650 : 1000);
+      bot.nextSpecialAt = now +
+        (activePowerup === combat.fastSpecialPowerupId
+          ? combat.poweredSpecialCooldownMilliseconds
+          : combat.specialCooldownMilliseconds);
     }
     if (now >= bot.nextBurstAt) {
       edge |= evasion ? ACTION_ROLL : bot.burstAction;
-      bot.burstAction = bot.burstAction === ACTION_DASH ? ACTION_ROLL : ACTION_DASH;
-      bot.nextBurstAt = now + (evasion ? 360 : 1100 + bot.index * 90);
+      bot.burstAction = bot.burstAction === ACTION_DASH
+        ? ACTION_ROLL : ACTION_DASH;
+      bot.nextBurstAt = now + (evasion
+        ? combat.evasiveBurstCooldownMilliseconds
+        : combat.burstCooldownMilliseconds +
+          bot.index * combat.burstBotStaggerMilliseconds);
     }
     if (target && botShouldJump(bot, own, target, targetDistance, now)) {
       edge |= ACTION_JUMP;
     }
-    const airborne = (own[5] & 1) === 0 && own[2] > 1;
-    if (bot.animal === 1 &&
-        (airborne || enemyDy > 3 || activePowerup === 2 && targetDistance > 12)) {
+    const airborne = (own[5] & 1) === 0 &&
+      own[2] > combat.airborneHeightThreshold;
+    if (bot.animal === combat.gooseAnimalId &&
+        (airborne || enemyDy > combat.jumpVerticalThreshold ||
+          activePowerup === combat.flightPowerupId &&
+            targetDistance > combat.flightPowerupRange)) {
       held |= ACTION_FLY;
-    } else if (bot.animal === 2 && (airborne || enemyDy > 3)) {
+    } else if (bot.animal === combat.catAnimalId &&
+        (airborne || enemyDy > combat.jumpVerticalThreshold)) {
       held |= ACTION_GLIDE;
     }
     if (carrying && bot.throwPhase === 2) {
@@ -3671,7 +3797,8 @@
       const dx = scene.pickup.x - own[1];
       const dy = scene.pickup.y - own[2];
       const dz = scene.pickup.z - own[3];
-      if (dx * dx + dy * dy + dz * dz <= 36) {
+      const pickupDistance = Math.hypot(dx, dy, dz);
+      if (pickupDistance <= combat.throwPickupDistance) {
         held |= ACTION_THROWABLE;
         bot.throwPhase = 1;
         bot.throwPhaseAt = now;
@@ -3680,8 +3807,10 @@
     sendBrowserBotFrame(bot, GAME, [
       GAME_INPUT_MARKER, words[4],
       moveX, moveZ,
-      Math.max(-1800, Math.min(1800, yawDelta * 10)),
-      Math.max(-1800, Math.min(1800, -enemyDy * 10)), held, edge,
+      Math.max(-combat.lookMax, Math.min(combat.lookMax,
+        yawDelta * combat.lookScale)),
+      Math.max(-combat.lookMax, Math.min(combat.lookMax,
+        -enemyDy * combat.lookScale)), held, edge,
     ]);
   }
   async function startBrowserBotBattle() {
@@ -3697,6 +3826,7 @@
     browserBattleLastReportAt = 0;
     logGameConsole("Starting 4v4 battle; connecting bot players...");
     try {
+      await loadBrowserBotAIConfig();
       await loadBotPowerupWaypoints();
       await Promise.all(Array.from({ length: 4 }, (_, index) =>
         connectBrowserBattleBot(1, 1, index + 1)));
@@ -3709,12 +3839,13 @@
     browserBattleStartedAt = Date.now();
     browserBattleTimer = window.setInterval(() => {
       const now = Date.now();
-      if (now - browserBattleStartedAt >= 120000) {
+      if (now - browserBattleStartedAt >=
+          botAISettings.runtime.browserMatchDurationMilliseconds) {
         stopBrowserBotBattle("Battle time limit reached; bots disconnected.");
         return;
       }
       for (const bot of browserBattleBots) updateBrowserBattleBot(bot, now);
-    }, 50);
+    }, botAISettings.runtime.browserDecisionIntervalMilliseconds);
     logGameConsole("Battle live: 4 red geese vs 4 blue cats. Spectate from this page.");
   }
   function runRemoteAdminCommand(command) {

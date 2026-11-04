@@ -28,10 +28,36 @@ EDGE_MELEE = 64
 EDGE_SPECIAL = 128
 ACTION_THROWABLE = 256
 BOT_COUNT = 8
-POWERUP_CONFIG_DIR = (
-    Path(__file__).resolve().parents[1] /
-    "assets" / "prototype" / "runtime" / "power_ups"
-)
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+POWERUP_CONFIG_DIR = PROJECT_ROOT / "assets" / "prototype" / "runtime" / "power_ups"
+BOT_AI_CONFIG_PATH = PROJECT_ROOT / "assets" / "prototype" / "runtime" / "bot_ai.json"
+
+
+def load_bot_ai_config(config_path=BOT_AI_CONFIG_PATH):
+    with Path(config_path).open(encoding="utf-8") as config_file:
+        config = json.load(config_file)
+    if config.get("schema") != "kookie.bot-ai/v1":
+        raise ValueError(f"unsupported bot AI config schema: {config_path}")
+    profiles = config.get("profiles")
+    profile_names = config.get("profileByBotIndex")
+    if not isinstance(profiles, dict) or not isinstance(profile_names, list) or \
+            not profile_names:
+        raise ValueError(f"invalid bot AI profiles: {config_path}")
+    profile_keys = ("aggression", "roaming", "scavenging", "survival",
+                    "teamwork", "riskTolerance")
+    for name in profile_names:
+        profile = profiles.get(name)
+        if not isinstance(profile, dict) or any(
+                not isinstance(profile.get(key), (int, float)) or
+                not 0 <= profile[key] <= 1 for key in profile_keys):
+            raise ValueError(f"invalid bot AI profile {name!r}: {config_path}")
+    for section in ("planner", "combat", "runtime"):
+        values = config.get(section)
+        if not isinstance(values, dict) or any(
+                isinstance(value, float) and not math.isfinite(value)
+                for value in values.values()):
+            raise ValueError(f"invalid bot AI section {section}: {config_path}")
+    return config
 
 
 def load_powerup_waypoints():
@@ -84,10 +110,17 @@ def latest_snapshot(client, expected_players=BOT_COUNT, expected_spectators=None
 
 def run_battle(port, duration=None, log_path=None,
                goose_count=4, cat_count=4, wait_for_spectator=False,
-               spectator_url=None, ringout_only_deaths=False):
+               spectator_url=None, ringout_only_deaths=False,
+               bot_ai_config=BOT_AI_CONFIG_PATH):
     bot_count = goose_count + cat_count
-    if goose_count <= 0 or cat_count <= 0 or bot_count > 8:
+    if goose_count <= 0 or cat_count <= 0 or bot_count > BOT_COUNT:
         raise ValueError("team sizes must be positive and total at most 8")
+    bot_ai = load_bot_ai_config(bot_ai_config)
+    planner = bot_ai["planner"]
+    combat = bot_ai["combat"]
+    runtime = bot_ai["runtime"]
+    profiles = bot_ai["profiles"]
+    profile_names = bot_ai["profileByBotIndex"]
     clients = []
     drivers = []
     battle_log = None
@@ -145,26 +178,34 @@ def run_battle(port, duration=None, log_path=None,
 
         def drive(client, own_team):
             action_start = time.monotonic()
-            next_shot = action_start + 1.5
-            next_burst = 0.0
-            next_melee = action_start + 1.5
-            next_special = action_start + .7
+            profile = profiles[profile_names[(client.player_id - 1) %
+                                             len(profile_names)]]
+            next_shot = action_start + combat["farShootCooldownMilliseconds"] / 1000
+            next_burst = action_start
+            next_melee = action_start + combat["meleeCooldownMilliseconds"] / 1000
+            next_special = action_start + combat["specialCooldownMilliseconds"] / 1000
             throwable_phase = 0
             throwable_charge_started = 0.0
-            next_jump = 0.0
-            double_jump_due = None
             tried_pickups = {}
+            goal_pickup_index = None
+            pickup_goal_until = 0.0
             burst_action = ACTION_DASH
-            animal = 1 if client.player_id in goose_ids else 2
+            animal = combat["gooseAnimalId"] if client.player_id in goose_ids \
+                else combat["catAnimalId"]
+            goal_target_id = None
+            goal_until = 0.0
             actions_by_player[client.player_id] = set()
             animation_states_by_player[client.player_id] = set()
             opening_roll = True
+            previous_position = None
+            last_progress_at = action_start
             while not stop.is_set():
                 try:
+                    now = time.monotonic()
                     scene = latest_snapshot(client, bot_count)
                     me = actor_record(scene, client.player_id)
                     if me[4] <= 0:
-                        stop.wait(.045)
+                        stop.wait(runtime["runnerDecisionIntervalMilliseconds"] / 1000)
                         continue
                     animation_state = me[5] // 128
                     animation_states_by_player[client.player_id].add(animation_state)
@@ -175,21 +216,35 @@ def run_battle(port, duration=None, log_path=None,
                                for index in range(scene[17])
                                if scene[18 + index * 8] not in own_ids and
                                scene[22 + index * 8] > 0]
-                    if not enemies:
+                    target = None
+                    if enemies:
+                        def target_score(actor):
+                            target_distance = math.dist(
+                                (actor[1], actor[2], actor[3]),
+                                (me[1], me[2], me[3]))
+                            wounded_bias = min(combat["woundedTargetScoreCap"],
+                                max(0, planner["healthMaximum"] - actor[4]) *
+                                combat["woundedTargetHealthWeight"])
+                            score = target_distance - wounded_bias * profile["aggression"]
+                            if actor[0] == goal_target_id and now < goal_until:
+                                score /= planner["goalSwitchAdvantage"]
+                            return score
+                        target = min(enemies, key=target_score)
+                        if target[0] != goal_target_id:
+                            goal_target_id = target[0]
+                            goal_until = now + planner["goalHoldMilliseconds"] / 1000
+                    if not target:
                         client.input()
                     else:
-                        target = min(enemies, key=lambda actor:
-                                     abs(actor[1] - me[1]) +
-                                     abs(actor[2] - me[2]) +
-                                     abs(actor[3] - me[3]))
                         dx, dy, dz = (target[1] - me[1],
                                       target[2] - me[2],
                                       target[3] - me[3])
                         distance = max(1, math.hypot(dx, dz))
                         combat_distance = abs(dx) + abs(dy) + abs(dz)
                         desired_yaw = round(math.degrees(math.atan2(dx, dz)))
-                        yaw_delta = (desired_yaw - me[7] + 180) % 360 - 180
-                        now = time.monotonic()
+                        yaw_delta = (desired_yaw - me[7] +
+                                     combat["yawHalfTurn"]) % combat["yawFullTurn"] - \
+                            combat["yawHalfTurn"]
                         active_powerup = (me[5] // 8) % 16
                         throwable_state = throwable_suffix(scene)
                         pickup_active, pickup_x, pickup_y, pickup_z = \
@@ -201,25 +256,47 @@ def run_battle(port, duration=None, log_path=None,
                         if carrying:
                             throwable_carry_observed[0] = True
                         move_dx, move_dz = dx, dz
-                        pickup = None
-                        if active_powerup == 0:
-                            pickup = min(
-                                ((math.dist((item["x"], item["y"], item["z"]),
-                                            (me[1], me[2], me[3])),
-                                  index, item)
-                                 for index, item in enumerate(powerup_waypoints)
-                                 if bot_can_use_powerup(animal, item["kind"]) and
-                                 now >= tried_pickups.get(index, 0)),
-                                default=None,
-                            )
-                            if pickup is not None:
-                                pickup_distance, pickup_index, item = pickup
-                                pickup_dx = item["x"] - me[1]
-                                pickup_dz = item["z"] - me[3]
-                                if pickup_distance <= 4 and abs(item["y"] - me[2]) <= 5:
-                                    tried_pickups[pickup_index] = now + 30
-                                elif pickup_distance < distance * 1.35:
-                                    move_dx, move_dz = pickup_dx, pickup_dz
+                        pickup = min(
+                            ((math.dist((item["x"], item["y"], item["z"]),
+                                        (me[1], me[2], me[3])),
+                              index, item)
+                             for index, item in enumerate(powerup_waypoints)
+                             if bot_can_use_powerup(animal, item["kind"]) and
+                             now >= tried_pickups.get(index, 0)),
+                            key=lambda candidate: -(
+                                planner["powerupValueByKind"].get(
+                                    str(candidate[2]["kind"]), 0) *
+                                profile["scavenging"] *
+                                (1 + max(0, 1 - me[4] /
+                                         planner["healthMaximum"]) *
+                                 planner["healthUrgencyWeight"]) *
+                                (planner["activePowerupPenalty"]
+                                 if active_powerup else 1) /
+                                max(1, candidate[0]) /
+                                (planner["goalSwitchAdvantage"]
+                                 if candidate[1] == goal_pickup_index and
+                                 now < pickup_goal_until else 1)
+                            ),
+                            default=None,
+                        )
+                        pickup_distance = math.inf
+                        if pickup is not None:
+                            pickup_distance, pickup_index, item = pickup
+                            pickup_dx = item["x"] - me[1]
+                            pickup_dz = item["z"] - me[3]
+                            if (pickup_distance <= planner["pickupReachDistance"] and
+                                    abs(item["y"] - me[2]) <=
+                                    planner["pickupVerticalTolerance"]):
+                                tried_pickups[pickup_index] = now + \
+                                    planner["pickupRetryMilliseconds"] / 1000
+                            elif (pickup_distance <
+                                  distance * planner["pickupDetourFactor"] or
+                                  me[4] / planner["healthMaximum"] <
+                                  planner["lowHealthFraction"]):
+                                move_dx, move_dz = pickup_dx, pickup_dz
+                                goal_pickup_index = pickup_index
+                                pickup_goal_until = now + \
+                                    planner["goalHoldMilliseconds"] / 1000
                         dodging = False
                         for projectile in projectile_records(scene):
                             if projectile[2] != client.player_id:
