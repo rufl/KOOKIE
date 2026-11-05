@@ -977,7 +977,7 @@
       value + (second[component] - value) * amount);
   }
 
-  async function loadGlb(url, gl, fallbackTexture = null) {
+  async function loadGlb(url, gl, fallbackTexture = null, measureBounds = false) {
     const response = await fetch(url, { cache: "force-cache" });
     if (!response.ok) throw new Error("GLB HTTP " + response.status + " / " + url);
     const { json, binary } = parseGlb(await response.arrayBuffer());
@@ -1137,12 +1137,33 @@
       }
       meshNodes.push({ index, node, mesh });
     }
+    const bounds = measureBounds
+      ? { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] }
+      : null;
+    const includeBounds = (positions, model) => {
+      if (!bounds) return;
+      for (let index = 0; index < positions.length; index += 3) {
+        const x = positions[index];
+        const y = positions[index + 1];
+        const z = positions[index + 2];
+        const pointX = model[0] * x + model[4] * y + model[8] * z + model[12];
+        const pointY = model[1] * x + model[5] * y + model[9] * z + model[13];
+        const pointZ = model[2] * x + model[6] * y + model[10] * z + model[14];
+        bounds.min[0] = Math.min(bounds.min[0], pointX);
+        bounds.min[1] = Math.min(bounds.min[1], pointY);
+        bounds.min[2] = Math.min(bounds.min[2], pointZ);
+        bounds.max[0] = Math.max(bounds.max[0], pointX);
+        bounds.max[1] = Math.max(bounds.max[1], pointY);
+        bounds.max[2] = Math.max(bounds.max[2], pointZ);
+      }
+    };
     const meshForPrimitive = async (primitive, localModel, skinNode) => {
       if (primitive.mode !== undefined && primitive.mode !== 4) return null;
       if (primitive.attributes?.POSITION === undefined) {
         throw new Error("GLB primitive POSITION missing");
       }
       const positions = accessorValues(json, binary, primitive.attributes.POSITION);
+      includeBounds(positions, localModel);
       const normals = primitive.attributes.NORMAL === undefined
         ? null : accessorValues(json, binary, primitive.attributes.NORMAL);
       const uvs = primitive.attributes.TEXCOORD_0 === undefined
@@ -1286,8 +1307,18 @@
       skinCache.set(cacheKey, matricesByNode);
       return matricesByNode;
     };
+    const modelBounds = bounds && bounds.min.every(Number.isFinite) &&
+        bounds.max.every(Number.isFinite)
+      ? Object.freeze({
+        center: Object.freeze(bounds.min.map((value, axis) =>
+          (value + bounds.max[axis]) * 0.5)),
+        size: Object.freeze(bounds.min.map((value, axis) =>
+          bounds.max[axis] - value)),
+      })
+      : null;
     return Object.freeze({
       meshes: Object.freeze(meshes),
+      bounds: modelBounds,
       skinned: skinnedNodes.length > 0,
       animationNames: Object.freeze(clips.map((clip) => clip.name)),
       defaultAnimation: clipsByName.has("idle") ? "idle" : clips[0]?.name || null,
@@ -1485,14 +1516,31 @@
       for (const token of activeTokens) {
         if (kutterModels.has(token)) continue;
         const path = kutterCatalogByToken.get(token);
-        const entry = { meshes: null, path };
+        const entry = { meshes: null, maxExtent: 0, path };
         kutterModels.set(token, entry);
-        entry.promise = loadGlb("assets/prototype/" + path, gl)
+        entry.promise = loadGlb("assets/prototype/" + path, gl, null, true)
           .then((model) => {
             if (rendererDestroyed || kutterModels.get(token) !== entry) {
               disposeKutterModel(model);
             } else {
-              entry.meshes = model.meshes;
+              const bounds = model.bounds;
+              const maxExtent = bounds
+                ? Math.max(...bounds.size) : 0;
+              if (maxExtent > 0) {
+                const normalize = [
+                  1, 0, 0, 0,
+                  0, 1, 0, 0,
+                  0, 0, 1, 0,
+                  -bounds.center[0], -bounds.center[1], -bounds.center[2], 1,
+                ];
+                entry.meshes = model.meshes.map((mesh) => Object.freeze({
+                  ...mesh,
+                  localModel: multiply(normalize, mesh.localModel),
+                }));
+                entry.maxExtent = maxExtent;
+              } else {
+                entry.meshes = model.meshes;
+              }
             }
           })
           .catch((error) => {
@@ -2096,7 +2144,11 @@
             assigned?.meshes || [fallbackMeshes.solid],
             transform(
               [node.x / 100, (node.y + height / 2) / 100, node.z / 100],
-              [node.scaleX / 250, height, node.scaleZ / 250],
+              assigned?.maxExtent > 0
+                ? [node.scaleX / 250 / assigned.maxExtent,
+                  height / assigned.maxExtent,
+                  node.scaleZ / 250 / assigned.maxExtent]
+                : [node.scaleX / 250, height, node.scaleZ / 250],
               node.rotation / 1000 * Math.PI / 180,
             ),
             tint, time, viewProjection, worldMaterialUv(node.kind),
