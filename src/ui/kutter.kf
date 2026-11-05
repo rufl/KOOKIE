@@ -1,13 +1,14 @@
 package ui
 
 Int kutterStudioMagic() { return 126375140 }
-Int kutterStudioSchemaVersion() { return 3 }
+Int kutterStudioSchemaVersion() { return 4 }
 Int kutterStudioNodeWordsV1() { return 8 }
 Int kutterStudioNodeWordsV2() { return 12 }
 Int kutterStudioNodeWords() { return 13 }
 Int kutterStudioDefaultColor() { return 16777215 }
 Int kutterStudioMaximumColor() { return 16777215 }
 Int kutterStudioNodeCapacity() { return 64 }
+Int kutterStudioBehaviorCapacity() { return 776 }
 Int kutterStudioAssetCapacity() { return 32 }
 Int kutterStudioDiagnosticNone() { return 0 }
 Int kutterStudioDiagnosticState() { return 1 }

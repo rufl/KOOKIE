@@ -552,6 +552,46 @@ class BoundedKutterLevelEditor {
         selectedNodeValue = nodeId
         return true
     }
+    Bool setBehaviorCards(Int attackCard, Int chaseCard, Int fallbackCard) {
+        if ((attackCard != 0 && attackCard != 1) ||
+            (chaseCard != 0 && chaseCard != 2) || fallbackCard != 3) {
+            return false
+        }
+        var program = BoundedBehaviorProgram(64, 128, 64)
+        if (!program.configure(
+                1, documentValue.projectRevision() +
+                    documentValue.generation() + 1, 8) ||
+            !program.addNode(1, behaviorNodeSelector())) { return false }
+        var order = 1
+        if (attackCard == 1) {
+            if (!program.addNode(10, behaviorNodeSequence()) ||
+                !program.addNode(11, behaviorNodeConditionVisible()) ||
+                !program.addNode(12, behaviorNodeConditionAttackRange()) ||
+                !program.addNode(13, behaviorNodeActionAttack()) ||
+                !program.addChild(1, 10, order) ||
+                !program.addChild(10, 11, 1) ||
+                !program.addChild(10, 12, 2) ||
+                !program.addChild(10, 13, 3)) { return false }
+            order = order + 1
+        }
+        if (chaseCard == 2) {
+            if (!program.addNode(20, behaviorNodeSequence()) ||
+                !program.addNode(21, behaviorNodeConditionVisible()) ||
+                !program.addNode(22, behaviorNodeConditionPerceptionRange()) ||
+                !program.addNode(23, behaviorNodeActionChase()) ||
+                !program.addChild(1, 20, order) ||
+                !program.addChild(20, 21, 1) ||
+                !program.addChild(20, 22, 2) ||
+                !program.addChild(20, 23, 3)) { return false }
+            order = order + 1
+        }
+        if (!program.addNode(30, behaviorNodeActionInvestigate()) ||
+            !program.addChild(1, 30, order) || !program.seal() ||
+            !program.encode() || !beginMutation()) { return false }
+        return finishMutation(documentValue.setBehaviorProgram(
+            program.wire, program.encodedLength()))
+    }
+
 
     Bool importDocument(Int[] words) {
         return importDocumentWords(words, words.length)

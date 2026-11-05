@@ -9163,6 +9163,47 @@ test "kutter studio migrates legacy schemas and persists asset-linked v3 round t
         restored.nodeAssetToken(1) == 51001,
         "studio file round trip must retain modular asset references")
 }
+test "Kutter behavior cards persist validated bounded programs" {
+    var defaultEditor = BoundedKutterLevelEditor()
+    assert(defaultEditor.document().encode() &&
+        defaultEditor.document().encodedWord(10) == 0,
+        "default Kutter documents must retain an empty behavior section")
+    var defaultWords = new Int[defaultEditor.document().encodedLength()]
+    for (var index = 0; index < defaultWords.length; index = index + 1) {
+        defaultWords[index] = defaultEditor.document().encodedWord(index)
+    }
+    var defaultRestored = BoundedKutterStudio(64, 32)
+    assert(defaultRestored.decodeDocumentWords(defaultWords, defaultWords.length) &&
+        defaultRestored.validate() &&
+        defaultRestored.behaviorWordCount() == 0,
+        "v4 decoding must accept an empty behavior payload")
+    var editor = BoundedKutterLevelEditor()
+    assert(editor.setBehaviorCards(1, 2, 3) &&
+        editor.document().validate() &&
+        editor.document().behaviorWordCount() >= 18,
+        "behavior cards must compile and seal into the canonical Kutter document")
+    assert(editor.document().encode(),
+        "behavior-card document must encode before round trip")
+    var encoded = new Int[editor.document().encodedLength()]
+    for (var index = 0; index < encoded.length; index = index + 1) {
+        encoded[index] = editor.document().encodedWord(index)
+    }
+    var restored = BoundedKutterStudio(64, 32)
+    assert(restored.decodeDocumentWords(encoded, encoded.length) &&
+        restored.validate() &&
+        restored.checksum() == editor.document().checksum() &&
+        restored.behaviorWordCount() == editor.document().behaviorWordCount() &&
+        restored.behaviorProgram().validate(),
+        "v4 decode must preserve checksummed behavior program words")
+    var corrupted = new Int[encoded.length]
+    for (var index = 0; index < encoded.length; index = index + 1) {
+        corrupted[index] = encoded[index]
+    }
+    corrupted[corrupted.length - 1] = corrupted[corrupted.length - 1] + 1
+    assert(!BoundedKutterStudio(64, 32).decodeDocumentWords(
+            corrupted, corrupted.length),
+        "v4 decoder must reject behavior payload checksum corruption")
+}
 
 test "Kutter scene preview stages transformed colored 3D nodes" {
     var document = BoundedKutterStudio(4, 1)

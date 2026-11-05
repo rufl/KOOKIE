@@ -24,6 +24,8 @@ Int sessionWebKutterGrid() { return 17 }
 Int sessionWebKutterUpdate() { return 18 }
 Int sessionWebKutterHeight() { return 19 }
 Int sessionWebKutterPreview() { return 20 }
+Int sessionWebKutterSetBehaviorCards() { return 21 }
+Int sessionWebKutterInstallBehavior() { return 22 }
 
 Bool validSessionWebKutterRequest(Int[] words) {
     if (words.length < 6 ||
@@ -31,7 +33,7 @@ Bool validSessionWebKutterRequest(Int[] words) {
         words[1] != sessionWebGameKind() || words[2] <= 0 ||
         words[2] > 1000000 || words[3] != sessionWebKutterRequestMarker() ||
         words[4] < sessionWebKutterGet() ||
-        words[4] > sessionWebKutterPreview() ||
+        words[4] > sessionWebKutterInstallBehavior() ||
         words[words.length - 1] !=
             sessionWebMessageChecksum(words, words.length - 1)) {
         return false

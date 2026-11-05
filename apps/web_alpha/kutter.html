@@ -49,14 +49,33 @@
     }
     .brand { color: var(--accent); font-family: "Jared Lite", "Pixand", sans-serif; font-weight: 800; letter-spacing: .1em; }
     .subbrand { color: #9eae99; font-size: 11px; letter-spacing: .06em; }
-    .top-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
     .top-actions a, .file-menu > summary {
       display: inline-flex; min-height: 42px; align-items: center; justify-content: center;
       padding: 0 10px; color: #e8eddf; font-size: 13px; text-decoration: none;
       border: 1px solid transparent; border-radius: 9px; cursor: pointer;
     }
-    .top-actions a:hover { color: var(--accent); background: #ffffff0d; }
+    .top-actions a:hover, .top-actions button:hover { color: var(--accent); background: #ffffff0d; }
     #connection-state { color: #d8c878; font: 11px ui-monospace, monospace; }
+    .project-dialog {
+      width: min(560px, calc(100vw - 28px)); max-height: min(720px, calc(100dvh - 28px));
+      padding: 0; border: 1px solid var(--line); border-radius: 16px;
+      background: #111a16; color: #f5f4e8; box-shadow: 0 18px 64px #000b;
+    }
+    .project-dialog::backdrop { background: #020805b8; backdrop-filter: blur(5px); }
+    .project-dialog form { display: grid; gap: 14px; padding: 18px; }
+    .project-dialog h2 { margin: 0; color: var(--accent); font-size: 18px; }
+    .project-dialog p { margin: 0; color: var(--muted); font: 12px/1.5 system-ui, sans-serif; }
+    .project-create { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; }
+    #project-list { display: grid; gap: 6px; max-height: 40dvh; overflow: auto; }
+    #project-empty { padding: 20px 12px; border: 1px dashed #89927a80; border-radius: 10px; text-align: center; }
+    #project-empty[hidden] { display: none; }
+    .project-row { display: flex; align-items: center; gap: 10px; min-height: 54px; padding: 8px 10px; text-align: left; }
+    .project-row[aria-pressed="true"] { border-color: var(--accent); background: #35452f; }
+    .project-row span { display: grid; gap: 3px; min-width: 0; }
+    .project-row strong { overflow: hidden; text-overflow: ellipsis; }
+    .project-row small { color: var(--muted); font: 10px ui-monospace, monospace; }
+    .project-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+    #project-message { min-height: 18px; color: #d8c878; font: 11px ui-monospace, monospace; }
     .file-menu { position: relative; }
     .file-menu-items {
       position: absolute; z-index: 10; top: calc(100% + 8px); right: 0; display: grid;
@@ -138,8 +157,14 @@
     .step-row { display: grid; grid-template-columns: minmax(44px,1fr) repeat(2,minmax(44px,1fr)); gap: 5px; align-items: center; }
     .step-row > span { color: #c2ccb9; font-size: 10px; }
     .step-row button, .advanced-controls select { min-height: 38px; padding: 4px 6px; font-size: 10px; }
-    .asset-browser { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 5px; }
-    .asset-browser select { min-height: 38px; font-size: 10px; }
+    .asset-browser { display: grid; grid-template-columns: minmax(0,1fr) minmax(90px,.7fr); gap: 6px; }
+    .asset-browser select, .asset-browser input { min-height: 38px; font-size: 10px; }
+    #asset-catalog { grid-column: 1 / -1; }
+    .asset-card { display: grid; grid-template-columns: 48px minmax(0,1fr); gap: 9px; align-items: center; min-height: 64px; padding: 8px; border: 1px solid #ffffff24; border-radius: 9px; background: #0d1612; }
+    .asset-card[hidden] { display: none; }
+    .asset-card-mark { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 8px; color: var(--accent); background: #24352a; font: 10px ui-monospace, monospace; }
+    .asset-card strong { display: block; overflow-wrap: anywhere; color: #edf0e6; font: 11px/1.4 system-ui, sans-serif; }
+    .asset-card small { display: block; color: var(--muted); font: 9px/1.5 ui-monospace, monospace; }
     .unsupported-note { color: #b7c2b1; font-size: 10px; line-height: 1.4; }
     .preview-status { color: #d8c878; font-size: 10px; }
     .scale-step { grid-template-columns: minmax(44px,1fr) minmax(70px,1fr) minmax(80px,1fr); }
@@ -175,6 +200,7 @@
       #fullscreen-button { width: 42px; font-size: 0; }
       #fullscreen-button::before { content: "⛶"; font-size: 20px; }
       #connection-state { width: 54px; }
+      .project-create { grid-template-columns: minmax(0,1fr); }
       .tool-panel { left: 8px; right: 8px; transform: none; justify-content: center; }
       .tool-button, .marker-menu > summary { min-width: 0; flex: 1 1 auto; padding: 6px 5px; font-size: 10px; }
       #grid-size { width: 82px; flex: 0 0 82px; }
@@ -198,11 +224,12 @@
       <div class="subbrand">CREATIVE WORLD BUILDER</div>
       <div class="top-actions">
         <span id="connection-state" role="status" aria-live="polite">Connecting…</span>
+        <button id="projects-open" type="button" aria-haspopup="dialog">Projects</button>
         <details class="file-menu">
           <summary aria-label="File menu">File</summary>
           <div class="file-menu-items">
-            <button id="open-file" type="button">Open world</button>
-            <button id="save-file" type="button">Save world</button>
+            <button id="open-file" type="button">Import world file</button>
+            <button id="save-file" type="button">Export current world</button>
             <button id="refresh" type="button">Reload from server</button>
           </div>
         </details>
@@ -270,6 +297,28 @@
               <label>Scale Z<input id="node-sz" type="number" min="100" max="1000000" step="100" aria-label="Node Z scale"></label>
             </div>
             <label>Color<input id="node-color" type="color" aria-label="Node color"></label>
+            <section class="advanced-controls" aria-labelledby="behavior-title">
+              <div class="advanced-title" id="behavior-title">Enemy behavior cards</div>
+              <p class="unsupported-note">Bounded enemy AI · priority order: attack, chase, fallback.</p>
+              <label for="behavior-attack">Attack nearby visible targets
+                <select id="behavior-attack" aria-label="Attack behavior card">
+                  <option value="1">Enabled</option>
+                  <option value="0">Disabled</option>
+                </select>
+              </label>
+              <label for="behavior-chase">Chase visible targets in perception range
+                <select id="behavior-chase" aria-label="Chase behavior card">
+                  <option value="2">Enabled</option>
+                  <option value="0">Disabled</option>
+                </select>
+              </label>
+              <div class="unsupported-note">Fallback card: Investigate · required</div>
+              <div class="row-actions">
+                <button id="behavior-save" type="button" disabled>Save cards</button>
+                <button id="behavior-install" type="button" disabled>Install saved</button>
+              </div>
+              <div class="preview-status" id="behavior-status" role="status">Behavior cards are ready to edit.</div>
+            </section>
             <section class="advanced-controls" aria-label="Advanced editing">
               <div class="advanced-title">Step controls</div>
               <div class="step-row">
@@ -294,11 +343,23 @@
                 <button id="height-down" type="button" aria-label="Lower selected object by one grid step">−</button>
                 <button id="height-up" type="button" aria-label="Raise selected object by one grid step">+</button>
               </div>
-              <div class="advanced-title">Asset catalog</div>
+              <div class="advanced-title">Internal model library</div>
               <div class="asset-browser">
-                <select id="asset-catalog" aria-label="Browse document asset catalog" disabled>
-                  <option value="">No catalog assets</option>
+                <label class="sr-only" for="asset-search">Search internal model library</label>
+                <input id="asset-search" type="search" placeholder="Search models" autocomplete="off">
+                <select id="asset-kind-filter" aria-label="Filter internal models">
+                  <option value="all">All models</option>
+                  <option value="solid">Solid</option>
+                  <option value="decorative">Decorative</option>
+                  <option value="runtime">Runtime ready</option>
                 </select>
+                <select id="asset-catalog" aria-label="Internal model library" disabled>
+                  <option value="">Loading internal model library…</option>
+                </select>
+              </div>
+              <div class="asset-card" id="asset-card" hidden aria-live="polite">
+                <span class="asset-card-mark" id="asset-card-mark" aria-hidden="true">MODEL</span>
+                <span><strong id="asset-card-name"></strong><small id="asset-card-meta"></small></span>
               </div>
               <div class="row-actions asset-actions">
                 <button id="assign-asset" type="button" disabled>Assign to prop</button>
@@ -328,8 +389,30 @@
       <span id="editor-message" role="status" aria-live="polite">Opening Kof editor session…</span>
       <span id="document-meta"></span>
     </footer>
-    <input id="file-input" type="file" accept=".kutter,application/octet-stream" hidden>
   </main>
+  <dialog class="project-dialog" id="project-dialog" aria-labelledby="project-title">
+    <form method="dialog">
+        <h2 id="project-title">Project library</h2>
+        <p>Projects are stored in this browser. Loading or creating a project replaces the shared Kof editor document for every connected editor.</p>
+        <button id="project-new" type="button">New blank arena</button>
+        <div class="project-create">
+          <label class="sr-only" for="project-name">New project name</label>
+          <input id="project-name" maxlength="64" placeholder="Project name" required>
+          <button id="project-save-as" type="button">Save as</button>
+        </div>
+        <div id="project-list" role="listbox" aria-label="Saved projects"></div>
+        <p id="project-empty" role="status">No saved projects yet. Create a blank arena or save the current world.</p>
+        <div id="project-message" role="status" aria-live="polite"></div>
+        <div class="project-actions">
+          <button id="project-load" type="button" disabled>Load selected</button>
+          <button id="project-update" type="button" disabled>Update selected</button>
+          <button id="project-export" type="button" disabled>Export selected</button>
+          <button id="project-delete" type="button" disabled>Delete</button>
+          <button id="project-close" type="submit">Close</button>
+        </div>
+      </form>
+    </dialog>
+    <input id="file-input" type="file" accept=".kutter,application/octet-stream" hidden>
   <span id="fullscreen-status" class="sr-only" role="status" aria-live="polite"></span>
   <script src="kookie-webgl-renderer.js"></script>
   <script src="kutter-editor.js"></script>

@@ -1,4 +1,5 @@
 package ui
+import core
 class BoundedKutterStudio {
     Int nodeCapacityValue
     Int assetCapacityValue
@@ -30,6 +31,8 @@ class BoundedKutterStudio {
     Int diagnosticValue
     Bool configuredValue
     Bool sealedValue
+    Int behaviorWordCountValue
+    Int[] behaviorWords
     Int[] wire
 
     public constructor(Int nodeCapacity, Int assetCapacity) {
@@ -62,10 +65,11 @@ class BoundedKutterStudio {
         assetRevisions = new Int[assetCapacityValue]
         wire = new Int[
             11 + nodeCapacityValue * kutterStudioNodeWords() +
-            assetCapacityValue * 5]
+            assetCapacityValue * 5 + kutterStudioBehaviorCapacity()]
+        behaviorWords = new Int[kutterStudioBehaviorCapacity()]
         clear()
-    }
 
+    }
     Bool clear() {
         projectNamespaceValue = 0
         projectIdValue = 0
@@ -74,6 +78,7 @@ class BoundedKutterStudio {
         nodeCountValue = 0
         assetCountValue = 0
         checksumValue = 0
+        behaviorWordCountValue = 0
         wordCountValue = 0
         diagnosticValue = kutterStudioDiagnosticNone()
         configuredValue = false
@@ -117,6 +122,10 @@ class BoundedKutterStudio {
             result = mix(result, assetStatuses[index])
             result = mix(result, assetChecksums[index])
             result = mix(result, assetRevisions[index])
+        }
+        result = mix(result, behaviorWordCountValue)
+        for (var index = 0; index < behaviorWordCountValue; index = index + 1) {
+            result = mix(result, behaviorWords[index])
         }
         if (result <= 0) { return 1 }
         return result
@@ -215,6 +224,25 @@ class BoundedKutterStudio {
         assetCountValue = assetCountValue + 1
         return true
     }
+    Bool setBehaviorProgram(Int[] source, Int sourceLength) {
+        if (!configuredValue || sealedValue || sourceLength < 18 ||
+            sourceLength > behaviorWords.length || sourceLength > source.length) {
+            return false
+        }
+        var program = BoundedBehaviorProgram(64, 128, 64)
+        var words = new Int[sourceLength]
+        for (var index = 0; index < sourceLength; index = index + 1) {
+            words[index] = source[index]
+        }
+        if (!program.decode(words) || !program.validate() || !program.encode()) {
+            return false
+        }
+        behaviorWordCountValue = program.encodedLength()
+        for (var index = 0; index < behaviorWordCountValue; index = index + 1) {
+            behaviorWords[index] = program.encodedWord(index)
+        }
+        return true
+    }
 
     Bool structuralValid() {
         if (!configuredValue || projectNamespaceValue <= 0 || projectIdValue <= 0 ||
@@ -257,7 +285,7 @@ class BoundedKutterStudio {
             return false
         }
         wordCountValue = 11 + nodeCountValue * kutterStudioNodeWords() +
-            assetCountValue * 5
+            assetCountValue * 5 + behaviorWordCountValue
         wire[0] = kutterStudioMagic()
         wire[1] = kutterStudioSchemaVersion()
         wire[2] = wordCountValue
@@ -268,7 +296,7 @@ class BoundedKutterStudio {
         wire[7] = nodeCountValue
         wire[8] = assetCountValue
         wire[9] = generationValue
-        wire[10] = 0
+        wire[10] = behaviorWordCountValue
         var cursor = 11
         for (var index = 0; index < nodeCountValue; index = index + 1) {
             wire[cursor] = nodeIds[index]
@@ -293,6 +321,9 @@ class BoundedKutterStudio {
             wire[cursor + 3] = assetChecksums[index]
             wire[cursor + 4] = assetRevisions[index]
             cursor = cursor + 5
+        }
+        for (var index = 0; index < behaviorWordCountValue; index = index + 1) {
+            wire[cursor + index] = behaviorWords[index]
         }
         return true
     }
@@ -451,6 +482,10 @@ class BoundedKutterStudio {
         wordCountValue = source.wordCountValue
         configuredValue = source.configuredValue
         sealedValue = source.sealedValue
+        behaviorWordCountValue = source.behaviorWordCountValue
+        for (var index = 0; index < behaviorWordCountValue; index = index + 1) {
+            behaviorWords[index] = source.behaviorWords[index]
+        }
         for (var index = 0; index < nodeCapacityValue; index = index + 1) {
             nodeIds[index] = source.nodeIds[index]
             nodeParents[index] = source.nodeParents[index]
@@ -544,31 +579,72 @@ class BoundedKutterStudio {
         }
         return if (result <= 0) 1 else result
     }
+    Int legacyV3Checksum(Int[] source) {
+        var result = mix(137, 3)
+        result = mix(result, source[4])
+        result = mix(result, source[5])
+        result = mix(result, source[6])
+        result = mix(result, source[9])
+        result = mix(result, source[7])
+        var cursor = 11
+        for (var index = 0; index < source[7]; index = index + 1) {
+            result = mix(result, source[cursor])
+            result = mix(result, source[cursor + 1])
+            result = mix(result, source[cursor + 2])
+            result = mix(result, decodeSigned(source[cursor + 3]))
+            result = mix(result, decodeSigned(source[cursor + 4]))
+            result = mix(result, decodeSigned(source[cursor + 5]))
+            result = mix(result, decodeSigned(source[cursor + 6]))
+            result = mix(result, source[cursor + 7])
+            result = mix(result, source[cursor + 8])
+            result = mix(result, source[cursor + 9])
+            result = mix(result, source[cursor + 10])
+            if (source[cursor + 11] != 0) { return 0 }
+            result = mix(result, source[cursor + 12])
+            cursor = cursor + kutterStudioNodeWords()
+        }
+        result = mix(result, source[8])
+        for (var index = 0; index < source[8]; index = index + 1) {
+            result = mix(result, source[cursor])
+            result = mix(result, source[cursor + 1])
+            result = mix(result, source[cursor + 2])
+            result = mix(result, source[cursor + 3])
+            result = mix(result, source[cursor + 4])
+            cursor = cursor + 5
+        }
+        return if (result <= 0) 1 else result
+    }
 
     Bool decodeDocumentWords(Int[] source, Int sourceLength) {
         if (sourceLength < 11 || sourceLength > source.length ||
             source[0] != kutterStudioMagic() ||
-            (source[1] != 1 && source[1] != 2 &&
-                source[1] != kutterStudioSchemaVersion()) ||
+            (source[1] < 1 || source[1] > kutterStudioSchemaVersion()) ||
             source[2] < 11 || source[2] > wire.length ||
             source[3] <= 0 || source[4] <= 0 || source[5] <= 0 ||
             source[6] <= 0 || source[7] <= 0 ||
             source[7] > nodeCapacityValue || source[8] < 0 ||
             source[8] > assetCapacityValue || source[9] <= 0 ||
-            source[10] != 0 || sourceLength != source[2]) {
+            (source[1] < 4 && source[10] != 0) ||
+            (source[1] == 4 && source[10] != 0 &&
+                (source[10] < 18 ||
+                    source[10] > kutterStudioBehaviorCapacity())) ||
+            sourceLength != source[2]) {
             return false
         }
         var version = source[1]
         var nodeWords = kutterStudioNodeWords()
         if (version == 1) { nodeWords = kutterStudioNodeWordsV1() }
         if (version == 2) { nodeWords = kutterStudioNodeWordsV2() }
-        if (source[2] != 11 + source[7] * nodeWords + source[8] * 5) {
-            return false
+        if (source[2] != 11 + source[7] * nodeWords + source[8] * 5 +
+                if (version == 4) source[10] else 0) {
         }
         if (version == 1 && legacyV1Checksum(source) != source[3]) {
             return false
         }
         if (version == 2 && legacyV2Checksum(source) != source[3]) {
+            return false
+        }
+        if (version == 3 && legacyV3Checksum(source) != source[3]) {
             return false
         }
         var candidate = BoundedKutterStudio(nodeCapacityValue, assetCapacityValue)
@@ -623,8 +699,17 @@ class BoundedKutterStudio {
             }
             cursor = cursor + 5
         }
+        if (version == 4 && source[10] > 0) {
+            var programWords = new Int[source[10]]
+            for (var index = 0; index < source[10]; index = index + 1) {
+                programWords[index] = source[cursor + index]
+            }
+            if (!candidate.setBehaviorProgram(programWords, source[10])) {
+                return false
+            }
+        }
         if (!candidate.seal()) { return false }
-        if (version == 3 && candidate.checksumValue != source[3]) {
+        if (version == 4 && candidate.checksumValue != source[3]) {
             return false
         }
         return copyFrom(candidate)
@@ -733,5 +818,16 @@ class BoundedKutterStudio {
     Int encodedWord(Int index) {
         if (index < 0 || index >= wordCountValue) { return -1 }
         return wire[index]
+    }
+    Int behaviorWordCount() { return behaviorWordCountValue }
+    BoundedBehaviorProgram behaviorProgram() {
+        var program = BoundedBehaviorProgram(64, 128, 64)
+        if (behaviorWordCountValue < 18) { return program }
+        var source = new Int[behaviorWordCountValue]
+        for (var index = 0; index < behaviorWordCountValue; index = index + 1) {
+            source[index] = behaviorWords[index]
+        }
+        program.decode(source)
+        return program
     }
 }

@@ -786,6 +786,41 @@ Contagens limitadas de vértices, materiais, posição, direção, estado de
 animação e estado de ataque/movimento passam pela API nativa verificada; os
 buffers de staging do Kof não recebem malhas sem limite.
 
+## Biblioteca de projetos do Kutter
+
+A caixa **Projects** do Kutter web oferece uma biblioteca local ao navegador
+com até 32 snapshots nomeados. **New blank arena** cria um nível mínimo com
+um spawn de jogador e salva como projeto. **Save current as** cria uma cópia;
+**Update selected** substitui o snapshot escolhido; **Load selected** valida e
+importa o documento `.kutter` canônico pelo Kof; **Export selected** baixa o
+mesmo formato binário; **Delete** remove apenas a cópia local. Carregar ou criar
+um projeto substitui o único documento em memória compartilhado do servidor e
+transmite a alteração aos editores conectados. Isso não é persistência no
+servidor, seletor de templates ou biblioteca sincronizada na nuvem. O
+armazenamento depende da origem e do perfil do navegador; exporte projetos
+importantes como arquivos `.kutter`. O menu File continua oferecendo
+importação e exportação do documento ativo.
+
+O navegador de assets do Kutter pesquisa o catálogo local empacotado e filtra
+os 75 modelos por colisão sólida/decorativa ou prontidão para runtime. A seleção
+mostra nome, caminho de origem, licença, papel de colisão e estado de runtime;
+não há integração com Google Image Search nem Poly. As duas viewports ainda
+desenham proxies em forma de caixa, não as malhas GLB do catálogo; thumbnails e
+materiais RGB arbitrários não estão implementados.
+
+O inspector web também edita três cartões limitados de IA inimiga, por
+prioridade: Attack em alvos visíveis dentro do alcance, Chase em alvos visíveis
+dentro do alcance de percepção e o fallback obrigatório Investigate. Attack e
+Chase podem ser desativados. **Save cards** valida e guarda o
+`BoundedBehaviorProgram` no documento `.kutter` v4 canônico e o instala no
+runtime de inimigos compartilhado do servidor web. **Install saved** reinstala
+o programa salvo após reiniciar o runtime. É um editor visual específico para
+IA inimiga, não o sistema de behaviors JavaScript arbitrários do GBNG; não edita
+lógica de jogadores nem executa código arbitrário. Cartões e modelos vinculados
+persistem nos snapshots locais e na exportação/importação `.kutter`. O documento
+segue compartilhado apenas em memória no servidor editor Kof; não há gravação
+automática em disco.
+
 ## Dependências de desenvolvimento SDL3/SDL_mixer
 
 Os gates Linux aceitam SDL 3.4.18 e SDL_mixer 3.2.4 via `pkg-config`. O

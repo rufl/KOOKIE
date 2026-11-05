@@ -15,15 +15,18 @@
     rotate: 7, resize: 8, recolor: 9, duplicate: 10, remove: 11,
     group: 12, ungroup: 13, undo: 14, redo: 15, import: 16,
     grid: 17, update: 18, height: 19, preview: 20,
+    behaviorCards: 21, installBehavior: 22,
   });
+  const MAX_DOCUMENT_WORDS = 1779;
+  const TRANSFER_WORDS = 256;
   const NODE_GROUP = 9;
   const NODE_LABELS = {
     1: "Select", 2: "Prop", 3: "Player spawn", 4: "Enemy spawn",
     5: "Encounter", 6: "Goal trigger", 7: "Light", 8: "Erase",
     9: "Group",
   };
-  const TRANSFER_WORDS = 256;
-  const MAX_DOCUMENT_WORDS = 11 + 64 * 13 + 32 * 5;
+  const MAX_SAVED_PROJECTS = 32;
+  const PROJECT_STORAGE_KEY = "kookie.kutter.projects.v1";
   const byId = (id) => document.getElementById(id);
   const canvas = byId("kutter-viewport");
   const connectionState = byId("connection-state");
@@ -189,11 +192,16 @@
     const version = words[1];
     const nodeCount = words[7];
     const assetCount = words[8];
-    if (words[0] !== 126375140 || ![1, 2, 3].includes(version) ||
+    const behaviorWordCount = version === 4 ? words[10] : 0;
+    if (words[0] !== 126375140 || ![1, 2, 3, 4].includes(version) ||
         nodeCount < 1 || nodeCount > 64 || assetCount < 0 || assetCount > 32 ||
+        (version < 4 && words[10] !== 0) ||
+        behaviorWordCount < 0 || behaviorWordCount > 776 ||
+        (behaviorWordCount > 0 && behaviorWordCount < 18) ||
         words[2] !== words.length) throw new Error("Unsupported Kutter document schema");
     const stride = version === 1 ? 8 : version === 2 ? 12 : 13;
-    if (words.length !== 11 + nodeCount * stride + assetCount * 5) {
+    if (words.length !== 11 + nodeCount * stride + assetCount * 5 +
+        behaviorWordCount) {
       throw new Error("Kutter document length does not match schema");
     }
     const nodes = [];
@@ -220,9 +228,35 @@
         checksum: words[cursor + 3], revision: words[cursor + 4] });
       cursor += 5;
     }
+    const behaviorCards = { attack: 1, chase: 2, fallback: 3,
+      hasProgram: behaviorWordCount > 0 };
+    if (behaviorWordCount > 0) {
+      const program = words.subarray(cursor);
+      const programNodeCount = program[5];
+      const edgeCount = program[6];
+      const ruleCount = program[7];
+      if (program[0] !== 1111839304 || program[1] !== 1 ||
+          programNodeCount <= 0 || programNodeCount > 64 ||
+          edgeCount <= 0 || edgeCount > 128 || ruleCount <= 0 ||
+          ruleCount > 64 || program[9] !== program.length ||
+          program.length !== 10 + programNodeCount * 2 + edgeCount * 3 +
+            ruleCount * 3) {
+        throw new Error("Kutter behavior program shape is invalid");
+      }
+      let ruleOffset = 10 + programNodeCount * 2 + edgeCount * 3;
+      behaviorCards.attack = 0;
+      behaviorCards.chase = 0;
+      for (let index = 0; index < ruleCount; index += 1, ruleOffset += 3) {
+        if (program[ruleOffset + 2] === 6) behaviorCards.attack = 1;
+        else if (program[ruleOffset + 2] === 7) behaviorCards.chase = 2;
+        else if (program[ruleOffset + 2] !== 8 && program[ruleOffset + 2] !== 9) {
+          throw new Error("Kutter behavior card action is unsupported");
+        }
+      }
+    }
     return { words, version, projectNamespace: words[4], projectId: words[5],
       projectRevision: words[6], generation: words[9], nodes, assets,
-      checksum: words[3] };
+      checksum: words[3], behaviorWordCount, behaviorCards };
   }
 
   function request(command, args = []) {
@@ -298,39 +332,55 @@
   }
 
   function setField(id, value) { byId(id).value = String(value); }
-  function renderAssetCatalog(node) {
+  function renderAssetCatalog(node, preferNodeAsset = true) {
     const select = byId("asset-catalog");
+    const previousToken = Number(select.value);
+    const query = byId("asset-search").value.trim().toLocaleLowerCase();
+    const kind = byId("asset-kind-filter").value;
+    const matches = assetCatalog.filter((asset) =>
+      (kind === "all" || (kind === "runtime" ? asset.runtime_ready :
+        asset.collision === kind)) &&
+      [asset.name, asset.asset_id, asset.source_path, asset.runtime_path,
+        asset.kind, asset.collision]
+        .some((value) => String(value || "").toLocaleLowerCase().includes(query)));
     select.replaceChildren();
-    if (assetCatalog.length === 0) {
+    if (matches.length === 0) {
       const option = document.createElement("option");
       option.value = "";
-      option.textContent = assetCatalogError ? "Catalog unavailable" :
-        assetCatalogLoaded ? "No catalog assets" : "Loading catalog…";
+      option.textContent = assetCatalogError ? "Library unavailable" :
+        assetCatalogLoaded ? "No matching models" : "Loading internal library…";
       select.appendChild(option);
     } else {
-      for (const asset of assetCatalog) {
+      for (const asset of matches) {
         const option = document.createElement("option");
         option.value = String(asset.asset_token);
-        option.textContent = asset.module_id + " · " + asset.name + " · " + asset.kind;
+        option.textContent = asset.name + " · " + asset.kind;
         select.appendChild(option);
       }
     }
-    const available = assetCatalogLoaded && assetCatalog.length > 0;
+    let token = preferNodeAsset && node?.asset > 0 ? node.asset : previousToken;
+    if (!matches.some((asset) => asset.asset_token === token)) {
+      token = matches[0]?.asset_token || 0;
+    }
+    if (token) select.value = String(token);
+    const selected = assetCatalog.find((asset) => asset.asset_token === token);
+    const available = assetCatalogLoaded && matches.length > 0;
     select.disabled = !available;
     byId("asset-add-status").textContent = assetCatalogError ||
-      (available ? "Assign to a selected prop or add at the cursor." :
-        assetCatalogLoaded ? "No prototype assets are available." : "Loading prototype asset catalog…");
-    if (node && node.asset > 0) {
-      if (assetCatalog.some((asset) => asset.asset_token === node.asset)) {
-        select.value = String(node.asset);
-      } else {
-        select.selectedIndex = -1;
-      }
-    } else if (assetCatalog.length) {
-      select.selectedIndex = 0;
+      (available ? matches.length + " of " + assetCatalog.length +
+        " internal models · licensed metadata from the local catalog." :
+        assetCatalogLoaded ? "No internal models match these filters." :
+          "Loading the bundled internal model library…");
+    byId("asset-card").hidden = !selected;
+    if (selected) {
+      byId("asset-card-name").textContent = selected.name;
+      byId("asset-card-mark").textContent = selected.kind.toUpperCase();
+      byId("asset-card-meta").textContent =
+        selected.collision + " · " + selected.source_path + " · " +
+        (selected.license || "license not listed") +
+        (selected.runtime_ready ? " · runtime ready" : " · not runtime ready");
     }
-    const hasSelection = assetCatalog.some((asset) =>
-      asset.asset_token === Number(select.value));
+    const hasSelection = Boolean(selected);
     byId("assign-asset").disabled = !node || node.kind !== 2 || !hasSelection;
     byId("add-asset").disabled = !documentState || !hasSelection;
   }
@@ -357,11 +407,12 @@
       assetCatalogLoaded = true;
     } catch (error) {
       assetCatalog = [];
-      assetCatalogError = "Asset catalog unavailable: " + error.message;
+      assetCatalogError = "Internal model library unavailable: " + error.message;
       assetCatalogLoaded = false;
     }
     renderAssetCatalog(currentNode());
   }
+
 
   function renderInspector() {
     const node = currentNode();
@@ -421,6 +472,20 @@
     byId("preview-toggle").textContent = previewActive ? "Preview on" : "Preview off";
     byId("preview-status").textContent = previewActive
       ? "Preview mode is on." : "Preview mode is off.";
+    const behaviorCards = documentState?.behaviorCards;
+    const connected = ws?.readyState === WebSocket.OPEN;
+    byId("behavior-attack").disabled = !documentState || !connected;
+    byId("behavior-chase").disabled = !documentState || !connected;
+    byId("behavior-save").disabled = !documentState || !connected;
+    byId("behavior-install").disabled =
+      !documentState || !connected || !behaviorCards?.hasProgram;
+    if (behaviorCards) {
+      byId("behavior-attack").value = String(behaviorCards.attack);
+      byId("behavior-chase").value = String(behaviorCards.chase);
+      byId("behavior-status").textContent = behaviorCards.hasProgram
+        ? "Saved bounded enemy cards · install to activate after reconnect."
+        : "Unsaved default cards · saving will update the shared enemy AI.";
+    }
     if (!documentState) {
       renderAssetCatalog(null);
       return;
@@ -491,20 +556,59 @@
     } catch (error) {}
   }
 
-  function downloadDocument() {
-    if (!documentState) return;
-    const bytes = new Uint8Array(documentState.words.length * 4);
+  function downloadDocument(source = documentState, filename = null) {
+    if (!source) return;
+    const bytes = new Uint8Array(source.words.length * 4);
     const view = new DataView(bytes.buffer);
-    documentState.words.forEach((word, index) => view.setInt32(index * 4, word, true));
+    source.words.forEach((word, index) => view.setInt32(index * 4, word, true));
     const url = URL.createObjectURL(new Blob([bytes], { type: "application/octet-stream" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = "level-" + documentState.projectId + ".kutter";
+    link.download = filename || "level-" + source.projectId + ".kutter";
     link.click();
-    URL.revokeObjectURL(url);
-    statusMessage = "Saved canonical Kutter v" + documentState.version + " document";
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    statusMessage = "Exported canonical Kutter v" + source.version + " document";
     drawUi();
   }
+
+  async function importWords(words, label) {
+    if (!(words instanceof Int32Array)) words = Int32Array.from(words);
+    if (words.length < 11 || words.length > MAX_DOCUMENT_WORDS ||
+        words[2] !== words.length) {
+      throw new Error("Kutter project has an invalid document length");
+    }
+    decodeDocument(words);
+    for (let offset = 0; offset < words.length; offset += TRANSFER_WORDS) {
+      const chunk = Array.from(words.subarray(offset, Math.min(words.length, offset + TRANSFER_WORDS)));
+      await operate(COMMAND.import, [words.length, offset, ...chunk]);
+    }
+    statusMessage = "Kof loaded and validated " + label;
+    drawUi();
+  }
+  function blankArenaDocument() {
+    if (!documentState || documentState.projectNamespace <= 0) {
+      throw new Error("Wait for Kof to provide a world before creating a project");
+    }
+    let projectId = 0;
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      projectId = Math.floor(Math.random() * 1000000) + 1;
+      if (projectId !== documentState.projectId) break;
+    }
+    const words = new Int32Array([
+      126375140, 3, 24, 0, documentState.projectNamespace, projectId,
+      1, 1, 0, 1, 0,
+      1, 0, 3, 0, 0, 0, 0, 1000, 1000, 1000, 16777215, 0, 0,
+    ]);
+    const fields = [3, documentState.projectNamespace, projectId, 1, 1, 1,
+      1, 0, 3, 0, 0, 0, 0, 1000, 1000, 1000, 16777215, 0, 0];
+    let checksumValue = 137;
+    for (const value of fields) {
+      checksumValue = (checksumValue * 31 + (value % 1000003 + 1000003) % 1000003) % 1000003;
+    }
+    words[3] = checksumValue > 0 ? checksumValue : 1;
+    return words;
+  }
+
 
   async function importDocument(file) {
     const bytes = new Uint8Array(await file.arrayBuffer());
@@ -514,13 +618,98 @@
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     const words = new Int32Array(bytes.length / 4);
     for (let i = 0; i < words.length; i += 1) words[i] = view.getInt32(i * 4, true);
-    if (words.length < 11 || words[2] !== words.length) throw new Error("Invalid Kutter file header");
-    for (let offset = 0; offset < words.length; offset += TRANSFER_WORDS) {
-      const chunk = Array.from(words.subarray(offset, Math.min(words.length, offset + TRANSFER_WORDS)));
-      await operate(COMMAND.import, [words.length, offset, ...chunk]);
+    await importWords(words, file.name);
+  }
+
+  let savedProjects = [];
+  let selectedProjectId = "";
+  function readSavedProjects() {
+    const raw = localStorage.getItem(PROJECT_STORAGE_KEY);
+    if (!raw) return [];
+    const entries = JSON.parse(raw);
+    if (!Array.isArray(entries) || entries.length > MAX_SAVED_PROJECTS ||
+        entries.some((entry) =>
+          !entry || typeof entry.id !== "string" || !entry.id ||
+          typeof entry.name !== "string" || !entry.name || entry.name.length > 64 ||
+          typeof entry.updatedAt !== "string" || !Number.isFinite(Date.parse(entry.updatedAt)) ||
+          !Number.isInteger(entry.nodeCount) || entry.nodeCount < 1 || entry.nodeCount > 64 ||
+          !Array.isArray(entry.words) || entry.words.length < 11 ||
+          entry.words.length > MAX_DOCUMENT_WORDS ||
+          entry.words.some((word) => !Number.isInteger(word) ||
+            word < -2147483648 || word > 2147483647)) ||
+        new Set(entries.map((entry) => entry.id)).size !== entries.length) {
+      throw new Error("Saved project library is invalid");
     }
-    statusMessage = "Kof loaded and validated " + file.name;
-    drawUi();
+    return entries;
+  }
+
+  function writeSavedProjects(projects = savedProjects) {
+    localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(projects));
+  }
+
+  function renderProjectLibrary() {
+    const list = byId("project-list");
+    list.replaceChildren();
+    byId("project-empty").hidden = savedProjects.length > 0;
+    for (const project of savedProjects) {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "project-row";
+      row.setAttribute("role", "option");
+      row.setAttribute("aria-pressed", String(project.id === selectedProjectId));
+      const details = document.createElement("span");
+      const name = document.createElement("strong");
+      name.textContent = project.name;
+      const metadata = document.createElement("small");
+      metadata.textContent = new Date(project.updatedAt).toLocaleString() +
+        " · " + project.nodeCount + " nodes";
+      details.append(name, metadata);
+      row.appendChild(details);
+      row.addEventListener("click", () => {
+        selectedProjectId = project.id;
+        renderProjectLibrary();
+      });
+      list.appendChild(row);
+    }
+    const selected = savedProjects.some((project) => project.id === selectedProjectId);
+    for (const id of ["project-load", "project-update", "project-export", "project-delete"]) {
+      byId(id).disabled = !selected;
+    }
+  }
+
+  function saveProject(name, replaceId = "", source = documentState) {
+    if (!source) throw new Error("Kof has not provided a world to save");
+    const cleanName = name.trim();
+    if (!cleanName || cleanName.length > 64) throw new Error("Project name must be 1–64 characters");
+    const duplicate = savedProjects.find((project) =>
+      project.name.toLocaleLowerCase() === cleanName.toLocaleLowerCase() &&
+      project.id !== replaceId);
+    if (duplicate) throw new Error("A project with that name already exists");
+    const index = savedProjects.findIndex((project) => project.id === replaceId);
+    if (index < 0 && savedProjects.length >= MAX_SAVED_PROJECTS) {
+      throw new Error("Project library is full (32 projects)");
+    }
+    const project = {
+      id: replaceId || (Date.now().toString(36) + Math.random().toString(36).slice(2, 8)),
+      name: cleanName,
+      updatedAt: new Date().toISOString(),
+      nodeCount: source.nodes.length,
+      words: Array.from(source.words),
+    };
+    const projects = savedProjects.slice();
+    if (index < 0) projects.push(project);
+    else projects[index] = project;
+    writeSavedProjects(projects);
+    savedProjects = projects;
+    selectedProjectId = project.id;
+    renderProjectLibrary();
+  }
+
+  try {
+    savedProjects = readSavedProjects();
+  } catch (error) {
+    savedProjects = [];
+    byId("project-message").textContent = "Could not read local projects: " + error.message;
   }
 
   document.querySelectorAll("[data-tool]").forEach((button) => {
@@ -561,14 +750,39 @@
       try { await operate(COMMAND.height, [direction]); } catch (error) {}
     });
   }
+  byId("behavior-save").addEventListener("click", async () => {
+    try {
+      await operate(COMMAND.behaviorCards, [
+        Number(byId("behavior-attack").value),
+        Number(byId("behavior-chase").value),
+        3,
+      ]);
+      byId("behavior-status").textContent =
+        "Behavior cards saved and installed in the shared enemy runtime.";
+    } catch (error) {
+      byId("behavior-status").textContent = "Save failed: " + error.message;
+    }
+  });
+  byId("behavior-install").addEventListener("click", async () => {
+    try {
+      await operate(COMMAND.installBehavior);
+      byId("behavior-status").textContent =
+        "Saved behavior cards installed in the shared enemy runtime.";
+    } catch (error) {
+      byId("behavior-status").textContent = "Install failed: " + error.message;
+    }
+  });
   byId("asset-catalog").addEventListener("change", () => {
-    const token = Number(byId("asset-catalog").value);
-    const selected = assetCatalog.some((asset) => asset.asset_token === token);
     const node = currentNode();
     byId("asset-token").value = byId("asset-catalog").value;
-    byId("assign-asset").disabled = !selected || !node || node.kind !== 2;
-    byId("add-asset").disabled = !selected || !documentState;
+    renderAssetCatalog(node, false);
   });
+  for (const id of ["asset-search", "asset-kind-filter"]) {
+    byId(id).addEventListener("input", () =>
+      renderAssetCatalog(currentNode(), false));
+    byId(id).addEventListener("change", () =>
+      renderAssetCatalog(currentNode(), false));
+  }
   byId("assign-asset").addEventListener("click", updateSelectedFromForm);
   byId("add-asset").addEventListener("click", async () => {
     const token = Number(byId("asset-catalog").value);
@@ -666,6 +880,100 @@
   });
   byId("save-file").addEventListener("click", downloadDocument);
   byId("open-file").addEventListener("click", () => byId("file-input").click());
+  const projectDialog = byId("project-dialog");
+  byId("projects-open").addEventListener("click", () => {
+    byId("project-message").textContent = "";
+    renderProjectLibrary();
+    projectDialog.showModal();
+  });
+  byId("project-new").addEventListener("click", async () => {
+    const name = byId("project-name").value.trim();
+    if (!name) {
+      byId("project-message").textContent = "Enter a name for the new arena.";
+      byId("project-name").focus();
+      return;
+    }
+    if (!documentState || ws?.readyState !== WebSocket.OPEN) {
+      byId("project-message").textContent = "Connect to Kof before creating a new arena.";
+      return;
+    }
+    if (!window.confirm("Create a blank arena and replace the shared Kof editor document for every connected editor?")) {
+      return;
+    }
+    try {
+      const words = blankArenaDocument();
+      const source = decodeDocument(words);
+      saveProject(name, "", source);
+      await importWords(words, "new project “" + name + "”");
+      byId("project-name").value = "";
+      byId("project-message").textContent = "Blank arena created and saved in this browser.";
+    } catch (error) {
+      byId("project-message").textContent = "Could not create project: " + error.message;
+    }
+  });
+  byId("project-save-as").addEventListener("click", () => {
+    try {
+      saveProject(byId("project-name").value);
+      byId("project-name").value = "";
+      byId("project-message").textContent = "Project saved in this browser.";
+    } catch (error) {
+      byId("project-message").textContent = error.message;
+    }
+  });
+  byId("project-update").addEventListener("click", () => {
+    const selected = savedProjects.find((project) => project.id === selectedProjectId);
+    if (!selected) return;
+    try {
+      saveProject(selected.name, selected.id);
+      byId("project-message").textContent = "Saved changes to “" + selected.name + "”.";
+    } catch (error) {
+      byId("project-message").textContent = error.message;
+    }
+  });
+  byId("project-load").addEventListener("click", async () => {
+    const selected = savedProjects.find((project) => project.id === selectedProjectId);
+    if (!selected) return;
+    if (!documentState || ws?.readyState !== WebSocket.OPEN) {
+      byId("project-message").textContent = "Connect to Kof before loading a project.";
+      return;
+    }
+    if (!window.confirm("Load “" + selected.name + "” and replace the shared Kof editor document for every connected editor?")) {
+      return;
+    }
+    try {
+      await importWords(selected.words, "project “" + selected.name + "”");
+      projectDialog.close();
+    } catch (error) {
+      byId("project-message").textContent = "Load failed: " + error.message;
+    }
+  });
+  byId("project-export").addEventListener("click", () => {
+    const selected = savedProjects.find((project) => project.id === selectedProjectId);
+    if (!selected) return;
+    try {
+      const source = decodeDocument(Int32Array.from(selected.words));
+      downloadDocument(source, selected.name.replace(/[^a-z0-9_-]+/gi, "-") + ".kutter");
+    } catch (error) {
+      byId("project-message").textContent = "Export failed: " + error.message;
+    }
+  });
+  byId("project-delete").addEventListener("click", () => {
+    const selected = savedProjects.find((project) => project.id === selectedProjectId);
+    if (!selected || !window.confirm("Delete “" + selected.name + "” from this browser?")) return;
+    const projects = savedProjects.filter((project) => project.id !== selected.id);
+    try {
+      writeSavedProjects(projects);
+      savedProjects = projects;
+      selectedProjectId = "";
+      byId("project-message").textContent = "Project deleted.";
+    } catch (error) {
+      byId("project-message").textContent = "Delete failed: " + error.message;
+    }
+    renderProjectLibrary();
+  });
+  projectDialog.addEventListener("click", (event) => {
+    if (event.target === projectDialog) projectDialog.close();
+  });
   const fullscreenButton = byId("fullscreen-button");
   const fullscreenStatus = byId("fullscreen-status");
   const fullscreenRoot = byId("kutter-app");

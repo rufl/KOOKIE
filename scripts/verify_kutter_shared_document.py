@@ -24,6 +24,8 @@ COMMAND_UPDATE = 18
 COMMAND_HEIGHT = 19
 COMMAND_PREVIEW = 20
 COMMAND_IMPORT = 16
+COMMAND_SET_BEHAVIOR_CARDS = 21
+COMMAND_INSTALL_BEHAVIOR = 22
 TRANSFER_WORDS = 256
 
 
@@ -55,6 +57,16 @@ def decode(wire):
     assert words[0] == PROTOCOL and words[2] == sequence
     assert words[-1] == message_checksum(words[:-1])
     return words
+
+def blank_arena_document(namespace, project_id):
+    fields = [3, namespace, project_id, 1, 1, 1,
+              1, 0, 3, 0, 0, 0, 0, 1000, 1000, 1000, 0xffffff, 0, 0]
+    checksum = 137
+    for value in fields:
+        checksum = (checksum * 31 + value % 1000003) % 1000003
+    return [126375140, 3, 24, checksum or 1, namespace, project_id,
+            1, 1, 0, 1, 0,
+            1, 0, 3, 0, 0, 0, 0, 1000, 1000, 1000, 0xffffff, 0, 0]
 
 
 class KutterClient:
@@ -224,7 +236,21 @@ def main():
             imported = first.request(COMMAND_IMPORT, [total, offset, *chunk])
         assert imported == changed
         assert second.request(COMMAND_GET) == changed
-        print("KOOKIE shared Kutter document protocol passed")
+        blank = blank_arena_document(changed[4], 731942)
+        imported_blank = first.request(
+            COMMAND_IMPORT, [len(blank), 0, *blank])
+        assert imported_blank[1] == 4 and imported_blank[10] == 0
+        configured = first.request(COMMAND_SET_BEHAVIOR_CARDS, [1, 0, 3])
+        assert configured[1] == 4 and configured[10] >= 18
+        assert configured[7] == imported_blank[7]
+        behavior = configured[11 + configured[7] * 13 + configured[8] * 5:]
+        rule_offset = 10 + behavior[5] * 2 + behavior[6] * 3
+        actions = [behavior[rule_offset + index * 3 + 2]
+                   for index in range(behavior[7])]
+        assert 6 in actions and 7 not in actions and 8 in actions
+        assert second.request(COMMAND_GET) == configured
+        assert first.request(COMMAND_INSTALL_BEHAVIOR) == configured
+        print("KOOKIE shared Kutter document and enemy behavior cards passed")
     finally:
         for client in clients:
             client.close()

@@ -335,7 +335,8 @@ class WebServerMetrics {
         kutterImportOwner = 0
         kutterImportTotal = 0
         kutterImportReceived = 0
-        kutterImportWords = new Int[11 + 64 * 13 + 32 * 5]
+        kutterImportWords = new Int[
+            11 + 64 * 13 + 32 * 5 + kutterStudioBehaviorCapacity()]
         multiplayerSnapshotActors = new Int[0]
         connectionIds = new Int[12]
         connectionUsed = new Bool[12]
@@ -743,6 +744,20 @@ Bool webHandleKutter(WebServerMetrics metrics, Int slot, WebSessionFrame frame) 
         accepted = editor.adjustSelectedHeight(words[5])
     } else if (command == sessionWebKutterPreview() && words.length == 6) {
         accepted = editor.togglePreview()
+    } else if (command == sessionWebKutterSetBehaviorCards() &&
+        words.length == 9) {
+        accepted = editor.setBehaviorCards(words[5], words[6], words[7])
+        if (accepted) {
+            accepted = metrics.simulation.combat.installEnemyBehaviorProgram(
+                editor.document().behaviorProgram())
+        }
+    } else if (command == sessionWebKutterInstallBehavior() &&
+        words.length == 6) {
+        var savedProgram = editor.document().behaviorProgram()
+        accepted = editor.document().behaviorWordCount() >= 18 &&
+            (metrics.simulation.combat.enemyBehaviorProgramChecksum() ==
+                savedProgram.checksum() ||
+             metrics.simulation.combat.installEnemyBehaviorProgram(savedProgram))
     } else if (command == sessionWebKutterImportChunk() && words.length >= 9) {
         var total = words[5]
         var offset = words[6]

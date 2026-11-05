@@ -909,7 +909,8 @@ Rows show entry index and module kind; pointer or keyboard navigation selects
 an entry.
 Selecting Prop then clicking Place creates an asset-linked
 prop; with a Prop selected, Enter assigns the selected catalog token. Schema v3
-persists that reference, migrates v1/v2 documents, and duplicate preserves it.
+persists that reference and migrates v1/v2 documents; schema v4 adds bounded
+enemy behavior cards while retaining earlier document decoding.
 The MOVE / ROTATE control arms move mode; the next viewport click moves the
 selected node to the snapped cursor position. Escape cancels armed move mode.
 The 2D overview draws screen-space footprints from each node's transformed box
@@ -922,8 +923,12 @@ Native presentation also stages the authored bounded 3D box proxies into the
 regular GPU world pass, snaps its camera to the selected node, and supports
 bounded wheel zoom. Editor camera state is separate from gameplay camera state.
 UI panels overlay that world pass; the viewport is not a clipped render target.
-Catalog thumbnails, names/search, actual GLB rendering, and arbitrary RGB
-materials are not implemented.
+The web asset browser searches the bundled local catalog and filters its
+75 models by solid/decorative collision or runtime readiness. Selection shows
+the model name, source path, license, collision role and runtime status; no
+Google Image Search or Poly integration is used. Both editor viewports still
+render box proxies rather than catalog GLB meshes; thumbnails and arbitrary
+RGB materials are not implemented.
 Clicking HEIGHT decreases/increases selected node Y by one active grid step;
 height, rotation and scale edits participate in undo/redo. Clicking ROT adjusts
 angle; SCALE minus/plus decreases/increases the selected axis in 100-unit
@@ -932,6 +937,29 @@ Keyboard controls also
 rotate, scale, move, undo, and redo. The hierarchy/inspector dock can be widened
 by dragging its left divider; panels cannot be rearranged, and the left tools
 panel remains fixed.
+The web Kutter Projects dialog adds a browser-local library of up to 32 named
+snapshots. **New blank arena** creates a minimal level with one player spawn and
+saves it as a project. **Save current as** creates a copy; **Update selected**
+replaces that snapshot; **Load selected** validates and imports its canonical
+`.kutter` document through Kof; **Export selected** downloads the same binary
+format; **Delete** removes only the browser-local copy. Loading or creating a
+project replaces the one shared in-memory server document and broadcasts it to
+connected editors. This is not server-side project persistence, a template
+chooser, or a cloud-synced library. Browser storage is origin/profile-specific;
+export important projects as `.kutter` files. The File menu retains
+import/export of the live document.
+The web inspector also edits three bounded enemy-AI cards, in priority order:
+Attack visible targets in attack range, Chase visible targets in perception
+range, then the required Investigate fallback. Attack and Chase may be disabled.
+**Save cards** validates, stores the encoded `BoundedBehaviorProgram` in the
+canonical v4 `.kutter` document and installs it into the shared web-server enemy
+runtime. **Install saved** reapplies a stored program after a runtime restart.
+This is an enemy-specific visual card editor, not GBNG's arbitrary JavaScript
+behavior system; it does not author player logic or provide arbitrary code
+execution. Card and model selections persist through local project snapshots
+and `.kutter` export/import. The document remains shared in memory on the Kof
+editor server; it is not automatic disk persistence.
+
 The Windows x64 game package is a portable directory/archive with runtime
 dependencies, not a single-file executable; packaging requires a verified Kof
 distribution archive and matching SHA-256.
