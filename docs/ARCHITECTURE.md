@@ -1076,10 +1076,14 @@ offer/response transport execute on the supported JVM/native paths. The
 handshake passed with the host and two clients in separate Linux network
 namespaces and distinct IPv4 stacks. Stale, invalid or incompatible
 transactions preserve the active generation.
-The Kutter editor also exposes the Rgsdev modular greybox catalog and bounded
-placement state. Modules carry snap, collision and material-slot metadata;
-placement records can assign texture override tokens without changing the
-source mesh, leaving material authoring free for the editor surface.
+The Kutter web editor also exposes the bundled Rgsdev modular greybox catalog
+with local search and collision/runtime filters; placed props retain bounded
+asset tokens and metadata. The editor viewports still render box proxies, not
+catalog GLB meshes. Kutter document schema v4 stores the validated bounded
+enemy `BoundedBehaviorProgram`; web behavior cards configure visible-target
+Attack/Chase priorities and the required Investigate fallback, then install the
+program into the shared web enemy runtime. This is enemy-specific authoring,
+not arbitrary JavaScript behavior execution.
 The definition-driven multiplayer
 sample executes the published elite-bounty hook after authoritative death and
 applies its command exactly once. General format compatibility, arbitrary

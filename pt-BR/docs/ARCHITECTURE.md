@@ -1002,9 +1002,16 @@ com host e dois clientes em namespaces de rede Linux separados e pilhas IPv4
 distintas. Transações obsoletas, inválidas ou incompatíveis preservam a geração
 ativa. O exemplo multiplayer orientado por definições executa o hook publicado
 de recompensa de elite após a morte autoritativa e aplica seu comando
-exatamente uma vez. Compatibilidade geral de formatos, reload arbitrário de
-código, editor de produção e qualificação recente em três máquinas físicas
-ficam fora deste gate.
+exatamente uma vez. O editor web Kutter expõe o catálogo Rgsdev empacotado com
+busca local e filtros por colisão/prontidão para runtime; props preservam
+tokens limitados e metadados. As viewports continuam desenhando proxies de
+caixa, não malhas GLB do catálogo. O schema v4 do documento Kutter armazena o
+`BoundedBehaviorProgram` limitado e validado; cartões web configuram Attack/
+Chase contra alvos visíveis e o fallback obrigatório Investigate, instalando o
+programa no runtime compartilhado de inimigos web. É autoria específica para
+inimigos, não execução de behaviors JavaScript arbitrários. Compatibilidade
+geral de formatos, reload arbitrário de código, editor de produção e
+qualificação recente em três máquinas físicas ficam fora deste gate.
 
 ### G5 — Escala e lançamento
 
