@@ -1434,6 +1434,7 @@
     let kutterCatalogByToken = new Map();
     let lastKutterCatalog = null;
     let lastKutterGeneration = null;
+    let lastKutterNodes = null;
     let rendererDestroyed = false;
     function disposeKutterModel(model) {
       const textures = new Set();
