@@ -1430,6 +1430,72 @@
         playerCameraZoom + Math.sign(event.deltaY) * 0.05));
     };
     canvas.addEventListener("wheel", handleCameraWheel, { passive: false });
+    const kutterModels = new Map();
+    let kutterCatalogByToken = new Map();
+    let lastKutterCatalog = null;
+    let lastKutterNodes = null;
+    let rendererDestroyed = false;
+    function disposeKutterModel(model) {
+      const textures = new Set();
+      for (const mesh of model?.meshes || []) {
+        gl.deleteBuffer(mesh.vbo);
+        if (mesh.skinVbo) gl.deleteBuffer(mesh.skinVbo);
+        gl.deleteBuffer(mesh.ibo);
+        gl.deleteVertexArray(mesh.vao);
+        if (mesh.texture) textures.add(mesh.texture);
+      }
+      for (const texture of textures) gl.deleteTexture(texture);
+    }
+    function prepareKutterModels(scene) {
+      const catalogChanged = scene.kutterAssetCatalog !== lastKutterCatalog;
+      if (catalogChanged) {
+        lastKutterCatalog = scene.kutterAssetCatalog;
+        kutterCatalogByToken = new Map();
+        for (const entry of scene.kutterAssetCatalog || []) {
+          const path = entry?.runtime_path;
+          if (entry?.runtime_ready === true &&
+              Number.isInteger(entry.asset_token) && entry.asset_token > 0 &&
+              typeof path === "string" &&
+              /^models\/[A-Za-z0-9_/-]+\.glb$/.test(path) &&
+              !path.includes("..")) {
+            kutterCatalogByToken.set(entry.asset_token, path);
+          }
+        }
+      }
+      if (!catalogChanged && scene.kutterNodes === lastKutterNodes) return;
+      lastKutterNodes = scene.kutterNodes;
+      const activeTokens = new Set();
+      for (const node of scene.kutterNodes || []) {
+        const token = Number.isInteger(node.asset) ? node.asset : 0;
+        if (node.kind === 2 && kutterCatalogByToken.has(token)) {
+          activeTokens.add(token);
+        }
+      }
+      for (const [token, model] of kutterModels) {
+        if (!activeTokens.has(token) ||
+            model.path !== kutterCatalogByToken.get(token)) {
+          kutterModels.delete(token);
+          if (model.meshes) disposeKutterModel(model);
+        }
+      }
+      for (const token of activeTokens) {
+        if (kutterModels.has(token)) continue;
+        const path = kutterCatalogByToken.get(token);
+        const entry = { meshes: null, path };
+        kutterModels.set(token, entry);
+        entry.promise = loadGlb("assets/prototype/" + path, gl)
+          .then((model) => {
+            if (rendererDestroyed || kutterModels.get(token) !== entry) {
+              disposeKutterModel(model);
+            } else {
+              entry.meshes = model.meshes;
+            }
+          })
+          .catch((error) => {
+            assetFailures.push("Kutter model " + token + ": " + error.message);
+          });
+      }
+    }
     const assetFailures = [];
     const assetBase = "assets/prototype/models/";
     const assetLoads = [
@@ -1898,6 +1964,7 @@
     }
  
     function render(scene, time = 0) {
+      if (scene.kutterEditor === true) prepareKutterModels(scene);
       if (Number.isInteger(scene.tick)) {
         if (lastImpactSceneTick !== null && scene.tick < lastImpactSceneTick) {
           impactEffects.clear();
@@ -2020,8 +2087,9 @@
               Math.min(1, green * 0.65 + 0.35),
               Math.min(1, blue * 0.65 + 0.35), 1]
             : [red, green, blue, 1];
+          const assigned = kutterModels.get(node.asset);
           draw(
-            [fallbackMeshes.solid],
+            assigned?.meshes || [fallbackMeshes.solid],
             transform(
               [node.x / 100, (node.y + height / 2) / 100, node.z / 100],
               [node.scaleX / 250, height, node.scaleZ / 250],
@@ -2564,7 +2632,7 @@
       captureScreenshot,
       resize,
       destroy() {
-        gl.deleteBuffer(projectileInstanceBuffer);
+        rendererDestroyed = true;
         canvas.removeEventListener("wheel", handleCameraWheel);
         const meshes = [
           ...Object.values(fallbackMeshes),
@@ -2573,6 +2641,9 @@
           ...Object.values(rampMeshes).flat(),
         ];
         const textures = new Set();
+        for (const model of kutterModels.values()) {
+          if (model.meshes) disposeKutterModel(model);
+        }
         for (const mesh of meshes) {
           if (!mesh) continue;
           gl.deleteBuffer(mesh.vbo);

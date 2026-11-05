@@ -509,6 +509,8 @@
     const targetZ = (selected?.z || 0) / 100;
     return {
       kutterEditor: true,
+      kutterAssetCatalog: assetCatalog,
+      kutterGeneration: documentState?.generation || 0,
       kutterNodes: nodes,
       kutterSelected: documentState?.selected || 0,
       camera: { x: targetX, y: targetY + 9, z: targetZ - 15, yaw: 0, pitch: -30 },

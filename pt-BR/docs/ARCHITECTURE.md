@@ -1004,8 +1004,9 @@ ativa. O exemplo multiplayer orientado por definições executa o hook publicado
 de recompensa de elite após a morte autoritativa e aplica seu comando
 exatamente uma vez. O editor web Kutter expõe o catálogo Rgsdev empacotado com
 busca local e filtros por colisão/prontidão para runtime; props preservam
-tokens limitados e metadados. As viewports continuam desenhando proxies de
-caixa, não malhas GLB do catálogo. O schema v4 do documento Kutter armazena o
+tokens limitados e metadados. GLBs do catálogo prontos para runtime e atribuídos
+a props são carregados na viewport WebGL com fallback de proxy de caixa; a
+viewport nativa continua usando somente proxies. O schema v4 do documento Kutter armazena o
 `BoundedBehaviorProgram` limitado e validado; cartões web configuram Attack/
 Chase contra alvos visíveis e o fallback obrigatório Investigate, instalando o
 programa no runtime compartilhado de inimigos web. É autoria específica para

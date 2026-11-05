@@ -925,10 +925,11 @@ bounded wheel zoom. Editor camera state is separate from gameplay camera state.
 UI panels overlay that world pass; the viewport is not a clipped render target.
 The web asset browser searches the bundled local catalog and filters its
 75 models by solid/decorative collision or runtime readiness. Selection shows
-the model name, source path, license, collision role and runtime status; no
-Google Image Search or Poly integration is used. Both editor viewports still
-render box proxies rather than catalog GLB meshes; thumbnails and arbitrary
-RGB materials are not implemented.
+the model name, source path, license, collision role and runtime status. Runtime-ready
+catalog GLBs assigned to props load into the WebGL viewport; loading, invalid
+paths and failed assets retain the box proxy. The native overview remains a
+projected box proxy. Google Image Search and Poly integrations are not used;
+thumbnails and arbitrary RGB material editing are not implemented.
 Clicking HEIGHT decreases/increases selected node Y by one active grid step;
 height, rotation and scale edits participate in undo/redo. Clicking ROT adjusts
 angle; SCALE minus/plus decreases/increases the selected axis in 100-unit
