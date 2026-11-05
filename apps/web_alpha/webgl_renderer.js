@@ -1433,7 +1433,7 @@
     const kutterModels = new Map();
     let kutterCatalogByToken = new Map();
     let lastKutterCatalog = null;
-    let lastKutterNodes = null;
+    let lastKutterGeneration = null;
     let rendererDestroyed = false;
     function disposeKutterModel(model) {
       const textures = new Set();
@@ -1448,6 +1448,7 @@
     }
     function prepareKutterModels(scene) {
       const catalogChanged = scene.kutterAssetCatalog !== lastKutterCatalog;
+      const generationChanged = scene.kutterGeneration !== lastKutterGeneration;
       if (catalogChanged) {
         lastKutterCatalog = scene.kutterAssetCatalog;
         kutterCatalogByToken = new Map();
@@ -1462,7 +1463,9 @@
           }
         }
       }
-      if (!catalogChanged && scene.kutterNodes === lastKutterNodes) return;
+      if (!catalogChanged && !generationChanged &&
+          scene.kutterNodes === lastKutterNodes) return;
+      lastKutterGeneration = scene.kutterGeneration;
       lastKutterNodes = scene.kutterNodes;
       const activeTokens = new Set();
       for (const node of scene.kutterNodes || []) {
