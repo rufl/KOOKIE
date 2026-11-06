@@ -942,14 +942,14 @@ session-local and clamped to the screen. Neither renderer supports dock/reorder.
 The web Kutter Projects dialog adds a browser-local library of up to 32 named
 snapshots. **New blank arena** creates a minimal level with one player spawn and
 saves it as a project. **Save current as** creates a copy; **Update selected**
-replaces that snapshot; **Load selected** validates and imports its canonical
-`.kutter` document through Kof; **Export selected** downloads the same binary
-format; **Delete** removes only the browser-local copy. Loading or creating a
-project replaces the one shared in-memory server document and broadcasts it to
-connected editors. Browser snapshots are not server persistence, a template
-chooser, or cloud-synced storage. Browser storage is origin/profile-specific;
-export important projects as `.kutter` files. The File menu retains
-import/export of the live document.
+replaces that snapshot; **Rename selected** changes only its browser-local name;
+**Load selected** validates and imports its canonical `.kutter` document through
+Kof; **Export selected** downloads the same binary format; **Delete** removes
+only the browser-local copy. Loading or creating a project replaces the one
+shared in-memory server document and broadcasts it to connected editors. Browser
+snapshots are not server persistence, a template chooser, or cloud-synced storage.
+Browser storage is origin/profile-specific; export important projects as `.kutter`
+files. The File menu retains import/export of the live document.
 
 The web server can also persist its one shared Kutter document across restarts.
 Set `KOOKIE_KUTTER_PROJECT_FILE` to a writable `.kutter` file path before

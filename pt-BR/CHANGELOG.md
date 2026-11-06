@@ -3,6 +3,8 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Adicionamos renomeação de projetos locais do Kutter no navegador. Renomear
+  preserva o documento e a identidade do projeto; nomes duplicados são rejeitados.
 - Adicionamos persistência opcional em disco do documento compartilhado do
   servidor web do Kutter por `KOOKIE_KUTTER_PROJECT_FILE`. Na inicialização, o
   servidor restaura e valida o `.kutter` canônico; alterações bem-sucedidas o

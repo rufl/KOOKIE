@@ -733,7 +733,7 @@
       list.appendChild(row);
     }
     const selected = savedProjects.some((project) => project.id === selectedProjectId);
-    for (const id of ["project-load", "project-update", "project-export", "project-delete"]) {
+    for (const id of ["project-load", "project-update", "project-rename", "project-export", "project-delete"]) {
       byId(id).disabled = !selected;
     }
   }
@@ -1118,6 +1118,35 @@
       byId("project-message").textContent = "Project saved in this browser.";
     } catch (error) {
       byId("project-message").textContent = error.message;
+    }
+  });
+  byId("project-rename").addEventListener("click", () => {
+    const selected = savedProjects.find((project) => project.id === selectedProjectId);
+    if (!selected) return;
+    const cleanName = byId("project-name").value.trim();
+    if (!cleanName || cleanName.length > 64) {
+      byId("project-message").textContent = "Project name must be 1–64 characters.";
+      byId("project-name").focus();
+      return;
+    }
+    if (savedProjects.some((project) =>
+      project.id !== selected.id &&
+      project.name.toLocaleLowerCase() === cleanName.toLocaleLowerCase())) {
+      byId("project-message").textContent = "A project with that name already exists.";
+      byId("project-name").focus();
+      return;
+    }
+    const projects = savedProjects.map((project) => project.id === selected.id
+      ? { ...project, name: cleanName, updatedAt: new Date().toISOString() }
+      : project);
+    try {
+      writeSavedProjects(projects);
+      savedProjects = projects;
+      byId("project-name").value = "";
+      byId("project-message").textContent = "Renamed project to “" + cleanName + "”.";
+      renderProjectLibrary();
+    } catch (error) {
+      byId("project-message").textContent = "Rename failed: " + error.message;
     }
   });
   byId("project-update").addEventListener("click", () => {

@@ -791,15 +791,16 @@ buffers de staging do Kof não recebem malhas sem limite.
 A caixa **Projects** do Kutter web oferece uma biblioteca local ao navegador
 com até 32 snapshots nomeados. **New blank arena** cria um nível mínimo com
 um spawn de jogador e salva como projeto. **Save current as** cria uma cópia;
-**Update selected** substitui o snapshot escolhido; **Load selected** valida e
-importa o documento `.kutter` canônico pelo Kof; **Export selected** baixa o
-mesmo formato binário; **Delete** remove apenas a cópia local. Carregar ou criar
-um projeto substitui o único documento compartilhado em memória do servidor e
-transmite a alteração aos editores conectados. Os snapshots do navegador não
-são persistência no servidor, seletor de templates ou armazenamento sincronizado
-na nuvem. O armazenamento depende da origem e do perfil do navegador; exporte
-projetos importantes como arquivos `.kutter`. O menu File continua oferecendo
-importação e exportação do documento ativo.
+**Update selected** substitui o snapshot escolhido; **Rename selected** altera
+somente o nome local no navegador; **Load selected** valida e importa o
+documento `.kutter` canônico pelo Kof; **Export selected** baixa o mesmo formato
+binário; **Delete** remove apenas a cópia local. Carregar ou criar um projeto
+substitui o único documento compartilhado em memória do servidor e transmite a
+alteração aos editores conectados.
+Os snapshots do navegador não são persistência no servidor, seletor de templates
+ou armazenamento sincronizado na nuvem. O armazenamento depende da origem e do
+perfil do navegador; exporte projetos importantes como arquivos `.kutter`. O
+menu File continua oferecendo importação e exportação do documento ativo.
 
 O servidor web também pode persistir seu único documento Kutter compartilhado
 entre reinicializações. Defina `KOOKIE_KUTTER_PROJECT_FILE` como o caminho de um

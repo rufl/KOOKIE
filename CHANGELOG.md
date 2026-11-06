@@ -3,6 +3,8 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Added rename support for browser-local Kutter projects. Renaming preserves
+  the saved document and project identity; duplicate names are rejected.
 - Added optional disk persistence for the shared Kutter web-server document via
   `KOOKIE_KUTTER_PROJECT_FILE`. Startup restores and validates the canonical
   `.kutter` file; successful document edits replace it atomically. Persistence
