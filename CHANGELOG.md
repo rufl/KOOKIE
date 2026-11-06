@@ -3,9 +3,13 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Added **Duplicate selected** for browser-local Kutter projects. It creates
+  a distinct document ID, resets revision/generation, recalculates the canonical
+  checksum and leaves the shared live document unchanged.
 - Added bounded JSON export/import for the complete browser-local Kutter
-  project library. Imports validate entries and merge without overwriting;
-  exact duplicates are skipped and conflicting IDs/names reject the archive.
+  project library. Imports validate document shape/checksum and merge without
+  overwriting; exact duplicates are skipped and conflicting IDs/names reject
+  the archive.
 - Added rename support for browser-local Kutter projects. Renaming preserves
   the saved document and project identity; duplicate names are rejected.
 - Added optional disk persistence for the shared Kutter web-server document via

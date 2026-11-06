@@ -3,9 +3,12 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Adicionamos **Duplicate selected** para projetos locais do Kutter. A cópia
+  ganha outro ID de documento, reinicia revisão/geração, recalcula o checksum
+  canônico e não altera o documento compartilhado ativo.
 - Adicionamos exportação/importação JSON limitada da biblioteca local completa
-  do Kutter. A importação valida as entradas e mescla sem sobrescrever; ignora
-  duplicatas idênticas e rejeita IDs/nomes conflitantes.
+  do Kutter. A importação valida formato/checksum e mescla sem sobrescrever;
+  ignora duplicatas idênticas e rejeita IDs/nomes conflitantes.
 - Adicionamos renomeação de projetos locais do Kutter no navegador. Renomear
   preserva o documento e a identidade do projeto; nomes duplicados são rejeitados.
 - Adicionamos persistência opcional em disco do documento compartilhado do

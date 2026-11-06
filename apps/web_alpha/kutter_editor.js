@@ -265,6 +265,61 @@
       projectRevision: words[6], generation: words[9], nodes, assets,
       checksum: words[3], behaviorWordCount, behaviorCards };
   }
+  function calculateDocumentChecksum(words, document) {
+    const mix = (state, value) => {
+      let normalized = value % 1000003;
+      if (normalized < 0) normalized += 1000003;
+      return (state * 31 + normalized) % 1000003;
+    };
+    const version = document.version;
+    let result = mix(137, version);
+    result = mix(result, words[4]);
+    result = mix(result, words[5]);
+    result = mix(result, words[6]);
+    result = mix(result, words[9]);
+    result = mix(result, document.nodes.length);
+    let cursor = 11;
+    const stride = version === 1 ? 8 : version === 2 ? 12 : 13;
+    for (const node of document.nodes) {
+      if (version >= 2 && words[cursor + 11] !== 0) return -1;
+      result = mix(result, node.id);
+      result = mix(result, node.parent);
+      result = mix(result, node.kind);
+      result = mix(result, node.x);
+      result = mix(result, node.y);
+      result = mix(result, node.z);
+      result = mix(result, node.rotation);
+      result = mix(result, node.scaleX);
+      if (version >= 2) {
+        result = mix(result, node.scaleY);
+        result = mix(result, node.scaleZ);
+        result = mix(result, node.color);
+      }
+      if (version >= 3) result = mix(result, node.asset);
+      cursor += stride;
+    }
+    result = mix(result, document.assets.length);
+    for (const asset of document.assets) {
+      result = mix(result, asset.id);
+      result = mix(result, asset.kind);
+      result = mix(result, asset.status);
+      result = mix(result, asset.checksum);
+      result = mix(result, asset.revision);
+    }
+    if (version === 4) {
+      result = mix(result, document.behaviorWordCount);
+      const behaviorStart = 11 + document.nodes.length * stride +
+        document.assets.length * 5;
+      for (let index = 0; index < document.behaviorWordCount; index += 1) {
+        result = mix(result, words[behaviorStart + index]);
+      }
+    }
+    return result > 0 ? result : 1;
+  }
+
+  function validateDocumentChecksum(words, document) {
+    return calculateDocumentChecksum(words, document) === words[3];
+  }
 
   function request(command, args = []) {
     const activeSocket = ws;
@@ -731,8 +786,9 @@
       }
       const words = Int32Array.from(entry.words);
       const document = decodeDocument(words);
-      if (document.nodes.length !== entry.nodeCount) {
-        throw new Error("Project node count does not match its document");
+      if (document.nodes.length !== entry.nodeCount ||
+          !validateDocumentChecksum(words, document)) {
+        throw new Error("Project document checksum or node count is invalid");
       }
       ids.add(entry.id);
       names.add(nameKey);
@@ -828,11 +884,11 @@
       list.appendChild(row);
     }
     const selected = savedProjects.some((project) => project.id === selectedProjectId);
-    for (const id of ["project-load", "project-update", "project-rename", "project-export", "project-delete"]) {
+    for (const id of ["project-load", "project-update", "project-rename", "project-duplicate", "project-export", "project-delete"]) {
       byId(id).disabled = !selected;
     }
-  }
 
+  }
   function saveProject(name, replaceId = "", source = documentState) {
     if (!source) throw new Error("Kof has not provided a world to save");
     const cleanName = name.trim();
@@ -859,6 +915,68 @@
     savedProjects = projects;
     selectedProjectId = project.id;
     renderProjectLibrary();
+  }
+  function duplicateProject(project) {
+    if (!project) throw new Error("Select a project to duplicate");
+    if (savedProjects.length >= MAX_SAVED_PROJECTS) {
+      throw new Error("Project library is full (32 projects)");
+    }
+    const words = Int32Array.from(project.words);
+    const original = decodeDocument(words);
+    if (original.nodes.length !== project.nodeCount ||
+        !validateDocumentChecksum(words, original)) {
+      throw new Error("Selected project document is invalid");
+    }
+    const usedDocumentIds = new Set(savedProjects.map((entry) => entry.words[5]));
+    let newDocumentId = Math.floor(Math.random() * 1000000) + 1;
+    for (let attempt = 0; attempt <= MAX_SAVED_PROJECTS; attempt += 1) {
+      if (!usedDocumentIds.has(newDocumentId)) break;
+      newDocumentId = newDocumentId === 1000000 ? 1 : newDocumentId + 1;
+    }
+    if (usedDocumentIds.has(newDocumentId)) {
+      throw new Error("Could not allocate a unique document ID");
+    }
+    words[5] = newDocumentId;
+    words[6] = 1;
+    words[9] = 1;
+    const duplicateDocument = decodeDocument(words);
+    words[3] = calculateDocumentChecksum(words, duplicateDocument);
+    if (!validateDocumentChecksum(words, duplicateDocument)) {
+      throw new Error("Could not reseal duplicated project document");
+    }
+    const suffixes = Array.from({ length: MAX_SAVED_PROJECTS }, (_, index) =>
+      index === 0 ? " copy" : " copy " + (index + 1));
+    let name = "";
+    for (const suffix of suffixes) {
+      const candidate = project.name.slice(0, 64 - suffix.length) + suffix;
+      if (!savedProjects.some((entry) =>
+        entry.name.toLocaleLowerCase() === candidate.toLocaleLowerCase())) {
+        name = candidate;
+        break;
+      }
+    }
+    if (!name) throw new Error("Could not allocate a unique project name");
+    const localIdBase = Date.now().toString(36) +
+      Math.random().toString(36).slice(2, 8);
+    let localId = localIdBase;
+    let localSuffix = 1;
+    while (savedProjects.some((entry) => entry.id === localId)) {
+      localId = localIdBase + "-" + localSuffix;
+      localSuffix += 1;
+    }
+    const duplicate = {
+      id: localId,
+      name,
+      updatedAt: new Date().toISOString(),
+      nodeCount: original.nodes.length,
+      words: Array.from(words),
+    };
+    const projects = [...savedProjects, duplicate];
+    writeSavedProjects(projects);
+    savedProjects = projects;
+    selectedProjectId = duplicate.id;
+    renderProjectLibrary();
+    return duplicate;
   }
 
   try {
@@ -1262,6 +1380,17 @@
       renderProjectLibrary();
     } catch (error) {
       byId("project-message").textContent = "Rename failed: " + error.message;
+    }
+  });
+  byId("project-duplicate").addEventListener("click", () => {
+    const selected = savedProjects.find((project) => project.id === selectedProjectId);
+    if (!selected) return;
+    try {
+      const duplicate = duplicateProject(selected);
+      byId("project-message").textContent =
+        "Created “" + duplicate.name + "” without changing the shared Kof document.";
+    } catch (error) {
+      byId("project-message").textContent = "Duplicate failed: " + error.message;
     }
   });
   byId("project-update").addEventListener("click", () => {

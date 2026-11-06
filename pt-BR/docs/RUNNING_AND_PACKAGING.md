@@ -791,25 +791,25 @@ buffers de staging do Kof não recebem malhas sem limite.
 A caixa **Projects** do Kutter web oferece uma biblioteca local ao navegador
 com até 32 snapshots nomeados. **New blank arena** cria um nível mínimo com
 um spawn de jogador e salva como projeto. **Save current as** cria uma cópia;
-**Update selected** substitui o snapshot escolhido; **Rename selected** altera
-somente o nome local no navegador; **Load selected** valida e importa o
-documento `.kutter` canônico pelo Kof; **Export selected** baixa o mesmo formato
-binário; **Delete** remove apenas a cópia local. Carregar ou criar um projeto
-substitui o único documento compartilhado em memória do servidor e transmite a
-alteração aos editores conectados.
-Os snapshots do navegador não são persistência no servidor, seletor de templates
-ou armazenamento sincronizado na nuvem. O armazenamento depende da origem e do
-perfil do navegador; exporte projetos importantes como arquivos `.kutter`. O
-menu File continua oferecendo importação e exportação do documento ativo.
+**Update selected** substitui o snapshot; **Rename selected** altera somente o
+nome local no navegador; **Duplicate selected** duplica o projeto salvo com nova
+identidade de documento e checksum, sem alterar o documento compartilhado ativo.
+**Load selected** valida e importa o `.kutter` canônico pelo Kof; **Export
+selected** baixa o mesmo formato binário; **Delete** remove só a cópia local.
+Carregar ou criar um projeto substitui o único documento compartilhado em memória
+do servidor e transmite a alteração aos editores conectados. Os snapshots do
+navegador não são persistência no servidor, seletor de templates ou armazenamento
+sincronizado na nuvem. O armazenamento depende da origem e do perfil do navegador;
+exporte projetos importantes como arquivos `.kutter`. O menu File mantém a
+importação e exportação do documento ativo.
 
 **Export library** baixa todos os projetos locais do navegador em um backup JSON
 limitado (`kookie.kutter-project-library/v1`, máximo de 4 MiB). **Import
-library** valida os metadados e o formato limitado de cada documento e mescla
-sem sobrescrever projetos locais. Entradas com o mesmo ID, nome e conteúdo são
-ignoradas; conflitos de ID ou nome rejeitam toda a importação. O limite de 32
-projetos continua valendo. O backup permite transferir a biblioteca entre
-perfis de navegador e é separado da persistência opcional de um único documento
-no servidor.
+library** valida os metadados, o formato limitado e o checksum canônico de cada
+documento e mescla sem sobrescrever projetos locais. Entradas idênticas de ID,
+nome e conteúdo são ignoradas; conflitos rejeitam toda a importação. O limite de
+32 projetos continua valendo. O backup transfere a biblioteca entre perfis de
+navegador e é separado da persistência opcional de um documento único no servidor.
 
 O servidor web também pode persistir seu único documento Kutter compartilhado
 entre reinicializações. Defina `KOOKIE_KUTTER_PROJECT_FILE` como o caminho de um
