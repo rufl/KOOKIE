@@ -802,6 +802,15 @@ ou armazenamento sincronizado na nuvem. O armazenamento depende da origem e do
 perfil do navegador; exporte projetos importantes como arquivos `.kutter`. O
 menu File continua oferecendo importação e exportação do documento ativo.
 
+**Export library** baixa todos os projetos locais do navegador em um backup JSON
+limitado (`kookie.kutter-project-library/v1`, máximo de 4 MiB). **Import
+library** valida os metadados e o formato limitado de cada documento e mescla
+sem sobrescrever projetos locais. Entradas com o mesmo ID, nome e conteúdo são
+ignoradas; conflitos de ID ou nome rejeitam toda a importação. O limite de 32
+projetos continua valendo. O backup permite transferir a biblioteca entre
+perfis de navegador e é separado da persistência opcional de um único documento
+no servidor.
+
 O servidor web também pode persistir seu único documento Kutter compartilhado
 entre reinicializações. Defina `KOOKIE_KUTTER_PROJECT_FILE` como o caminho de um
 arquivo `.kutter` gravável antes de iniciar `kookie-web-server`; o diretório pai

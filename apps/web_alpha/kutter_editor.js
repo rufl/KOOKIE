@@ -26,7 +26,9 @@
     9: "Group",
   };
   const MAX_SAVED_PROJECTS = 32;
+  const MAX_PROJECT_LIBRARY_BYTES = 4 * 1024 * 1024;
   const PROJECT_STORAGE_KEY = "kookie.kutter.projects.v1";
+  const PROJECT_LIBRARY_SCHEMA = "kookie.kutter-project-library/v1";
   const PANEL_LAYOUT_KEY = "kookie.kutter.panels.v1";
   const byId = (id) => document.getElementById(id);
   const canvas = byId("kutter-viewport");
@@ -703,6 +705,99 @@
     }
     return entries;
   }
+  function validateProjectLibrary(entries) {
+    if (!Array.isArray(entries) || entries.length > MAX_SAVED_PROJECTS) {
+      throw new Error("Project library must contain at most 32 projects");
+    }
+    const ids = new Set();
+    const names = new Set();
+    const projects = [];
+    for (const entry of entries) {
+      if (!entry || typeof entry.id !== "string" || !entry.id ||
+          entry.id.length > 64 || typeof entry.name !== "string" ||
+          entry.name !== entry.name.trim() || !entry.name ||
+          entry.name.length > 64 || typeof entry.updatedAt !== "string" ||
+          !Number.isFinite(Date.parse(entry.updatedAt)) ||
+          !Number.isInteger(entry.nodeCount) || entry.nodeCount < 1 ||
+          entry.nodeCount > 64 || !Array.isArray(entry.words) ||
+          entry.words.length < 11 || entry.words.length > MAX_DOCUMENT_WORDS ||
+          entry.words.some((word) => !Number.isInteger(word) ||
+            word < -2147483648 || word > 2147483647)) {
+        throw new Error("Project library contains an invalid project");
+      }
+      const nameKey = entry.name.toLocaleLowerCase();
+      if (ids.has(entry.id) || names.has(nameKey)) {
+        throw new Error("Project library contains duplicate IDs or names");
+      }
+      const words = Int32Array.from(entry.words);
+      const document = decodeDocument(words);
+      if (document.nodes.length !== entry.nodeCount) {
+        throw new Error("Project node count does not match its document");
+      }
+      ids.add(entry.id);
+      names.add(nameKey);
+      projects.push({
+        id: entry.id, name: entry.name, updatedAt: entry.updatedAt,
+        nodeCount: entry.nodeCount, words: Array.from(words),
+      });
+    }
+    return projects;
+  }
+
+  function downloadProjectLibrary() {
+    const payload = JSON.stringify({
+      schema: PROJECT_LIBRARY_SCHEMA, projects: savedProjects,
+    }, null, 2);
+    const url = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "kutter-project-library.json";
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    byId("project-message").textContent =
+      "Exported " + savedProjects.length + " browser-local projects.";
+  }
+
+  async function importProjectLibrary(file) {
+    if (file.size > MAX_PROJECT_LIBRARY_BYTES) {
+      throw new Error("Project library backup exceeds the 4 MiB limit");
+    }
+    const backup = JSON.parse(await file.text());
+    if (!backup || backup.schema !== PROJECT_LIBRARY_SCHEMA) {
+      throw new Error("Unsupported project library backup schema");
+    }
+    const imported = validateProjectLibrary(backup.projects);
+    const merged = savedProjects.slice();
+    let added = 0;
+    for (const project of imported) {
+      const byId = merged.find((current) => current.id === project.id);
+      if (byId) {
+        const identical = byId.name === project.name &&
+          byId.nodeCount === project.nodeCount &&
+          byId.words.length === project.words.length &&
+          byId.words.every((word, index) => word === project.words[index]);
+        if (identical) continue;
+        throw new Error("Project ID conflicts with an existing local project");
+      }
+      if (merged.some((current) =>
+        current.name.toLocaleLowerCase() === project.name.toLocaleLowerCase())) {
+        throw new Error("Project name conflicts with an existing local project");
+      }
+      if (merged.length >= MAX_SAVED_PROJECTS) {
+        throw new Error("Project library is full (32 projects)");
+      }
+      merged.push(project);
+      added += 1;
+    }
+    writeSavedProjects(merged);
+    savedProjects = merged;
+    if (added > 0) selectedProjectId = merged[merged.length - 1].id;
+    renderProjectLibrary();
+    byId("project-message").textContent =
+      "Imported " + added + " project" + (added === 1 ? "" : "s") +
+      "; existing projects were preserved.";
+  }
+
 
   function writeSavedProjects(projects = savedProjects) {
     localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(projects));
@@ -1085,6 +1180,26 @@
     byId("project-message").textContent = "";
     renderProjectLibrary();
     projectDialog.showModal();
+  });
+  byId("project-library-export").addEventListener("click", () => {
+    try {
+      downloadProjectLibrary();
+    } catch (error) {
+      byId("project-message").textContent = "Export failed: " + error.message;
+    }
+  });
+  byId("project-library-import").addEventListener("click", () =>
+    byId("project-library-file").click());
+  byId("project-library-file").addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      await importProjectLibrary(file);
+    } catch (error) {
+      byId("project-message").textContent = "Import failed: " + error.message;
+    } finally {
+      event.target.value = "";
+    }
   });
   byId("project-new").addEventListener("click", async () => {
     const name = byId("project-name").value.trim();

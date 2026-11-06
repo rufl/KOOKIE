@@ -436,6 +436,11 @@
         <div id="project-list" role="listbox" aria-label="Saved projects"></div>
         <p id="project-empty" role="status">No saved projects yet. Create a blank arena or save the current world.</p>
         <div id="project-message" role="status" aria-live="polite"></div>
+        <div class="project-library-backup">
+          <button id="project-library-export" type="button">Export library</button>
+          <button id="project-library-import" type="button">Import library</button>
+          <input id="project-library-file" type="file" accept=".json,application/json" hidden>
+        </div>
         <div class="project-actions">
           <button id="project-load" type="button" disabled>Load selected</button>
           <button id="project-update" type="button" disabled>Update selected</button>

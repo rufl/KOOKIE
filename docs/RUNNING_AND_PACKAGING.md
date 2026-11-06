@@ -951,6 +951,14 @@ snapshots are not server persistence, a template chooser, or cloud-synced storag
 Browser storage is origin/profile-specific; export important projects as `.kutter`
 files. The File menu retains import/export of the live document.
 
+**Export library** downloads all browser-local projects as a bounded JSON
+backup (`kookie.kutter-project-library/v1`, maximum 4 MiB). **Import library**
+validates each entry's metadata and bounded document shape, then merges without
+overwriting local projects. Same-ID entries with identical name and content are
+skipped; conflicting IDs or names reject the entire import. The 32-project
+limit still applies. The backup moves a library between browser profiles and is
+separate from the server's optional single-document persistence.
+
 The web server can also persist its one shared Kutter document across restarts.
 Set `KOOKIE_KUTTER_PROJECT_FILE` to a writable `.kutter` file path before
 launching `kookie-web-server`; the parent directory must already exist. With
