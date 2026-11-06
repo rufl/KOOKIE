@@ -35,11 +35,13 @@
   const nodeList = byId("node-list");
   const form = byId("inspector-form");
   let renderer = null;
+  let previewRenderer = null;
   let ws = null;
   let requestSequence = 1;
   let documentState = null;
   let commandQueue = Promise.resolve();
   let rendererReady = false;
+  let previewRendererReady = false;
   let pending = new Map();
   let incomingStates = new Map();
   let groupedSelection = new Set();
@@ -53,6 +55,8 @@
   let assetCatalog = [];
   let assetCatalogError = "";
   let previewActive = false;
+  let previewedAssetToken = 0;
+  let previewGeneration = 0;
 
   function checksum(words, length = words.length) {
     let result = 53;
@@ -332,6 +336,59 @@
   }
 
   function setField(id, value) { byId(id).value = String(value); }
+  function renderAssetPreview(asset) {
+    const usable = asset?.runtime_ready === true && previewRendererReady &&
+      typeof previewRenderer?.render === "function";
+    byId("asset-preview").hidden = !usable;
+    byId("asset-card-mark").hidden = usable;
+    byId("asset-preview").setAttribute(
+      "aria-label", asset ? asset.name + " 3D preview" : "3D model preview",
+    );
+    if (!usable) {
+      if (previewedAssetToken && previewRendererReady &&
+          typeof previewRenderer?.render === "function") {
+        previewRenderer.render({
+          kutterEditor: true,
+          kutterAssetCatalog: assetCatalog,
+          kutterGeneration: ++previewGeneration,
+          kutterNodes: [],
+          kutterSelected: 0,
+          camera: { x: 0, y: 5, z: -9, yaw: 0, pitch: -20 },
+          actors: [], sceneObjects: [], projectiles: [], labels: [],
+        }, performance.now());
+      }
+      previewedAssetToken = 0;
+      return;
+    }
+    if (previewedAssetToken === asset.asset_token) return;
+    previewedAssetToken = asset.asset_token;
+    const nodes = [{
+      id: 1, parent: 0, kind: NODE_PROP, x: 0, y: 0, z: 0,
+      rotation: 0, scaleX: 1000, scaleY: 1000, scaleZ: 1000,
+      color: 0xffffff, asset: asset.asset_token,
+    }];
+    const scene = {
+      kutterEditor: true,
+      kutterAssetCatalog: assetCatalog,
+      kutterGeneration: ++previewGeneration,
+      kutterNodes: nodes,
+      kutterSelected: 0,
+      camera: { x: 0, y: 5, z: -9, yaw: 0, pitch: -20 },
+      tick: 0,
+      playerX: 0, playerY: 0, playerZ: 0, yaw: 0, pitch: -20,
+      actors: [], sceneObjects: [], projectiles: [], labels: [],
+    };
+    previewRenderer.render(scene, performance.now());
+    const preload = previewRenderer.prepareKutterPreview;
+    if (typeof preload === "function") {
+      preload.call(previewRenderer, scene).then(() => {
+        if (!shuttingDown && previewedAssetToken === asset.asset_token) {
+          previewRenderer.render(scene, performance.now());
+        }
+      });
+    }
+  }
+
   function renderAssetCatalog(node, preferNodeAsset = true) {
     const select = byId("asset-catalog");
     const previousToken = Number(select.value);
@@ -380,6 +437,7 @@
         (selected.license || "license not listed") +
         (selected.runtime_ready ? " · runtime ready" : " · not runtime ready");
     }
+    renderAssetPreview(selected);
     const hasSelection = Boolean(selected);
     byId("assign-asset").disabled = !node || node.kind !== 2 || !hasSelection;
     byId("add-asset").disabled = !documentState || !hasSelection;
@@ -1113,11 +1171,13 @@
       activeSocket.close();
     }
     if (animationFrameHandle) cancelAnimationFrame(animationFrameHandle);
-    animationFrameHandle = 0;
     if (renderer && typeof renderer.destroy === "function") renderer.destroy();
     renderer = null;
+    if (previewRenderer && typeof previewRenderer.destroy === "function") {
+      previewRenderer.destroy();
+    }
+    previewRenderer = null;
   });
-
   async function start() {
     try {
       renderer = await window.KookieWebRenderer.create(canvas);
@@ -1127,11 +1187,26 @@
       statusMessage = "Viewport unavailable: " + error.message;
       drawUi();
     }
+    if (rendererReady && !shuttingDown) {
+      try {
+        previewRenderer = await window.KookieWebRenderer.create(
+          byId("asset-preview"), { previewOnly: true },
+        );
+        previewRendererReady = Boolean(previewRenderer?.supported);
+      } catch (error) {
+        previewRendererReady = false;
+      }
+    }
     if (shuttingDown) {
       if (renderer && typeof renderer.destroy === "function") renderer.destroy();
+      if (previewRenderer && typeof previewRenderer.destroy === "function") {
+        previewRenderer.destroy();
+      }
       renderer = null;
+      previewRenderer = null;
       return;
     }
+    renderAssetCatalog(currentNode(), false);
     animationFrameHandle = requestAnimationFrame(frame);
     connect();
   }

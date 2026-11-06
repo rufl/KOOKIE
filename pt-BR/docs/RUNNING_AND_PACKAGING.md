@@ -804,12 +804,13 @@ importação e exportação do documento ativo.
 O navegador de assets do Kutter pesquisa o catálogo local empacotado e filtra
 os 75 modelos por colisão sólida/decorativa ou prontidão para runtime. A seleção
 mostra nome, caminho de origem, licença, papel de colisão e estado de runtime.
-Modelos GLB prontos para runtime e atribuídos a props são carregados na viewport
-WebGL, centralizados e ajustados ao maior eixo de escala do nó, preservando as
-proporções originais. Durante o carregamento, em caminhos inválidos ou em falhas,
-permanece o proxy de caixa. A viewport nativa ainda usa somente proxies de caixa.
-Não há integração com Google Image Search nem Poly; thumbnails e edição arbitrária
-de materiais RGB não estão implementadas.
+Modelos GLB prontos para runtime exibem uma prévia 3D ao vivo no cartão do asset;
+modelos atribuídos são carregados na viewport WebGL, centralizados e ajustados ao
+maior eixo de escala do nó, preservando as proporções originais. Assets sem
+prontidão para runtime mantêm o marcador de tipo do catálogo; falhas de
+carregamento mantêm o proxy de caixa. A viewport nativa ainda usa somente proxies
+de caixa. Não há integração com Google Image Search nem Poly; edição arbitrária de
+materiais RGB não está implementada.
 
 O inspector web também edita três cartões limitados de IA inimiga, por
 prioridade: Attack em alvos visíveis dentro do alcance, Chase em alvos visíveis

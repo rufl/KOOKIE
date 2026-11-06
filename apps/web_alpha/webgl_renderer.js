@@ -1361,7 +1361,7 @@
     });
   }
 
-  function create(canvas) {
+  function create(canvas, options = {}) {
     let gl;
     try {
       gl = canvas.getContext("webgl2", {
@@ -1548,9 +1548,15 @@
           });
       }
     }
+    function preloadKutterPreview(scene) {
+      prepareKutterModels(scene);
+      return Promise.all((scene.kutterNodes || [])
+        .map((node) => kutterModels.get(node.asset)?.promise)
+        .filter(Boolean));
+    }
     const assetFailures = [];
     const assetBase = "assets/prototype/models/";
-    const assetLoads = [
+    const assetLoads = (options.previewOnly === true ? [] : [
       ["goose", assetBase + "goose/goose.glb"],
       ["cat", assetBase + "cat/cat.glb"],
       ["coffeeMug", assetBase + "coffee_mug/coffee_mug.glb"],
@@ -1563,7 +1569,7 @@
       ["woodenBarrel", assetBase + "wooden_barrel/wooden_barrel.glb"],
       ["hearts", "assets/prototype/runtime/ui/hearts_0001.png"],
       ["heartsBlue", "assets/prototype/runtime/ui/hearts_blue.png"],
-    ].map(async ([name, url]) => {
+    ]).map(async ([name, url]) => {
       try {
         if (name === "hearts" || name === "heartsBlue") {
           assets[name] = await loadTextureUrl(gl, url);
@@ -1580,15 +1586,16 @@
         assetFailures.push(name + ": " + error.message);
       }
     });
-    const watermelonImpactLoads = Array.from({ length: 8 }, (_, index) =>
-      loadGlb(
-        assetBase + "watermelon/impact_" +
-          String(index + 5).padStart(2, "0") + ".glb", gl,
-      ).then((meshes) => { assets.watermelonImpact[index] = meshes; })
-        .catch((error) => {
-          assetFailures.push("watermelon impact " + (index + 5) + ": " + error.message);
-        }));
-    const vfxLoads = VFX_ASSETS.map(async (asset) => {
+    const watermelonImpactLoads = options.previewOnly === true ? [] :
+      Array.from({ length: 8 }, (_, index) =>
+        loadGlb(
+          assetBase + "watermelon/impact_" +
+            String(index + 5).padStart(2, "0") + ".glb", gl,
+        ).then((meshes) => { assets.watermelonImpact[index] = meshes; })
+          .catch((error) => {
+            assetFailures.push("watermelon impact " + (index + 5) + ": " + error.message);
+          }));
+    const vfxLoads = options.previewOnly === true ? [] : VFX_ASSETS.map(async (asset) => {
       try {
         vfxTextures[asset.id] = await loadTextureUrl(gl, asset.path);
         vfxMeshes[asset.id] = planeGeometry(gl,
@@ -2683,6 +2690,7 @@
       supported: true,
       reason: rendererStatus(),
       getStatus: rendererStatus,
+      prepareKutterPreview: preloadKutterPreview,
       projectWorld,
       render,
       captureScreenshot,

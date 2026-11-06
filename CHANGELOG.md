@@ -3,6 +3,9 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Added live WebGL previews for runtime-ready models in Kutter's bundled asset
+  browser. The preview uses an isolated lightweight renderer, leaves the main
+  editor scene unchanged, and releases the previous model when selection changes.
 - Added `assets/prototype/runtime/bot_ai.json` as the shared browser/CLI bot
   tuning contract. Profiles, goal persistence, target focus, pickup utility,
   roaming, retreat, combat timing/ranges, movement bounds, team sizes, and

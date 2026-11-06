@@ -161,9 +161,10 @@
     .asset-browser { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,.7fr); gap: 6px; min-width: 0; }
     .asset-browser select, .asset-browser input { min-height: 38px; font-size: 10px; min-width: 0; width: 100%; }
     #asset-catalog { grid-column: 1 / -1; }
-    .asset-card { display: grid; grid-template-columns: 48px minmax(0,1fr); gap: 9px; align-items: center; min-height: 64px; padding: 8px; border: 1px solid #ffffff24; border-radius: 9px; background: #0d1612; }
+    .asset-card { display: grid; grid-template-columns: 64px minmax(0,1fr); gap: 9px; align-items: center; min-height: 80px; padding: 8px; border: 1px solid #ffffff24; border-radius: 9px; background: #0d1612; }
     .asset-card[hidden] { display: none; }
-    .asset-card-mark { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 8px; color: var(--accent); background: #24352a; font: 10px ui-monospace, monospace; }
+    .asset-card-mark { display: grid; place-items: center; width: 60px; height: 60px; border-radius: 8px; color: var(--accent); background: #24352a; font: 10px ui-monospace, monospace; }
+    .asset-preview { display: block; width: 60px; height: 60px; border-radius: 8px; background: #16231b; }
     .asset-card strong { display: block; overflow-wrap: anywhere; color: #edf0e6; font: 11px/1.4 system-ui, sans-serif; }
     .asset-card small { display: block; color: var(--muted); font: 9px/1.5 ui-monospace, monospace; }
     .unsupported-note { color: #b7c2b1; font-size: 10px; line-height: 1.4; }
@@ -360,6 +361,8 @@
                 </select>
               </div>
               <div class="asset-card" id="asset-card" hidden aria-live="polite">
+                <canvas id="asset-preview" class="asset-preview" width="96" height="96"
+                  aria-label="3D model preview" hidden></canvas>
                 <span class="asset-card-mark" id="asset-card-mark" aria-hidden="true">MODEL</span>
                 <span><strong id="asset-card-name"></strong><small id="asset-card-meta"></small></span>
               </div>
