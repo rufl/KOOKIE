@@ -9371,6 +9371,10 @@ test "Kutter workspace pointer edits viewport hierarchy and inspector", "kutter-
         !shell.handlePointerMove(20, 0) &&
         shell.inspectorLeft() == 35,
         "inspector drag must update the split without moving a closed panel")
+    assert(shell.stage(browserFrame, 9),
+        "editor frame must stage after resizing the inspector")
+    assert(browserFrame.stagedCount() > 0 && browserFrame.retire(9),
+        "resized editor frame must publish and retire")
     assert(shell.handleAction(gameShellActionRight()),
         "toolbar must select the Prop tool")
     assert(shell.stage(browserFrame, 10),
