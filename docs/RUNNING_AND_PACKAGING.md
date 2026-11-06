@@ -937,9 +937,12 @@ height, rotation and scale edits participate in undo/redo. Clicking ROT adjusts
 angle; SCALE minus/plus decreases/increases the selected axis in 100-unit
 steps, while clicking its label cycles X/Y/Z. C switches between two preset colors.
 Keyboard controls also
-rotate, scale, move, undo, and redo. The hierarchy/inspector dock can be widened
-by dragging its left divider; panels cannot be rearranged, and the left tools
-panel remains fixed.
+rotate, scale, move, undo, and redo. The Web tool palette and layers/properties
+panel can be repositioned independently by dragging their grip or focusing it
+and using arrow keys (16 px; Shift+Arrow moves 48 px). Positions persist in the
+browser and clamp to the workspace after resize; **File → Reset panel positions**
+restores defaults. This is floating repositioning, not dock/reorder; native
+controls keep their fixed placement.
 The web Kutter Projects dialog adds a browser-local library of up to 32 named
 snapshots. **New blank arena** creates a minimal level with one player spawn and
 saves it as a project. **Save current as** creates a copy; **Update selected**

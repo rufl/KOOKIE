@@ -27,6 +27,7 @@
   };
   const MAX_SAVED_PROJECTS = 32;
   const PROJECT_STORAGE_KEY = "kookie.kutter.projects.v1";
+  const PANEL_LAYOUT_KEY = "kookie.kutter.panels.v1";
   const byId = (id) => document.getElementById(id);
   const canvas = byId("kutter-viewport");
   const connectionState = byId("connection-state");
@@ -780,14 +781,153 @@
   });
   const layersToggle = byId("layers-toggle");
   const levelInspector = byId("level-inspector");
+  const kutterWorkspace = byId("kutter-workspace");
+  const buildToolsPanel = byId("build-tools-panel");
+  const panelElements = {
+    tools: buildToolsPanel,
+    inspector: levelInspector,
+  };
+  const panelPositions = {};
+  try {
+    const savedLayout = JSON.parse(localStorage.getItem(PANEL_LAYOUT_KEY) || "null");
+    if (savedLayout?.version === 1 && savedLayout.positions &&
+        typeof savedLayout.positions === "object") {
+      for (const name of Object.keys(panelElements)) {
+        const position = savedLayout.positions[name];
+        if (Number.isFinite(position?.x) && Number.isFinite(position?.y) &&
+            Math.abs(position.x) <= 100000 && Math.abs(position.y) <= 100000) {
+          panelPositions[name] = { x: position.x, y: position.y };
+        }
+      }
+    }
+  } catch (error) {}
+
+  function savePanelPositions() {
+    try {
+      localStorage.setItem(PANEL_LAYOUT_KEY, JSON.stringify({
+        version: 1, positions: panelPositions,
+      }));
+    } catch (error) {}
+  }
+
+  function applyPanelPosition(name, position) {
+    const panel = panelElements[name];
+    const bounds = kutterWorkspace.getBoundingClientRect();
+    if (!panel || bounds.width <= 0 || bounds.height <= 0) return;
+    const maxWidth = Math.max(0, bounds.width - 16);
+    const inspectorWidth = Math.min(
+      window.innerWidth <= 860 ? 360 : 340, maxWidth,
+    );
+    const width = Math.min(panel.offsetWidth ||
+      (name === "inspector" ? inspectorWidth : maxWidth), maxWidth);
+    const maxHeight = Math.max(0, bounds.height - 16);
+    const height = Math.min(panel.offsetHeight ||
+      (name === "inspector" ? maxHeight : 0), maxHeight);
+    const x = Math.round(Math.max(0, Math.min(
+      bounds.width - width, position.x,
+    )));
+    const y = Math.round(Math.max(0, Math.min(
+      bounds.height - height, position.y,
+    )));
+    panel.style.left = x + "px";
+    panel.style.top = y + "px";
+    panel.style.right = "auto";
+    panel.style.bottom = "auto";
+    panel.style.transform = "none";
+    if (name === "inspector") panel.style.height = height + "px";
+    panelPositions[name] = { x, y };
+  }
+
+  function installPanelMovement(name, handle) {
+    const panel = panelElements[name];
+    let drag = null;
+    handle.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      const panelBounds = panel.getBoundingClientRect();
+      const workspaceBounds = kutterWorkspace.getBoundingClientRect();
+      if (panelBounds.width <= 0 || panelBounds.height <= 0) return;
+      drag = {
+        pointerId: event.pointerId,
+        offsetX: event.clientX - panelBounds.left,
+        offsetY: event.clientY - panelBounds.top,
+        workspaceLeft: workspaceBounds.left,
+        workspaceTop: workspaceBounds.top,
+      };
+      try { handle.focus({ preventScroll: true }); } catch (error) { handle.focus(); }
+      try { handle.setPointerCapture?.(event.pointerId); } catch (error) {}
+      event.preventDefault();
+    });
+    handle.addEventListener("pointermove", (event) => {
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      applyPanelPosition(name, {
+        x: event.clientX - drag.workspaceLeft - drag.offsetX,
+        y: event.clientY - drag.workspaceTop - drag.offsetY,
+      });
+    });
+    const finishDrag = (event) => {
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      drag = null;
+      savePanelPositions();
+    };
+    handle.addEventListener("pointerup", finishDrag);
+    handle.addEventListener("pointercancel", finishDrag);
+    handle.addEventListener("keydown", (event) => {
+      const step = event.shiftKey ? 48 : 16;
+      const offsets = {
+        ArrowLeft: [-step, 0], ArrowRight: [step, 0],
+        ArrowUp: [0, -step], ArrowDown: [0, step],
+      };
+      const offset = offsets[event.key];
+      if (!offset) return;
+      const rect = panel.getBoundingClientRect();
+      const bounds = kutterWorkspace.getBoundingClientRect();
+      const position = panelPositions[name] || {
+        x: rect.left - bounds.left, y: rect.top - bounds.top,
+      };
+      event.preventDefault();
+      applyPanelPosition(name, {
+        x: position.x + offset[0], y: position.y + offset[1],
+      });
+      savePanelPositions();
+    });
+  }
+
+  installPanelMovement("tools", byId("move-build-tools"));
+  installPanelMovement("inspector", byId("move-level-inspector"));
+  if (panelPositions.tools) applyPanelPosition("tools", panelPositions.tools);
+  if (panelPositions.inspector && !levelInspector.hidden) {
+    applyPanelPosition("inspector", panelPositions.inspector);
+  }
+  window.addEventListener("resize", () => {
+    for (const [name, position] of Object.entries(panelPositions)) {
+      if (!panelElements[name].hidden) applyPanelPosition(name, position);
+    }
+    if (Object.keys(panelPositions).length > 0) savePanelPositions();
+  });
   layersToggle.addEventListener("click", () => {
     levelInspector.hidden = !levelInspector.hidden;
+    if (!levelInspector.hidden && panelPositions.inspector) {
+      applyPanelPosition("inspector", panelPositions.inspector);
+    }
     layersToggle.setAttribute("aria-expanded", String(!levelInspector.hidden));
     layersToggle.setAttribute(
       "aria-label",
       levelInspector.hidden ? "Show layers and properties" : "Hide layers and properties",
     );
     layersToggle.textContent = levelInspector.hidden ? "Layers" : "Close";
+  });
+  byId("reset-panel-layout").addEventListener("click", () => {
+    for (const panel of Object.values(panelElements)) {
+      panel.style.left = "";
+      panel.style.top = "";
+      panel.style.right = "";
+      panel.style.bottom = "";
+      panel.style.transform = "";
+      panel.style.height = "";
+    }
+    for (const name of Object.keys(panelPositions)) delete panelPositions[name];
+    try { localStorage.removeItem(PANEL_LAYOUT_KEY); } catch (error) {}
+    byId("file-menu").removeAttribute("open");
   });
   byId("grid-size").addEventListener("change", async () => {
     try { await operate(COMMAND.grid, [Number(byId("grid-size").value)]); } catch (error) {}

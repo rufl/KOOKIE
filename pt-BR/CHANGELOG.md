@@ -6,6 +6,10 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - Adicionamos prévias 3D ao vivo, via WebGL, para modelos prontos para runtime
   no navegador de assets local do Kutter. A prévia usa um renderer isolado, não
   altera a cena principal do editor e libera o modelo anterior ao trocar seleção.
+- Tornamos a barra de ferramentas e o painel de camadas/propriedades do Kutter
+  Web movíveis separadamente. Arrastar e usar as setas reposiciona os painéis
+  dentro da área de trabalho; a posição fica salva no navegador e **File → Reset
+  panel positions** restaura o padrão.
 - Adicionamos `assets/prototype/runtime/bot_ai.json` como contrato único de
   ajuste da IA nos clientes web e CLI. Perfis, persistência de metas, foco em
   alvos, utilidade de pickups, exploração, recuo, alcances/recargas de combate,

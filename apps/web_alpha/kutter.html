@@ -106,6 +106,14 @@
       background: var(--glass); box-shadow: 0 10px 28px #0008;
       backdrop-filter: blur(14px); overflow: visible;
     }
+    .panel-drag-handle {
+      display: inline-grid; place-items: center; flex: 0 0 44px; min-width: 44px;
+      min-height: 44px; padding: 6px; border: 1px solid #ffffff30;
+      border-radius: 9px; background: #25382d; color: #dce8cc;
+      cursor: grab; touch-action: none; user-select: none;
+    }
+    .panel-drag-handle:active { cursor: grabbing; background: #35452f; }
+    .panel-drag-handle svg { width: 18px; height: 18px; fill: currentColor; }
     .tool-button, .marker-menu > summary {
       display: inline-flex; align-items: center; justify-content: center;
       min-width: 70px; min-height: 48px; padding: 8px 12px;
@@ -137,6 +145,7 @@
     .panel-title { color: #bdc9ae; font-size: 11px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
     .panel-heading .panel-title { flex: 1; }
     .panel-heading button { min-height: 36px; padding: 5px 8px; font-size: 10px; }
+    .panel-heading .panel-drag-handle { min-height: 44px; }
     #node-list { min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 4px; }
     .node-row {
       display: flex; justify-content: space-between; align-items: center; min-height: 40px;
@@ -228,29 +237,39 @@
       <div class="top-actions">
         <span id="connection-state" role="status" aria-live="polite">Connecting…</span>
         <button id="projects-open" type="button" aria-haspopup="dialog">Projects</button>
-        <details class="file-menu">
+        <details class="file-menu" id="file-menu">
           <summary aria-label="File menu">File</summary>
           <div class="file-menu-items">
             <button id="open-file" type="button">Import world file</button>
             <button id="save-file" type="button">Export current world</button>
             <button id="refresh" type="button">Reload from server</button>
+            <button id="reset-panel-layout" type="button">Reset panel positions</button>
           </div>
         </details>
-        <button id="layers-toggle" type="button" aria-controls="level-inspector"
-          aria-expanded="false" aria-label="Show layers and properties">Layers</button>
+          <button id="layers-toggle" type="button" aria-controls="level-inspector"
+            aria-expanded="false" aria-label="Show layers and properties">Layers</button>
         <button id="fullscreen-button" type="button" aria-label="Enter fullscreen"
           aria-pressed="false" title="Enter fullscreen">Fullscreen</button>
         <a href="/" aria-label="Return to GatoGanso">Play</a>
       </div>
     </header>
-    <section class="workspace" aria-label="Creative world editor">
+    <section class="workspace" id="kutter-workspace" aria-label="Creative world editor">
       <section class="viewport-panel" aria-label="3D level viewport">
         <canvas id="kutter-viewport"
           aria-label="3D Kutter viewport. Click to place or select on the grid."
           tabindex="0"></canvas>
         <div class="viewport-info" id="viewport-info">WAITING FOR KOF</div>
         <div class="viewport-hint">Click to place · select an object to edit</div>
-        <div class="tool-panel" role="toolbar" aria-label="Build tools">
+        <div class="tool-panel" id="build-tools-panel" role="toolbar" aria-label="Build tools">
+          <button class="panel-drag-handle" id="move-build-tools" type="button"
+            aria-label="Move build tools" aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Shift+ArrowUp Shift+ArrowDown Shift+ArrowLeft Shift+ArrowRight"
+            title="Drag to move · Arrow keys move 16 px; Shift + arrows move 48 px">
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <circle cx="4" cy="4" r="1.5"/><circle cx="12" cy="4" r="1.5"/>
+              <circle cx="4" cy="8" r="1.5"/><circle cx="12" cy="8" r="1.5"/>
+              <circle cx="4" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/>
+            </svg>
+          </button>
           <button class="tool-button" type="button" data-tool="1"
             aria-label="Select" title="Select and inspect" aria-pressed="true">Select</button>
           <button class="tool-button" type="button" data-tool="2"
@@ -279,6 +298,15 @@
           aria-label="Level layers and properties" hidden>
           <section class="hierarchy">
             <div class="panel-heading">
+              <button class="panel-drag-handle" id="move-level-inspector" type="button"
+                aria-label="Move layers and properties" aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Shift+ArrowUp Shift+ArrowDown Shift+ArrowLeft Shift+ArrowRight"
+                title="Drag to move · Arrow keys move 16 px; Shift + arrows move 48 px">
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <circle cx="4" cy="4" r="1.5"/><circle cx="12" cy="4" r="1.5"/>
+                  <circle cx="4" cy="8" r="1.5"/><circle cx="12" cy="8" r="1.5"/>
+                  <circle cx="4" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/>
+                </svg>
+              </button>
               <div class="panel-title">Layers <span id="node-count">0</span></div>
               <button id="group-nodes" type="button" aria-label="Group selected nodes">Group</button>
               <button id="ungroup-node" type="button" aria-label="Ungroup selected">Ungroup</button>

@@ -811,6 +811,12 @@ prontidão para runtime mantêm o marcador de tipo do catálogo; falhas de
 carregamento mantêm o proxy de caixa. A viewport nativa ainda usa somente proxies
 de caixa. Não há integração com Google Image Search nem Poly; edição arbitrária de
 materiais RGB não está implementada.
+Os painéis flutuantes de ferramentas e de camadas/propriedades podem ser movidos
+independentemente arrastando a alça ou focando-a e usando as setas (16 px;
+Shift+seta move 48 px). As posições persistem no navegador e são limitadas
+à área de trabalho após redimensionamento; **File → Reset panel positions**
+restaura o layout padrão. É reposicionamento flutuante, não encaixe nem reordenação;
+no renderer nativo os controles mantêm a posição fixa.
 
 O inspector web também edita três cartões limitados de IA inimiga, por
 prioridade: Attack em alvos visíveis dentro do alcance, Chase em alvos visíveis
