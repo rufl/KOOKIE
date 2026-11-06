@@ -9189,6 +9189,22 @@ test "native Kutter file controls save and safely load the working project", "ku
         shell.handlePointer(60, 52) &&
         shell.editorFileStatus() == "SAVED",
         "native Save button must write the canonical current level")
+    assert(shell.stage(frame, 2),
+        "file status must be rendered after Save")
+    var savedStatusVisible = false
+    for (var run = 0; run < frame.textRuns(); run = run + 1) {
+        if (frame.textBottomAt(run) == 50 &&
+            frame.textCodepointCountAt(run) == 5 &&
+            frame.textCodepointAt(run, 0) == ('S' as Int) &&
+            frame.textCodepointAt(run, 1) == ('A' as Int) &&
+            frame.textCodepointAt(run, 2) == ('V' as Int) &&
+            frame.textCodepointAt(run, 3) == ('E' as Int) &&
+            frame.textCodepointAt(run, 4) == ('D' as Int)) {
+            savedStatusVisible = true
+        }
+    }
+    assert(savedStatusVisible && frame.retire(2),
+        "the saved state must be visible in the native file-status line")
     assert(editor.removeSelected() && editor.nodeCount() == 1 &&
         shell.handlePointer(80, 52) &&
         shell.editorFileStatus() == "LOADED" &&

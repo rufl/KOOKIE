@@ -2366,9 +2366,21 @@ class GameShell {
         var normal = normalTextColor()
         var issueColor = if (levelEditorValue.validLevel())
             successTextColor() else dangerTextColor()
+        var fileStatusColor = mutedTextColor()
+        if (editorFileStatusValue == "SAVED" ||
+            editorFileStatusValue == "LOADED") {
+            fileStatusColor = successTextColor()
+        } else if (editorFileStatusValue == "SAVE FAILED" ||
+            editorFileStatusValue == "LOAD FAILED") {
+            fileStatusColor = dangerTextColor()
+        }
         if (!pushScreenFrame(target) ||
             !pushCenteredText(target, "KUTTER LEVEL WORKSPACE",
                 menuTitleBottom(), 2, accentTextColor()) ||
+            !pushText(target, "FILE", -42, 50, 1, mutedTextColor()) ||
+            !pushText(
+                target, editorFileStatusValue, -24, 50, 1,
+                fileStatusColor) ||
             !pushKutterDockPanel(target, 50, 47, 68, 57, false) ||
             !pushText(target, "SAVE", 53, 50, 1, accentTextColor()) ||
             !pushKutterDockPanel(target, 70, 47, 88, 57, false) ||
