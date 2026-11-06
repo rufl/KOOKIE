@@ -808,9 +808,12 @@ Modelos GLB prontos para runtime exibem uma prévia 3D ao vivo no cartão do ass
 modelos atribuídos são carregados na viewport WebGL, centralizados e ajustados ao
 maior eixo de escala do nó, preservando as proporções originais. Assets sem
 prontidão para runtime mantêm o marcador de tipo do catálogo; falhas de
-carregamento mantêm o proxy de caixa. A viewport nativa ainda usa somente proxies
-de caixa. Não há integração com Google Image Search nem Poly; edição arbitrária de
-materiais RGB não está implementada.
+carregamento mantêm o proxy de caixa. A apresentação nativa do Kutter é
+atualmente uma visão geral 2D de cima, com footprints limitados de proxies de
+caixa; ela não renderiza malhas do catálogo nem um passe 3D. O helper separado
+`KutterScenePreview` para staging de caixas 3D não está conectado a esse caminho
+de apresentação. Não há integração com Google Image Search nem Poly; edição
+arbitrária de materiais RGB não está implementada.
 Os painéis flutuantes de ferramentas e de camadas/propriedades podem ser movidos
 independentemente arrastando a alça ou focando-a e usando as setas (16 px;
 Shift+seta move 48 px). As posições persistem no navegador e são limitadas

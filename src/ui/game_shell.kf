@@ -1864,7 +1864,7 @@ class GameShell {
             !pushQuad(
                 target, themeValue.focusRailResource(),
                 44, -76, 45, 44) ||
-            !pushText(target, "LEVEL VIEW", -37, 39, 1, accentTextColor())) {
+            !pushText(target, "2D PROXY VIEW", -37, 39, 1, accentTextColor())) {
             return false
         }
         for (var grid = 0; grid <= 8; grid = grid + 1) {

@@ -10,6 +10,10 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   Web movíveis separadamente. Arrastar e usar as setas reposiciona os painéis
   dentro da área de trabalho; a posição fica salva no navegador e **File → Reset
   panel positions** restaura o padrão.
+- Corrigimos a documentação dos renderers do Kutter: a apresentação nativa do
+  editor é uma visão 2D de cima com proxies de caixa; malhas do catálogo
+  atribuídas são renderizadas somente na viewport WebGL. O helper nativo
+  separado de preview 3D de caixas não está conectado ao caminho de apresentação.
 - Adicionamos `assets/prototype/runtime/bot_ai.json` como contrato único de
   ajuste da IA nos clientes web e CLI. Perfis, persistência de metas, foco em
   alvos, utilidade de pickups, exploração, recuo, alcances/recargas de combate,

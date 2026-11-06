@@ -919,10 +919,8 @@ the marker and draws a bounded elevation stem. Markers clip to viewport bounds,
 show the selected node's facing direction, and use muted/red/green fills for
 the default/first/second color presets. These are projected box proxies, not
 rendered catalog meshes.
-Native presentation also stages the authored bounded 3D box proxies into the
-regular GPU world pass, snaps its camera to the selected node, and supports
-bounded wheel zoom. Editor camera state is separate from gameplay camera state.
-UI panels overlay that world pass; the viewport is not a clipped render target.
+Native Kutter presentation currently stages a 2D top-down overview with bounded box-proxy footprints; it does not stage a 3D world pass or render assigned catalog meshes. The separate native `KutterScenePreview` box-mesh staging helper is not wired into this editor presentation path. Editor camera and wheel-zoom helpers do not change that limitation.
+UI panels overlay the overview; the viewport is not a clipped render target.
 The web asset browser searches the bundled local catalog and filters its
 75 models by solid/decorative collision or runtime readiness. Selection shows
 the model name, source path, license, collision role and runtime status.

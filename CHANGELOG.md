@@ -9,6 +9,10 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Made the Web Kutter tool palette and layers/properties panel independently
   movable. Pointer dragging and arrow-key movement use workspace-clamped,
   browser-local positions; File → Reset panel positions restores defaults.
+- Corrected Kutter renderer documentation: native editor presentation is a 2D
+  top-down box-proxy overview; assigned catalog meshes render in the WebGL
+  viewport only. The separate native 3D box-preview helper is not wired into
+  the editor presentation path.
 - Added `assets/prototype/runtime/bot_ai.json` as the shared browser/CLI bot
   tuning contract. Profiles, goal persistence, target focus, pickup utility,
   roaming, retreat, combat timing/ranges, movement bounds, team sizes, and
