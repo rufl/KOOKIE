@@ -1220,10 +1220,8 @@ class GameShell {
                         var selectedIndex = levelEditorValue.document().nodeIndex(
                             levelEditorValue.selectedNode())
                         if (selectedIndex < 0) { return false }
-                        var color = levelEditorValue.document().nodeColorValue(
-                            selectedIndex)
                         return levelEditorValue.recolorSelected(
-                            if (color == 16711615) 16776960 else 16711615)
+                            editorScenePreviewValue.nextPaletteColor(color))
                     }
                     if (x < 65) { return cycleEditorScaleAxis() }
                     return levelEditorValue.resizeSelected(

@@ -6,6 +6,10 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Added live WebGL previews for runtime-ready models in Kutter's bundled asset
   browser. The preview uses an isolated lightweight renderer, leaves the main
   editor scene unchanged, and releases the previous model when selection changes.
+- Expanded the native Kutter inspector's color control from two presets to all
+  16 colors supported by its renderer palette. Native color remains quantized;
+  arbitrary RGB material editing is still Web-only.
+
 - Made the Web Kutter tool palette and layers/properties panel independently
   movable. Dragging or arrow-key movement uses workspace-clamped, browser-local
   positions; File → Reset panel positions restores defaults.

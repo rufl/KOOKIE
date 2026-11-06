@@ -9403,9 +9403,14 @@ test "Kutter workspace pointer edits viewport hierarchy and inspector" {
         shell.editorScaleAxis() == 2 &&
         shell.handlePointer(75, -52) &&
         shell.levelEditor().document().nodeScaleZValue(inspectorNode) == 1100 &&
-        shell.handlePointer(83, -52) &&
-        shell.levelEditor().document().nodeColorValue(inspectorNode) == 16711615,
+        shell.levelEditor().document().nodeColorValue(inspectorNode) == 32768,
         "inspector rotation, scale, and visible color control must mutate selection")
+    var color = 32768
+    for (var colorStep = 0; colorStep < 15; colorStep = colorStep + 1) {
+        color = shell.editorScenePreview().nextPaletteColor(color)
+    }
+    assert(color == 0,
+        "native color control must cycle all 16 renderer palette entries")
     assert(shell.handlePointer(78, -63) &&
         shell.levelEditor().nodeCount() == 4 &&
         shell.handlePointer(55, -80) &&

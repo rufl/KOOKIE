@@ -163,6 +163,14 @@ class KutterScenePreview {
 
     }
     Int paletteResource(Int color) {
+    Int nextPaletteColor(Int color) {
+        var palette = paletteResource(color) - 1
+        palette = (palette + 1) % 16
+        var red = (palette / 4) * 32
+        var green = ((palette % 4) / 2) * 64
+        var blue = (palette % 2) * 128
+        return red * 65536 + green * 256 + blue
+    }
         var red = (color >>> 16) & 255
         var green = (color >>> 8) & 255
         var blue = color & 255

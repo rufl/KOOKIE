@@ -927,8 +927,9 @@ does not edit arbitrary RGB materials. Google Image Search and Poly integrations
 are not used.
 Clicking HEIGHT decreases/increases selected node Y by one active grid step;
 height, rotation and scale edits participate in undo/redo. Clicking ROT adjusts
-angle; SCALE minus/plus decreases/increases the selected axis in 100-unit
-steps, while clicking its label cycles X/Y/Z. C switches between two preset colors.
+steps, while clicking its label cycles X/Y/Z. C cycles all 16 colors in the
+native renderer palette; native still quantizes colors and does not edit arbitrary
+RGB materials.
 Keyboard controls also
 rotate, scale, move, undo, and redo. The Web tool palette and layers/properties
 panel can be repositioned independently by dragging their grip or focusing it
