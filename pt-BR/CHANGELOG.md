@@ -3,6 +3,9 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Adicionamos botões nativos **SAVE**/**LOAD** para o documento canônico em
+  `kutter-project.kutter`, no diretório de trabalho do processo. Load inválido
+  ou ausente preserva o editor; Save sobrescreve esse único arquivo.
 - Adicionamos **Duplicate selected** para projetos locais do Kutter. A cópia
   ganha outro ID de documento, reinicia revisão/geração, recalcula o checksum
   canônico e não altera o documento compartilhado ativo.

@@ -939,6 +939,12 @@ browser and clamp to the workspace after resize; **File → Reset panel position
 restores defaults. In the native editor, the tool and hierarchy/inspector panels
 can each be dragged independently by their `MOVE` header; their positions are
 session-local and clamped to the screen. Neither renderer supports dock/reorder.
+The native editor's **SAVE** and **LOAD** buttons write/read the canonical
+`.kutter` document at `kutter-project.kutter` in the process working directory.
+Save overwrites that one file; copy it elsewhere for separate project snapshots.
+Load validates into a temporary document before replacing the live editor state,
+so a missing or invalid file leaves the current level intact. This native file
+control has no file picker, named-project library, or atomic-write guarantee.
 The web Kutter Projects dialog adds a browser-local library of up to 32 named
 snapshots. **New blank arena** creates a minimal level with one player spawn and
 saves it as a project. **Save current as** creates a copy; **Update selected**

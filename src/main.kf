@@ -9163,6 +9163,43 @@ test "kutter studio migrates legacy schemas and persists asset-linked v3 round t
         restored.nodeAssetToken(1) == 51001,
         "studio file round trip must retain modular asset references")
 }
+test "native Kutter file controls save and safely load the working project", "kutter-file" {
+    var path = "kutter-project.kutter"
+    var file = File(path)
+    if (file.exists()) { assert(file.delete()) }
+    var shell = GameShell()
+    assert(shell.handlePointer(0, -50) &&
+        shell.screen() == gameShellScreenKutter() &&
+        shell.handlePointer(0, 15) &&
+        shell.screen() == gameShellScreenKutterLevel(),
+        "native Kutter file controls must be reachable from the menu")
+    var frame = FrameStaging(shell.renderVertexCapacity())
+    assert(shell.stage(frame, 1) && frame.stagedCount() > 0 &&
+        frame.retire(1),
+        "native file controls must appear in a staged editor frame")
+    var editor = shell.levelEditor()
+    assert(editor.cycleTool(1) &&
+        editor.moveCursor(0, 1) &&
+        editor.applyTool() &&
+        editor.nodeCount() == 2 &&
+        shell.handlePointer(60, 52) &&
+        shell.editorFileStatus() == "SAVED",
+        "native Save button must write the canonical current level")
+    assert(editor.removeSelected() && editor.nodeCount() == 1 &&
+        shell.handlePointer(80, 52) &&
+        shell.editorFileStatus() == "LOADED" &&
+        editor.nodeCount() == 2,
+        "native Load button must restore the saved document into the editor")
+    var corrupt = new Int[1]
+    corrupt[0] = 0
+    assert(file.writeBytes(corrupt),
+        "invalid-load fixture must replace the project bytes")
+    assert(!shell.loadEditorProject() &&
+        shell.editorFileStatus() == "LOAD FAILED" &&
+        editor.nodeCount() == 2,
+        "invalid native project must fail without replacing the live level")
+    assert(file.delete(), "native project test file must be removed")
+}
 test "Kutter behavior cards persist validated bounded programs" {
     var defaultEditor = BoundedKutterLevelEditor()
     assert(defaultEditor.document().encode() &&
@@ -9299,7 +9336,7 @@ test "Kutter preview caches and stages catalog meshes" {
         "mesh staging beyond the frame budget must safely use the box proxy")
 
 }
-test "Kutter workspace pointer edits viewport hierarchy and inspector" {
+test "Kutter workspace pointer edits viewport hierarchy and inspector", "kutter-pointer" {
     var shell = GameShell()
     var browserFrame = FrameStaging(shell.renderVertexCapacity())
     assert(shell.handleAction(gameShellActionDown()) &&

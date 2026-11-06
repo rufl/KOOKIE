@@ -3,6 +3,9 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Added native Kutter **SAVE**/**LOAD** buttons for the canonical document at
+  `kutter-project.kutter` in the process working directory. Invalid or missing
+  loads preserve the live editor; saves overwrite the single file.
 - Added **Duplicate selected** for browser-local Kutter projects. It creates
   a distinct document ID, resets revision/generation, recalculates the canonical
   checksum and leaves the shared live document unchanged.

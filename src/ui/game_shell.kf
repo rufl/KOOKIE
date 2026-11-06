@@ -88,6 +88,7 @@ class GameShell {
     Bool editorHierarchyKeyboardFocusValue
     Bool editorMoveArmedValue
     KutterScenePreview editorScenePreviewValue
+    String editorFileStatusValue
     public constructor() {
 
         themeValue = KookieUiNativeTheme()
@@ -123,6 +124,7 @@ class GameShell {
         greyboxCatalogValue = BoundedKutterGreyboxCatalog(96)
         greyboxCatalogValue.loadRgsdevPack()
         greyboxLevelValue = BoundedKutterGreyboxLevel(128)
+        editorFileStatusValue = "UNSAVED"
         levelEditorValue = BoundedKutterLevelEditor()
         editorInspectorLeftValue = 48
         editorInspectorResizeActiveValue = false
@@ -212,6 +214,32 @@ class GameShell {
     }
     BoundedKutterLevelEditor levelEditor() {
         return levelEditorValue
+    }
+    String editorProjectPath() { return "kutter-project.kutter" }
+    String editorFileStatus() { return editorFileStatusValue }
+    Bool saveEditorProject() {
+        var store = BoundedKutterStudioFileStore()
+        var saved = store.save(
+            levelEditorValue.document(), editorProjectPath())
+        editorFileStatusValue = if (saved) "SAVED" else "SAVE FAILED"
+        return saved
+    }
+    Bool loadEditorProject() {
+        var candidate = BoundedKutterStudio(
+            kutterStudioNodeCapacity(), kutterStudioAssetCapacity())
+        var store = BoundedKutterStudioFileStore()
+        if (!store.load(candidate, editorProjectPath())) {
+            editorFileStatusValue = "LOAD FAILED"
+            return false
+        }
+        if (!levelEditorValue.importDocumentWords(
+                candidate.wire, candidate.encodedLength())) {
+            editorFileStatusValue = "LOAD FAILED"
+            return false
+        }
+        editorHierarchyPageValue = 0
+        editorFileStatusValue = "LOADED"
+        return true
     }
     Int inspectorLeft() { return editorInspectorLeftValue }
 
@@ -1079,6 +1107,10 @@ class GameShell {
         }
         if (screenValue == gameShellScreenKutterLevel()) {
             editorHierarchyKeyboardFocusValue = false
+            if (y >= 47 && y <= 57) {
+                if (x >= 50 && x <= 68) { return saveEditorProject() }
+                if (x >= 70 && x <= 88) { return loadEditorProject() }
+            }
             if (x >= -90 + editorPaletteOffsetXValue &&
                 x <= -45 + editorPaletteOffsetXValue &&
                 y >= 41 + editorPaletteOffsetYValue &&
@@ -2286,6 +2318,12 @@ class GameShell {
         if (!pushScreenFrame(target) ||
             !pushCenteredText(target, "KUTTER LEVEL WORKSPACE",
                 menuTitleBottom(), 2, accentTextColor()) ||
+            !pushKutterDockPanel(target, 50, 47, 68, 57, false) ||
+            !pushText(target, "SAVE", 53, 50, 1, accentTextColor()) ||
+            !pushKutterDockPanel(target, 70, 47, 88, 57, false) ||
+            !pushText(target, "LOAD", 73, 50, 1, accentTextColor()) ||
+            !pushText(target, editorFileStatusValue, 51, 60, 1,
+                mutedTextColor()) ||
             !pushText(target, "GEN", -88, menuSubtitleBottom(), 1, normal) ||
             !pushNumber(target, levelEditorValue.generation(), -66,
                 menuSubtitleBottom(), 1, mutedTextColor()) ||

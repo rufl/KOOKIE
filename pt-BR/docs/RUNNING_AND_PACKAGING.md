@@ -794,8 +794,8 @@ um spawn de jogador e salva como projeto. **Save current as** cria uma cópia;
 **Update selected** substitui o snapshot; **Rename selected** altera somente o
 nome local no navegador; **Duplicate selected** duplica o projeto salvo com nova
 identidade de documento e checksum, sem alterar o documento compartilhado ativo.
-**Load selected** valida e importa o `.kutter` canônico pelo Kof; **Export
-selected** baixa o mesmo formato binário; **Delete** remove só a cópia local.
+**Load selected** valida e importa o `.kutter` canônico pelo Kof. **Export selected** baixa
+o mesmo formato binário; **Delete** remove só a cópia local.
 Carregar ou criar um projeto substitui o único documento compartilhado em memória
 do servidor e transmite a alteração aos editores conectados. Os snapshots do
 navegador não são persistência no servidor, seletor de templates ou armazenamento
@@ -821,6 +821,13 @@ Cada alteração canônica bem-sucedida é gravada em um arquivo temporário no 
 diretório e renomeada atomicamente. Falhas de gravação são registradas; o
 documento em memória continua utilizável, mas a edição não sobreviverá a uma
 reinicialização. Mantenha backup e restrinja a gravação ao operador do servidor.
+Os botões nativos **SAVE** e **LOAD** gravam/leem o documento `.kutter`
+canônico em `kutter-project.kutter`, no diretório de trabalho do processo. Save
+sobrescreve esse único arquivo; copie-o para manter snapshots separados. Load
+valida o documento temporário antes de substituir o estado do editor, então um
+arquivo ausente ou inválido preserva o nível atual. Esse controle nativo não
+tem seletor de arquivos, biblioteca de projetos nomeados nem garantia de
+gravação atômica.
 
 O navegador de assets do Kutter pesquisa o catálogo local empacotado e filtra
 os 75 modelos por colisão sólida/decorativa ou prontidão para runtime. A seleção
