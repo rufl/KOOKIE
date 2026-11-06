@@ -808,19 +808,21 @@ Modelos GLB prontos para runtime exibem uma prévia 3D ao vivo no cartão do ass
 modelos atribuídos são carregados na viewport WebGL, centralizados e ajustados ao
 maior eixo de escala do nó, preservando as proporções originais. Assets sem
 prontidão para runtime mantêm o marcador de tipo do catálogo; falhas de
-carregamento mantêm o proxy de caixa. A apresentação nativa do Kutter é
-atualmente uma visão geral 2D de cima, com footprints limitados de proxies de
-caixa; ela não renderiza malhas do catálogo nem um passe 3D. O cabeçalho da
-superfície identifica-a como `2D PROXY VIEW`. O helper separado
-`KutterScenePreview` para staging de caixas 3D não está conectado a esse caminho
-de apresentação. Não há integração com Google Image Search nem Poly; edição
-arbitrária de materiais RGB não está implementada.
-Os painéis flutuantes de ferramentas e de camadas/propriedades podem ser movidos
-independentemente arrastando a alça ou focando-a e usando as setas (16 px;
-Shift+seta move 48 px). As posições persistem no navegador e são limitadas
-à área de trabalho após redimensionamento; **File → Reset panel positions**
-restaura o layout padrão. É reposicionamento flutuante, não encaixe nem reordenação;
-no renderer nativo os controles mantêm a posição fixa.
+carregamento mantêm o proxy de caixa. A visão geral nativa continua sendo 2D,
+com footprints de proxies de caixa; o rótulo `2D PROXY VIEW` descreve apenas
+essa visão. Um passe 3D nativo separado renderiza a geometria GLB atribuída do
+catálogo modular, usando a cor preset do nó, sem as texturas ou materiais GLB
+embutidos. O parser limita cada modelo a 32.768 vértices expandidos e o cache
+total a 32.768 vértices; assets incompatíveis, grandes demais, indisponíveis ou
+sem espaço no frame usam proxies de caixa. O renderer nativo não edita materiais
+RGB arbitrários. Não há integração com Google Image Search nem Poly.
+Os painéis de ferramentas e de hierarquia/inspector do editor nativo podem ser
+movidos independentemente arrastando o cabeçalho `MOVE`; suas posições duram
+apenas pela sessão e ficam limitadas à tela. Na Web, barra de ferramentas e
+camadas/propriedades também são movíveis separadamente, usando a alça ou as
+setas (16 px; Shift+seta move 48 px). As posições Web persistem no navegador e
+ficam limitadas à área após redimensionamento; **File → Reset panel positions**
+restaura o layout. Nenhum renderer oferece encaixe ou reordenação dos painéis.
 
 O inspector web também edita três cartões limitados de IA inimiga, por
 prioridade: Attack em alvos visíveis dentro do alcance, Chase em alvos visíveis

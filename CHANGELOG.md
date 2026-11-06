@@ -7,12 +7,17 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   browser. The preview uses an isolated lightweight renderer, leaves the main
   editor scene unchanged, and releases the previous model when selection changes.
 - Made the Web Kutter tool palette and layers/properties panel independently
-  movable. Pointer dragging and arrow-key movement use workspace-clamped,
-  browser-local positions; File → Reset panel positions restores defaults.
-- Corrected Kutter renderer documentation: native editor presentation is a 2D
-  top-down box-proxy overview; assigned catalog meshes render in the WebGL
-  viewport only. The separate native 3D box-preview helper is not wired into
-  the editor presentation path.
+  movable. Dragging or arrow-key movement uses workspace-clamped, browser-local
+  positions; File → Reset panel positions restores defaults.
+- Made both native Kutter panels independently movable: drag the `MOVE` strip
+  on the tool palette or hierarchy/inspector. Positions are session-local and
+  clamped to the screen; panel hit targets and the viewport remain in screen
+  coordinates.
+- Native Kutter's separate 3D scene pass now loads assigned modular catalog GLBs
+  and stages their geometry/UVs with the node palette color. No embedded textures
+  or arbitrary materials; parser and aggregate cache cap expanded geometry at
+  32,768 vertices each, with box-proxy fallback when an asset is unavailable or
+  exceeds capacity. The 2D overview remains.
 - Fixed the JVM/native multiplayer UI smoke setup to include the `world` module,
   build and stage its required SDL_GPU adapter, and clean its temporary workspace.
 - Added `assets/prototype/runtime/bot_ai.json` as the shared browser/CLI bot

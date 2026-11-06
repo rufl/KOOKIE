@@ -1,13 +1,15 @@
 package world
-
 import core
 import ui
+Int kutterScenePreviewMinimumExtent() { return 1 }
 Int kutterScenePreviewVerticesPerNode() { return 36 }
 Int kutterScenePreviewRotationStep() { return 15000 }
 Int kutterScenePreviewRotationSteps() { return 24 }
 Int kutterScenePreviewScaleUnit() { return 1000 }
 Int kutterScenePreviewDefaultHalfExtent() { return 2 }
-Int kutterScenePreviewMinimumExtent() { return 1 }
+Int kutterScenePreviewCatalogCapacity() { return 75 }
+Int kutterScenePreviewCatalogVertexCapacity() { return 32768 }
+Int kutterScenePreviewWorldVertexCapacity() { return 16384 }
 
 class KutterScenePreview {
     Int nodeCapacityValue
@@ -18,6 +20,19 @@ class KutterScenePreview {
     Int[] cornerZ
     Int[] rotationCos
     Int[] rotationSin
+    content.BoundedExternalGlbAssetStore catalogAssetsValue
+    content.BoundedExternalGlbModelReader catalogReaderValue
+    Int[] catalogOffsetsValue
+    Int[] catalogCountsValue
+    Bool[] catalogAttemptedValue
+    Int[] catalogXValue
+    Int[] catalogYValue
+    Int[] catalogZValue
+    Int[] catalogUValue
+    Int[] catalogVValue
+    Bool catalogCacheReadyValue
+    Int catalogVertexCountValue
+    Int catalogLoadCountValue
 
     public constructor(Int nodeCapacity) {
         nodeCapacityValue = nodeCapacity
@@ -27,6 +42,20 @@ class KutterScenePreview {
         }
         vertexCapacityValue =
             nodeCapacityValue * kutterScenePreviewVerticesPerNode()
+        catalogAssetsValue = content.BoundedExternalGlbAssetStore()
+        catalogReaderValue = content.BoundedExternalGlbModelReader()
+        catalogOffsetsValue = new Int[kutterScenePreviewCatalogCapacity()]
+        catalogCountsValue = new Int[kutterScenePreviewCatalogCapacity()]
+        catalogAttemptedValue =
+            new Bool[kutterScenePreviewCatalogCapacity()]
+        catalogXValue = new Int[0]
+        catalogYValue = new Int[0]
+        catalogZValue = new Int[0]
+        catalogUValue = new Int[0]
+        catalogVValue = new Int[0]
+        catalogCacheReadyValue = false
+        catalogVertexCountValue = 0
+        catalogLoadCountValue = 0
         editorCameraDistanceValue = cameraFollowMaximumDistance()
         cornerX = new Int[8]
         cornerY = new Int[8]
@@ -222,6 +251,106 @@ class KutterScenePreview {
             pushFace(target, resource, 2, 6, 7, 3) &&
             pushFace(target, resource, 3, 7, 4, 0)
     }
+    Bool ensureCatalogCache() {
+        if (catalogCacheReadyValue) { return true }
+        var capacity = kutterScenePreviewCatalogVertexCapacity()
+        catalogXValue = new Int[capacity]
+        catalogYValue = new Int[capacity]
+        catalogZValue = new Int[capacity]
+        catalogUValue = new Int[capacity]
+        catalogVValue = new Int[capacity]
+        catalogCacheReadyValue =
+            catalogXValue.length == capacity &&
+            catalogYValue.length == capacity &&
+            catalogZValue.length == capacity &&
+            catalogUValue.length == capacity &&
+            catalogVValue.length == capacity
+        return catalogCacheReadyValue
+    }
+    Bool loadCatalogModel(Int token) {
+        if (token < 51001 || token > 51075 ||
+            !ensureCatalogCache()) {
+            return false
+        }
+        var index = token - 51001
+        if (catalogAttemptedValue[index]) {
+            return catalogCountsValue[index] > 0
+        }
+        catalogAttemptedValue[index] = true
+        var bytes = catalogAssetsValue.catalogBytes(token)
+        if (bytes.length == 0 || !catalogReaderValue.read(bytes, 6)) {
+            return false
+        }
+        var count = catalogReaderValue.vertexCount()
+        if (count <= 0 || count >
+            kutterScenePreviewCatalogVertexCapacity() -
+                catalogVertexCountValue) {
+            catalogReaderValue.clear()
+            return false
+        }
+        catalogOffsetsValue[index] = catalogVertexCountValue
+        catalogCountsValue[index] = count
+        for (var vertex = 0; vertex < count; vertex = vertex + 1) {
+            var destination = catalogVertexCountValue + vertex
+            catalogXValue[destination] = catalogReaderValue.vertexX(vertex)
+            catalogYValue[destination] = catalogReaderValue.vertexY(vertex)
+            catalogZValue[destination] = catalogReaderValue.vertexZ(vertex)
+            catalogUValue[destination] = catalogReaderValue.vertexU(vertex)
+            catalogVValue[destination] = catalogReaderValue.vertexV(vertex)
+        }
+        catalogVertexCountValue = catalogVertexCountValue + count
+        catalogLoadCountValue = catalogLoadCountValue + 1
+        catalogReaderValue.clear()
+        return true
+    }
+    Bool stageCatalogModel(
+        FrameStaging target, BoundedKutterStudio document, Int node
+    ) {
+        var token = document.nodeAssetToken(node)
+        if (!loadCatalogModel(token)) { return false }
+        var index = token - 51001
+        var count = catalogCountsValue[index]
+        if (target.stagedCount() + count > target.vertexCapacity()) {
+            return false
+        }
+        var rotation = document.nodeRotationValue(node)
+        var steps = (rotation + kutterScenePreviewRotationStep() / 2) /
+            kutterScenePreviewRotationStep()
+        steps = steps % kutterScenePreviewRotationSteps()
+        if (steps < 0) { steps = steps + kutterScenePreviewRotationSteps() }
+        var cosine = rotationCos[steps]
+        var sine = rotationSin[steps]
+        var centerX = document.nodeXValue(node)
+        var baseY = document.nodeYValue(node)
+        var centerZ = document.nodeZValue(node)
+        var scaleX = document.nodeScaleXValue(node)
+        var scaleY = document.nodeScaleYValue(node)
+        var scaleZ = document.nodeScaleZValue(node)
+        var resource = paletteResource(document.nodeColorValue(node))
+        var offset = catalogOffsetsValue[index]
+        for (var vertex = 0; vertex < count; vertex = vertex + 1) {
+            var source = offset + vertex
+            var localX = catalogXValue[source] * scaleX / 500000
+            var localY = catalogYValue[source] * scaleY / 1000000
+            var localZ = catalogZValue[source] * scaleZ / 500000
+            var x = centerX + (localX * cosine + localZ * sine) / 1000
+            var z = centerZ + (-localX * sine + localZ * cosine) / 1000
+            if (!target.pushWorldVertex(
+                    resource, x, baseY + localY, z,
+                    catalogUValue[source], catalogVValue[source])) {
+                return false
+            }
+        }
+        return true
+    }
+    Bool stageNodeWithModel(
+        FrameStaging target, BoundedKutterStudio document, Int node
+    ) {
+        if (node < 0 || node >= document.nodeCount()) { return false }
+        if (stageCatalogModel(target, document, node)) { return true }
+        return stageNode(target, document, node)
+    }
+    Int catalogLoadCount() { return catalogLoadCountValue }
     Int clampOverviewX(Int value, Int left, Int right) {
         if (value < left) { return left }
         if (value > right) { return right }
@@ -265,7 +394,7 @@ class KutterScenePreview {
         }
         for (var node = 0; node < document.nodeCount(); node = node + 1) {
             if (document.nodeKind(node) != kutterLevelNodeGroup() &&
-                !stageNode(target, document, node)) {
+                !stageNodeWithModel(target, document, node)) {
                 target.discard()
                 return false
             }

@@ -67,9 +67,20 @@ class GameShell {
     BoundedKutterGreyboxCatalog greyboxCatalogValue
     BoundedKutterGreyboxLevel greyboxLevelValue
     BoundedKutterLevelEditor levelEditorValue
+    Int editorScaleAxisValue
     Int editorInspectorLeftValue
     Bool editorInspectorResizeActiveValue
-    Int editorScaleAxisValue
+    Int editorPaletteOffsetXValue
+    Int editorPaletteOffsetYValue
+    Int editorDockOffsetXValue
+    Int editorDockOffsetYValue
+    Int editorPanelDragValue
+    Int editorPanelDragStartXValue
+    Int editorPanelDragStartYValue
+    Int editorPanelDragOriginXValue
+    Int editorPanelDragOriginYValue
+    Int editorStageOffsetXValue
+    Int editorStageOffsetYValue
     Int editorAssetIndexValue
     Bool editorAssetBrowserOpenValue
     Int editorAssetPageValue
@@ -123,6 +134,17 @@ class GameShell {
         editorMoveArmedValue = false
         editorScenePreviewValue = KutterScenePreview(1)
         editorScaleAxisValue = 0
+        editorPaletteOffsetXValue = 0
+        editorPaletteOffsetYValue = 0
+        editorDockOffsetXValue = 0
+        editorDockOffsetYValue = 0
+        editorPanelDragValue = 0
+        editorPanelDragStartXValue = 0
+        editorPanelDragStartYValue = 0
+        editorPanelDragOriginXValue = 0
+        editorPanelDragOriginYValue = 0
+        editorStageOffsetXValue = 0
+        editorStageOffsetYValue = 0
     }
 
     Int screen() { return screenValue }
@@ -965,11 +987,31 @@ class GameShell {
     }
 
     Bool handlePointerMove(Int x, Int y) {
-        if (!editorInspectorResizeActiveValue ||
-            screenValue != gameShellScreenKutterLevel()) {
-            return false
+        if (screenValue != gameShellScreenKutterLevel()) { return false }
+        if (editorPanelDragValue == 1) {
+            var nextX = editorPanelDragOriginXValue + x - editorPanelDragStartXValue
+            var nextY = editorPanelDragOriginYValue + y - editorPanelDragStartYValue
+            if (nextX < -8) { nextX = -8 }
+            if (nextX > 143) { nextX = 143 }
+            if (nextY < -12) { nextY = -12 }
+            if (nextY > 56) { nextY = 56 }
+            editorPaletteOffsetXValue = nextX
+            editorPaletteOffsetYValue = nextY
+            return true
         }
-        var nextLeft = x
+        if (editorPanelDragValue == 2) {
+            var nextX = editorPanelDragOriginXValue + x - editorPanelDragStartXValue
+            var nextY = editorPanelDragOriginYValue + y - editorPanelDragStartYValue
+            if (nextX < -50) { nextX = -50 }
+            if (nextX > 11) { nextX = 11 }
+            if (nextY < -6) { nextY = -6 }
+            if (nextY > 56) { nextY = 56 }
+            editorDockOffsetXValue = nextX
+            editorDockOffsetYValue = nextY
+            return true
+        }
+        if (!editorInspectorResizeActiveValue) { return false }
+        var nextLeft = x - editorDockOffsetXValue
         if (nextLeft < 30) { nextLeft = 30 }
         if (nextLeft > 48) { nextLeft = 48 }
         editorInspectorLeftValue = nextLeft
@@ -977,6 +1019,10 @@ class GameShell {
     }
 
     Bool endPointerDrag() {
+        if (editorPanelDragValue != 0) {
+            editorPanelDragValue = 0
+            return true
+        }
         if (!editorInspectorResizeActiveValue) { return false }
         editorInspectorResizeActiveValue = false
         return true
@@ -1033,13 +1079,45 @@ class GameShell {
         }
         if (screenValue == gameShellScreenKutterLevel()) {
             editorHierarchyKeyboardFocusValue = false
-            if (x >= editorInspectorLeftValue - 2 &&
-                x <= editorInspectorLeftValue + 2 &&
-                y >= -94 && y <= 44) {
+            if (x >= -90 + editorPaletteOffsetXValue &&
+                x <= -45 + editorPaletteOffsetXValue &&
+                y >= 41 + editorPaletteOffsetYValue &&
+                y <= 44 + editorPaletteOffsetYValue) {
+                editorPanelDragValue = 1
+                editorPanelDragStartXValue = x
+                editorPanelDragStartYValue = y
+                editorPanelDragOriginXValue = editorPaletteOffsetXValue
+                editorPanelDragOriginYValue = editorPaletteOffsetYValue
+                return true
+            }
+            if (x >= 50 + editorDockOffsetXValue &&
+                x <= 89 + editorDockOffsetXValue &&
+                y >= 41 + editorDockOffsetYValue &&
+                y <= 44 + editorDockOffsetYValue) {
+                editorPanelDragValue = 2
+                editorPanelDragStartXValue = x
+                editorPanelDragStartYValue = y
+                editorPanelDragOriginXValue = editorDockOffsetXValue
+                editorPanelDragOriginYValue = editorDockOffsetYValue
+                return true
+            }
+            if (x >= editorInspectorLeftValue + editorDockOffsetXValue - 2 &&
+                x <= editorInspectorLeftValue + editorDockOffsetXValue + 2 &&
+                y >= -94 + editorDockOffsetYValue &&
+                y <= 44 + editorDockOffsetYValue) {
                 editorInspectorResizeActiveValue = true
                 return true
             }
-            if (x < -42) {
+            var palettePointer =
+                x >= -92 + editorPaletteOffsetXValue &&
+                x <= -43 + editorPaletteOffsetXValue &&
+                y >= -88 + editorPaletteOffsetYValue &&
+                y <= 44 + editorPaletteOffsetYValue
+            if (palettePointer) {
+                x = x - editorPaletteOffsetXValue
+                y = y - editorPaletteOffsetYValue
+            }
+            if (palettePointer && x < -42) {
                 editorMoveArmedValue = false
                 if (editorAssetBrowserOpenValue) {
                     if (y >= 30 && y <= 40) {
@@ -1100,7 +1178,16 @@ class GameShell {
                 }
                 return handleKutterLevelAction(gameShellActionActivate())
             }
-            if (x >= editorInspectorLeftValue && x <= 89) {
+            var dockPointer =
+                x >= 50 + editorDockOffsetXValue &&
+                x <= 89 + editorDockOffsetXValue &&
+                y >= -94 + editorDockOffsetYValue &&
+                y <= 44 + editorDockOffsetYValue
+            if (dockPointer) {
+                x = x - editorDockOffsetXValue
+                y = y - editorDockOffsetYValue
+            }
+            if (dockPointer && x >= 50 && x <= 89) {
                 if (y >= 34 && y <= 44) {
                     if (x >= 84) { return cycleEditorHierarchyPage(1) }
                     if (x <= 73) { return cycleEditorHierarchyPage(-1) }
@@ -1218,8 +1305,13 @@ class GameShell {
         FrameStaging target, Int resource,
         Int left, Int bottom, Int right, Int top
     ) {
+        var translatedLeft = left + editorStageOffsetXValue
+        var translatedRight = right + editorStageOffsetXValue
+        var translatedBottom = bottom + editorStageOffsetYValue
+        var translatedTop = top + editorStageOffsetYValue
         return kookieUiNativePushQuad(
-            target, resource, left, bottom, right, top)
+            target, resource, translatedLeft, translatedBottom,
+            translatedRight, translatedTop)
     }
 
     Bool pushScreenFrame(FrameStaging target) {
@@ -1301,7 +1393,8 @@ class GameShell {
     ) {
         if (scale <= 0 || color < 0 || color > 4 ||
             font < 0 || font >= uiFontCount()) { return false }
-        var safeLeft = left
+        var safeLeft = left + editorStageOffsetXValue
+        var translatedBottom = bottom + editorStageOffsetYValue
         var width = textWidth(text, scale)
         if (safeLeft < -100) { safeLeft = -100 }
         if (safeLeft + width > 100) {
@@ -1309,7 +1402,7 @@ class GameShell {
             if (safeLeft < -100) { safeLeft = -100 }
         }
         return kookieUiNativePushTextWithFont(
-            target, text, safeLeft, bottom, scale, color, font)
+            target, text, safeLeft, translatedBottom, scale, color, font)
     }
     Bool pushText(
         FrameStaging target, String text,
@@ -2012,10 +2105,11 @@ class GameShell {
                 editorInspectorLeftValue - 3, 4,
                 editorInspectorLeftValue + 2, 5) ||
             !pushText(
+                target, "MOVE", 51, 42, 1, mutedTextColor()) ||
+            !pushText(
                 target, "HIERARCHY", 51, 39, 1,
                 if (editorHierarchyKeyboardFocusValue)
                     selectedTextColor() else accentTextColor()) ||
-            !pushText(target, "<", 69, 39, 1, mutedTextColor()) ||
             !pushNumber(
                 target, editorHierarchyPageValue + 1, 73, 39, 1,
                 mutedTextColor()) ||
@@ -2193,6 +2287,8 @@ class GameShell {
     }
 
     Bool stageKutterLevel(FrameStaging target) {
+        editorStageOffsetXValue = 0
+        editorStageOffsetYValue = 0
         var normal = normalTextColor()
         var issueColor = if (levelEditorValue.validLevel())
             successTextColor() else dangerTextColor()
@@ -2208,15 +2304,35 @@ class GameShell {
             !pushText(target, "ISSUES", 22, menuSubtitleBottom(), 1, issueColor) ||
             !pushNumber(target, levelEditorValue.validationIssueCount(), 48,
                 menuSubtitleBottom(), 1, issueColor) ||
-            !pushKutterDockPanel(target, -92, -88, -43, 44, false) ||
-            !stageKutterEditorViewport(target) ||
-            !stageKutterHierarchyAndInspector(target)) {
+            !stageKutterEditorViewport(target)) {
+            return false
+        }
+        editorStageOffsetXValue = editorDockOffsetXValue
+        editorStageOffsetYValue = editorDockOffsetYValue
+        var stagedDock = stageKutterHierarchyAndInspector(target)
+        editorStageOffsetXValue = 0
+        editorStageOffsetYValue = 0
+        if (!stagedDock) { return false }
+        editorStageOffsetXValue = editorPaletteOffsetXValue
+        editorStageOffsetYValue = editorPaletteOffsetYValue
+        var stagedPalettePanel = pushKutterDockPanel(
+            target, -92, -88, -43, 44, false) &&
+            pushText(target, "MOVE", -64, 42, 1, mutedTextColor())
+        if (!stagedPalettePanel) {
+            editorStageOffsetXValue = 0
+            editorStageOffsetYValue = 0
             return false
         }
         if (editorAssetBrowserOpenValue) {
-            return stageKutterAssetBrowser(target)
+            var stagedAssets = stageKutterAssetBrowser(target)
+            editorStageOffsetXValue = 0
+            editorStageOffsetYValue = 0
+            return stagedAssets
         }
-        return stageKutterToolsPanel(target, normal)
+        var stagedTools = stageKutterToolsPanel(target, normal)
+        editorStageOffsetXValue = 0
+        editorStageOffsetYValue = 0
+        return stagedTools
     }
 
     Bool stageKutter(FrameStaging target) {

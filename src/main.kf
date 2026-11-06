@@ -9270,6 +9270,35 @@ test "Kutter scene preview stages transformed colored 3D nodes" {
         "3D preview vertices must honor position, rotation and extents")
 }
 
+test "Kutter preview caches and stages catalog meshes" {
+    var document = BoundedKutterStudio(2, 1)
+    assert(document.configure(1, 1, 1) &&
+        document.addNode(1, 0, kutterLevelToolProp(),
+            12, 0, -8, 15000, 1000) &&
+        document.setNodeAssetToken(1, 51002) &&
+        document.seal(),
+        "catalog model preview document must be valid")
+    var preview = KutterScenePreview(2)
+    var frame = FrameStaging(kutterScenePreviewWorldVertexCapacity())
+    assert(preview.stage(frame, 1, document) &&
+        frame.stagedCount() > kutterScenePreviewVerticesPerNode() &&
+        preview.catalogLoadCount() == 1 &&
+        frame.retire(1),
+        "catalog prop must stage its mesh and load it once")
+    assert(preview.stage(frame, 2, document) &&
+        frame.stagedCount() > kutterScenePreviewVerticesPerNode() &&
+        preview.catalogLoadCount() == 1 &&
+        frame.retire(2),
+        "subsequent frames must reuse cached catalog geometry")
+    var boundedFrame = FrameStaging(
+        kutterScenePreviewVerticesPerNode())
+    assert(preview.stage(boundedFrame, 3, document) &&
+        boundedFrame.stagedCount() == kutterScenePreviewVerticesPerNode() &&
+        preview.catalogLoadCount() == 1 &&
+        boundedFrame.retire(3),
+        "mesh staging beyond the frame budget must safely use the box proxy")
+
+}
 test "Kutter workspace pointer edits viewport hierarchy and inspector" {
     var shell = GameShell()
     var browserFrame = FrameStaging(shell.renderVertexCapacity())
@@ -9389,6 +9418,26 @@ test "Kutter workspace pointer edits viewport hierarchy and inspector" {
     assert(shell.stage(frame, 1) && frame.stagedCount() > 0 &&
         frame.retire(1),
         "workspace frame must stage its viewport, hierarchy and inspector")
+    assert(shell.handlePointer(-64, 42) &&
+        shell.handlePointerMove(-54, 32) &&
+        shell.endPointerDrag() &&
+        !shell.handlePointer(-50, 35) &&
+        shell.handlePointer(-50, 25) &&
+        shell.editorAssetBrowserOpen(),
+        "tool panel must move independently and retain screen-space hit targets")
+    assert(shell.handlePointer(60, 42) &&
+        shell.handlePointerMove(50, 52) &&
+        shell.endPointerDrag() &&
+        shell.handlePointer(75, 49),
+        "hierarchy and inspector panel must move and route page clicks")
+    assert(shell.handlePointer(60, 38) &&
+        shell.levelEditor().selectedNode() ==
+            shell.levelEditor().document().nodeId(0),
+        "moved hierarchy rows must select their visible node")
+    shell.handlePointer(0, -16)
+    assert(shell.levelEditor().cursorX() == 900 &&
+        shell.levelEditor().cursorZ() == 1000,
+        "moved panels must not translate viewport input coordinates")
 }
 test "Kutter move tool arms viewport placement for selected nodes" {
     var shell = GameShell()

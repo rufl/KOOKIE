@@ -7,13 +7,18 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   no navegador de assets local do Kutter. A prévia usa um renderer isolado, não
   altera a cena principal do editor e libera o modelo anterior ao trocar seleção.
 - Tornamos a barra de ferramentas e o painel de camadas/propriedades do Kutter
-  Web movíveis separadamente. Arrastar e usar as setas reposiciona os painéis
+  Web movíveis separadamente. Arrastar ou usar as setas reposiciona os painéis
   dentro da área de trabalho; a posição fica salva no navegador e **File → Reset
   panel positions** restaura o padrão.
-- Corrigimos a documentação dos renderers do Kutter: a apresentação nativa do
-  editor é uma visão 2D de cima com proxies de caixa; malhas do catálogo
-  atribuídas são renderizadas somente na viewport WebGL. O helper nativo
-  separado de preview 3D de caixas não está conectado ao caminho de apresentação.
+- Tornamos os dois painéis nativos do Kutter movíveis separadamente: arraste a
+  faixa `MOVE` da barra de ferramentas ou do painel hierarquia/inspector. As
+  posições duram pela sessão e ficam limitadas à tela; viewport e alvos de
+  clique continuam usando coordenadas da tela.
+- O passe 3D nativo do Kutter agora carrega malhas/UVs GLB atribuídas do catálogo
+  modular e usa a cor preset do nó. Não usa texturas GLB embutidas nem materiais
+  arbitrários; parser e cache agregado limitam cada geometria a 32.768 vértices,
+  com fallback de proxy quando o asset não está disponível ou excede o limite.
+  A visão geral 2D continua disponível.
 - Corrigimos a preparação do smoke de UI multiplayer para JVM/native: agora
   inclui o módulo `world`, compila e prepara o adaptador SDL_GPU necessário e
   remove o workspace temporário ao terminar.

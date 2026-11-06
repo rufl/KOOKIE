@@ -2,6 +2,7 @@ package content
 
 
 Int glbModelTargetHeightFixed() { return 2000 }
+Int glbModelMaximumExpandedVertices() { return 32768 }
 
 class BoundedExternalGlbModelReader {
     Int[] sourceValue
@@ -2181,8 +2182,10 @@ class BoundedExternalGlbModelReader {
         for (var node = 0; node < nodeCountValue; node = node + 1) {
             var mesh = nodeMesh[node]
             if (mesh < 0 || mesh >= meshCountValue) { continue }
-            for (var primitive = 0; primitive < primitiveCountValue; primitive = primitive + 1) {
-                if (primitiveMesh[primitive] != mesh || primitiveMode[primitive] != 4) {
+            for (var primitive = 0; primitive < primitiveCountValue;
+                 primitive = primitive + 1) {
+                if (primitiveMesh[primitive] != mesh ||
+                    primitiveMode[primitive] != 4) {
                     continue
                 }
                 var indices = primitiveIndex[primitive]
@@ -2190,7 +2193,9 @@ class BoundedExternalGlbModelReader {
                 var indexCount = accessorCounts[indices]
                 if (indexCount < 3 || indexCount % 3 != 0) { return -1 }
                 total = total + indexCount / 3
-                if (total > 715827882L) { return -1 }
+                if (total * 3 > glbModelMaximumExpandedVertices()) {
+                    return -1
+                }
             }
         }
         return total.toInt()
@@ -2309,7 +2314,7 @@ class BoundedExternalGlbModelReader {
 
     Bool read(Int[] source, Int model) {
         clear()
-        if (model < 1 || model > 5 || source.length < 20) {
+        if ((model < 1 || model > 6) || source.length < 20) {
             return false
         }
         sourceValue = source

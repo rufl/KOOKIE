@@ -1078,10 +1078,12 @@ namespaces and distinct IPv4 stacks. Stale, invalid or incompatible
 transactions preserve the active generation.
 The Kutter web editor also exposes the bundled Rgsdev modular greybox catalog
 with local search and collision/runtime filters; placed props retain bounded
-asset tokens and metadata. Runtime-ready catalog GLBs assigned to props load in
-the WebGL viewport with box-proxy fallback; the native viewport remains
-box-proxy-only. Kutter document schema v4 stores the validated bounded
-enemy `BoundedBehaviorProgram`; web behavior cards configure visible-target
+asset tokens and metadata. Runtime-ready modular catalog GLBs assigned to props
+load into the WebGL viewport and native 3D scene pass with box-proxy fallback.
+Native rendering uses node palette colors, not embedded GLB textures/materials;
+its parser and aggregate cache each cap expanded geometry at 32,768 vertices.
+Kutter document schema v4 stores the validated bounded enemy
+`BoundedBehaviorProgram`; web behavior cards configure visible-target
 Attack/Chase priorities and the required Investigate fallback, then install the
 program into the shared web enemy runtime. This is enemy-specific authoring,
 not arbitrary JavaScript behavior execution.

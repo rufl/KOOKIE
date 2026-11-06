@@ -894,11 +894,11 @@ scripts/package_kookie.sh --runtime native --target linux-x86_64 \
 Kutter has web and native clients backed by the same live server document; it
 is not a separate dockable desktop application. The web editor uses a compact
 creative-mode layout with a game viewport, build toolbar, and on-demand
-Layers/Properties drawer. The native surface has a model-backed 2D top-down
-overview, paginated clickable hierarchy and inspector panels, snapped viewport
-placement, and duplicate/group/ungroup/delete/recolor controls. Four hierarchy
-entries are visible per page; header arrows change pages and show the current
-page/total, while viewport selection or placement switches to the selected
+Layers/Properties drawer. The native surface has a 2D top-down box-footprint
+overview plus a separate 3D scene pass for assigned catalog meshes, paginated
+clickable hierarchy and inspector panels, snapped viewport placement, and
+duplicate/group/ungroup/delete/recolor controls. Four hierarchy entries are
+visible per page; header arrows change pages and show the current page/total,
 node's page. Click a hierarchy row to focus it; Up/Down then selects adjacent
 nodes, and Enter/Escape exits hierarchy focus.
 Viewport coordinates map to the displayed grid, and the Select tool picks the
@@ -917,20 +917,14 @@ The 2D overview draws screen-space footprints from each node's transformed box
 corners, so rotation and X/Z scale affect the colored marker shape. Y offsets
 the marker and draws a bounded elevation stem. Markers clip to viewport bounds,
 show the selected node's facing direction, and use muted/red/green fills for
-the default/first/second color presets. These are projected box proxies, not
-rendered catalog meshes.
-The native editor labels this surface `2D PROXY VIEW`; it is an overview, not an
-interactive 3D viewport. UI panels overlay the overview; it is not a clipped
-render target.
-The web asset browser searches the bundled local catalog and filters its
-75 models by solid/decorative collision or runtime readiness. Selection shows
-the model name, source path, license, collision role and runtime status.
-Runtime-ready GLBs render a live 3D preview in the asset card; assigned models
-load into the WebGL viewport, centered and fitted to the node's largest scale
-axis while preserving authored proportions. Non-runtime-ready assets keep the
-catalog type marker. Loading failures retain the box proxy. The native overview
-remains a projected box proxy. Google Image Search and Poly integrations are
-not used; arbitrary RGB material editing is not implemented.
+the default/first/second color presets. The label `2D PROXY VIEW` describes this
+overview only; a separate native 3D pass renders assigned modular catalog GLB
+geometry. It uses the node's preset palette color, not embedded GLB textures or
+materials. The parser caps a model at 32,768 expanded vertices and the preview
+cache at 32,768 vertices total; unsupported, oversized, unavailable or
+capacity-limited assets fall back to box proxies. The native renderer currently
+does not edit arbitrary RGB materials. Google Image Search and Poly integrations
+are not used.
 Clicking HEIGHT decreases/increases selected node Y by one active grid step;
 height, rotation and scale edits participate in undo/redo. Clicking ROT adjusts
 angle; SCALE minus/plus decreases/increases the selected axis in 100-unit
@@ -940,8 +934,9 @@ rotate, scale, move, undo, and redo. The Web tool palette and layers/properties
 panel can be repositioned independently by dragging their grip or focusing it
 and using arrow keys (16 px; Shift+Arrow moves 48 px). Positions persist in the
 browser and clamp to the workspace after resize; **File → Reset panel positions**
-restores defaults. This is floating repositioning, not dock/reorder; native
-controls keep their fixed placement.
+restores defaults. In the native editor, the tool and hierarchy/inspector panels
+can each be dragged independently by their `MOVE` header; their positions are
+session-local and clamped to the screen. Neither renderer supports dock/reorder.
 The web Kutter Projects dialog adds a browser-local library of up to 32 named
 snapshots. **New blank arena** creates a minimal level with one player spawn and
 saves it as a project. **Save current as** creates a copy; **Update selected**

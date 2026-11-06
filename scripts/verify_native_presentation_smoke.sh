@@ -45,11 +45,14 @@ cp -a -- "$root_dir/assets/prototype/runtime/." \
 cp -- "$root_dir/assets/prototype/manifest.json" \
   "$adapter_build_dir/assets/prototype/manifest.json"
 mkdir -p "$adapter_build_dir/assets/prototype/models/goose" \
-  "$adapter_build_dir/assets/prototype/models/cat"
+  "$adapter_build_dir/assets/prototype/models/cat" \
+  "$adapter_build_dir/assets/prototype/models/modular"
 cp -- "$root_dir/assets/prototype/models/goose/goose.glb" \
   "$adapter_build_dir/assets/prototype/models/goose/goose.glb"
 cp -- "$root_dir/assets/prototype/models/cat/cat.glb" \
   "$adapter_build_dir/assets/prototype/models/cat/cat.glb"
+cp -a -- "$root_dir/assets/prototype/models/modular/." \
+  "$adapter_build_dir/assets/prototype/models/modular/"
 cp -a -- "$root_dir/assets/audio/ui" \
   "$adapter_build_dir/assets/audio/"
 transport_key_file="$adapter_build_dir/transport.key"

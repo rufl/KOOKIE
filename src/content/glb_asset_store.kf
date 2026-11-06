@@ -34,6 +34,107 @@ class BoundedExternalGlbAssetStore {
         if (model == 5) { return "models/bomb/bomb.glb" }
         return ""
     }
+    String catalogRelativePath(Int token) {
+        if (token == 51001) { return "models/modular/arrow.glb" }
+        if (token == 51002) { return "models/modular/box.glb" }
+        if (token == 51003) { return "models/modular/coin.glb" }
+        if (token == 51004) { return "models/modular/cone.glb" }
+        if (token == 51005) { return "models/modular/cone1.glb" }
+        if (token == 51006) { return "models/modular/cone2.glb" }
+        if (token == 51007) { return "models/modular/cone3.glb" }
+        if (token == 51008) { return "models/modular/cone4.glb" }
+        if (token == 51009) { return "models/modular/cube.glb" }
+        if (token == 51010) { return "models/modular/cube4.glb" }
+        if (token == 51011) { return "models/modular/cube5.glb" }
+        if (token == 51012) { return "models/modular/cube6.glb" }
+        if (token == 51013) { return "models/modular/cube7.glb" }
+        if (token == 51014) { return "models/modular/cube8.glb" }
+        if (token == 51015) { return "models/modular/cube9.glb" }
+        if (token == 51016) { return "models/modular/cylinder.glb" }
+        if (token == 51017) { return "models/modular/cylinder1.glb" }
+        if (token == 51018) { return "models/modular/cylinder2.glb" }
+        if (token == 51019) { return "models/modular/cylinder3.glb" }
+        if (token == 51020) { return "models/modular/cylinder4.glb" }
+        if (token == 51021) { return "models/modular/cylinder5.glb" }
+        if (token == 51022) { return "models/modular/door.glb" }
+        if (token == 51023) { return "models/modular/door1.glb" }
+        if (token == 51024) { return "models/modular/door2.glb" }
+        if (token == 51025) { return "models/modular/door3.glb" }
+        if (token == 51026) { return "models/modular/fence_edge.glb" }
+        if (token == 51027) { return "models/modular/fence_wood.glb" }
+        if (token == 51028) { return "models/modular/fence.glb" }
+        if (token == 51029) { return "models/modular/fence2.glb" }
+        if (token == 51030) { return "models/modular/fence3.glb" }
+        if (token == 51031) { return "models/modular/ground_corner.glb" }
+        if (token == 51032) { return "models/modular/ground.glb" }
+        if (token == 51033) { return "models/modular/ground1.glb" }
+        if (token == 51034) { return "models/modular/key.glb" }
+        if (token == 51035) { return "models/modular/ladder.glb" }
+        if (token == 51036) { return "models/modular/ladder1.glb" }
+        if (token == 51037) { return "models/modular/pillar.glb" }
+        if (token == 51038) { return "models/modular/pillar1.glb" }
+        if (token == 51039) { return "models/modular/pillar2.glb" }
+        if (token == 51040) { return "models/modular/pillar3.glb" }
+        if (token == 51041) { return "models/modular/pillar4.glb" }
+        if (token == 51042) { return "models/modular/railing_edge.glb" }
+        if (token == 51043) { return "models/modular/railing.glb" }
+        if (token == 51044) { return "models/modular/ramp.glb" }
+        if (token == 51045) { return "models/modular/ramp1.glb" }
+        if (token == 51046) { return "models/modular/sphere.glb" }
+        if (token == 51047) { return "models/modular/sphere1.glb" }
+        if (token == 51048) { return "models/modular/sphere2.glb" }
+        if (token == 51049) { return "models/modular/spike.glb" }
+        if (token == 51050) { return "models/modular/spikes_big.glb" }
+        if (token == 51051) { return "models/modular/spikes_small.glb" }
+        if (token == 51052) { return "models/modular/stairs_corner.glb" }
+        if (token == 51053) { return "models/modular/stairs_corner1.glb" }
+        if (token == 51054) { return "models/modular/stairs.glb" }
+        if (token == 51055) { return "models/modular/stairs1.glb" }
+        if (token == 51056) { return "models/modular/stairs2.glb" }
+        if (token == 51057) { return "models/modular/toggle_switch.glb" }
+        if (token == 51058) { return "models/modular/torus.glb" }
+        if (token == 51059) { return "models/modular/wall_corner_bottom.glb" }
+        if (token == 51060) { return "models/modular/wall_corner_bottom1.glb" }
+        if (token == 51061) { return "models/modular/wall_corner_bottom2.glb" }
+        if (token == 51062) { return "models/modular/wall_corner_top.glb" }
+        if (token == 51063) { return "models/modular/wall_corner_top1.glb" }
+        if (token == 51064) { return "models/modular/wall_corner.glb" }
+        if (token == 51065) { return "models/modular/wall_corner1.glb" }
+        if (token == 51066) { return "models/modular/wall_corner4.glb" }
+        if (token == 51067) { return "models/modular/wall_door.glb" }
+        if (token == 51068) { return "models/modular/wall_door1.glb" }
+        if (token == 51069) { return "models/modular/wall_door2.glb" }
+        if (token == 51070) { return "models/modular/wall_window.glb" }
+        if (token == 51071) { return "models/modular/wall_window1.glb" }
+        if (token == 51072) { return "models/modular/wall.glb" }
+        if (token == 51073) { return "models/modular/wall1.glb" }
+        if (token == 51074) { return "models/modular/window.glb" }
+        if (token == 51075) { return "models/modular/window1.glb" }
+        return ""
+    }
+
+    Int[] readCatalogCandidate(Int token, String root) {
+        var relative = catalogRelativePath(token)
+        if (relative.length() == 0 || root.length() == 0) {
+            return new Int[0]
+        }
+        var file = File(root + "/" + relative)
+        if (!file.exists()) { return new Int[0] }
+        var bytes = file.readRange(0, maximumBytesValue + 1)
+        if (bytes.length < 20 || bytes.length > maximumBytesValue) {
+            return new Int[0]
+        }
+        return bytes
+    }
+
+    Int[] catalogBytes(Int token) {
+        if (catalogRelativePath(token).length() == 0) { return new Int[0] }
+        var bytes = readCatalogCandidate(token, "content/prototype")
+        if (bytes.length == 0) {
+            bytes = readCatalogCandidate(token, "assets/prototype")
+        }
+        return bytes
+    }
 
     Int[] readCandidate(Int model, String root) {
         var relative = relativePath(model)

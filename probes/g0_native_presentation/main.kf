@@ -996,8 +996,7 @@ class G1NativePresentation {
         editorOverlayCapacity = 2048
         editorOverlayFrame = FrameStaging(editorOverlayCapacity)
         editorScenePreview = KutterScenePreview(kutterStudioNodeCapacity())
-        editorWorldCapacity =
-            kutterStudioNodeCapacity() * kutterScenePreviewVerticesPerNode()
+        editorWorldCapacity = kutterScenePreviewWorldVertexCapacity()
         editorWorldFrame = FrameStaging(editorWorldCapacity)
 
 
