@@ -13,6 +13,8 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   top-down box-proxy overview; assigned catalog meshes render in the WebGL
   viewport only. The separate native 3D box-preview helper is not wired into
   the editor presentation path.
+- Fixed the JVM/native multiplayer UI smoke setup to include the `world` module,
+  build and stage its required SDL_GPU adapter, and clean its temporary workspace.
 - Added `assets/prototype/runtime/bot_ai.json` as the shared browser/CLI bot
   tuning contract. Profiles, goal persistence, target focus, pickup utility,
   roaming, retreat, combat timing/ranges, movement bounds, team sizes, and

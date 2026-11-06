@@ -810,7 +810,8 @@ maior eixo de escala do nó, preservando as proporções originais. Assets sem
 prontidão para runtime mantêm o marcador de tipo do catálogo; falhas de
 carregamento mantêm o proxy de caixa. A apresentação nativa do Kutter é
 atualmente uma visão geral 2D de cima, com footprints limitados de proxies de
-caixa; ela não renderiza malhas do catálogo nem um passe 3D. O helper separado
+caixa; ela não renderiza malhas do catálogo nem um passe 3D. O cabeçalho da
+superfície identifica-a como `2D PROXY VIEW`. O helper separado
 `KutterScenePreview` para staging de caixas 3D não está conectado a esse caminho
 de apresentação. Não há integração com Google Image Search nem Poly; edição
 arbitrária de materiais RGB não está implementada.

@@ -14,6 +14,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   editor é uma visão 2D de cima com proxies de caixa; malhas do catálogo
   atribuídas são renderizadas somente na viewport WebGL. O helper nativo
   separado de preview 3D de caixas não está conectado ao caminho de apresentação.
+- Corrigimos a preparação do smoke de UI multiplayer para JVM/native: agora
+  inclui o módulo `world`, compila e prepara o adaptador SDL_GPU necessário e
+  remove o workspace temporário ao terminar.
 - Adicionamos `assets/prototype/runtime/bot_ai.json` como contrato único de
   ajuste da IA nos clientes web e CLI. Perfis, persistência de metas, foco em
   alvos, utilidade de pickups, exploração, recuo, alcances/recargas de combate,
