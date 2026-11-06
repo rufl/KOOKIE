@@ -9357,16 +9357,19 @@ test "Kutter workspace pointer edits viewport hierarchy and inspector", "kutter-
         shell.handlePointer(0, -16) &&
         shell.levelEditor().nodeCount() == 2 &&
         shell.levelEditor().document().nodeAssetToken(1) ==
-            shell.selectedEditorAssetToken() &&
-        shell.handlePointer(-50, 35) &&
+            shell.selectedEditorAssetToken(),
+        "editor pointer setup must create an asset-linked prop")
+    assert(shell.handlePointer(-50, 35) &&
         shell.editorAssetBrowserOpen() &&
         shell.handlePointer(-80, -80) &&
         shell.selectedEditorAssetToken() ==
-            shell.greyboxCatalog().assetToken(7) &&
-        shell.stage(browserFrame, 10) &&
+            shell.greyboxCatalog().assetToken(7),
+        "asset browser pointer must select its seventh catalog entry")
+    assert(shell.stage(browserFrame, 10) &&
         browserFrame.stagedCount() > 0 &&
-        browserFrame.retire(10) &&
-        shell.handlePointer(-80, -67) &&
+        browserFrame.retire(10),
+        "asset browser preview must stage and retire a frame")
+    assert(shell.handlePointer(-80, -67) &&
         shell.selectedEditorAssetToken() ==
             shell.greyboxCatalog().assetToken(0) &&
         shell.handlePointer(-60, 9) &&
@@ -9384,7 +9387,7 @@ test "Kutter workspace pointer edits viewport hierarchy and inspector", "kutter-
         shell.handlePointer(-80, 35) &&
         shell.handlePointer(0, -16) &&
         shell.levelEditor().selectedNode() == 2,
-        "viewport placement persists the selected catalog token and select mode picks the authored node")
+        "viewport placement persists asset tokens and select mode picks the node")
     assert(shell.levelNodeLabel(0) == "PLAYER" &&
         shell.levelNodeLabel(1) == "PROP",
         "hierarchy rows must identify each authored node kind")
