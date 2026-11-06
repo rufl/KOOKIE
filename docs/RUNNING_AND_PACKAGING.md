@@ -916,15 +916,15 @@ selected node to the snapped cursor position. Escape cancels armed move mode.
 The 2D overview draws screen-space footprints from each node's transformed box
 corners, so rotation and X/Z scale affect the colored marker shape. Y offsets
 the marker and draws a bounded elevation stem. Markers clip to viewport bounds,
-show the selected node's facing direction, and use muted/red/green fills for
-the default/first/second color presets. The label `2D PROXY VIEW` describes this
+show the selected node's facing direction, and use the same 16-entry quantized
+palette as the native 3D pass; the selected marker keeps an accent outline and
+shows its material color in the center. The label `2D PROXY VIEW` describes this
 overview only; a separate native 3D pass renders assigned modular catalog GLB
-geometry. It uses the node's preset palette color, not embedded GLB textures or
-materials. The parser caps a model at 32,768 expanded vertices and the preview
-cache at 32,768 vertices total; unsupported, oversized, unavailable or
-capacity-limited assets fall back to box proxies. The native renderer currently
-does not edit arbitrary RGB materials. Google Image Search and Poly integrations
-are not used.
+geometry with that node palette color, not embedded GLB textures or materials.
+The parser caps each model at 32,768 expanded vertices and the preview cache at
+32,768 vertices total; unsupported, oversized, unavailable or capacity-limited
+assets fall back to box proxies. Google Image Search and Poly integrations are
+not used.
 Clicking HEIGHT decreases/increases selected node Y by one active grid step;
 height, rotation and scale edits participate in undo/redo. Clicking ROT adjusts
 steps, while clicking its label cycles X/Y/Z. C cycles all 16 colors in the

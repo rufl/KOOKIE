@@ -9563,32 +9563,35 @@ test "Kutter overview markers reflect node scale" {
     assert(scaledMarkerFound && rotatedFacingFound && rotatedFootprintFound &&
         scaled.retire(2),
         "overview footprint, marker size and facing direction must follow transforms")
+    var previewPalette = KutterScenePreview(1)
     assert(shell.levelEditor().recolorSelected(16711615),
         "selected-node recoloring must succeed")
     var magenta = FrameStaging(shell.renderVertexCapacity())
     assert(shell.stage(magenta, 3), "recolored scene must stage")
     var magentaMarkerFound = false
     for (var vertex = 0; vertex < magenta.stagedCount(); vertex = vertex + 1) {
-        if (magenta.resourceAt(vertex) == kookieUiNativeResourceDanger() &&
+        if (magenta.resourceAt(vertex) ==
+                previewPalette.paletteResource(16711615) &&
             magenta.xAt(vertex) == -34 && magenta.yAt(vertex) == -66) {
             magentaMarkerFound = true
         }
     }
     assert(magentaMarkerFound && magenta.retire(3),
-        "overview marker fill must reflect the first color preset")
+        "overview marker must use the selected node's palette color")
     assert(shell.levelEditor().recolorSelected(16776960),
         "second marker color must be assignable")
     var yellow = FrameStaging(shell.renderVertexCapacity())
     assert(shell.stage(yellow, 4), "second recolored scene must stage")
     var yellowMarkerFound = false
     for (var vertex = 0; vertex < yellow.stagedCount(); vertex = vertex + 1) {
-        if (yellow.resourceAt(vertex) == kookieUiNativeResourceSuccess() &&
+        if (yellow.resourceAt(vertex) ==
+                previewPalette.paletteResource(16776960) &&
             yellow.xAt(vertex) == -34 && yellow.yAt(vertex) == -66) {
             yellowMarkerFound = true
         }
     }
     assert(yellowMarkerFound && yellow.retire(4),
-        "overview marker fill must follow the second color preset")
+        "overview marker must match the native renderer palette")
     assert(shell.levelEditor().setCursor(-1000000, -1000000) &&
         shell.levelEditor().moveSelectedToCursor(),
         "selected nodes must support moving beyond overview bounds")

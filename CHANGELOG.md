@@ -9,6 +9,10 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Expanded the native Kutter inspector's color control from two presets to all
   16 colors supported by its renderer palette. Native color remains quantized;
   arbitrary RGB material editing is still Web-only.
+- Synchronized native Kutter's 2D overview marker fills with the same 16-entry
+  color palette used by its 3D pass. Selected markers retain the accent outline
+  while their center shows the node's palette color.
+
 
 - Made the Web Kutter tool palette and layers/properties panel independently
   movable. Dragging or arrow-key movement uses workspace-clamped, browser-local

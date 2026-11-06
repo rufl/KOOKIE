@@ -809,13 +809,15 @@ modelos atribuídos são carregados na viewport WebGL, centralizados e ajustados
 maior eixo de escala do nó, preservando as proporções originais. Assets sem
 prontidão para runtime mantêm o marcador de tipo do catálogo; falhas de
 carregamento mantêm o proxy de caixa. A visão geral nativa continua sendo 2D,
-com footprints de proxies de caixa; o rótulo `2D PROXY VIEW` descreve apenas
-essa visão. Um passe 3D nativo separado renderiza a geometria GLB atribuída do
-catálogo modular, usando a cor preset do nó, sem as texturas ou materiais GLB
-embutidos. O parser limita cada modelo a 32.768 vértices expandidos e o cache
-total a 32.768 vértices; assets incompatíveis, grandes demais, indisponíveis ou
-sem espaço no frame usam proxies de caixa. O botão `C` alterna entre as 16 cores
-quantizadas disponíveis na paleta nativa; o editor Web mantém edição RGB arbitrária.
+com footprints de proxies de caixa coloridos pela mesma paleta quantizada de 16
+cores do passe 3D; o marcador selecionado mantém contorno de destaque e exibe a
+cor do material no centro. O rótulo `2D PROXY VIEW` descreve apenas essa visão.
+Um passe 3D nativo separado renderiza a geometria GLB atribuída do catálogo
+modular, usando a cor preset do nó, sem as texturas ou materiais GLB embutidos.
+O parser limita cada modelo a 32.768 vértices expandidos e o cache total a
+32.768 vértices; assets incompatíveis, grandes demais, indisponíveis ou sem espaço
+no frame usam proxies de caixa. O botão `C` alterna entre as 16 cores quantizadas
+disponíveis na paleta nativa; o editor Web mantém edição RGB arbitrária.
 Os painéis de ferramentas e de hierarquia/inspector do editor nativo podem ser
 movidos independentemente arrastando o cabeçalho `MOVE`; suas posições duram
 apenas pela sessão e ficam limitadas à tela. Na Web, barra de ferramentas e

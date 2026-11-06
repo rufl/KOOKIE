@@ -1998,12 +1998,7 @@ class GameShell {
                 var selected = levelEditorValue.nodeId(index) ==
                     levelEditorValue.selectedNode()
                 var color = levelEditorValue.document().nodeColorValue(index)
-                var marker = kookieUiNativeResourceMuted()
-                if (color == 16711615) {
-                    marker = kookieUiNativeResourceDanger()
-                } else if (color == 16776960) {
-                    marker = kookieUiNativeResourceSuccess()
-                }
+                var marker = editorScenePreviewValue.paletteResource(color)
                 if (selected) {
                     marker = themeValue.selectedPanelResource()
                 }
@@ -2034,12 +2029,8 @@ class GameShell {
                 }
                 if (selected && markerX >= -39 && markerX <= 43 &&
                     markerY >= -75 && markerY <= 42) {
-                    var fill = kookieUiNativeResourceMuted()
-                    if (color == 16711615) {
-                        fill = kookieUiNativeResourceDanger()
-                    } else if (color == 16776960) {
-                        fill = kookieUiNativeResourceSuccess()
-                    }
+                    var fill =
+                        editorScenePreviewValue.paletteResource(color)
                     if (!pushQuad(
                             target, fill, markerX, markerY,
                             markerX + 1, markerY + 1)) {
