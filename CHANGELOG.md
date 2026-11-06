@@ -3,6 +3,9 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Fixed native Kutter Load on a missing project file; failed reads now preserve
+  the live document without throwing. Dock hit targets now take precedence over
+  Save/Load when a moved hierarchy panel overlaps their screen-space buttons.
 - Added native Kutter **SAVE**/**LOAD** buttons for the canonical document at
   `kutter-project.kutter` in the process working directory. Invalid or missing
   loads preserve the live editor; saves overwrite the single file.

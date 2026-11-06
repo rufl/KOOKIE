@@ -3,6 +3,9 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Corrigimos o Load nativo do Kutter quando o arquivo do projeto não existe:
+  a leitura falha sem exceção e preserva o documento ativo. Os alvos do painel
+  hierarquia agora têm prioridade sobre Save/Load quando há sobreposição na tela.
 - Adicionamos botões nativos **SAVE**/**LOAD** para o documento canônico em
   `kutter-project.kutter`, no diretório de trabalho do processo. Load inválido
   ou ausente preserva o editor; Save sobrescreve esse único arquivo.

@@ -1107,10 +1107,6 @@ class GameShell {
         }
         if (screenValue == gameShellScreenKutterLevel()) {
             editorHierarchyKeyboardFocusValue = false
-            if (y >= 47 && y <= 57) {
-                if (x >= 50 && x <= 68) { return saveEditorProject() }
-                if (x >= 70 && x <= 88) { return loadEditorProject() }
-            }
             if (x >= -90 + editorPaletteOffsetXValue &&
                 x <= -45 + editorPaletteOffsetXValue &&
                 y >= 41 + editorPaletteOffsetYValue &&
@@ -1288,6 +1284,10 @@ class GameShell {
                         levelEditorValue.removeSelected())
                 }
                 return false
+            }
+            if (y >= 47 && y <= 57) {
+                if (x >= 50 && x <= 68) { return saveEditorProject() }
+                if (x >= 70 && x <= 88) { return loadEditorProject() }
             }
             if (x >= -39 && x < editorInspectorLeftValue &&
                 y >= -67 && y <= 37) {

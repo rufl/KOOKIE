@@ -19,9 +19,11 @@ class BoundedKutterStudioFileStore {
     }
 
     Bool load(BoundedKutterStudio studio, String path) {
+        if (path.length() <= 0) { return false }
         var bytes = File(path).readRange(
             0, studio.encodedCapacity() * 4 + 1)
-        if (bytes.length <= 0 || bytes.length % 4 != 0 ||
+        if (bytes == null || bytes.length <= 0 ||
+            bytes.length % 4 != 0 ||
             bytes.length > studio.encodedCapacity() * 4) {
             return false
         }

@@ -9178,6 +9178,10 @@ test "native Kutter file controls save and safely load the working project", "ku
         frame.retire(1),
         "native file controls must appear in a staged editor frame")
     var editor = shell.levelEditor()
+    assert(!shell.loadEditorProject() &&
+        shell.editorFileStatus() == "LOAD FAILED" &&
+        editor.nodeCount() == 1,
+        "missing project file must fail safely and preserve the live document")
     assert(editor.cycleTool(1) &&
         editor.moveCursor(0, 1) &&
         editor.applyTool() &&
