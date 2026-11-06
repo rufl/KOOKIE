@@ -3,6 +3,10 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Expandimos o controle de cor do inspector nativo do Kutter de dois presets
+  para as 16 cores suportadas pela paleta do renderer. A cor nativa continua
+  quantizada; materiais RGB arbitrários continuam exclusivos da Web.
+
 - Adicionamos prévias 3D ao vivo, via WebGL, para modelos prontos para runtime
   no navegador de assets local do Kutter. A prévia usa um renderer isolado, não
   altera a cena principal do editor e libera o modelo anterior ao trocar seleção.

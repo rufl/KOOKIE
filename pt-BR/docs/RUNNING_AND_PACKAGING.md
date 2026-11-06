@@ -814,8 +814,8 @@ essa visão. Um passe 3D nativo separado renderiza a geometria GLB atribuída do
 catálogo modular, usando a cor preset do nó, sem as texturas ou materiais GLB
 embutidos. O parser limita cada modelo a 32.768 vértices expandidos e o cache
 total a 32.768 vértices; assets incompatíveis, grandes demais, indisponíveis ou
-sem espaço no frame usam proxies de caixa. O renderer nativo não edita materiais
-RGB arbitrários. Não há integração com Google Image Search nem Poly.
+sem espaço no frame usam proxies de caixa. O botão `C` alterna entre as 16 cores
+quantizadas disponíveis na paleta nativa; o editor Web mantém edição RGB arbitrária.
 Os painéis de ferramentas e de hierarquia/inspector do editor nativo podem ser
 movidos independentemente arrastando o cabeçalho `MOVE`; suas posições duram
 apenas pela sessão e ficam limitadas à tela. Na Web, barra de ferramentas e
