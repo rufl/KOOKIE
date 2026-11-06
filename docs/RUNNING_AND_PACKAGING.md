@@ -600,9 +600,10 @@ its dedicated Zig process, so uploads up to the 8 MiB screenshot limit bypass
 the gameplay adapter's 8 KiB HTTP request buffer. `/kutter/session` routes to
 the separate Kof editor-service process on port `8768`. Browser and native
 editors share one in-memory canonical document there and broadcast edits to
-each other. Save/export produces the canonical `.kutter` file; server-side
-persistence and automatic loading into gameplay are not implemented. The Kof
-protocol has no authentication, so Tailscale ACLs are the access boundary.
+each other. Save/export produces the canonical `.kutter` file. Server persistence
+is optional via `KOOKIE_KUTTER_PROJECT_FILE` (unset in this preview); it restores
+the editor document on server restart but does not load projects into gameplay.
+The Kof protocol has no authentication, so Tailscale ACLs are the access boundary.
 Tailscale Serve terminates TLS; both Kof services remain TCP-only. The preview
 requires Zig 0.17.0; Node.js is not a backend runtime dependency.
 
