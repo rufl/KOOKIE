@@ -187,6 +187,9 @@ def main():
     project_path = os.path.join(project_dir.name, "project.kutter")
     env = dict(os.environ, KOOKIE_WEB_PORT=str(port),
                KOOKIE_KUTTER_PROJECT_FILE=project_path)
+    library_dir = os.path.join(os.path.dirname(binary), "lib")
+    env["LD_LIBRARY_PATH"] = os.pathsep.join(
+        filter(None, (library_dir, env.get("LD_LIBRARY_PATH", ""))))
     process = subprocess.Popen([binary], cwd=os.path.dirname(binary), env=env,
                                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     clients = []
