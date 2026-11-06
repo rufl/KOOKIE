@@ -20,6 +20,13 @@ extern "./lib/libkookie_web_server.so" kookie_web_server_close(): Bool
 extern "./lib/libkookie_web_server.so" kookie_web_server_monotonic_nanoseconds(): Long
 extern "./lib/libkookie_web_server.so" kookie_web_server_port(): Int
 extern "./lib/libkookie_web_server.so" kookie_web_server_max_connections(): Int
+extern "./lib/libkookie_web_server.so" kookie_web_server_kutter_project_enabled(): Bool
+extern "./lib/libkookie_web_server.so" kookie_web_server_kutter_project_load_begin(): Int
+extern "./lib/libkookie_web_server.so" kookie_web_server_kutter_project_load_word(Int index): Int
+extern "./lib/libkookie_web_server.so" kookie_web_server_kutter_project_save_begin(Int wordCount): Bool
+extern "./lib/libkookie_web_server.so" kookie_web_server_kutter_project_save_word(Int index, Int value): Bool
+extern "./lib/libkookie_web_server.so" kookie_web_server_kutter_project_save_cancel(): Bool
+extern "./lib/libkookie_web_server.so" kookie_web_server_kutter_project_save_commit(): Bool
 
 Int webMaximumRequestBytes() { return 8192 }
 Int webMaximumWebSocketPayloadBytes() { return 1296 }
@@ -602,6 +609,36 @@ class WebServerMetrics {
             "kookie_gateway_snapshot_send_work_nanoseconds", 4)
         return body
     }
+
+}
+Bool webRestoreKutterProject(WebServerMetrics metrics) {
+    var wordCount = kookie_web_server_kutter_project_load_begin()
+    if (wordCount == -2 || wordCount == 0) { return true }
+    if (wordCount < 0 || wordCount > metrics.kutterImportWords.length) {
+        return false
+    }
+    var words = new Int[wordCount]
+    for (var index = 0; index < wordCount; index = index + 1) {
+        words[index] = kookie_web_server_kutter_project_load_word(index)
+    }
+    return metrics.kutterEditor.importDocument(words)
+}
+Bool webPersistKutterProject(WebServerMetrics metrics) {
+    if (!kookie_web_server_kutter_project_enabled()) { return true }
+    var document = metrics.kutterEditor.document()
+    if (!document.validate() || !document.encode()) { return false }
+    var wordCount = document.encodedLength()
+    if (!kookie_web_server_kutter_project_save_begin(wordCount)) {
+        return false
+    }
+    for (var index = 0; index < wordCount; index = index + 1) {
+        if (!kookie_web_server_kutter_project_save_word(
+                index, document.encodedWord(index))) {
+            kookie_web_server_kutter_project_save_cancel()
+            return false
+        }
+    }
+    return kookie_web_server_kutter_project_save_commit()
 }
 Int[] webKutterResponse(
     WebServerMetrics metrics, Int sequence, Int command, Int status,
@@ -797,6 +834,11 @@ Bool webHandleKutter(WebServerMetrics metrics, Int slot, WebSessionFrame frame) 
         }
     } else {
         return false
+    }
+    var documentChanged = accepted &&
+        metrics.kutterEditor.document().checksum() != beforeChecksum
+    if (documentChanged && !webPersistKutterProject(metrics)) {
+        println("KOOKIE Kutter project persistence failed; live document remains in memory")
     }
     var sent = webSendKutterState(
         metrics, slot, frame.sequence(), command, if (accepted) 0 else 1)
@@ -1691,9 +1733,21 @@ main() {
     var port = kookie_web_server_port()
     if (!kookie_web_server_open(port)) { println("KOOKIE Kof web server bind rejected"); process.exit(1) }
     var metrics = WebServerMetrics()
+    if (!webRestoreKutterProject(metrics)) {
+        println("KOOKIE Kutter project file is invalid; server startup aborted")
+        kookie_web_server_close()
+        process.exit(1)
+    }
     if (!metrics.simulation.configure(true, false)) {
         println("KOOKIE multiplayer simulation setup failed")
         metrics.simulation.destroyBox3DArena()
+        kookie_web_server_close()
+        process.exit(1)
+    }
+    if (metrics.kutterEditor.document().behaviorWordCount() >= 18 &&
+        !metrics.simulation.combat.installEnemyBehaviorProgram(
+            metrics.kutterEditor.document().behaviorProgram())) {
+        println("KOOKIE persisted Kutter enemy behavior could not be installed")
         kookie_web_server_close()
         process.exit(1)
     }

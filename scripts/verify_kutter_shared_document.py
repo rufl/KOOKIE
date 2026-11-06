@@ -9,6 +9,7 @@ import subprocess
 import sys
 import time
 import urllib.request
+import tempfile
 
 PROTOCOL = 2
 KIND_HELLO = 1
@@ -164,28 +165,34 @@ class KutterClient:
 def health(port):
     with urllib.request.urlopen(f"http://127.0.0.1:{port}/healthz", timeout=3) as response:
         return response.read()
+def wait_server(process, port):
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            raise AssertionError("Kof server exited: " +
+                                 process.stderr.read().decode(errors="replace"))
+        try:
+            if b'"status":"ok"' in health(port):
+                return
+        except OSError:
+            time.sleep(0.05)
+    raise AssertionError("Kof server did not become healthy")
+
 
 
 def main():
     binary = os.path.abspath(sys.argv[1])
     port = int(sys.argv[2])
-    env = dict(os.environ, KOOKIE_WEB_PORT=str(port))
+    project_dir = tempfile.TemporaryDirectory(prefix="kookie-kutter-project-")
+    project_path = os.path.join(project_dir.name, "project.kutter")
+    env = dict(os.environ, KOOKIE_WEB_PORT=str(port),
+               KOOKIE_KUTTER_PROJECT_FILE=project_path)
     process = subprocess.Popen([binary], cwd=os.path.dirname(binary), env=env,
                                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     clients = []
     try:
-        deadline = time.monotonic() + 10
-        while time.monotonic() < deadline:
-            if process.poll() is not None:
-                raise AssertionError("Kof server exited: " +
-                                     process.stderr.read().decode(errors="replace"))
-            try:
-                if b'"status":"ok"' in health(port):
-                    break
-            except OSError:
-                time.sleep(0.05)
-        else:
-            raise AssertionError("Kof server did not become healthy")
+        wait_server(process, port)
+
 
         first = KutterClient(port)
         second = KutterClient(port)
@@ -250,17 +257,31 @@ def main():
         assert 6 in actions and 7 not in actions and 8 in actions
         assert second.request(COMMAND_GET) == configured
         assert first.request(COMMAND_INSTALL_BEHAVIOR) == configured
-        print("KOOKIE shared Kutter document and enemy behavior cards passed")
+        assert os.path.isfile(project_path)
+        for client in clients:
+            client.close()
+        clients.clear()
+        process.terminate()
+        process.wait(timeout=5)
+        process = subprocess.Popen(
+            [binary], cwd=os.path.dirname(binary), env=env,
+            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        wait_server(process, port)
+        restored = KutterClient(port)
+        clients.append(restored)
+        assert restored.request(COMMAND_GET) == configured
+        print("KOOKIE shared Kutter document persistence and enemy behavior passed")
     finally:
         for client in clients:
             client.close()
-        process.terminate()
-        try:
-            process.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait()
-
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+        project_dir.cleanup()
 
 if __name__ == "__main__":
     main()

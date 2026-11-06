@@ -3,6 +3,10 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Added optional disk persistence for the shared Kutter web-server document via
+  `KOOKIE_KUTTER_PROJECT_FILE`. Startup restores and validates the canonical
+  `.kutter` file; successful document edits replace it atomically. Persistence
+  remains disabled when the variable is unset.
 - Added live WebGL previews for runtime-ready models in Kutter's bundled asset
   browser. The preview uses an isolated lightweight renderer, leaves the main
   editor scene unchanged, and releases the previous model when selection changes.

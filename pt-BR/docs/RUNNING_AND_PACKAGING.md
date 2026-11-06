@@ -794,12 +794,23 @@ um spawn de jogador e salva como projeto. **Save current as** cria uma cópia;
 **Update selected** substitui o snapshot escolhido; **Load selected** valida e
 importa o documento `.kutter` canônico pelo Kof; **Export selected** baixa o
 mesmo formato binário; **Delete** remove apenas a cópia local. Carregar ou criar
-um projeto substitui o único documento em memória compartilhado do servidor e
-transmite a alteração aos editores conectados. Isso não é persistência no
-servidor, seletor de templates ou biblioteca sincronizada na nuvem. O
-armazenamento depende da origem e do perfil do navegador; exporte projetos
-importantes como arquivos `.kutter`. O menu File continua oferecendo
+um projeto substitui o único documento compartilhado em memória do servidor e
+transmite a alteração aos editores conectados. Os snapshots do navegador não
+são persistência no servidor, seletor de templates ou armazenamento sincronizado
+na nuvem. O armazenamento depende da origem e do perfil do navegador; exporte
+projetos importantes como arquivos `.kutter`. O menu File continua oferecendo
 importação e exportação do documento ativo.
+
+O servidor web também pode persistir seu único documento Kutter compartilhado
+entre reinicializações. Defina `KOOKIE_KUTTER_PROJECT_FILE` como o caminho de um
+arquivo `.kutter` gravável antes de iniciar `kookie-web-server`; o diretório pai
+precisa existir. Sem a variável, a persistência no servidor fica desativada. O
+servidor restaura e valida o arquivo antes de aceitar o estado do editor; um
+arquivo inválido aborta a inicialização, sem substituí-lo silenciosamente.
+Cada alteração canônica bem-sucedida é gravada em um arquivo temporário no mesmo
+diretório e renomeada atomicamente. Falhas de gravação são registradas; o
+documento em memória continua utilizável, mas a edição não sobreviverá a uma
+reinicialização. Mantenha backup e restrinja a gravação ao operador do servidor.
 
 O navegador de assets do Kutter pesquisa o catálogo local empacotado e filtra
 os 75 modelos por colisão sólida/decorativa ou prontidão para runtime. A seleção
@@ -835,9 +846,8 @@ runtime de inimigos compartilhado do servidor web. **Install saved** reinstala
 o programa salvo após reiniciar o runtime. É um editor visual específico para
 IA inimiga, não o sistema de behaviors JavaScript arbitrários do GBNG; não edita
 lógica de jogadores nem executa código arbitrário. Cartões e modelos vinculados
-persistem nos snapshots locais e na exportação/importação `.kutter`. O documento
-segue compartilhado apenas em memória no servidor editor Kof; não há gravação
-automática em disco.
+persistem nos snapshots locais e na exportação/importação `.kutter`. A gravação
+em disco no servidor é opcional, conforme descrito acima.
 
 ## Dependências de desenvolvimento SDL3/SDL_mixer
 

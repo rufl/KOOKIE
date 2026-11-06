@@ -945,10 +945,22 @@ replaces that snapshot; **Load selected** validates and imports its canonical
 `.kutter` document through Kof; **Export selected** downloads the same binary
 format; **Delete** removes only the browser-local copy. Loading or creating a
 project replaces the one shared in-memory server document and broadcasts it to
-connected editors. This is not server-side project persistence, a template
-chooser, or a cloud-synced library. Browser storage is origin/profile-specific;
+connected editors. Browser snapshots are not server persistence, a template
+chooser, or cloud-synced storage. Browser storage is origin/profile-specific;
 export important projects as `.kutter` files. The File menu retains
 import/export of the live document.
+
+The web server can also persist its one shared Kutter document across restarts.
+Set `KOOKIE_KUTTER_PROJECT_FILE` to a writable `.kutter` file path before
+launching `kookie-web-server`; the parent directory must already exist. With
+the variable unset, server persistence is disabled. The server restores and
+validates the configured file before accepting editor state; an invalid saved
+file aborts startup rather than silently replacing it. Each successful
+canonical document change is written to a same-directory temporary file and
+atomically renamed. A failed write is logged; the current in-memory document
+remains usable, but that edit will not survive a restart. Keep the file backed
+up and writable only by the server operator.
+
 The web inspector also edits three bounded enemy-AI cards, in priority order:
 Attack visible targets in attack range, Chase visible targets in perception
 range, then the required Investigate fallback. Attack and Chase may be disabled.
@@ -958,8 +970,8 @@ runtime. **Install saved** reapplies a stored program after a runtime restart.
 This is an enemy-specific visual card editor, not GBNG's arbitrary JavaScript
 behavior system; it does not author player logic or provide arbitrary code
 execution. Card and model selections persist through local project snapshots
-and `.kutter` export/import. The document remains shared in memory on the Kof
-editor server; it is not automatic disk persistence.
+and `.kutter` export/import. Server persistence is optional as described above.
+
 
 The Windows x64 game package is a portable directory/archive with runtime
 dependencies, not a single-file executable; packaging requires a verified Kof

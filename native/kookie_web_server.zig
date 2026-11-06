@@ -428,6 +428,145 @@ export fn kookie_web_server_port() callconv(.c) c_int {
 }
 export fn kookie_web_server_max_connections() callconv(.c) c_int { return NC; }
 
+const KUTTER_PROJECT_MAX_BYTES = 65536;
+const KUTTER_PROJECT_MAX_WORDS = KUTTER_PROJECT_MAX_BYTES / 4;
+var kutter_project_load: [KUTTER_PROJECT_MAX_BYTES]u8 = undefined;
+var kutter_project_stage: [KUTTER_PROJECT_MAX_BYTES]u8 = undefined;
+var kutter_project_written: [KUTTER_PROJECT_MAX_WORDS]bool = undefined;
+var kutter_project_load_length: usize = 0;
+var kutter_project_stage_length: usize = 0;
+var kutter_project_stage_open = false;
+var kutter_project_temp_sequence: u32 = 0;
+
+fn kutterProjectPath() ?[:0]const u8 {
+    const value = c.getenv("KOOKIE_KUTTER_PROJECT_FILE") orelse return null;
+    const path = std.mem.span(value);
+    if (path.len == 0 or path.len >= 4096) return null;
+    return path;
+}
+
+export fn kookie_web_server_kutter_project_enabled() callconv(.c) bool {
+    return kutterProjectPath() != null;
+}
+
+export fn kookie_web_server_kutter_project_load_begin() callconv(.c) c_int {
+    kutter_project_load_length = 0;
+    const path = kutterProjectPath() orelse {
+        if (c.getenv("KOOKIE_KUTTER_PROJECT_FILE") == null) return -2;
+        return -1;
+    };
+    const io = std.Io.Threaded.global_single_threaded.io();
+    const bytes = std.Io.Dir.cwd().readFileAlloc(
+        io, path, std.heap.page_allocator,
+        .limited(KUTTER_PROJECT_MAX_BYTES),
+    ) catch |err| {
+        if (err == error.FileNotFound) return 0;
+        return -1;
+    };
+    defer std.heap.page_allocator.free(bytes);
+    if (bytes.len == 0 or bytes.len % 4 != 0) return -1;
+    @memcpy(kutter_project_load[0..bytes.len], bytes);
+    kutter_project_load_length = bytes.len;
+    return @intCast(bytes.len / 4);
+}
+
+export fn kookie_web_server_kutter_project_load_word(index: c_int) callconv(.c) c_int {
+    if (index < 0 or @as(usize, @intCast(index)) * 4 + 4 > kutter_project_load_length) {
+        return 0;
+    }
+    const offset: usize = @intCast(index * 4);
+    const bits = @as(u32, kutter_project_load[offset]) |
+        (@as(u32, kutter_project_load[offset + 1]) << 8) |
+        (@as(u32, kutter_project_load[offset + 2]) << 16) |
+        (@as(u32, kutter_project_load[offset + 3]) << 24);
+    return @bitCast(bits);
+}
+
+export fn kookie_web_server_kutter_project_save_begin(word_count: c_int) callconv(.c) bool {
+    if (kutter_project_stage_open or word_count <= 0 or
+        @as(usize, @intCast(word_count)) > KUTTER_PROJECT_MAX_WORDS or
+        kutterProjectPath() == null) return false;
+    kutter_project_stage_length = @as(usize, @intCast(word_count)) * 4;
+    @memset(kutter_project_written[0..@intCast(word_count)], false);
+    kutter_project_stage_open = true;
+    return true;
+}
+
+export fn kookie_web_server_kutter_project_save_word(
+    index: c_int, value: c_int
+) callconv(.c) bool {
+    if (!kutter_project_stage_open or index < 0 or
+        @as(usize, @intCast(index)) * 4 + 4 > kutter_project_stage_length) {
+        return false;
+    }
+    const word_index: usize = @intCast(index);
+    const offset = word_index * 4;
+    const bits: u32 = @bitCast(value);
+    kutter_project_stage[offset] = @truncate(bits);
+    kutter_project_stage[offset + 1] = @truncate(bits >> 8);
+    kutter_project_stage[offset + 2] = @truncate(bits >> 16);
+    kutter_project_stage[offset + 3] = @truncate(bits >> 24);
+    kutter_project_written[word_index] = true;
+    return true;
+}
+
+export fn kookie_web_server_kutter_project_save_cancel() callconv(.c) bool {
+    kutter_project_stage_open = false;
+    kutter_project_stage_length = 0;
+    return true;
+}
+
+export fn kookie_web_server_kutter_project_save_commit() callconv(.c) bool {
+    if (!kutter_project_stage_open) return false;
+    const word_count = kutter_project_stage_length / 4;
+    for (kutter_project_written[0..word_count]) |written| {
+        if (!written) return false;
+    }
+    const path = kutterProjectPath() orelse {
+        _ = kookie_web_server_kutter_project_save_cancel();
+        return false;
+    };
+    kutter_project_temp_sequence +%= 1;
+    var temp_buffer: [4096]u8 = undefined;
+    const temp_path = std.fmt.bufPrint(
+        &temp_buffer, "{s}.tmp.{d}.{d}", .{
+            path, nowNs(), kutter_project_temp_sequence,
+        }
+    ) catch {
+        _ = kookie_web_server_kutter_project_save_cancel();
+        return false;
+    };
+    const io = std.Io.Threaded.global_single_threaded.io();
+    const cwd = std.Io.Dir.cwd();
+    var file = cwd.createFile(io, temp_path, .{ .exclusive = true }) catch {
+        _ = kookie_web_server_kutter_project_save_cancel();
+        return false;
+    };
+    file.writeStreamingAll(
+        io, kutter_project_stage[0..kutter_project_stage_length]
+    ) catch {
+        file.close(io);
+        cwd.deleteFile(io, temp_path) catch {};
+        _ = kookie_web_server_kutter_project_save_cancel();
+        return false;
+    };
+    file.sync(io) catch {
+        file.close(io);
+        cwd.deleteFile(io, temp_path) catch {};
+        _ = kookie_web_server_kutter_project_save_cancel();
+        return false;
+    };
+    file.close(io);
+    cwd.rename(temp_path, cwd, path, io) catch {
+        cwd.deleteFile(io, temp_path) catch {};
+        _ = kookie_web_server_kutter_project_save_cancel();
+        return false;
+    };
+    _ = kookie_web_server_kutter_project_save_cancel();
+    return true;
+}
+
+
 // Pure behavioral checks run with `zig build check-web-transport`.
 test "RFC6455 accept hash and request/frame bounds" {
     const key: [24]u8 = "dGhlIHNhbXBsZSBub25jZQ==".*;

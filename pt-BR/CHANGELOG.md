@@ -3,6 +3,10 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Adicionamos persistência opcional em disco do documento compartilhado do
+  servidor web do Kutter por `KOOKIE_KUTTER_PROJECT_FILE`. Na inicialização, o
+  servidor restaura e valida o `.kutter` canônico; alterações bem-sucedidas o
+  substituem atomicamente. Sem a variável, a persistência fica desativada.
 - Expandimos o controle de cor do inspector nativo do Kutter de dois presets
   para as 16 cores suportadas pela paleta do renderer. A cor nativa continua
   quantizada; materiais RGB arbitrários continuam exclusivos da Web.
