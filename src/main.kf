@@ -9336,6 +9336,22 @@ test "Kutter preview caches and stages catalog meshes" {
         "mesh staging beyond the frame budget must safely use the box proxy")
 
 }
+test "Kutter preview stages the first modular catalog model", "kutter-arrow" {
+    var document = BoundedKutterStudio(1, 1)
+    assert(document.configure(1, 1, 1) &&
+        document.addNode(1, 0, kutterLevelToolProp(),
+            0, 0, 0, 0, 1000) &&
+        document.setNodeAssetToken(1, 51001) &&
+        document.seal(),
+        "arrow catalog preview document must be valid")
+    var preview = KutterScenePreview(1)
+    var frame = FrameStaging(kutterScenePreviewWorldVertexCapacity())
+    assert(preview.stage(frame, 1, document) &&
+        preview.catalogLoadCount() == 1 &&
+        frame.stagedCount() > kutterScenePreviewVerticesPerNode() &&
+        frame.retire(1),
+        "arrow catalog mesh must load and stage")
+}
 test "Kutter workspace pointer edits viewport hierarchy and inspector", "kutter-pointer" {
     var shell = GameShell()
     var browserFrame = FrameStaging(shell.renderVertexCapacity())
@@ -9355,29 +9371,27 @@ test "Kutter workspace pointer edits viewport hierarchy and inspector", "kutter-
         !shell.handlePointerMove(20, 0) &&
         shell.inspectorLeft() == 35,
         "inspector drag must update the split without moving a closed panel")
-    assert(shell.handleAction(gameShellActionRight()) &&
-        shell.handlePointer(0, -16) &&
+    assert(shell.handleAction(gameShellActionRight()),
+        "toolbar must select the Prop tool")
+    assert(shell.stage(browserFrame, 10),
+        "toolbar frame must stage after selecting the Prop tool")
+    assert(browserFrame.stagedCount() > 0 && browserFrame.retire(10),
+        "toolbar frame must publish and retire")
+    assert(shell.handlePointer(0, -16) &&
         shell.levelEditor().nodeCount() == 2 &&
         shell.levelEditor().document().nodeAssetToken(1) ==
             shell.selectedEditorAssetToken(),
         "placing a prop must retain its selected catalog asset")
+    assert(shell.stage(browserFrame, 11),
+        "editor viewport must stage an asset-linked prop")
+    assert(browserFrame.stagedCount() > 0 && browserFrame.retire(11),
+        "asset-linked viewport frame must publish and retire")
     assert(shell.handlePointer(-50, 35) &&
         shell.editorAssetBrowserOpen() &&
         shell.handlePointer(-80, -80) &&
         shell.selectedEditorAssetToken() ==
             shell.greyboxCatalog().assetToken(7),
         "asset browser pointer must select its seventh catalog entry")
-    var assetBytes =
-        content.BoundedExternalGlbAssetStore().catalogBytes(51001)
-    assert(assetBytes.length > 20,
-        "the current prop's catalog GLB bytes must be readable")
-    var assetReader = content.BoundedExternalGlbModelReader()
-    assert(assetReader.read(assetBytes, 6),
-        "the current prop's catalog GLB must parse before viewport staging")
-    assert(shell.stage(browserFrame, 10) &&
-        browserFrame.stagedCount() > 0 &&
-        browserFrame.retire(10),
-        "asset browser preview must stage and retire a frame")
     assert(shell.handlePointer(-80, -67) &&
         shell.selectedEditorAssetToken() ==
             shell.greyboxCatalog().assetToken(0) &&

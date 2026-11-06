@@ -1951,6 +1951,31 @@ class GameShell {
         if (levelEditorValue.tool() == kutterLevelToolErase()) { return "ERASE" }
         return "SELECT"
     }
+    Bool pushLevelToolLabel(FrameStaging target, Int color) {
+        var tool = levelEditorValue.tool()
+        if (tool == kutterLevelToolProp()) {
+            return pushText(target, "PROP", -87, 32, 1, color)
+        }
+        if (tool == kutterLevelToolPlayerSpawn()) {
+            return pushText(target, "PLAYER SPAWN", -87, 32, 1, color)
+        }
+        if (tool == kutterLevelToolEnemySpawn()) {
+            return pushText(target, "ENEMY SPAWN", -87, 32, 1, color)
+        }
+        if (tool == kutterLevelToolEncounter()) {
+            return pushText(target, "ENCOUNTER", -87, 32, 1, color)
+        }
+        if (tool == kutterLevelToolTrigger()) {
+            return pushText(target, "TRIGGER", -87, 32, 1, color)
+        }
+        if (tool == kutterLevelToolLight()) {
+            return pushText(target, "LIGHT", -87, 32, 1, color)
+        }
+        if (tool == kutterLevelToolErase()) {
+            return pushText(target, "ERASE", -87, 32, 1, color)
+        }
+        return pushText(target, "SELECT", -87, 32, 1, color)
+    }
 
     String levelNodeLabel(Int index) {
         var kind = levelEditorValue.document().nodeKind(index)
@@ -1963,7 +1988,33 @@ class GameShell {
         if (kind == kutterLevelNodeGroup()) { return "GROUP" }
         return "NODE"
     }
-
+    Bool pushLevelNodeLabel(
+        FrameStaging target, Int index, Int rowY, Int color
+    ) {
+        var kind = levelEditorValue.document().nodeKind(index)
+        if (kind == kutterLevelToolPlayerSpawn()) {
+            return pushText(target, "PLAYER", 51, rowY, 1, color)
+        }
+        if (kind == kutterLevelToolEnemySpawn()) {
+            return pushText(target, "ENEMY", 51, rowY, 1, color)
+        }
+        if (kind == kutterLevelToolEncounter()) {
+            return pushText(target, "ENCOUNTER", 51, rowY, 1, color)
+        }
+        if (kind == kutterLevelToolTrigger()) {
+            return pushText(target, "TRIGGER", 51, rowY, 1, color)
+        }
+        if (kind == kutterLevelToolLight()) {
+            return pushText(target, "LIGHT", 51, rowY, 1, color)
+        }
+        if (kind == kutterLevelToolProp()) {
+            return pushText(target, "PROP", 51, rowY, 1, color)
+        }
+        if (kind == kutterLevelNodeGroup()) {
+            return pushText(target, "GROUP", 51, rowY, 1, color)
+        }
+        return pushText(target, "NODE", 51, rowY, 1, color)
+    }
     Bool pushKutterDockPanel(
         FrameStaging target, Int left, Int bottom, Int right, Int top,
         Bool selected
@@ -2152,8 +2203,7 @@ class GameShell {
                 levelEditorValue.selectedNode()) {
                 color = selectedTextColor()
             }
-            if (!pushText(
-                    target, levelNodeLabel(index), 51, rowY, 1, color) ||
+            if (!pushLevelNodeLabel(target, index, rowY, color) ||
                 !pushNumber(
                     target, levelEditorValue.nodeId(index),
                     75, rowY, 1, color)) {
@@ -2267,7 +2317,8 @@ class GameShell {
                 return false
             }
         }
-        return pushText(target, levelToolLabel(), -87, 32, 1,
+        return pushLevelToolLabel(
+                target,
                 if (selectionValue == 0) selectedTextColor() else normal) &&
             pushText(target, "ASSET", -67, 32, 1,
                 if (selectionValue == 0) selectedTextColor() else normal) &&
@@ -2322,8 +2373,6 @@ class GameShell {
             !pushText(target, "SAVE", 53, 50, 1, accentTextColor()) ||
             !pushKutterDockPanel(target, 70, 47, 88, 57, false) ||
             !pushText(target, "LOAD", 73, 50, 1, accentTextColor()) ||
-            !pushText(target, editorFileStatusValue, 51, 60, 1,
-                mutedTextColor()) ||
             !pushText(target, "GEN", -88, menuSubtitleBottom(), 1, normal) ||
             !pushNumber(target, levelEditorValue.generation(), -66,
                 menuSubtitleBottom(), 1, mutedTextColor()) ||

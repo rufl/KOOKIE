@@ -286,7 +286,8 @@ class KutterScenePreview {
         }
         catalogAttemptedValue[index] = true
         var bytes = catalogAssetsValue.catalogBytes(token)
-        if (bytes.length == 0 || !catalogReaderValue.read(bytes, 6)) {
+        if (bytes == null || bytes.length == 0 ||
+            !catalogReaderValue.read(bytes, 6)) {
             return false
         }
         var count = catalogReaderValue.vertexCount()
