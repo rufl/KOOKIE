@@ -4323,10 +4323,10 @@ main() {
             shell.handleAction(gameShellActionActivate()) &&
             shell.screen() == gameShellScreenKutterLevel(),
             "presentation smoke must enter the native Kutter workspace")
-        assert(shell.handlePointer(60, 52) &&
-            shell.editorFileStatus() == "SAVED",
-            "native Kutter workspace must show a saved-file status")
-        println("KOOKIE native Kutter SAVED status verified")
+        assert(shell.handlePointer(80, 52) &&
+            shell.editorFileStatus() == "LOAD FAILED",
+            "native Kutter workspace must show a missing-load failure safely")
+        println("KOOKIE native Kutter LOAD FAILED status verified")
     }
 
     var webGame = NativeWebGameClient()

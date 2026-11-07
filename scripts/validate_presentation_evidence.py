@@ -123,7 +123,7 @@ def main() -> int:
         "KOOKIE G2 native 3D door verified",
         "KOOKIE G4 GPU-safe kutter reload verified",
         "KOOKIE native kutter screen verified",
-        "KOOKIE native Kutter SAVED status verified",
+        "KOOKIE native Kutter LOAD FAILED status verified",
     )
     for marker in required:
         if marker not in log:
