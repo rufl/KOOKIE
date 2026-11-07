@@ -2309,6 +2309,12 @@ class GameShell {
     }
 
     Bool stageKutterToolsPanel(FrameStaging target, Int normal) {
+        var undoColor = if (levelEditorValue.undoCount() > 0)
+            normal else mutedTextColor()
+        var redoColor = if (levelEditorValue.redoCount() > 0)
+            normal else mutedTextColor()
+        if (selectionValue == 6) { undoColor = selectedTextColor() }
+        if (selectionValue == 7) { redoColor = selectedTextColor() }
         for (var row = 0; row < 10; row = row + 1) {
             var centerY = 35 - row * 13
             if (!pushKutterDockPanel(
@@ -2344,10 +2350,8 @@ class GameShell {
                     "MOVE ARMED: CLICK VIEW" else "MOVE / ROTATE",
                 -87, -33, 1,
                 if (selectionValue == 5) selectedTextColor() else normal) &&
-            pushText(target, "UNDO", -87, -46, 1,
-                if (selectionValue == 6) selectedTextColor() else normal) &&
-            pushText(target, "REDO", -87, -59, 1,
-                if (selectionValue == 7) selectedTextColor() else normal) &&
+            pushText(target, "UNDO", -87, -46, 1, undoColor) &&
+            pushText(target, "REDO", -87, -59, 1, redoColor) &&
             pushText(target,
                 if (levelEditorValue.previewActive())
                     "PREVIEW ON" else "PREVIEW OFF",

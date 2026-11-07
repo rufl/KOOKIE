@@ -807,6 +807,9 @@ No editor Web, Undo e Redo refletem independentemente o histórico compartilhado
 do servidor e ficam desabilitados quando não há edição disponível naquela
 direção ou quando a conexão cai.
 
+No editor nativo, a barra atenua Undo e Redo separadamente quando o histórico
+correspondente está vazio, sem apagar o destaque da seleção pelo teclado.
+
 **Export library** baixa todos os projetos locais do navegador em um backup JSON
 limitado (`kookie.kutter-project-library/v1`, máximo de 4 MiB). **Import
 library** valida os metadados, o formato limitado e o checksum canônico de cada

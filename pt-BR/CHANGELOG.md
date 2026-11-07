@@ -3,6 +3,8 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- O Kutter nativo agora atenua Undo e Redo independentemente quando o histórico
+  correspondente está vazio; a seleção pelo teclado continua destacada.
 - O Kutter Web agora habilita Undo e Redo somente quando o histórico
   compartilhado autoritativo tem operações na direção correspondente; ambos
   ficam desabilitados durante desconexões.

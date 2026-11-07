@@ -938,10 +938,12 @@ and using arrow keys (16 px; Shift+Arrow moves 48 px). Positions persist in the
 browser and clamp to the workspace after resize; **File → Reset panel positions**
 restores defaults. Web Undo and Redo reflect the shared server history
 independently; each button is disabled when its direction has no available edits
-or the server connection is down. In the native editor, the tool and
-hierarchy/inspector panels can each be dragged independently by their `MOVE`
-header; their positions are session-local and clamped to the screen. Neither
-renderer supports dock/reorder.
+or the server connection is down. The native toolbar dims Undo and Redo
+independently when their corresponding history stack is empty, while retaining
+the keyboard selection highlight. The native editor's tool and hierarchy/
+inspector panels can each be dragged independently by their `MOVE` header; their
+positions are session-local and clamped to the screen. Neither renderer supports
+dock/reorder.
 The native editor's **SAVE** and **LOAD** buttons write/read the canonical
 `.kutter` document at `kutter-project.kutter` in the process working directory.
 Save overwrites that one file; copy it elsewhere for separate project snapshots.

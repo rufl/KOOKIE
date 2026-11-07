@@ -9163,6 +9163,81 @@ test "kutter studio migrates legacy schemas and persists asset-linked v3 round t
         restored.nodeAssetToken(1) == 51001,
         "studio file round trip must retain modular asset references")
 }
+test "native Kutter history controls reflect undo and redo availability", "kutter-history-ui" {
+    var shell = GameShell()
+    assert(shell.handlePointer(0, -50) &&
+        shell.handlePointer(0, 15) &&
+        shell.screen() == gameShellScreenKutterLevel(),
+        "native Kutter editor must be reachable for history controls")
+    var editor = shell.levelEditor()
+    var frame = FrameStaging(shell.renderVertexCapacity())
+    assert(shell.stage(frame, 1),
+        "native editor must stage its initial toolbar")
+    var undoColor = -1
+    var redoColor = -1
+    for (var run = 0; run < frame.textRuns(); run = run + 1) {
+        if (frame.textLeftAt(run) == -87 &&
+            frame.textBottomAt(run) == -46 &&
+            frame.textCodepointCountAt(run) == 4 &&
+            frame.textCodepointAt(run, 0) == ('U' as Int)) {
+            undoColor = frame.textColorAt(run)
+        }
+        if (frame.textLeftAt(run) == -87 &&
+            frame.textBottomAt(run) == -59 &&
+            frame.textCodepointCountAt(run) == 4 &&
+            frame.textCodepointAt(run, 0) == ('R' as Int)) {
+            redoColor = frame.textColorAt(run)
+        }
+    }
+    assert(undoColor == shell.mutedTextColor() &&
+        redoColor == shell.mutedTextColor() && frame.retire(1),
+        "Undo and Redo must appear unavailable with empty history")
+    assert(editor.cycleTool(1) && editor.moveCursor(0, 1) &&
+        editor.applyTool() && editor.undoCount() == 1 &&
+        shell.stage(frame, 2),
+        "placing a prop must enable Undo and stage the changed toolbar")
+    undoColor = -1
+    redoColor = -1
+    for (var run = 0; run < frame.textRuns(); run = run + 1) {
+        if (frame.textLeftAt(run) == -87 &&
+            frame.textBottomAt(run) == -46 &&
+            frame.textCodepointCountAt(run) == 4 &&
+            frame.textCodepointAt(run, 0) == ('U' as Int)) {
+            undoColor = frame.textColorAt(run)
+        }
+        if (frame.textLeftAt(run) == -87 &&
+            frame.textBottomAt(run) == -59 &&
+            frame.textCodepointCountAt(run) == 4 &&
+            frame.textCodepointAt(run, 0) == ('R' as Int)) {
+            redoColor = frame.textColorAt(run)
+        }
+    }
+    assert(undoColor == shell.normalTextColor() &&
+        redoColor == shell.mutedTextColor() && frame.retire(2) &&
+        editor.undo() && editor.undoCount() == 0 && editor.redoCount() == 1 &&
+        shell.stage(frame, 3),
+        "Undo must be enabled and Redo dimmed after a new edit")
+    undoColor = -1
+    redoColor = -1
+    for (var run = 0; run < frame.textRuns(); run = run + 1) {
+        if (frame.textLeftAt(run) == -87 &&
+            frame.textBottomAt(run) == -46 &&
+            frame.textCodepointCountAt(run) == 4 &&
+            frame.textCodepointAt(run, 0) == ('U' as Int)) {
+            undoColor = frame.textColorAt(run)
+        }
+        if (frame.textLeftAt(run) == -87 &&
+            frame.textBottomAt(run) == -59 &&
+            frame.textCodepointCountAt(run) == 4 &&
+            frame.textCodepointAt(run, 0) == ('R' as Int)) {
+            redoColor = frame.textColorAt(run)
+        }
+    }
+    assert(undoColor == shell.mutedTextColor() &&
+        redoColor == shell.normalTextColor() && frame.retire(3),
+        "Undo must dim and Redo become available after undoing an edit")
+}
+
 test "native Kutter file controls save and safely load the working project", "kutter-file" {
     var path = "kutter-project.kutter"
     var file = File(path)

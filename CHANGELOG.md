@@ -3,6 +3,8 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Native Kutter now dims Undo and Redo independently when the corresponding
+  history is empty; keyboard selection remains highlighted.
 - Web Kutter now enables Undo and Redo only when the authoritative shared
   document history has entries in the corresponding direction; both controls
   stay disabled while disconnected.
