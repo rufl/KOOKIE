@@ -825,9 +825,10 @@ Os botões nativos **SAVE** e **LOAD** gravam/leem o documento `.kutter`
 canônico em `kutter-project.kutter`, no diretório de trabalho do processo. Save
 sobrescreve esse único arquivo; copie-o para manter snapshots separados. Load
 valida o documento temporário antes de substituir o estado do editor, então um
-arquivo ausente ou inválido preserva o nível atual. Esse controle nativo não
-tem seletor de arquivos, biblioteca de projetos nomeados nem garantia de
-gravação atômica.
+arquivo ausente ou inválido preserva o nível atual. A linha ao lado informa os
+estados sem salvar, salvo, carregado e falha. Esse controle nativo não tem
+seletor de arquivos, biblioteca de projetos nomeados nem garantia de gravação
+atômica.
 
 O navegador de assets do Kutter pesquisa o catálogo local empacotado e filtra
 os 75 modelos por colisão sólida/decorativa ou prontidão para runtime. A seleção

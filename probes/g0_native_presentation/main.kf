@@ -4317,7 +4317,16 @@ main() {
             shell.screen() == gameShellScreenKutter() &&
             shell.handleAction(gameShellActionActivate()) &&
             shell.kutter().generation() == 2,
-            "presentation smoke must enter kutter and stage an inspector edit")
+            "presentation smoke must enter Kutter and edit its inspector")
+        assert(shell.handleAction(gameShellActionDown()) &&
+            shell.handleAction(gameShellActionDown()) &&
+            shell.handleAction(gameShellActionActivate()) &&
+            shell.screen() == gameShellScreenKutterLevel(),
+            "presentation smoke must enter the native Kutter workspace")
+        assert(shell.handlePointer(60, 52) &&
+            shell.editorFileStatus() == "SAVED",
+            "native Kutter workspace must show a saved-file status")
+        println("KOOKIE native Kutter SAVED status verified")
     }
 
     var webGame = NativeWebGameClient()
@@ -4568,6 +4577,9 @@ main() {
                 shell.screen() == gameShellScreenKutterLevel()) {
                 assert(presentation.drawGameFrame(frame, network, shell),
                     "gameplay and editor viewport scene must draw")
+                if (shell.screen() == gameShellScreenKutterLevel()) {
+                    menuFrames = menuFrames + 1
+                }
             } else {
                 assert(presentation.drawShellFrame(shell, shellFrame, frame),
                     "menu screen must draw")
@@ -4594,14 +4606,14 @@ main() {
 
         if (smoke && menuFrames >= 3 && !smokeQuitQueued) {
             assert(kookie_gpu_capture_window(),
-                "main menu screenshot capture must succeed")
+                "Kutter editor status screenshot capture must succeed")
             assert(kookie_gpu_report_window_present_capabilities(),
                 "window must expose a present capability")
             assert(kookie_gpu_report_window_draw(),
                 "GPU draw timing must be positive")
             assert(presentation.capacitiesStable(),
                 "scene staging capacities must remain fixed")
-            println("KOOKIE native main menu verified")
+            println("KOOKIE native Kutter file status screen verified")
             if (audio > 0) {
                 assert(presentation.dequeueCombatFeedbackAudio() &&
                     presentation.combatFeedbackClip() == 201 &&
