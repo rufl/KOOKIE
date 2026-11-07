@@ -8,10 +8,10 @@ Status: **PROPOSED**. This plan is the execution document for decision
 Normative boundary and batch ABI: [Kof native-boundary and synchronous batch
 ABI](KOF_NATIVE_BOUNDARY_SPEC.md).
 
-Current source pin: official Kof `0.6.10` at
-`e579132bb3f17db64faba33b9be1d27837851fa0`. The previous local proof was for
+Current source pin: official Kof `0.7.2` at
+`44041e7038dcfaf0234b94476c617cafb9696307`. The previous local proof was for
 `f42ed91dfbceae09880b7d0619d98f67490149d1`; that proof does not transfer
-automatically. Requalification for the pinned `0.6.10` is complete; current
+automatically. Requalification for the pinned `0.7.2` is complete; current
 local evidence and remaining platform limits are recorded below.
 
 ## 1. Decision summary
@@ -49,14 +49,14 @@ is:
 
 This is physical source composition, not a performance claim.
 
-The official Kof 0.6.10 Linux release archive
-`kof-0.6.10-linux-x86_64.tar.gz` has SHA-256
+The official Kof 0.7.2 Linux release archive
+`kof-0.7.2-linux-x86_64.tar.gz` has SHA-256
 `1ac8e99ad7778534160c288ea51e53b789fe303dd881d24e59a3ddc503e1e789`.
 CI separately builds the exact pinned source commit after normalizing
 toolchain metadata. Earlier qualification records below retain their original
 toolchain identities and results; they are not evidence for the current pin.
 
-**Current local qualification:** the official `0.6.10` archive SHA and source
+**Current local qualification:** the official `0.7.2` archive SHA and source
 commit are verified; `prepare_kof_source.sh` accepted the pinned source and GC
 guard. Full `scripts/verify.sh` passed: 179 Kof files linted, 145 source files
 checked by LSP, 167 JVM tests, Buffer SIMD, JVM/native server/network and
@@ -98,20 +98,20 @@ and p95 1,691 µs. WASM/WASI runtime and non-Linux targets remain unqualified.
 1. Re-run `python3 scripts/update_kof_lab.py --check` immediately before the
    change.
 2. If adopting the candidate, apply it with
-   `--expected-commit e579132bb3f17db64faba33b9be1d27837851fa0` and
-   `--expected-version 0.6.10`; do not update a moving `lab` ref implicitly.
+   `--expected-commit 44041e7038dcfaf0234b94476c617cafb9696307` and
+   `--expected-version 0.7.2`; do not update a moving `lab` ref implicitly.
 3. Build the exact source archive and record source commit and archive hash.
 4. Re-run static/JVM, SIMD and the native/package gate with the exact source.
 5. Refresh active documentation only after the new baseline is green or its
    limits are explicitly recorded.
 
 **Exit gate:** active pin references name
-`e579132bb3f17db64faba33b9be1d27837851fa0` and exact qualification results
+`44041e7038dcfaf0234b94476c617cafb9696307` and exact qualification results
 and remaining native/package limits are recorded. No migration claims
 “latest” before this gate.
 
 **Current local result:** exact source/archive identity, GC guard and full
-`scripts/verify.sh` passed on `0.6.10`. This includes Linux x86-64 native/JVM
+`scripts/verify.sh` passed on `0.7.2`. This includes Linux x86-64 native/JVM
 build and runtime, package, LAN, dedicated-server, adapter and Vulkan renderer
 gates. Other runtime platforms and WASM/WASI execution remain unqualified.
 
@@ -138,7 +138,7 @@ zero/maximum cases and scalar parity. A source comment or an upstream claim is
 not sufficient.
 
 **Current status:** `scripts/verify_simd_dispatch.sh` passed with the official
-Kof `0.6.10` archive on JVM and native x86-64. It reported
+Kof `0.7.2` archive on JVM and native x86-64. It reported
 `buffer-fixture-sum=809`, `buffer-inout-sum=1231`, equal scalar/SIMD totals
 `16844324864`, and selected SIMD routing. Freestanding syntax proofs passed
 for AArch64 Linux, RISC-V Linux and x86-64/AArch64 macOS. This qualifies

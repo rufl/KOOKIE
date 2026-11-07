@@ -7,8 +7,8 @@ Status: **PROPOSTO**. Este plano é o documento de execução da decisão
 
 Fronteira normativa e ABI batch: [Fronteira nativa Kof e ABI batch síncrona](KOF_NATIVE_BOUNDARY_SPEC.md).
 
-Pin de fonte atual: Kof oficial `0.6.10` no commit
-`e579132bb3f17db64faba33b9be1d27837851fa0`.
+Pin de fonte atual: Kof oficial `0.7.2` no commit
+`44041e7038dcfaf0234b94476c617cafb9696307`.
 
 ## 1. Resumo da decisão
 
@@ -45,9 +45,9 @@ A composição medida por `scripts/report_code_mix.py` na working tree atual é:
 
 Isso é composição física de fonte, não uma afirmação de performance.
 
-O archive Linux oficial do Kof `0.6.10` tem SHA-256
+O archive Linux oficial do Kof `0.7.2` tem SHA-256
 `1ac8e99ad7778534160c288ea51e53b789fe303dd881d24e59a3ddc503e1e789`.
-**Qualificação local atual:** SHA/commit do archive oficial `0.6.10` verificados;
+**Qualificação local atual:** SHA/commit do archive oficial `0.7.2` verificados;
 `prepare_kof_source.sh` aceitou a fonte e a guarda de GC. O `scripts/verify.sh`
 completo passou: 179 arquivos Kof no lint, 145 arquivos no LSP, 167 testes JVM,
 Buffer SIMD, gates de servidor/rede e packages em JVM/native, adapter nativo e
@@ -90,8 +90,8 @@ referências ativas de CI/documentação.
 1. Rodar `python3 scripts/update_kof_lab.py --check` imediatamente antes da
    mudança.
 2. Se o candidato for adotado, aplicar com
-   `--expected-commit e579132bb3f17db64faba33b9be1d27837851fa0` e
-   `--expected-version 0.6.10`; nunca atualize implicitamente uma referência
+   `--expected-commit 44041e7038dcfaf0234b94476c617cafb9696307` e
+   `--expected-version 0.7.2`; nunca atualize implicitamente uma referência
    móvel `lab`.
 3. Construir o archive exato e registrar commit de origem e hash do archive.
 4. Rodar novamente os gates static/JVM, SIMD e native/package com a fonte exata.
@@ -99,7 +99,7 @@ referências ativas de CI/documentação.
    de seus limites estarem registrados de forma explícita.
 
 **Gate de saída:** as referências ativas nomeiam
-`e579132bb3f17db64faba33b9be1d27837851fa0`, e os resultados exatos da
+`44041e7038dcfaf0234b94476c617cafb9696307`, e os resultados exatos da
 qualificação com os limites restantes estão registrados.
 Nenhuma migração chama a fonte de “latest” antes desse gate.
 
@@ -126,7 +126,7 @@ zero/máximo e paridade escalar. Comentário de fonte ou afirmação upstream n�
 suficiente.
 
 **Status atual:** o gate `scripts/verify_simd_dispatch.sh` passou com Kof
-`0.6.10` em JVM e native x86-64: fixture `809`/`1231`, totais scalar/SIMD
+`0.7.2` em JVM e native x86-64: fixture `809`/`1231`, totais scalar/SIMD
 iguais e rota SIMD selecionada. Provas de sintaxe AArch64 Linux, RISC-V Linux,
 x86-64 macOS e AArch64 macOS passaram; runtime cross-target continua
 sem qualificação.

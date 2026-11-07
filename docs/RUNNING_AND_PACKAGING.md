@@ -20,16 +20,16 @@ not gameplay tuning.
 
 ## Developer/source run
 
-Install the official Kof 0.6.10 Linux release distribution, matching source tag
-`kof-0.6.10-linux-x86_64` and commit
-`e579132bb3f17db64faba33b9be1d27837851fa0`. Its published archive SHA-256 is
+Install the official Kof 0.7.2 Linux release distribution, matching source tag
+`kof-0.7.2-linux-x86_64` and commit
+`44041e7038dcfaf0234b94476c617cafb9696307`. Its published archive SHA-256 is
 `1ac8e99ad7778534160c288ea51e53b789fe303dd881d24e59a3ddc503e1e789`.
 The release workflow builds the pinned source commit for its reproducible
 toolchain artifact; it does not consume that upstream archive.
 
 `scripts/install_kof_lab.sh` is a separate rolling-upgrade workflow. It follows
 the moving `lab` branch and updates the repository pin; do not use it when you
-need the fixed 0.6.10 release baseline.
+need the fixed 0.7.2 release baseline.
 
 To refresh this environment from the current Kof lab head, run
 `bash scripts/install_kof_lab.sh`. It builds the current lab commit, checks that
@@ -57,7 +57,7 @@ validation and rendezvous tooling.
 
 ## Browser game client (not WASM)
 
-The Kof 0.6.10 CLI advertises `wasm` and `wasi` for build/check; its `run`
+The Kof 0.7.2 CLI advertises `wasm` and `wasi` for build/check; its `run`
 command does not execute those targets. KOOKIE does not ship gameplay as a
 Kof/WASM build: the full `src` entrypoint depends on native SDL/GPU and
 filesystem APIs, while `apps/web_alpha` is a standalone HTML/WebGL2 client:

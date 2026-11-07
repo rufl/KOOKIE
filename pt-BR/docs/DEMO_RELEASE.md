@@ -32,9 +32,9 @@ passar pelo workflow commitado, gerar evidências de apresentação específicas
 dos alvos e receber aprovação de publicação.
 
 
-Novos candidatos usam o release oficial Kof `0.6.10`, tag
-`kof-0.6.10-linux-x86_64`, no commit
-`e579132bb3f17db64faba33b9be1d27837851fa0`. O SHA-256 do archive Linux é
+Novos candidatos usam o release oficial Kof `0.7.2`, tag
+`kof-0.7.2-linux-x86_64`, no commit
+`44041e7038dcfaf0234b94476c617cafb9696307`. O SHA-256 do archive Linux é
 `1ac8e99ad7778534160c288ea51e53b789fe303dd881d24e59a3ddc503e1e789`;
 o CI constrói a fonte fixada no artefato de toolchain normalizado. O digest do
 patch de release permanece
