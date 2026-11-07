@@ -4323,7 +4323,7 @@ main() {
             shell.handleAction(gameShellActionActivate()) &&
             shell.screen() == gameShellScreenKutterLevel(),
             "presentation smoke must enter the native Kutter workspace")
-        assert(shell.handlePointer(80, 52) &&
+        assert(!shell.handlePointer(80, 52) &&
             shell.editorFileStatus() == "LOAD FAILED",
             "native Kutter workspace must show a missing-load failure safely")
         println("KOOKIE native Kutter LOAD FAILED status verified")
