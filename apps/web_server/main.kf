@@ -666,7 +666,9 @@ Int[] webKutterResponse(
     words[10] = editor.cursorZ()
     words[11] = editor.gridSize()
     words[12] = editor.validationMask() |
-        (if (editor.previewActive()) 8 else 0)
+        (if (editor.previewActive()) 8 else 0) |
+        (if (editor.undoCount() > 0) sessionWebKutterCanUndoFlag() else 0) |
+        (if (editor.redoCount() > 0) sessionWebKutterCanRedoFlag() else 0)
     words[13] = offset
     words[14] = total
     for (var index = 0; index < dataLength; index = index + 1) {

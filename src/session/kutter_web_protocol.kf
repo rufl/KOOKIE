@@ -19,6 +19,8 @@ Int sessionWebKutterGroup() { return 12 }
 Int sessionWebKutterUngroup() { return 13 }
 Int sessionWebKutterUndo() { return 14 }
 Int sessionWebKutterRedo() { return 15 }
+Int sessionWebKutterCanUndoFlag() { return 16 }
+Int sessionWebKutterCanRedoFlag() { return 32 }
 Int sessionWebKutterImportChunk() { return 16 }
 Int sessionWebKutterGrid() { return 17 }
 Int sessionWebKutterUpdate() { return 18 }

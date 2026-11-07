@@ -936,9 +936,12 @@ rotate, scale, move, undo, and redo. The Web tool palette and layers/properties
 panel can be repositioned independently by dragging their grip or focusing it
 and using arrow keys (16 px; Shift+Arrow moves 48 px). Positions persist in the
 browser and clamp to the workspace after resize; **File → Reset panel positions**
-restores defaults. In the native editor, the tool and hierarchy/inspector panels
-can each be dragged independently by their `MOVE` header; their positions are
-session-local and clamped to the screen. Neither renderer supports dock/reorder.
+restores defaults. Web Undo and Redo reflect the shared server history
+independently; each button is disabled when its direction has no available edits
+or the server connection is down. In the native editor, the tool and
+hierarchy/inspector panels can each be dragged independently by their `MOVE`
+header; their positions are session-local and clamped to the screen. Neither
+renderer supports dock/reorder.
 The native editor's **SAVE** and **LOAD** buttons write/read the canonical
 `.kutter` document at `kutter-project.kutter` in the process working directory.
 Save overwrites that one file; copy it elsewhere for separate project snapshots.

@@ -161,7 +161,8 @@
     if (offset + data.length > total) throw new Error("Kof Kutter chunk overflow");
     transfer.data.set(data, offset);
     transfer.received += data.length;
-    transfer.metadata = { command, generation, selected, tool, cursorX, cursorZ, grid, validation };
+    transfer.metadata = { command, generation, selected, tool, cursorX, cursorZ, grid, validation,
+      canUndo: (validation & 16) !== 0, canRedo: (validation & 32) !== 0 };
     if (transfer.received < total) return;
     incomingStates.delete(frame.sequence);
     const parsed = decodeDocument(transfer.data);
@@ -612,8 +613,8 @@
     for (const button of document.querySelectorAll("[data-tool]")) {
       button.setAttribute("aria-pressed", String(Number(button.dataset.tool) === documentState.tool));
     }
-    byId("undo").disabled = documentState.generation <= 1;
-    byId("redo").disabled = documentState.generation <= 1;
+    byId("undo").disabled = !connected || !documentState.canUndo;
+    byId("redo").disabled = !connected || !documentState.canRedo;
     byId("grid-size").value = String(documentState.grid);
   }
 

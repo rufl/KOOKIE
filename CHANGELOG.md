@@ -3,6 +3,9 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Web Kutter now enables Undo and Redo only when the authoritative shared
+  document history has entries in the corresponding direction; both controls
+  stay disabled while disconnected.
 - Fixed native Kutter Load for missing project files by checking existence
   before reading; native `File.readRange` on a missing path terminates the
   process. Failed loads preserve the live document. Dock hit targets still take

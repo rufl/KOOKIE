@@ -21,12 +21,17 @@ COMMAND_GET = 1
 COMMAND_TOOL = 2
 COMMAND_CURSOR = 3
 COMMAND_APPLY = 4
+COMMAND_SELECT = 5
+COMMAND_UNDO = 14
+COMMAND_REDO = 15
 COMMAND_UPDATE = 18
 COMMAND_HEIGHT = 19
 COMMAND_PREVIEW = 20
 COMMAND_IMPORT = 16
 COMMAND_SET_BEHAVIOR_CARDS = 21
 COMMAND_INSTALL_BEHAVIOR = 22
+CAN_UNDO = 16
+CAN_REDO = 32
 TRANSFER_WORDS = 256
 
 
@@ -91,6 +96,7 @@ class KutterClient:
         assert b"Sec-WebSocket-Accept: " + base64.b64encode(hashlib.sha1(
             (key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode()).digest()) in header
         self.sequence = 1
+        self.last_response_flags = 0
         hello = [PROTOCOL, KIND_HELLO, 1, 1, 1, 1, 1]
         hello.append(message_checksum(hello))
         self.send(KIND_HELLO, hello)
@@ -140,6 +146,7 @@ class KutterClient:
             if response[2] != self.sequence:
                 continue  # Shared-state broadcasts can precede this response.
             assert response[4] == command and response[5] == 0, response
+            self.last_response_flags = response[12]
             chunk_total = response[14]
             if chunk_total == 0:
                 return None
@@ -202,6 +209,7 @@ def main():
         clients.extend((first, second))
         initial = first.request(COMMAND_GET)
         assert initial[7] == 1
+        assert first.last_response_flags & (CAN_UNDO | CAN_REDO) == 0
         assert second.request(COMMAND_GET)[7] == 1
         first.request(COMMAND_PREVIEW)
         preview_sync = second.receive()
@@ -217,7 +225,19 @@ def main():
         pushed = second.receive()
         assert pushed[2] == 1000000 and pushed[3] == RESPONSE
         assert pushed[15 + 7] == 2
+        assert first.last_response_flags & CAN_UNDO and not first.last_response_flags & CAN_REDO
+        first.request(COMMAND_UNDO)
+        undo_sync = second.receive()
+        assert first.last_response_flags & CAN_REDO and not first.last_response_flags & CAN_UNDO
+        assert undo_sync[12] & CAN_REDO and not undo_sync[12] & CAN_UNDO
+        first.request(COMMAND_REDO)
+        redo_sync = second.receive()
+        assert first.last_response_flags & CAN_UNDO and not first.last_response_flags & CAN_REDO
+        assert redo_sync[12] & CAN_UNDO and not redo_sync[12] & CAN_REDO
         assert placed[7] == 2
+        first.request(COMMAND_SELECT, [2])
+        select_sync = second.receive()
+        assert select_sync[8] == 2
         first.request(COMMAND_HEIGHT, [1])
         raised = second.receive()
         assert raised[15 + 11 + 13 + 4] == 200

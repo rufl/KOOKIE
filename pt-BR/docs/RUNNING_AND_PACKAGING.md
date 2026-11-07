@@ -803,6 +803,10 @@ sincronizado na nuvem. O armazenamento depende da origem e do perfil do navegado
 exporte projetos importantes como arquivos `.kutter`. O menu File mantém a
 importação e exportação do documento ativo.
 
+No editor Web, Undo e Redo refletem independentemente o histórico compartilhado
+do servidor e ficam desabilitados quando não há edição disponível naquela
+direção ou quando a conexão cai.
+
 **Export library** baixa todos os projetos locais do navegador em um backup JSON
 limitado (`kookie.kutter-project-library/v1`, máximo de 4 MiB). **Import
 library** valida os metadados, o formato limitado e o checksum canônico de cada
