@@ -3057,38 +3057,87 @@ class G1NativePresentation {
         return authoredPoseCountValue
     }
 
-    Bool drawGameFrame(
-        Int frame, NativeGameNetworkState network, GameShell shell
-    ) {
-        var editorOverlayVisible =
-            shell.screen() == gameShellScreenKutterLevel()
-        if (editorOverlayVisible &&
-            !editorScenePreview.applyEditorZoom(
-                kookie_consume_mouse_wheel_y())) {
+    Bool drawKutterEditorFrame(Int frame, GameShell shell) {
+        var wheelDelta = kookie_consume_mouse_wheel_y()
+        if (wheelDelta != 0 &&
+            !editorScenePreview.applyEditorZoom(wheelDelta)) {
             println("KOOKIE editor camera zoom failed")
             return false
         }
-        var editorOverlayCount = 0
-        if (editorOverlayVisible) {
-            if (!shell.stage(editorOverlayFrame, frame)) {
-                println("KOOKIE editor overlay stage failed")
+        if (!shell.stage(editorOverlayFrame, frame) ||
+            !editorScenePreview.stage(
+                editorWorldFrame, frame, shell.levelEditor().document())) {
+            println("KOOKIE editor workspace staging failed")
+            return false
+        }
+        var consoleVisible = consoleValue.visible()
+        var consoleCount = 0
+        if (consoleVisible) {
+            if (!consoleValue.stage(consoleFrame, frame)) {
+                println("KOOKIE editor dev console stage failed")
                 return false
             }
-            editorOverlayCount = editorOverlayFrame.stagedCount()
+            consoleCount = consoleFrame.stagedCount()
         }
-
-        var editorWorldCount = 0
-        if (editorOverlayVisible) {
-            if (!editorScenePreview.stage(
-                    editorWorldFrame, frame,
-                    shell.levelEditor().document())) {
-                println("KOOKIE editor 3D node preview stage failed")
+        if (!editorScenePreview.configureEditorCamera(
+                editorCamera, shell.levelEditor().document(),
+                shell.levelEditor().selectedNode())) {
+            println("KOOKIE editor viewport camera setup failed")
+            return false
+        }
+        var windowState = windowStateValue.snapshot()
+        if (!editorCamera.buildGpuCameraMatrix(
+                windowState.width(), windowState.height()) ||
+            !kookie_gpu_world_camera_stage_begin()) {
+            println("KOOKIE editor camera setup failed")
+            return false
+        }
+        for (var index = 0; index < 16; index = index + 1) {
+            if (!kookie_gpu_world_camera_stage_word(
+                    index, editorCamera.gpuCameraMatrixElement(index))) {
                 return false
             }
-            editorWorldCount = editorWorldFrame.stagedCount()
         }
+        if (!kookie_gpu_world_camera_stage_commit()) { return false }
 
+        var worldCount = editorWorldFrame.stagedCount()
+        if (!kookie_gpu_world_begin(worldCount) ||
+            kookie_gpu_world_capacity() < worldCount ||
+            !uploadWorld(editorWorldFrame) ||
+            !kookie_gpu_world_commit() ||
+            kookie_gpu_world_count() != worldCount) {
+            println("KOOKIE editor world GPU pass failed")
+            return false
+        }
+        var overlayCount =
+            editorOverlayFrame.stagedCount() + consoleCount
+        if (!kookie_gpu_scene_begin(overlayCount) ||
+            kookie_gpu_scene_capacity() < overlayCount ||
+            !upload(editorOverlayFrame) ||
+            (consoleVisible && !upload(consoleFrame)) ||
+            !kookie_gpu_scene_commit() ||
+            kookie_gpu_scene_count() != overlayCount ||
+            !kookie_gpu_render_set_passes(1, 1) ||
+            !kookie_gpu_draw_scene()) {
+            println("KOOKIE editor UI GPU pass failed")
+            return false
+        }
+        if (!editorWorldFrame.retire(frame) ||
+            !editorOverlayFrame.retire(frame)) {
+            return false
+        }
+        return !consoleVisible || consoleFrame.retire(frame)
+    }
+
+    Bool drawGameFrame(
+        Int frame, NativeGameNetworkState network, GameShell shell
+    ) {
+        if (shell.screen() == gameShellScreenKutterLevel()) {
+            return drawKutterEditorFrame(frame, shell)
+        }
         var scoreboardVisible = scoreboardUi.visible()
+
+        
         var scoreboardCount = 0
         if (scoreboardVisible) {
             if (!scoreboardUi.stage(scoreboardFrame, frame, scoreboardState)) {
@@ -3219,39 +3268,23 @@ class G1NativePresentation {
             (if (texturedVfx.activeCount() > 0)
                 texturedVfxFrame.stagedCount() else 0) +
             (if (movementSmokeVfx.activeCount() > 0)
-                movementSmokeFrame.stagedCount() else 0) +
-            editorWorldCount
+                movementSmokeFrame.stagedCount() else 0)
         if (animalVertexCount <= 0) {
             println("KOOKIE gameplay animal model count failed")
             println(animalVertexCount)
             return false
         }
         var windowState = windowStateValue.snapshot()
-        var cameraMatrixReady = false
-        if (editorOverlayVisible) {
-            if (!editorScenePreview.configureEditorCamera(
-                    editorCamera, shell.levelEditor().document(),
-                    shell.levelEditor().selectedNode())) {
-                println("KOOKIE editor viewport camera setup failed")
-                return false
-            }
-            cameraMatrixReady = editorCamera.buildGpuCameraMatrix(
-                windowState.width(), windowState.height())
-        } else {
-            cameraMatrixReady = camera.buildGpuCameraMatrix(
-                windowState.width(), windowState.height())
-        }
+        var cameraMatrixReady = camera.buildGpuCameraMatrix(
+            windowState.width(), windowState.height())
         if (!cameraMatrixReady || !kookie_gpu_world_camera_stage_begin()) {
             println("KOOKIE gameplay world camera failed")
             return false
         }
         for (var matrixIndex = 0; matrixIndex < 16; matrixIndex = matrixIndex + 1) {
-            var cameraMatrixElement = if (editorOverlayVisible)
-                editorCamera.gpuCameraMatrixElement(matrixIndex)
-            else
-                camera.gpuCameraMatrixElement(matrixIndex)
             if (!kookie_gpu_world_camera_stage_word(
-                    matrixIndex, cameraMatrixElement)) {
+                    matrixIndex,
+                    camera.gpuCameraMatrixElement(matrixIndex))) {
                 println("KOOKIE gameplay world camera stage failed")
                 return false
             }
@@ -3293,7 +3326,6 @@ class G1NativePresentation {
             (powerUpWorldValue.active() &&
                 !uploadWorld(powerUpFrame)) ||
             !uploadWorld(worldFrame) ||
-            (editorOverlayVisible && !uploadWorld(editorWorldFrame)) ||
             !uploadWorld(doorFrame) ||
             !uploadWorld(shadowFrame) ||
             (waterSplashVfxValue.active() &&
@@ -3315,7 +3347,7 @@ class G1NativePresentation {
         var vertexCount =
             actorFrame.stagedCount() + hudFrame.stagedCount() +
             minimapFrame.stagedCount() + scoreboardCount + consoleCount +
-            projectileCount + editorOverlayCount
+            projectileCount
         if (!kookie_gpu_scene_begin(vertexCount) ||
             kookie_gpu_scene_capacity() < vertexCount) {
             println("KOOKIE gameplay GPU scene begin failed")
@@ -3327,8 +3359,7 @@ class G1NativePresentation {
             !upload(hudFrame) ||
             !upload(minimapFrame) ||
             (scoreboardVisible && !upload(scoreboardFrame)) ||
-            (consoleVisible && !upload(consoleFrame)) ||
-            (editorOverlayVisible && !upload(editorOverlayFrame))) {
+            (consoleVisible && !upload(consoleFrame))) {
             println("KOOKIE gameplay GPU scene upload failed")
             return false
         }
@@ -3348,7 +3379,6 @@ class G1NativePresentation {
             return false
         }
         if (!worldFrame.retire(frame) ||
-            (editorOverlayVisible && !editorWorldFrame.retire(frame)) ||
             !waterFrame.retire(frame) ||
             !floatingObjectFrame.retire(frame) ||
             (powerUpWorldValue.active() &&
@@ -3367,10 +3397,6 @@ class G1NativePresentation {
             !minimapFrame.retire(frame) ||
             (projectileCount > 0 && !projectileFrame.retire(frame))) {
             println("KOOKIE gameplay frame retire failed")
-            return false
-        }
-        if (editorOverlayVisible && !editorOverlayFrame.retire(frame)) {
-            println("KOOKIE editor overlay frame retire failed")
             return false
         }
         if (scoreboardVisible && !scoreboardFrame.retire(frame)) {

@@ -9192,6 +9192,8 @@ test "native Kutter file controls save and safely load the working project", "ku
     assert(shell.stage(frame, 2),
         "file status must be rendered after Save")
     var savedStatusVisible = false
+    var workspaceTitleFitted = false
+    var workspaceTitle = "KUTTER LEVEL WORKSPACE"
     for (var run = 0; run < frame.textRuns(); run = run + 1) {
         if (frame.textBottomAt(run) == 50 &&
             frame.textCodepointCountAt(run) == 5 &&
@@ -9202,9 +9204,24 @@ test "native Kutter file controls save and safely load the working project", "ku
             frame.textCodepointAt(run, 4) == ('D' as Int)) {
             savedStatusVisible = true
         }
+        if (frame.textBottomAt(run) == 72 &&
+            frame.textCodepointCountAt(run) == workspaceTitle.length()) {
+            var exactTitle = true
+            for (var index = 0; index < workspaceTitle.length(); index = index + 1) {
+                if (frame.textCodepointAt(run, index) !=
+                    (workspaceTitle.charAt(index) as Int)) {
+                    exactTitle = false
+                }
+            }
+            if (exactTitle && frame.textScaleAt(run) == 1 &&
+                frame.textLeftAt(run) >= -92) {
+                workspaceTitleFitted = true
+            }
+        }
     }
-    assert(savedStatusVisible && frame.retire(2),
-        "the saved state must be visible in the native file-status line")
+    assert(savedStatusVisible && workspaceTitleFitted &&
+        frame.retire(2),
+        "file status must be visible and the workspace title must fit the header")
     assert(editor.removeSelected() && editor.nodeCount() == 1 &&
         shell.handlePointer(80, 52) &&
         shell.editorFileStatus() == "LOADED" &&

@@ -7,6 +7,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   before reading; native `File.readRange` on a missing path terminates the
   process. Failed loads preserve the live document. Dock hit targets still take
   precedence over Save/Load when a moved hierarchy panel overlaps their buttons.
+- Native Kutter presentation now draws only its editor preview and controls,
+  not gameplay actors, arena, HUD, minimap, or scoreboard. The editor title and
+  controls footer fit the viewport; hierarchy labels no longer collide.
 - Restored visible native Kutter file-operation status with success and failure
   colors, so Save/Load results no longer exist only in editor state.
 - Added native Kutter **SAVE**/**LOAD** buttons for the canonical document at

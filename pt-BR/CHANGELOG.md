@@ -7,6 +7,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   existência antes da leitura; `File.readRange` nativo encerra o processo para
   caminhos inexistentes. Falhas preservam o documento ativo. Alvos do painel de
   hierarquia continuam prioritários se sobrepostos aos botões Save/Load.
+- A apresentação nativa do Kutter agora desenha somente a prévia e os controles
+  do editor, sem atores, arena, HUD, minimapa ou placar do jogo. Título e instruções
+  cabem na tela; os rótulos da hierarquia não se sobrepõem.
 - Restauramos o status visível das operações nativas de arquivo do Kutter, com
   cores para sucesso e falha; o resultado não fica apenas no estado do editor.
 - Adicionamos botões nativos **SAVE**/**LOAD** para o documento canônico em

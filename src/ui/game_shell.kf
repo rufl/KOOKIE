@@ -2181,15 +2181,15 @@ class GameShell {
             !pushText(
                 target, "MOVE", 51, 42, 1, mutedTextColor()) ||
             !pushText(
-                target, "HIERARCHY", 51, 39, 1,
+                target, "HIERARCHY", 51, 35, 1,
                 if (editorHierarchyKeyboardFocusValue)
                     selectedTextColor() else accentTextColor()) ||
             !pushNumber(
-                target, editorHierarchyPageValue + 1, 73, 39, 1,
+                target, editorHierarchyPageValue + 1, 73, 35, 1,
                 mutedTextColor()) ||
-            !pushText(target, "/", 76, 39, 1, mutedTextColor()) ||
-            !pushNumber(target, pageCount, 79, 39, 1, mutedTextColor()) ||
-            !pushText(target, ">", 85, 39, 1, mutedTextColor())) {
+            !pushText(target, "/", 76, 35, 1, mutedTextColor()) ||
+            !pushNumber(target, pageCount, 79, 35, 1, mutedTextColor()) ||
+            !pushText(target, ">", 85, 35, 1, mutedTextColor())) {
             return false
         }
         var firstNode = editorHierarchyPageValue * 4
@@ -2355,9 +2355,9 @@ class GameShell {
                 if (selectionValue == 8) selectedTextColor() else normal) &&
             pushText(target, "BACK", -87, -85, 1,
                 if (selectionValue == 9) selectedTextColor() else normal) &&
-            pushCenteredText(target,
-                "HEIGHT/ROT/SCALE +/-; SCALE LABEL XYZ; C COLOR",
-                -97, 1, mutedTextColor())
+            pushCenteredTextFitted(
+                target, "H HEIGHT  R ROT  +/- SCALE  C COLOR",
+                -97, 1, mutedTextColor(), 184)
     }
 
     Bool stageKutterLevel(FrameStaging target) {
@@ -2375,8 +2375,9 @@ class GameShell {
             fileStatusColor = dangerTextColor()
         }
         if (!pushScreenFrame(target) ||
-            !pushCenteredText(target, "KUTTER LEVEL WORKSPACE",
-                menuTitleBottom(), 2, accentTextColor()) ||
+            !pushCenteredTextFitted(
+                target, "KUTTER LEVEL WORKSPACE",
+                menuTitleBottom(), 2, accentTextColor(), 184) ||
             !pushText(target, "FILE", -42, 50, 1, mutedTextColor()) ||
             !pushText(
                 target, editorFileStatusValue, -24, 50, 1,
