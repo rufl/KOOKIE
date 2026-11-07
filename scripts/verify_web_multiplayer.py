@@ -1218,7 +1218,10 @@ def main():
         clients.remove(departed)
         scene = replacements[0].snapshot(
             expected_players=7, expected_spectators=4)
-        assert scene[17] == 7
+        actor_ids = [scene[18 + index * 8] for index in range(scene[17])]
+        assert scene[17] == 7, (
+            f"snapshot actor count after disconnect: players={scene[15]} "
+            f"actors={scene[17]} ids={actor_ids}")
         assert all(scene[18 + index * 8] != departed.player_id
                    for index in range(scene[17])), (
             f"disconnected player {departed.player_id} remained in actor snapshots")
