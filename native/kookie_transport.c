@@ -1136,32 +1136,71 @@ int kookie_headless_measure_elapsed_microseconds(void) {
     return (int)microseconds;
 }
 
+#ifndef _WIN32
+static bool kookie_headless_parse_statm_resident_pages(
+    const char *data, size_t length, unsigned long *resident_pages) {
+    size_t offset = 0;
+    unsigned long values[2] = {0, 0};
+    for (size_t field = 0; field < 2; field++) {
+        if (offset >= length || data[offset] < '0' || data[offset] > '9') {
+            return false;
+        }
+        do {
+            unsigned long digit = (unsigned long)(data[offset] - '0');
+            if (values[field] > (ULONG_MAX - digit) / 10UL) {
+                return false;
+            }
+            values[field] = values[field] * 10UL + digit;
+            offset++;
+        } while (offset < length && data[offset] >= '0' &&
+            data[offset] <= '9');
+        if (field == 0) {
+            if (offset >= length || (data[offset] != ' ' &&
+                data[offset] != '\t')) {
+                return false;
+            }
+            while (offset < length && (data[offset] == ' ' ||
+                data[offset] == '\t')) {
+                offset++;
+            }
+        }
+    }
+    *resident_pages = values[1];
+    return true;
+}
+#endif
+
 int kookie_headless_rss_kib(void) {
+    uint64_t kib;
 #ifdef _WIN32
     PROCESS_MEMORY_COUNTERS counters;
     if (!GetProcessMemoryInfo(
             GetCurrentProcess(), &counters, sizeof(counters))) {
         return -1;
     }
-    uint64_t kib = (uint64_t)counters.WorkingSetSize / 1024U;
+    kib = (uint64_t)counters.WorkingSetSize / 1024U;
 #else
-    FILE *status = fopen("/proc/self/statm", "r");
-    if (status == NULL) {
+    int status = open("/proc/self/statm", O_RDONLY | O_CLOEXEC);
+    if (status < 0) {
         return -1;
     }
-    unsigned long total_pages = 0;
+    char data[128];
+    ssize_t bytes;
+    do {
+        bytes = read(status, data, sizeof(data));
+    } while (bytes < 0 && errno == EINTR);
+    int close_result = close(status);
     unsigned long resident_pages = 0;
-    int fields = fscanf(status, "%lu %lu", &total_pages, &resident_pages);
-    fclose(status);
-    if (fields != 2) {
+    if (bytes <= 0 || close_result != 0 ||
+        !kookie_headless_parse_statm_resident_pages(
+            data, (size_t)bytes, &resident_pages)) {
         return -1;
     }
     long page_size = sysconf(_SC_PAGESIZE);
     if (page_size <= 0) {
         return -1;
     }
-    uint64_t kib =
-        ((uint64_t)resident_pages * (uint64_t)page_size) / 1024U;
+    kib = ((uint64_t)resident_pages * (uint64_t)page_size) / 1024U;
 #endif
     if (kib > INT_MAX) {
         return INT_MAX;

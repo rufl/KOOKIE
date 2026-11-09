@@ -982,6 +982,19 @@ Python. No Arch/EndeavourOS, instale heaptrack com
 `sudo pacman -S --needed heaptrack`; execute sem `sudo`. O soak rejeita Kof
 diferente da versão `0.6.8` fixada.
 
+O controle com amostragem esparsa manteve a carga de 18.000 ticks e mediu RSS
+somente no início/fim: o crescimento continuou em 8.320 KiB em duas amostras,
+com p95 de 630 µs e assinatura/checksum inalterados (`520690`/`606388`). Isso
+descarta as alocações por amostra do antigo caminho de medição com `fscanf`
+como causa do crescimento. A substituição por `open`/`read` com buffer fixo
+remove essas alocações do profiler, mas o RSS nativo continua sem qualificação.
+
+O soak pós-alteração sob heaptrack (mesmos 18.000 ticks, amostragem a cada 300)
+registrou uma alocação de inicialização de 73,73 KiB no loader/`libstdc++` e
+zero alocações temporárias. O RSS ainda aumentou 8.192 KiB em 61 amostras; p95
+foi 595 µs e o orçamento de simulação de 4 ms passou. O gate de plateau de
+memória nativa continua falhando.
+
 `scripts/verify_dedicated_network.sh` executa um host autenticado e dois
 processos clientes com admissão de conteúdo e uma atualização completa em
 quatro chunks em cada um dos 256 ticks. Ambos terminam com checksum de estado

@@ -56,21 +56,30 @@ CI separately builds the exact pinned source commit after normalizing
 toolchain metadata. Earlier qualification records below retain their original
 toolchain identities and results; they are not evidence for the current pin.
 
-**Current local qualification:** the official 0.7.2 archive digest and release
-commit are verified. Full `scripts/verify.sh` passed: 181 Kof files linted,
-145 source files passed LSP, 174 JVM tests passed, JVM/native SIMD and external
-LAN parity passed, and native server, packaging and Vulkan renderer gates
-passed. `scripts/verify_goose_game.sh` also passed the native GatoGanso
-gameplay scenario. Renderer evidence: Intel Graphics (ARL), 600 frames, one
-draw call, p95 1,680 µs. Two matching 18,000-tick dedicated profiles passed
-the 4 ms simulation budget (p95 617 and 643 µs; p99 741 and 792 µs), kept
-resource signature `520690` and workload checksum `606388`, but failed the RSS
-plateau gate: growth was 7,300 and 8,320 KiB over 61 samples (limit 4,096 KiB).
-A matching heaptrack soak measured +8,196 KiB RSS; it recorded 121 allocations,
-60 temporary allocations from RSS sampling, and one 73.73 KiB loader/
-`libstdc++` retained allocation. This does not attribute the RSS increase to
-simulation allocations or prove an engine leak; native memory stability remains
-unqualified. WASM/WASI runtime and non-Linux targets remain unqualified.
+**Current local qualification:** the official Kof 0.7.2 archive digest and
+release commit are verified. Full `scripts/verify.sh` passed: 179 Kof files
+linted, 145 source files passed LSP, all 174 JVM tests passed, and JVM/native
+SIMD, external LAN parity, GatoGanso gameplay, native packaging and Vulkan
+renderer gates passed. Renderer evidence: Intel Graphics (ARL), 600 frames,
+one draw call, p95 1,678 µs.
+
+Native memory remains unqualified. A paced 18,000-tick run kept resource
+signature `520690` and workload checksum `606388`, passed the 4 ms p95 budget
+(630 µs), but grew RSS by 8,320 KiB over two samples. A matching heaptrack run
+after replacing the RSS sampler's allocating `fscanf` recorded zero temporary
+allocations and one 73.73 KiB loader/`libstdc++` startup allocation; RSS still
+grew 8,192 KiB over 61 samples (p95 595 µs), failing the 4 MiB gate. This
+neither attributes arena RSS growth to live simulation objects nor proves a
+live leak. WASM/WASI runtime and non-Linux targets remain unqualified.
+
+A matched 18,000-tick repeat with RSS sampling reduced from every 300 ticks to
+start/end only still grew 8,320 KiB across two samples (p95 630 µs,
+resource signature `520690`, workload checksum `606388`). Frequent RSS
+sampling therefore does not explain the arena RSS growth. The sampler now
+parses `/proc/self/statm` from a fixed stack buffer via `open`/`read`, avoiding
+the per-sample `fscanf` allocations seen by heaptrack; this removes profiler
+churn, not the unresolved native RSS increase.
+
 
 ## 3. Scope
 

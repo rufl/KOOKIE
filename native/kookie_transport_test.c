@@ -50,6 +50,11 @@ static void write_key_file(char *path) {
 
 
 int main(void) {
+#if defined(__linux__)
+    require_condition(kookie_headless_rss_kib() > 0 &&
+        kookie_headless_rss_kib() > 0,
+        "read repeated RSS samples");
+#endif
     require_condition(setenv(
         "KOOKIE_EXTERNAL_LAN_HOST_IPV4", "127.0.0.1", 1) == 0 &&
         kookie_transport_external_host_octet(0) == 127 &&

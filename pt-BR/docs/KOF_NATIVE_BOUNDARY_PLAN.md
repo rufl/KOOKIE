@@ -47,21 +47,31 @@ Isso é composição física de fonte, não uma afirmação de performance.
 
 O archive Linux oficial do Kof `0.7.2` tem SHA-256
 `3c6687438f2d9bebe24defee9f9250f9c8487d9194df4880057b274c5bce9692`.
-**Qualificação local atual:** digest e commit do release oficial 0.7.2
-verificados. `scripts/verify.sh` completo passou: 181 arquivos Kof no lint,
-145 fontes passaram no LSP, 174 testes JVM passaram, SIMD JVM/native e paridade
-LAN externa passaram, assim como os gates de servidor native, package e
-renderer Vulkan. `scripts/verify_goose_game.sh` também passou no cenário de
-gameplay nativo do GatoGanso. Evidência do renderer: Intel Graphics (ARL),
-600 frames, um draw call e p95 de 1.680 µs. O soak dedicado de 18.000 ticks
-passou o orçamento de simulação de 4 ms (p95 479 µs; p99 866 µs), com
-assinatura de recursos estável `520690`, mas falhou no gate de plateau de RSS:
-7.988→16.308 KiB, +8.320 KiB em 61 amostras, acima do limite de 4.096 KiB.
-O heaptrack registrou 121 alocações e 60 temporárias; o único vazamento
-reportado foi 73,73 KiB em frames de inicialização de `libstdc++`/loader
-dinâmico. Isso não explica o aumento de RSS nem prova vazamento na engine;
-mapeamentos não rastreados e memória retida pelo allocator continuam possíveis.
-Runtime WASM/WASI e alvos fora de Linux continuam sem qualificação.
+**Qualificação local atual:** digest e commit do archive oficial Kof 0.7.2
+verificados. `scripts/verify.sh` passou: 179 arquivos Kof no lint, 145 fontes
+passaram no LSP, os 174 testes JVM passaram, assim como SIMD JVM/native, paridade
+LAN externa, gameplay do GatoGanso, packaging native e gates do renderer
+Vulkan. Evidência do renderer: Intel Graphics (ARL), 600 frames, um draw call,
+p95 de 1.678 µs.
+
+A memória native continua sem qualificação. Um soak ritmado de 18.000 ticks
+manteve assinatura `520690` e checksum `606388`, passou o orçamento p95 de 4 ms
+(630 µs), mas aumentou o RSS em 8.320 KiB em duas amostras. Um soak equivalente
+sob heaptrack, após trocar o `fscanf` alocador do sampler, registrou zero
+alocações temporárias e uma alocação de inicialização de 73,73 KiB no
+loader/`libstdc++`; o RSS ainda cresceu 8.192 KiB em 61 amostras (p95 595 µs),
+falhando o limite de 4 MiB. Isso não atribui o crescimento de RSS da arena a
+objetos vivos da simulação nem prova vazamento. Runtime WASM/WASI e alvos fora
+de Linux continuam sem qualificação.
+
+Uma repetição equivalente de 18.000 ticks, reduzindo a amostragem de RSS de
+cada 300 ticks para somente início/fim, ainda cresceu 8.320 KiB em duas
+amostras (p95 630 µs, assinatura `520690`, checksum `606388`). Portanto, a
+amostragem frequente não explica o crescimento de RSS da arena. O sampler
+agora lê `/proc/self/statm` em um buffer fixo na stack via `open`/`read`,
+evitando as alocações de `fscanf` por amostra observadas pelo heaptrack; isso
+remove churn do profiler, não o aumento de RSS nativo ainda sem causa provada.
+
 
 ## 3. Escopo
 

@@ -938,6 +938,18 @@ ticks, 64 enemies, 256 projectiles, 512 pickups) measured p50/p95/p99/max
 the 4 MiB plateau gate. Both runs pass the 4 ms p95 budget; memory stability
 remains unqualified and the RSS growth is not attributed to a proven live leak.
 
+A sparse-sampling control retained the same 18,000-tick workload and sampled
+RSS only at start/end: growth was still 8,320 KiB across two samples, with p95
+630 µs and unchanged signature/checksum (`520690`/`606388`). This rules out
+the per-sample heap allocations from the old `fscanf` measurement path as the
+cause of the growth. Replacing that path with fixed-buffer `open`/`read`
+removes those profiler allocations, but native RSS remains unqualified.
+
+The post-change heaptrack soak (same 18,000 ticks, sampling every 300 ticks)
+recorded one 73.73 KiB loader/`libstdc++` startup allocation and zero temporary
+allocations. RSS still rose 8,192 KiB over 61 samples; p95 was 595 µs and the
+4 ms simulation budget passed. The native memory plateau gate remains failed.
+
 `scripts/verify_dedicated_network.sh` runs one authenticated host and two client
 processes through content admission and a complete four-chunk state update on
 every one of 256 ticks. Both clients finish with state checksum `569221` and
