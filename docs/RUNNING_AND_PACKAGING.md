@@ -143,6 +143,15 @@ four spectators; they measure WebSocket/TCP on loopback and exclude browser
 rendering, packet loss, and tailnet/WAN latency. Use a separate browser and
 tailnet test for end-to-end latency.
 
+The server reuses one snapshot-word array across sequential broadcasts and
+resizes it only when the packet length changes. The WebSocket writer serializes
+the current words into the connection output before the shared buffer is reused.
+In one pre-change and two post-change 8-player/4-spectator loopback runs (507
+ticks each), mean snapshot-build work was 0.250 ms before and 0.160/0.162 ms
+after; mean tick work was 0.688 ms before and 0.603/0.619 ms after. All runs
+had zero schedule overruns. This is directional single-host evidence, not a
+controlled statistical speedup claim.
+
 The server's per-client snapshot trailer acknowledges input only after an
 authoritative tick applies it. The browser retains a bounded 64-frame history,
 uses recent authoritative displacement to predict local horizontal movement for

@@ -320,6 +320,8 @@ class EnemySpatialWorld {
             true, false, true, distance, endX, endY, endZ)
     }
 
+
+
     SpatialPositionResult coverPosition(
         Int enemyId, Int attackerId, Int radius
     ) {

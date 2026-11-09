@@ -11,6 +11,15 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   Linux e renderer Vulkan; `scripts/verify_goose_game.sh` passou. Qualificação
   de runtime WASM/WASI e de plataformas não Linux continua fora do escopo.
 
+- O servidor multiplayer Web agora reutiliza um buffer de tamanho exato para
+  snapshots durante os broadcasts sequenciais aos clientes; o writer síncrono
+  codifica cada pacote na saída da conexão antes da próxima sobrescrita. Em
+  duas execuções loopback com 8 jogadores/4 espectadores, a média de montagem
+  do snapshot foi 0,160–0,162 ms e a média do tick 0,603–0,619 ms em 507 ticks,
+  contra 0,250 ms e 0,688 ms na execução anterior à mudança. São medições
+  direcionais em uma única máquina, não uma alegação de ganho estatístico
+  controlado; todas tiveram zero estouros de agenda.
+
 - O Kutter nativo agora atenua Undo e Redo independentemente quando o histórico
   correspondente está vazio; a seleção pelo teclado continua destacada.
 - O Kutter Web agora habilita Undo e Redo somente quando o histórico

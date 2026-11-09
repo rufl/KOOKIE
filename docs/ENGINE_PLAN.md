@@ -930,6 +930,13 @@ instead of raising a Python assertion traceback. Heaptrack is available on
 Arch/EndeavourOS with `sudo pacman -S --needed heaptrack`; run without `sudo`.
 The soak rejects Kof versions other than pinned `0.6.8`.
 
+The current pinned Kof `0.7.2` native profile (600 warm-up plus 18,000 paced
+ticks, 64 enemies, 256 projectiles, 512 pickups) measured p50/p95/p99/max
+`157/617/741/2,465 µs`. The isolated projectile phase p95 was 54 µs.
+Resource signature `520690` and workload checksum `606388` stayed stable, but
+RSS grew 7,300 KiB across 61 samples, still failing the 4 MiB plateau gate.
+This workload passes the 4 ms p95 budget; memory stability remains unqualified.
+
 `scripts/verify_dedicated_network.sh` runs one authenticated host and two client
 processes through content admission and a complete four-chunk state update on
 every one of 256 ticks. Both clients finish with state checksum `569221` and

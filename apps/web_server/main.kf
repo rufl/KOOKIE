@@ -264,6 +264,9 @@ class WebServerMetrics {
     Int kutterImportReceived
     Int[] kutterImportWords
     Int[] multiplayerSnapshotActors
+    // Reused across sequential broadcasts; the WebSocket writer copies the
+    // words into the connection output before the next snapshot is built.
+    Int[] multiplayerSnapshotWords
     Int[] connectionIds
     Bool[] connectionUsed
     Bool[] connectionWebSocket
@@ -345,6 +348,7 @@ class WebServerMetrics {
         kutterImportWords = new Int[
             11 + 64 * 13 + 32 * 5 + kutterStudioBehaviorCapacity()]
         multiplayerSnapshotActors = new Int[0]
+        multiplayerSnapshotWords = new Int[0]
         connectionIds = new Int[12]
         connectionUsed = new Bool[12]
         connectionWebSocket = new Bool[12]
@@ -974,8 +978,13 @@ Int[] webMultiplayerSnapshot(WebServerMetrics metrics, Int slot, Int[] actors) {
     var impactCount = metrics.simulation.impactCount()
     var trailer = 18 + actors.length
     var sliceCount = metrics.simulation.sliceCount()
-    var extended = new Int[19 + actors.length + 4 + projectileCount * 8 +
-        throwableCount * 8 + impactCount * 8 + 10 + sliceCount * 4 + 7]
+    var snapshotLength = 19 + actors.length + 4 + projectileCount * 8 +
+        throwableCount * 8 + impactCount * 8 + 10 + sliceCount * 4 + 7
+    if (snapshotLength > sessionWebMaximumWords()) { return new Int[0] }
+    if (metrics.multiplayerSnapshotWords.length != snapshotLength) {
+        metrics.multiplayerSnapshotWords = new Int[snapshotLength]
+    }
+    var extended = metrics.multiplayerSnapshotWords
     extended[0] = sessionWebGameProtocolVersion()
     extended[1] = sessionWebGameKind()
     extended[2] = sequence
