@@ -4,7 +4,7 @@
 }
 
 http://:{$KOOKIE_TAILNET_PORT} {
-  bind {$KOOKIE_TAILNET_IP}
+  bind {$KOOKIE_TAILNET_IP} 127.0.0.1
   @kutter_ws path /kutter/session
   handle @kutter_ws {
     rewrite * /session
