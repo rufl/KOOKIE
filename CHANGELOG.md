@@ -13,7 +13,7 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 
 - The Web multiplayer server now reuses one exact-length snapshot buffer across
   sequential client broadcasts; the synchronous WebSocket writer serializes
-  the packet into that connection's output before the next client overwrites it.
+  the packet into that connection's output before the shared array is reused.
   loopback runs, mean snapshot-build time was 0.160–0.162 ms and mean tick work
   0.603–0.619 ms across 507 ticks, versus 0.250 ms and 0.688 ms in the
   pre-change run. These single-host runs are directional, not a controlled

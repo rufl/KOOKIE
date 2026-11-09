@@ -62,14 +62,15 @@ commit are verified. Full `scripts/verify.sh` passed: 181 Kof files linted,
 LAN parity passed, and native server, packaging and Vulkan renderer gates
 passed. `scripts/verify_goose_game.sh` also passed the native GatoGanso
 gameplay scenario. Renderer evidence: Intel Graphics (ARL), 600 frames, one
-draw call, p95 1,680 µs. The 18,000-tick dedicated soak passed its 4 ms
-simulation budget (p95 479 µs; p99 866 µs) with stable resource signature
-`520690`, but failed the RSS plateau gate: 7,988→16,308 KiB, +8,320 KiB over
-61 samples, above the 4,096 KiB limit. Heaptrack recorded 121 allocations and
-60 temporary allocations; its sole reported leak was 73.73 KiB in
-`libstdc++`/dynamic-loader startup frames. That does not explain the RSS rise
-or prove an engine leak; untracked mappings and allocator residency remain
-possible. WASM/WASI runtime and non-Linux targets remain unqualified.
+draw call, p95 1,680 µs. Two matching 18,000-tick dedicated profiles passed
+the 4 ms simulation budget (p95 617 and 643 µs; p99 741 and 792 µs), kept
+resource signature `520690` and workload checksum `606388`, but failed the RSS
+plateau gate: growth was 7,300 and 8,320 KiB over 61 samples (limit 4,096 KiB).
+A matching heaptrack soak measured +8,196 KiB RSS; it recorded 121 allocations,
+60 temporary allocations from RSS sampling, and one 73.73 KiB loader/
+`libstdc++` retained allocation. This does not attribute the RSS increase to
+simulation allocations or prove an engine leak; native memory stability remains
+unqualified. WASM/WASI runtime and non-Linux targets remain unqualified.
 
 ## 3. Scope
 
