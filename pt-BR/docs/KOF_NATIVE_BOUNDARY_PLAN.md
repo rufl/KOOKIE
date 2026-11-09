@@ -7,8 +7,8 @@ Status: **PROPOSTO**. Este plano é o documento de execução da decisão
 
 Fronteira normativa e ABI batch: [Fronteira nativa Kof e ABI batch síncrona](KOF_NATIVE_BOUNDARY_SPEC.md).
 
-Pin de fonte atual: Kof oficial `0.6.10` no commit
-`e579132bb3f17db64faba33b9be1d27837851fa0`.
+Pin de fonte atual: Kof oficial `0.7.2` no commit
+`ae76df622ed03d02aa979d16a4686f7612965c0a`.
 
 ## 1. Resumo da decisão
 
@@ -45,15 +45,23 @@ A composição medida por `scripts/report_code_mix.py` na working tree atual é:
 
 Isso é composição física de fonte, não uma afirmação de performance.
 
-O archive Linux oficial do Kof `0.6.10` tem SHA-256
-`1ac8e99ad7778534160c288ea51e53b789fe303dd881d24e59a3ddc503e1e789`.
-**Qualificação local atual:** SHA/commit do archive oficial `0.6.10` verificados;
-`prepare_kof_source.sh` aceitou a fonte e a guarda de GC. O `scripts/verify.sh`
-completo passou: 179 arquivos Kof no lint, 145 arquivos no LSP, 167 testes JVM,
-Buffer SIMD, gates de servidor/rede e packages em JVM/native, adapter nativo e
-renderer Vulkan, além de smoke dos runtimes canônicos JVM/native. O renderer
-executou 600 frames em Intel Graphics (ARL), um draw call e p95 de 1.691 µs.
-Runtime WASM/WASI e plataformas fora de Linux continuam sem qualificação.
+O archive Linux oficial do Kof `0.7.2` tem SHA-256
+`3c6687438f2d9bebe24defee9f9250f9c8487d9194df4880057b274c5bce9692`.
+**Qualificação local atual:** digest e commit do release oficial 0.7.2
+verificados. `scripts/verify.sh` completo passou: 181 arquivos Kof no lint,
+145 fontes passaram no LSP, 174 testes JVM passaram, SIMD JVM/native e paridade
+LAN externa passaram, assim como os gates de servidor native, package e
+renderer Vulkan. `scripts/verify_goose_game.sh` também passou no cenário de
+gameplay nativo do GatoGanso. Evidência do renderer: Intel Graphics (ARL),
+600 frames, um draw call e p95 de 1.680 µs. O soak dedicado de 18.000 ticks
+passou o orçamento de simulação de 4 ms (p95 479 µs; p99 866 µs), com
+assinatura de recursos estável `520690`, mas falhou no gate de plateau de RSS:
+7.988→16.308 KiB, +8.320 KiB em 61 amostras, acima do limite de 4.096 KiB.
+O heaptrack registrou 121 alocações e 60 temporárias; o único vazamento
+reportado foi 73,73 KiB em frames de inicialização de `libstdc++`/loader
+dinâmico. Isso não explica o aumento de RSS nem prova vazamento na engine;
+mapeamentos não rastreados e memória retida pelo allocator continuam possíveis.
+Runtime WASM/WASI e alvos fora de Linux continuam sem qualificação.
 
 ## 3. Escopo
 
@@ -90,8 +98,8 @@ referências ativas de CI/documentação.
 1. Rodar `python3 scripts/update_kof_lab.py --check` imediatamente antes da
    mudança.
 2. Se o candidato for adotado, aplicar com
-   `--expected-commit e579132bb3f17db64faba33b9be1d27837851fa0` e
-   `--expected-version 0.6.10`; nunca atualize implicitamente uma referência
+   `--expected-commit ae76df622ed03d02aa979d16a4686f7612965c0a` e
+   `--expected-version 0.7.2`; nunca atualize implicitamente uma referência
    móvel `lab`.
 3. Construir o archive exato e registrar commit de origem e hash do archive.
 4. Rodar novamente os gates static/JVM, SIMD e native/package com a fonte exata.
@@ -99,7 +107,7 @@ referências ativas de CI/documentação.
    de seus limites estarem registrados de forma explícita.
 
 **Gate de saída:** as referências ativas nomeiam
-`e579132bb3f17db64faba33b9be1d27837851fa0`, e os resultados exatos da
+`ae76df622ed03d02aa979d16a4686f7612965c0a`, e os resultados exatos da
 qualificação com os limites restantes estão registrados.
 Nenhuma migração chama a fonte de “latest” antes desse gate.
 
@@ -126,7 +134,7 @@ zero/máximo e paridade escalar. Comentário de fonte ou afirmação upstream n�
 suficiente.
 
 **Status atual:** o gate `scripts/verify_simd_dispatch.sh` passou com Kof
-`0.6.10` em JVM e native x86-64: fixture `809`/`1231`, totais scalar/SIMD
+`0.7.2` em JVM e native x86-64: fixture `809`/`1231`, totais scalar/SIMD
 iguais e rota SIMD selecionada. Provas de sintaxe AArch64 Linux, RISC-V Linux,
 x86-64 macOS e AArch64 macOS passaram; runtime cross-target continua
 sem qualificação.

@@ -3,6 +3,14 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Fixamos o KOOKIE e o jogo GatoGanso no Kof oficial 0.7.2
+  (`ae76df622ed03d02aa979d16a4686f7612965c0a`; SHA-256 do archive
+  `3c6687438f2d9bebe24defee9f9250f9c8487d9194df4880057b274c5bce9692`).
+  `scripts/verify.sh` passou com o archive exato: 174 testes JVM, SIMD
+  JVM/native, paridade LAN externa, servidor/rede dedicados, gates de package
+  Linux e renderer Vulkan; `scripts/verify_goose_game.sh` passou. Qualificação
+  de runtime WASM/WASI e de plataformas não Linux continua fora do escopo.
+
 - O Kutter nativo agora atenua Undo e Redo independentemente quando o histórico
   correspondente está vazio; a seleção pelo teclado continua destacada.
 - O Kutter Web agora habilita Undo e Redo somente quando o histórico

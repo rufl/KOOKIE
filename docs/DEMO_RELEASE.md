@@ -31,10 +31,10 @@ qualify or publish `.64`. Any new candidate must pass the committed workflow,
 produce target-specific presentation evidence and receive publication approval.
 
 
-New release candidates use the official Kof `0.6.10` release tag
-`kof-0.6.10-linux-x86_64` at commit
-`e579132bb3f17db64faba33b9be1d27837851fa0`. Its Linux archive SHA-256 is
-`1ac8e99ad7778534160c288ea51e53b789fe303dd881d24e59a3ddc503e1e789`;
+New release candidates use the official Kof `0.7.2` release tag
+`kof-0.7.2-linux-x86_64` at commit
+`ae76df622ed03d02aa979d16a4686f7612965c0a`. Its Linux archive SHA-256 is
+`3c6687438f2d9bebe24defee9f9250f9c8487d9194df4880057b274c5bce9692`;
 release CI builds the exact pinned source into its normalized toolchain
 artifact. The release patch digest remains
 `4898952c8f4130d1b5a9e8effb56b0dd7a58d228596b50f69427639c15843664`.

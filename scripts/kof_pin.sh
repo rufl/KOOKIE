@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # Keep every local/package gate on the same Kof source and CLI identity.
-KOF_PIN_VERSION='0.6.10'
+KOF_PIN_VERSION='0.7.2'
 KOF_PIN_CLI_VERSION="kof $KOF_PIN_VERSION"
-KOF_PIN_SOURCE_COMMIT='e579132bb3f17db64faba33b9be1d27837851fa0'
+KOF_PIN_SOURCE_COMMIT='ae76df622ed03d02aa979d16a4686f7612965c0a'
 KOF_PIN_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 KOF_AS_WRAPPER_DIR="$KOF_PIN_ROOT/scripts/kof-as"
 kookie_prepend_path() {
@@ -17,6 +17,7 @@ kookie_prepend_path() {
 if [[ -n "${KOOKIE_KOF_BIN_DIR:-}" &&
       -x "$KOOKIE_KOF_BIN_DIR/kof" ]]; then
   kookie_prepend_path "$KOOKIE_KOF_BIN_DIR"
+  hash -r
 fi
 if [[ -x "$KOF_AS_WRAPPER_DIR/as" ]]; then
   kookie_prepend_path "$KOF_AS_WRAPPER_DIR"

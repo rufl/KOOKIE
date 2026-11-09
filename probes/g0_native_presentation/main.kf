@@ -3137,7 +3137,7 @@ class G1NativePresentation {
         }
         var scoreboardVisible = scoreboardUi.visible()
 
-        
+
         var scoreboardCount = 0
         if (scoreboardVisible) {
             if (!scoreboardUi.stage(scoreboardFrame, frame, scoreboardState)) {

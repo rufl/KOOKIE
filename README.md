@@ -7,7 +7,7 @@
   <a href="https://github.com/rufl/KOOKIE/releases"><img alt="Latest KOOKIE dogfood release" src="https://img.shields.io/github/v/release/rufl/KOOKIE?include_prereleases&amp;sort=semver&amp;label=dogfood&amp;color=38bdf8"></a>
   <img alt="Project status: experimental" src="https://img.shields.io/badge/status-experimental-f59e0b">
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/rufl/KOOKIE?color=22c55e"></a>
-  <img alt="Kof 0.6.10" src="https://img.shields.io/badge/Kof-0.6.10-64748b">
+  <img alt="Kof 0.7.2" src="https://img.shields.io/badge/Kof-0.7.2-64748b">
 </p>
 
 <p align="center">
@@ -88,30 +88,34 @@ matching target asset.
 
 ### Run qualification from source
 
-Install [Kof 0.6.10](https://github.com/KofLang/Kof4j) for the source
+Install [Kof 0.7.2](https://github.com/KofLang/Kof4j) for the source
 entrypoint:
 
-The pinned Kof 0.6.10 Linux distribution is the official
-`kof-0.6.10-linux-x86_64` release at source commit
-`e579132bb3f17db64faba33b9be1d27837851fa0`. Its archive SHA-256 is
-`1ac8e99ad7778534160c288ea51e53b789fe303dd881d24e59a3ddc503e1e789`.
-`scripts/prepare_kof_source.sh` verifies the upstream native GC cycle guard and
-normalizes compiler metadata when building from source.
+The pinned Kof 0.7.2 Linux distribution is the official
+`kof-0.7.2-linux-x86_64` release at source commit
+`ae76df622ed03d02aa979d16a4686f7612965c0a`. Its archive SHA-256 is
+`3c6687438f2d9bebe24defee9f9250f9c8487d9194df4880057b274c5bce9692`.
+The repository pin is the official 0.7.2 release; the native GatoGanso gameplay
+smoke passes with it. Kof 0.7.2 fixes a parser bug in operand-less `await` and
+`spawn` handling; its workflow-orchestration additions are not part of the
+real-time game loop. Existing measured `Buffer(U8)` SIMD staging remains the
+engine's explicit batch path.
 
 Check the immutable release pin with:
 
 ```bash
-KOOKIE_KOF_REF=refs/tags/kof-0.6.10-linux-x86_64 \
+KOOKIE_KOF_REF=refs/tags/kof-0.7.2-linux-x86_64 \
   python3 scripts/update_kof_lab.py --check
 ```
 
 The repository's scheduled Kof updater still tracks upstream `lab`; running
 `scripts/install_kof_lab.sh` intentionally adopts that moving development
-branch and advances the pin rather than restoring the 0.6.10 release.
+branch and advances the pin rather than restoring the 0.7.2 release.
 
 ```bash
 git clone https://github.com/rufl/KOOKIE.git
 cd KOOKIE
+export KOOKIE_KOF_BIN_DIR="$HOME/.local/share/kof4j/kof-0.7.2-linux-x86_64/bin"
 source scripts/kof_pin.sh
 kof run src/main.kf --target native
 ```
@@ -288,7 +292,7 @@ descriptor metadata separate from the bounded native queue and applies
 registered UI spatial gains in SDL_mixer. The 14 supplied JDSherbert OGG files
 remain license-blocked for redistribution until provenance is confirmed.
 [`docs/KOF4J_UI_MIGRATION.md`](docs/KOF4J_UI_MIGRATION.md) records the Kof4j
-UI/FFI work. The bounded `Buffer(U8)` fixture now passes on active Kof `0.6.10`
+UI/FFI work. The bounded `Buffer(U8)` fixture now passes on active Kof `0.7.2`
 for JVM/native x86-64; cross runtime support remains unqualified, and
 `Buffer(U8)` is not a portable typed/asynchronous upload ABI.
 `bash scripts/verify_package.sh` validates the `none` package profile and

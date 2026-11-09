@@ -7,7 +7,7 @@
   <a href="https://github.com/rufl/KOOKIE/releases"><img alt="Release dogfood mais recente do KOOKIE" src="https://img.shields.io/github/v/release/rufl/KOOKIE?include_prereleases&amp;sort=semver&amp;label=dogfood&amp;color=38bdf8"></a>
   <img alt="Estado do projeto: experimental" src="https://img.shields.io/badge/estado-experimental-f59e0b">
   <a href="../LICENSE"><img alt="Licença MIT" src="https://img.shields.io/github/license/rufl/KOOKIE?color=22c55e"></a>
-  <img alt="Kof 0.6.10" src="https://img.shields.io/badge/Kof-0.6.10-64748b">
+  <img alt="Kof 0.7.2" src="https://img.shields.io/badge/Kof-0.7.2-64748b">
 </p>
 
 <p align="center">
@@ -90,12 +90,15 @@ com artefatos Linux e Windows x86-64; o updater seleciona o asset do alvo.
 
 ### Executar a qualificação a partir da fonte
 
-Instale o release oficial [Kof 0.6.10](https://github.com/KofLang/Kof4j),
-tag `kof-0.6.10-linux-x86_64`, no commit
-`e579132bb3f17db64faba33b9be1d27837851fa0`. O SHA-256 do archive Linux é
-`1ac8e99ad7778534160c288ea51e53b789fe303dd881d24e59a3ddc503e1e789`.
-`scripts/prepare_kof_source.sh` verifica a guarda de ciclos do GC native
-upstream e normaliza metadados do compilador antes do empacotamento Maven.
+Instale o release oficial [Kof 0.7.2](https://github.com/KofLang/Kof4j),
+tag `kof-0.7.2-linux-x86_64`, no commit
+`ae76df622ed03d02aa979d16a4686f7612965c0a`. O SHA-256 do archive Linux é
+`3c6687438f2d9bebe24defee9f9250f9c8487d9194df4880057b274c5bce9692`.
+O pin do repositório usa o release oficial 0.7.2; o smoke de gameplay nativo
+do GatoGanso passou com ele. Kof 0.7.2 corrige um bug do parser ao tratar
+`await` e `spawn` sem operando; os recursos de orquestração de workflows não
+fazem parte do loop de jogo em tempo real. O staging SIMD medido com
+`Buffer(U8)` continua sendo o caminho explícito de batch da engine.
 
 Para atualizar o ambiente local a partir do head atual da `lab`, execute:
 
@@ -113,6 +116,7 @@ trocar o launcher; execute-o novamente.
 ```bash
 git clone https://github.com/rufl/KOOKIE.git
 cd KOOKIE
+export KOOKIE_KOF_BIN_DIR="$HOME/.local/share/kof4j/kof-0.7.2-linux-x86_64/bin"
 source scripts/kof_pin.sh
 kof run src/main.kf --target native
 ```
@@ -275,7 +279,7 @@ registrados no SDL_mixer. Os 14 OGG JDSherbert fornecidos
 continuam bloqueados para redistribuição até a procedência/licença ser
 confirmada. [`docs/KOF4J_UI_MIGRATION.md`](docs/KOF4J_UI_MIGRATION.md) registra
 o trabalho de UI/FFI do Kof4j. A fixture limitada `Buffer(U8)` agora passa no
-Kof ativo `0.6.10` para JVM/native x86-64; o runtime cross continua sem
+Kof ativo `0.7.2` para JVM/native x86-64; o runtime cross continua sem
 qualificação, e `Buffer(U8)` não é uma ABI portátil de upload tipada/assíncrona.
 `bash scripts/verify_package.sh` valida o perfil `none` do pacote;
 `bash scripts/verify_prototype_package.sh` valida o perfil `prototype`; e
