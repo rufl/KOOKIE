@@ -20,6 +20,12 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   direcionais em uma única máquina, não uma alegação de ganho estatístico
   controlado; todas tiveram zero estouros de agenda.
 
+- Dois perfis nativos G5 no Kof `0.7.2`, com 600 ticks de aquecimento e 18.000
+  ticks medidos, tiveram p95 de simulação de 617 e 643 µs e checksums de
+  recursos/workload estáveis. O RSS cresceu 7.300 e 8.320 KiB, acima do limite
+  de 4 MiB em ambos. Isso não comprova vazamento de objetos; a estabilidade da
+  memória nativa continua sem qualificação.
+
 - O Kutter nativo agora atenua Undo e Redo independentemente quando o histórico
   correspondente está vazio; a seleção pelo teclado continua destacada.
 - O Kutter Web agora habilita Undo e Redo somente quando o histórico

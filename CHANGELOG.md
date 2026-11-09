@@ -12,12 +12,17 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   non-Linux runtime qualification remain out of scope.
 
 - The Web multiplayer server now reuses one exact-length snapshot buffer across
-  sequential client broadcasts; the synchronous WebSocket writer copies each
-  packet before the next client overwrites it. On two 8-player/4-spectator
+  sequential client broadcasts; the synchronous WebSocket writer serializes
+  the packet into that connection's output before the next client overwrites it.
   loopback runs, mean snapshot-build time was 0.160–0.162 ms and mean tick work
   0.603–0.619 ms across 507 ticks, versus 0.250 ms and 0.688 ms in the
   pre-change run. These single-host runs are directional, not a controlled
   statistical speedup claim; all had zero schedule overruns.
+
+- Two Kof `0.7.2` native G5 profiles of 600 warm-up plus 18,000 ticks had
+  simulation p95 of 617 and 643 µs, with stable resource/workload checksums.
+  RSS grew 7,300 and 8,320 KiB, both above the 4 MiB gate. This is not proof
+  of a live-object leak; native memory stability remains unqualified.
 
 - Native Kutter now dims Undo and Redo independently when the corresponding
   history is empty; keyboard selection remains highlighted.
