@@ -4047,6 +4047,8 @@ test "bounded triangle collection and BVH diagnostics" {
         "second bounded triangle must insert")
     assert(collection.addTriangle(0, 6, 8, 4, 6, 8, 0, 10, 8),
         "third bounded triangle must insert")
+    assert(collection.addTriangle(6, 0, 7, 10, 0, 7, 6, 4, 7),
+        "fourth bounded triangle must overlap the query segment")
     assert(!collection.addTriangle(0, 0, 0, 1, 1, 1, 2, 2, 2),
         "degenerate collection triangle must reject")
     var hit = collection.query(8, 2, 0, 8, 2, 10)
@@ -4054,21 +4056,22 @@ test "bounded triangle collection and BVH diagnostics" {
         "BVH collection query must find the nearest triangle")
     assert(collection.lastHitTriangle() == 1,
         "BVH collection must report the hit triangle index")
-    assert(collection.lastVisitedNodes() > 0 && collection.lastVisitedTriangles() == 1,
-        "BVH diagnostics must report bounded traversal")
+    assert(collection.lastVisitedNodes() > 0 && collection.lastVisitedTriangles() == 2,
+        "BVH diagnostics must report both bounded hit candidates")
     var priorRevision = collection.triangleRevision(1)
     var priorGeometryRevision = collection.geometryRevision()
-    assert(collection.removeTriangle(1) && collection.triangleCount() == 2,
+    assert(collection.removeTriangle(1) && collection.triangleCount() == 3,
         "triangle removal must rebuild bounded collection")
     assert(collection.geometryRevision() > priorGeometryRevision &&
         collection.triangleRevision(1) > priorRevision,
         "triangle revisions must advance on removal")
     var removedHit = collection.query(8, 2, 0, 8, 2, 10)
-    assert(removedHit.accepted() && !removedHit.collided(),
-        "removed triangle must leave the BVH")
+    assert(removedHit.accepted() && removedHit.collided() &&
+        removedHit.hitStep() == 7 && collection.lastHitTriangle() == 3,
+        "query must keep the farther hit after removing the nearest triangle")
     assert(collection.addTriangle(6, 0, 5, 10, 0, 5, 6, 4, 5),
         "triangle collection must reuse bounded free slots")
-    assert(collection.triangleCount() == 3 &&
+    assert(collection.triangleCount() == 4 &&
         collection.triangleRevision(1) > priorRevision,
         "reinserted triangle must retain a newer geometry revision")
     assert(!collection.query(0, 0, 0, 0, 0, 21).accepted(),

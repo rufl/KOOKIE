@@ -63,22 +63,23 @@ SIMD, external LAN parity, GatoGanso gameplay, native packaging and Vulkan
 renderer gates passed. Renderer evidence: Intel Graphics (ARL), 600 frames,
 one draw call, p95 1,678 µs.
 
-Native memory remains unqualified. A paced 18,000-tick run kept resource
-signature `520690` and workload checksum `606388`, passed the 4 ms p95 budget
-(630 µs), but grew RSS by 8,320 KiB over two samples. A matching heaptrack run
-after replacing the RSS sampler's allocating `fscanf` recorded zero temporary
-allocations and one 73.73 KiB loader/`libstdc++` startup allocation; RSS still
-grew 8,192 KiB over 61 samples (p95 595 µs), failing the 4 MiB gate. This
-neither attributes arena RSS growth to live simulation objects nor proves a
-live leak. WASM/WASI runtime and non-Linux targets remain unqualified.
+Earlier paced 18,000-tick runs kept signature/checksum `520690`/`606388` and
+passed the 4 ms p95 budget, but RSS grew 7,300–8,320 KiB; a heaptrack run grew
+8,192 KiB. These exceeded the 4 MiB gate and did not prove a live-object leak.
+After removing per-candidate `SegmentCollisionResult` construction from the
+BVH triangle-query loop, the first matching paced soak (600 warm-up plus
+18,000 measured ticks) passed the gate: RSS growth/range 2,176 KiB over 61
+samples, simulation p95 296 µs, signature/checksum `520690`/`606388`.
+Unpaced 18,000-tick GDB allocator statistics fell from 311,689 allocations and
+2,347,936 live bytes to 22,665 and 1,530,576. This is one passing soak after
+prior failures; repeat/long-duration qualification remains open. WASM/WASI
+runtime and non-Linux targets remain unqualified.
 
-A matched 18,000-tick repeat with RSS sampling reduced from every 300 ticks to
-start/end only still grew 8,320 KiB across two samples (p95 630 µs,
-resource signature `520690`, workload checksum `606388`). Frequent RSS
-sampling therefore does not explain the arena RSS growth. The sampler now
-parses `/proc/self/statm` from a fixed stack buffer via `open`/`read`, avoiding
-the per-sample `fscanf` allocations seen by heaptrack; this removes profiler
-churn, not the unresolved native RSS increase.
+A matched sparse-sampling run retained the same workload and grew 8,320 KiB
+with start/end RSS samples. The sampler reads `/proc/self/statm` into a fixed
+stack buffer via `open`/`read`, avoiding profiler allocations; that change
+alone did not explain the earlier RSS growth.
+
 
 
 ## 3. Scope

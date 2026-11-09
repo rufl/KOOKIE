@@ -18,6 +18,11 @@ class BoundedTriangleWorld {
     Int cy
     Int cz
     Bool configured
+    Bool queryCollidedValue
+    Int queryHitStepValue
+    Int queryResolvedXValue
+    Int queryResolvedYValue
+    Int queryResolvedZValue
 
     public constructor(Int nextMaxDistance) {
         maxDistance = nextMaxDistance
@@ -40,6 +45,11 @@ class BoundedTriangleWorld {
         cy = 0
         cz = 0
         configured = false
+        queryCollidedValue = false
+        queryHitStepValue = -1
+        queryResolvedXValue = 0
+        queryResolvedYValue = 0
+        queryResolvedZValue = 0
     }
 
     Bool configureBounds(
@@ -169,22 +179,17 @@ class BoundedTriangleWorld {
         return allPositive || allNegative
     }
 
-    SegmentCollisionResult rejected(
+    Bool queryTriangleInto(
         Int startX, Int startY, Int startZ,
         Int endX, Int endY, Int endZ
     ) {
-        return SegmentCollisionResult(
-            false, false, -1,
-            startX, startY, startZ, endX, endY, endZ,
-            startX, startY, startZ)
-    }
-
-    SegmentCollisionResult queryTriangle(
-        Int startX, Int startY, Int startZ,
-        Int endX, Int endY, Int endZ
-    ) {
+        queryCollidedValue = false
+        queryHitStepValue = -1
+        queryResolvedXValue = startX
+        queryResolvedYValue = startY
+        queryResolvedZValue = startZ
         if (!configured || !inside(startX, startY, startZ)) {
-            return rejected(startX, startY, startZ, endX, endY, endZ)
+            return false
         }
         var deltaX = endX - startX
         var deltaY = endY - startY
@@ -197,13 +202,12 @@ class BoundedTriangleWorld {
             steps = absolute(deltaZ)
         }
         if (steps > maxDistance) {
-            return rejected(startX, startY, startZ, endX, endY, endZ)
+            return false
         }
         if (pointOnTriangle(startX, startY, startZ)) {
-            return SegmentCollisionResult(
-                true, true, 0,
-                startX, startY, startZ, endX, endY, endZ,
-                startX, startY, startZ)
+            queryCollidedValue = true
+            queryHitStepValue = 0
+            return true
         }
 
         var startLongX: Long = startX
@@ -269,26 +273,24 @@ class BoundedTriangleWorld {
                         stepLong = steps
                     }
                     var hitStep = stepLong.toInt()
-                    if (hitStep == 0) {
-                        return SegmentCollisionResult(
-                            true, true, 0,
-                            startX, startY, startZ, endX, endY, endZ,
-                            startX, startY, startZ)
+                    queryCollidedValue = true
+                    queryHitStepValue = hitStep
+                    if (hitStep > 0) {
+                        var previousStep = hitStep - 1
+                        queryResolvedXValue = (
+                            startLongX + deltaLongX * previousStep.toLong() /
+                                steps.toLong()
+                        ).toInt()
+                        queryResolvedYValue = (
+                            startLongY + deltaLongY * previousStep.toLong() /
+                                steps.toLong()
+                        ).toInt()
+                        queryResolvedZValue = (
+                            startLongZ + deltaLongZ * previousStep.toLong() /
+                                steps.toLong()
+                        ).toInt()
                     }
-                    var previousStep = hitStep - 1
-                    var previousX = (
-                        startLongX + deltaLongX * previousStep.toLong() / steps.toLong()
-                    ).toInt()
-                    var previousY = (
-                        startLongY + deltaLongY * previousStep.toLong() / steps.toLong()
-                    ).toInt()
-                    var previousZ = (
-                        startLongZ + deltaLongZ * previousStep.toLong() / steps.toLong()
-                    ).toInt()
-                    return SegmentCollisionResult(
-                        true, true, hitStep,
-                        startX, startY, startZ, endX, endY, endZ,
-                        previousX, previousY, previousZ)
+                    return true
                 }
             }
         } else {
@@ -297,22 +299,43 @@ class BoundedTriangleWorld {
                 var sampleY = startY + (deltaY * step) / steps
                 var sampleZ = startZ + (deltaZ * step) / steps
                 if (pointOnTriangle(sampleX, sampleY, sampleZ)) {
-                    var previousX = startX + (deltaX * (step - 1)) / steps
-                    var previousY = startY + (deltaY * (step - 1)) / steps
-                    var previousZ = startZ + (deltaZ * (step - 1)) / steps
-                    return SegmentCollisionResult(
-                        true, true, step,
-                        startX, startY, startZ, endX, endY, endZ,
-                        previousX, previousY, previousZ)
+                    queryCollidedValue = true
+                    queryHitStepValue = step
+                    queryResolvedXValue =
+                        startX + (deltaX * (step - 1)) / steps
+                    queryResolvedYValue =
+                        startY + (deltaY * (step - 1)) / steps
+                    queryResolvedZValue =
+                        startZ + (deltaZ * (step - 1)) / steps
+                    return true
                 }
             }
         }
+        queryResolvedXValue = endX
+        queryResolvedYValue = endY
+        queryResolvedZValue = endZ
+        return true
+    }
+
+    Bool lastTriangleQueryCollided() { return queryCollidedValue }
+    Int lastTriangleQueryHitStep() { return queryHitStepValue }
+    Int lastTriangleQueryResolvedX() { return queryResolvedXValue }
+    Int lastTriangleQueryResolvedY() { return queryResolvedYValue }
+    Int lastTriangleQueryResolvedZ() { return queryResolvedZValue }
+
+    SegmentCollisionResult queryTriangle(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ
+    ) {
+        var accepted = queryTriangleInto(
+            startX, startY, startZ, endX, endY, endZ)
         return SegmentCollisionResult(
-            true, false, -1,
+            accepted, queryCollidedValue, queryHitStepValue,
             startX, startY, startZ, endX, endY, endZ,
-            endX, endY, endZ)
+            queryResolvedXValue, queryResolvedYValue, queryResolvedZValue)
     }
 }
+
 
 class BoundedTriangleCollection {
     Int minX
@@ -938,11 +961,11 @@ class BoundedTriangleCollection {
             return rejected(startX, startY, startZ, endX, endY, endZ)
         }
         lastAcceptedValue = true
-        var best = SegmentCollisionResult(
-            true, false, -1,
-            startX, startY, startZ, endX, endY, endZ,
-            endX, endY, endZ)
         var found = false
+        var bestHitStep = -1
+        var bestResolvedX = endX
+        var bestResolvedY = endY
+        var bestResolvedZ = endZ
         var stackCount = 1
         traversalStack[0] = 1
         while (stackCount > 0) {
@@ -963,11 +986,15 @@ class BoundedTriangleCollection {
                             ax[index], ay[index], az[index],
                             bx[index], by[index], bz[index],
                             cx[index], cy[index], cz[index])
-                        var result = probe.queryTriangle(
-                            startX, startY, startZ, endX, endY, endZ)
-                        if (result.collided() &&
-                            (!found || result.hitStep() < best.hitStep())) {
-                            best = result
+                        if (probe.queryTriangleInto(
+                                startX, startY, startZ, endX, endY, endZ) &&
+                            probe.lastTriangleQueryCollided() &&
+                            (!found ||
+                                probe.lastTriangleQueryHitStep() < bestHitStep)) {
+                            bestHitStep = probe.lastTriangleQueryHitStep()
+                            bestResolvedX = probe.lastTriangleQueryResolvedX()
+                            bestResolvedY = probe.lastTriangleQueryResolvedY()
+                            bestResolvedZ = probe.lastTriangleQueryResolvedZ()
                             found = true
                             lastHitTriangleValue = index
                         }
@@ -986,7 +1013,10 @@ class BoundedTriangleCollection {
                 }
             }
         }
-        return best
+        return SegmentCollisionResult(
+            lastAcceptedValue, found, bestHitStep,
+            startX, startY, startZ, endX, endY, endZ,
+            bestResolvedX, bestResolvedY, bestResolvedZ)
     }
 
 

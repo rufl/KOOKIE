@@ -928,27 +928,28 @@ leak. The optimization reduced measured growth, but memory still fails the
 gate. The verifier now reports RSS growth/range/sample count and exits cleanly
 instead of raising a Python assertion traceback. Heaptrack is available on
 Arch/EndeavourOS with `sudo pacman -S --needed heaptrack`; run without `sudo`.
-The soak rejects Kof versions other than pinned `0.6.8`.
+The soak rejects Kof versions other than pinned `0.7.2`.
 
-Two pinned Kof `0.7.2` native profiles (each 600 warm-up plus 18,000 paced
-ticks, 64 enemies, 256 projectiles, 512 pickups) measured p50/p95/p99/max
-`157/617/741/2,465 µs` and `186/643/792/2,467 µs`. Projectile-phase p95 was
-54 and 53 µs; the resource signature (`520690`) and workload checksum
-(`606388`) matched. RSS grew 7,300 and 8,320 KiB across 61 samples, both above
-the 4 MiB plateau gate. Both runs pass the 4 ms p95 budget; memory stability
-remains unqualified and the RSS growth is not attributed to a proven live leak.
+The original Kof `0.7.2` paced profiles (600 warm-up plus 18,000 measured ticks,
+64 enemies, 256 projectiles, 512 pickups) recorded p95 of 617 and 643 µs and
+RSS growth of 7,300 and 8,320 KiB. A later heaptrack soak grew 8,192 KiB.
+These runs exceeded the 4 MiB RSS gate; none proved a live-object leak.
 
-A sparse-sampling control retained the same 18,000-tick workload and sampled
-RSS only at start/end: growth was still 8,320 KiB across two samples, with p95
-630 µs and unchanged signature/checksum (`520690`/`606388`). This rules out
-the per-sample heap allocations from the old `fscanf` measurement path as the
-cause of the growth. Replacing that path with fixed-buffer `open`/`read`
-removes those profiler allocations, but native RSS remains unqualified.
+The BVH triangle query no longer allocates a `SegmentCollisionResult` per
+candidate: each probe writes collision/step/position scalars into reusable
+`BoundedTriangleWorld` query state, and the collection constructs only the
+selected final result. A GDB `kof_memstats()` comparison on the same
+0-warm-up, unpaced 18,000-tick workload recorded 311,689 allocations and
+2,347,936 live bytes before the change, versus 22,665 allocations and
+1,530,576 live bytes after. The measured work and resource signature were
+stable; these allocator counters are Kof arena statistics, not RSS.
 
-The post-change heaptrack soak (same 18,000 ticks, sampling every 300 ticks)
-recorded one 73.73 KiB loader/`libstdc++` startup allocation and zero temporary
-allocations. RSS still rose 8,192 KiB over 61 samples; p95 was 595 µs and the
-4 ms simulation budget passed. The native memory plateau gate remains failed.
+The first paced post-change soak (600 warm-up plus 18,000 measured ticks)
+passed the existing RSS gate: 2,176 KiB growth/range across 61 samples,
+simulation p50/p95/p99/max `198/296/353/1,238 µs`, resource signature
+`520690`, and workload checksum `606388`. Earlier runs failed the RSS gate;
+repeat/long-duration native memory stability remains to be established.
+
 
 `scripts/verify_dedicated_network.sh` runs one authenticated host and two client
 processes through content admission and a complete four-chunk state update on

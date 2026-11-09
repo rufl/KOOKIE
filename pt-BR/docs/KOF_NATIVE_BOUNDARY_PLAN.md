@@ -54,23 +54,25 @@ LAN externa, gameplay do GatoGanso, packaging native e gates do renderer
 Vulkan. Evidência do renderer: Intel Graphics (ARL), 600 frames, um draw call,
 p95 de 1.678 µs.
 
-A memória native continua sem qualificação. Um soak ritmado de 18.000 ticks
-manteve assinatura `520690` e checksum `606388`, passou o orçamento p95 de 4 ms
-(630 µs), mas aumentou o RSS em 8.320 KiB em duas amostras. Um soak equivalente
-sob heaptrack, após trocar o `fscanf` alocador do sampler, registrou zero
-alocações temporárias e uma alocação de inicialização de 73,73 KiB no
-loader/`libstdc++`; o RSS ainda cresceu 8.192 KiB em 61 amostras (p95 595 µs),
-falhando o limite de 4 MiB. Isso não atribui o crescimento de RSS da arena a
-objetos vivos da simulação nem prova vazamento. Runtime WASM/WASI e alvos fora
-de Linux continuam sem qualificação.
+Os perfis ritmados anteriores de 18.000 ticks mantiveram assinatura/checksum
+`520690`/`606388` e passaram o orçamento p95 de 4 ms, mas o RSS cresceu
+7.300–8.320 KiB; um perfil sob heaptrack cresceu 8.192 KiB. Esses resultados
+excederam o gate de 4 MiB e não provam vazamento de objetos vivos. Depois de
+remover a construção de `SegmentCollisionResult` para cada candidato no loop
+de consulta BVH, o primeiro soak ritmado correspondente (600 ticks de
+aquecimento e 18.000 medidos) passou o gate: crescimento/faixa de RSS de
+2.176 KiB em 61 amostras, p95 de simulação de 296 µs, assinatura/checksum
+`520690`/`606388`.
 
-Uma repetição equivalente de 18.000 ticks, reduzindo a amostragem de RSS de
-cada 300 ticks para somente início/fim, ainda cresceu 8.320 KiB em duas
-amostras (p95 630 µs, assinatura `520690`, checksum `606388`). Portanto, a
-amostragem frequente não explica o crescimento de RSS da arena. O sampler
-agora lê `/proc/self/statm` em um buffer fixo na stack via `open`/`read`,
-evitando as alocações de `fscanf` por amostra observadas pelo heaptrack; isso
-remove churn do profiler, não o aumento de RSS nativo ainda sem causa provada.
+As estatísticas GDB do allocator em 18.000 ticks sem ritmo/aquecimento caíram de
+311.689 alocações e 2.347.936 bytes vivos para 22.665 e 1.530.576. Esse é um
+soak aprovado após falhas anteriores; repetição e qualificação de longa duração
+continuam pendentes. WASM/WASI e alvos fora do Linux seguem sem qualificação.
+
+Uma execução equivalente com amostragem esparsa cresceu 8.320 KiB usando apenas
+amostras inicial/final. O sampler lê `/proc/self/statm` em buffer fixo na stack
+via `open`/`read`, evitando alocações do profiler; essa alteração, sozinha, não
+explicou o crescimento anterior do RSS.
 
 
 ## 3. Escopo

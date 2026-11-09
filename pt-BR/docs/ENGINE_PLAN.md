@@ -980,7 +980,7 @@ medido, mas a memória continua falhando o gate. O verificador agora informa
 crescimento/faixa/amostras de RSS e encerra sem traceback de assertion do
 Python. No Arch/EndeavourOS, instale heaptrack com
 `sudo pacman -S --needed heaptrack`; execute sem `sudo`. O soak rejeita Kof
-diferente da versão `0.6.8` fixada.
+diferente da versão `0.7.2` fixada.
 
 O controle com amostragem esparsa manteve a carga de 18.000 ticks e mediu RSS
 somente no início/fim: o crescimento continuou em 8.320 KiB em duas amostras,
@@ -994,6 +994,18 @@ registrou uma alocação de inicialização de 73,73 KiB no loader/`libstdc++` e
 zero alocações temporárias. O RSS ainda aumentou 8.192 KiB em 61 amostras; p95
 foi 595 µs e o orçamento de simulação de 4 ms passou. O gate de plateau de
 memória nativa continua falhando.
+
+Após a otimização do BVH, o primeiro soak ritmado pós-alteração
+(600 ticks de aquecimento e 18.000 medidos) passou o gate existente de RSS:
+crescimento/faixa de 2.176 KiB em 61 amostras; p50/p95/p99/máximo de
+`198/296/353/1.238 µs`; assinatura `520690` e checksum `606388`. Consultas
+BVH reutilizam campos escalares de colisão/posição em cada candidato e constroem
+somente o resultado escolhido. Uma comparação GDB com o mesmo workload de
+18.000 ticks sem aquecimento e sem ritmo registrou 311.689 alocações Kof e
+2.347.936 bytes vivos antes, contra 22.665 e 1.530.576 depois. Esses contadores
+medem o allocator Kof, não RSS. Como execuções anteriores excederam o limite,
+repetições e soaks longos ainda são necessários para estabelecer estabilidade
+de memória nativa.
 
 `scripts/verify_dedicated_network.sh` executa um host autenticado e dois
 processos clientes com admissão de conteúdo e uma atualização completa em

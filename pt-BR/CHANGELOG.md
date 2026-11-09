@@ -19,12 +19,26 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   contra 0,250 ms e 0,688 ms na execução anterior à mudança. São medições
   direcionais em uma única máquina, não uma alegação de ganho estatístico
   controlado; todas tiveram zero estouros de agenda.
+- Um novo benchmark loopback Web de 8 segundos, com 8 jogadores e 4
+  espectadores, coletou 480 intervalos entre snapshots: p95 de 21,60 ms;
+  p95 do ACK de input de 18,91 ms; p95 do intervalo de ticks de 1. O trabalho
+  médio do tick no servidor foi 0,665 ms, sem estouros de agenda. É uma medição
+  TCP/WebSocket local, não inclui renderização no browser nem desempenho WAN.
 
-- Dois perfis nativos G5 no Kof `0.7.2`, com 600 ticks de aquecimento e 18.000
-  ticks medidos, tiveram p95 de simulação de 617 e 643 µs e checksums de
-  recursos/workload estáveis. O RSS cresceu 7.300 e 8.320 KiB, acima do limite
-  de 4 MiB em ambos. Isso não comprova vazamento de objetos; a estabilidade da
-  memória nativa continua sem qualificação.
+- Dois perfis nativos G5 anteriores no Kof `0.7.2` excederam o limite de
+  RSS de 4 MiB: crescimento de 7.300 e 8.320 KiB em 18.000 ticks medidos.
+  O resultado mais recente, após a otimização de colisão documentada abaixo,
+  passou o gate; os perfis anteriores não comprovam vazamento de objetos.
+- Consultas BVH de triângulos no Kof `0.7.2` agora reutilizam dados escalares
+  de colisão durante a visita aos candidatos e constroem somente o resultado
+  selecionado, removendo um registro temporário por candidato atingido. Uma
+  comparação GDB não ritmada de 18.000 ticks, sem aquecimento, registrou
+  311.689 alocações Kof antes e 22.665 depois; bytes vivos caíram de
+  2.347.936 para 1.530.576. O soak ritmado (600 ticks de aquecimento mais
+  18.000 medidos) passou o gate de RSS: +2.176 KiB em 61 amostras, p95 de
+  296 µs e assinatura/checksum `520690`/`606388`. Como execuções anteriores
+  falharam, estabilidade nativa em soaks repetidos/longos ainda precisa ser
+  qualificada.
 
 - O Kutter nativo agora atenua Undo e Redo independentemente quando o histórico
   correspondente está vazio; a seleção pelo teclado continua destacada.
