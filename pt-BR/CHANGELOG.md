@@ -25,6 +25,26 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   p95 do ACK de input de 18,91 ms; p95 do intervalo de ticks de 1. O trabalho
   médio do tick no servidor foi 0,665 ms, sem estouros de agenda. É uma medição
   TCP/WebSocket local, não inclui renderização no browser nem desempenho WAN.
+- Reformulamos os shaders de apresentação WebGL2 e a coesão visual: faixas de
+  cel-shading suavizadas com anti-aliasing substituem o degrau serrilhado de
+  `floor()`, iluminação ambiente de hemisfério (céu/chão) adiciona profundidade,
+  iluminação de borda (rim light/Fresnel) destaca a silhueta dos personagens
+  contra paredes escuras, brilho especular estilizado acentua água e superfícies
+  brilhantes e a neblina de distância combina perfeitamente com a cor de fundo.
+  Removemos o ruído oscilatório senoidal que tremia a geometria estática.
+- Otimizamos o loop de renderização WebGL2 com buffers scratch `Float32Array`
+  estáticos e multiplicação in-place, eliminando alocações de arrays temporários
+  por mesh e por quadro e reduzindo pausas de GC.
+- Corrigimos a orientação 3D do jogador: a malha do personagem local agora vira
+  na direção do movimento/mira em terceira pessoa em vez de travar virada para
+  o Norte, e o dodge roll gira sobre o eixo de rolamento. Conectamos o flash de
+  dano branco ao modelo do jogador, igualando o feedback visual dos inimigos.
+- Aprimoramos o minimapa tático com pontos circulares por time, ponteiro de
+  direção do jogador e linhas de grade; substituímos a fonte monospace genérica
+  das placas de nome por tipografia Pixand estilizada com bordas luminosas do time.
+- Corrigimos vazamento de recursos na destruição do WebGL, liberando os buffers
+  de geometria dos corações de vida criados sob demanda.
+
 
 - Dois perfis nativos G5 anteriores no Kof `0.7.2` excederam o limite de
   RSS de 4 MiB: crescimento de 7.300 e 8.320 KiB em 18.000 ticks medidos.

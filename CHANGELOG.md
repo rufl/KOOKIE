@@ -24,6 +24,25 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   tick gap p95 1. Mean server tick work was 0.665 ms and schedule overruns
   remained zero. This is a single-host TCP/WebSocket measurement, not browser
   rendering or WAN performance.
+- Revamped WebGL2 presentation shaders and visual cohesion: multi-tier
+  anti-aliased cel bands replace stair-stepped floor aliasing, sky/ground
+  hemisphere ambient lighting adds depth, stylized Fresnel rim lighting defines
+  character silhouettes against dark backgrounds, subtle specular highlights
+  accent water and glossy surfaces, and distance fog seamlessly matches the clear
+  color. Removed global sine-wave wobble noise from static scene geometry.
+- Optimized WebGL2 render-loop matrix transformations: preallocated scratch
+  Float32Array buffers and in-place matrix multiplications eliminate temporary
+  array allocations per mesh and per frame, reducing GC pressure during gameplay.
+- Fixed 3D player character orientation: local player mesh now faces the
+  authoritative movement/aim heading in 3rd person rather than locking North,
+  with dodge rolls rotating along the roll axis. Connected hit-flash tinting
+  to the player model on damage, matching enemy feedback.
+- Upgraded 2D tactical radar minimap with circular team blips, player heading
+  pointer, and subtle grid lines. Replaced generic monospace in-game nameplates
+  with styled Pixand typography and team-colored luminous borders.
+- Fixed WebGL mesh resource leak in `destroy()` by tracking and deleting
+  allocated heart and blue-heart sprite geometry.
+
 
 - Kof `0.7.2` native BVH queries now reuse scalar hit data while visiting
   candidate triangles and construct only the selected collision result,

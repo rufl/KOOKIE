@@ -54,6 +54,7 @@
     in vec4 vInstanceColor;
     uniform vec4 uColor;
     uniform vec3 uLight;
+    uniform vec3 uCamera;
     uniform float uTime;
     uniform float uWaterTime;
     uniform sampler2D uAlbedo;
@@ -69,20 +70,54 @@
           uWaterTime * uWaterStyle.z;
         float wave = sin(phase) * sin(phase * 0.73 + uWaterTime);
         float caustic = step(0.0, wave) * uWaterStyle.w;
+        vec3 waterNormal = normalize(vec3(cos(phase * 1.5) * 0.06, 1.0, sin(phase * 1.5) * 0.06));
+        vec3 viewDir = normalize(uCamera - vWorld);
+        vec3 halfVec = normalize(normalize(uLight) + viewDir);
+        float waterSpec = smoothstep(0.93, 0.98, max(dot(waterNormal, halfVec), 0.0)) * 0.35;
         float toonLight = uWaterToon.x + caustic * uWaterToon.y;
-        outColor = vec4(uWaterTint.rgb * toonLight, uWaterToon.z);
+        vec3 waterRgb = uWaterTint.rgb * toonLight + vec3(waterSpec);
+        float dist = length(uCamera - vWorld);
+        float fog = smoothstep(140.0, 420.0, dist);
+        waterRgb = mix(waterRgb, vec3(0.025, 0.075, 0.105), fog * 0.65);
+        outColor = vec4(waterRgb, uWaterToon.z);
         return;
       }
       vec3 normal = normalize(vNormal);
-      float diffuse = max(dot(normal, normalize(uLight)), 0.0);
-      float toon = floor(clamp(diffuse * 0.86 + 0.14, 0.0, 1.0) * 3.0) / 3.0;
+      vec3 lightDir = normalize(uLight);
+      float NdotL = dot(normal, lightDir);
+
+      float band1 = smoothstep(-0.15, -0.05, NdotL);
+      float band2 = smoothstep(0.20, 0.30, NdotL);
+      float band3 = smoothstep(0.65, 0.75, NdotL);
+      float toon = 0.32 + 0.28 * band1 + 0.22 * band2 + 0.18 * band3;
+
       vec4 albedo = uUseTexture ? texture(uAlbedo, vUv) : vec4(1.0);
       if (albedo.a < 0.08) discard;
-      vec3 lit = uColor.rgb * vInstanceColor.rgb * albedo.rgb * (0.24 + toon * 0.76);
-      lit += uColor.rgb * vInstanceColor.rgb * albedo.rgb *
-        (0.04 * sin(uTime * 4.0 + vWorld.x * 0.04));
-      float fog = clamp((length(vWorld - vec3(160.0, 0.0, 140.0)) - 80.0) / 600.0, 0.0, 1.0);
-      lit = mix(lit, vec3(0.015, 0.035, 0.06), fog * 0.08);
+
+      vec3 skyAmbient = vec3(0.24, 0.30, 0.38);
+      vec3 groundAmbient = vec3(0.12, 0.16, 0.20);
+      vec3 ambient = mix(groundAmbient, skyAmbient, normal.y * 0.5 + 0.5);
+
+      vec3 baseRgb = uColor.rgb * vInstanceColor.rgb * albedo.rgb;
+      vec3 lit = baseRgb * (ambient + vec3(toon * 0.72));
+
+      vec3 viewDir = normalize(uCamera - vWorld);
+      float NdotV = max(dot(normal, viewDir), 0.0);
+      float rim = 1.0 - NdotV;
+      float rimMask = smoothstep(0.55, 0.88, rim);
+      vec3 rimAccent = mix(vec3(0.40, 0.65, 0.90), vec3(0.95, 0.85, 0.65), max(NdotL, 0.0));
+      lit += rimAccent * rimMask * 0.28;
+
+      vec3 halfVec = normalize(lightDir + viewDir);
+      float NdotH = max(dot(normal, halfVec), 0.0);
+      float spec = smoothstep(0.92, 0.96, NdotH) * 0.20;
+      lit += vec3(spec);
+
+      float dist = length(uCamera - vWorld);
+      float fog = smoothstep(140.0, 420.0, dist);
+      vec3 fogColor = vec3(0.025, 0.075, 0.105);
+      lit = mix(lit, fogColor, fog * 0.72);
+
       outColor = vec4(lit, albedo.a * uColor.a * vInstanceColor.a);
     }
   `;
@@ -335,16 +370,22 @@
     ];
   }
 
-  function multiply(a, b) {
-    const out = new Array(16).fill(0);
+  const scratchModelMatrix = new Float32Array(16);
+  const scratchViewProjMatrix = new Float32Array(16);
+
+  function multiply(a, b, out = null) {
+    const res = out || new Array(16);
     for (let column = 0; column < 4; column += 1) {
+      const c4 = column * 4;
       for (let row = 0; row < 4; row += 1) {
-        for (let index = 0; index < 4; index += 1) {
-          out[column * 4 + row] += a[index * 4 + row] * b[column * 4 + index];
-        }
+        res[c4 + row] =
+          a[row] * b[c4] +
+          a[4 + row] * b[c4 + 1] +
+          a[8 + row] * b[c4 + 2] +
+          a[12 + row] * b[c4 + 3];
       }
     }
-    return out;
+    return res;
   }
 
   function perspective(fov, aspect, near, far) {
@@ -1382,6 +1423,7 @@
       model: gl.getUniformLocation(program, "uModel"),
       color: gl.getUniformLocation(program, "uColor"),
       light: gl.getUniformLocation(program, "uLight"),
+      camera: gl.getUniformLocation(program, "uCamera"),
       time: gl.getUniformLocation(program, "uTime"),
       waterTime: gl.getUniformLocation(program, "uWaterTime"),
       uvScale: gl.getUniformLocation(program, "uUvScale"),
@@ -1659,9 +1701,8 @@
         gl.bindVertexArray(mesh.vao);
         gl.uniform1i(locations.useSkinning, skinMatrices ? 1 : 0);
         if (skinMatrices) gl.uniformMatrix4fv(locations.joints, false, skinMatrices);
-        gl.uniformMatrix4fv(
-          locations.model, false, new Float32Array(multiply(model, mesh.localModel)),
-        );
+        multiply(model, mesh.localModel, scratchModelMatrix);
+        gl.uniformMatrix4fv(locations.model, false, scratchModelMatrix);
         const material = mesh.color || [1, 1, 1, 1];
         gl.uniform4f(
           locations.color,
@@ -2114,6 +2155,7 @@
       const viewProjection = multiply(
         perspective(Math.PI / 3, canvas.width / Math.max(1, canvas.height), 0.2, 900),
         lookAt(eye, target, [0, 1, 0]),
+        scratchViewProjMatrix,
       );
       gl.enable(gl.DEPTH_TEST);
       gl.disable(gl.CULL_FACE);
@@ -2121,8 +2163,9 @@
       gl.clearColor(0.025, 0.075, 0.105, 1);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       gl.useProgram(program);
-      gl.uniformMatrix4fv(locations.viewProjection, false, new Float32Array(viewProjection));
+      gl.uniformMatrix4fv(locations.viewProjection, false, scratchViewProjMatrix);
       gl.uniform3f(locations.light, -0.45, 0.9, 0.35);
+      gl.uniform3f(locations.camera, eye[0], eye[1], eye[2]);
       gl.uniform1f(locations.time, time * 0.001);
       gl.uniform1f(
         locations.waterTime,
@@ -2403,14 +2446,26 @@
       const playerSkinMatrices = playerModel?.sampleSkinForAction?.(
         playerActor.animation, playerAnimationTime,
       );
+      const playerBaseYaw = renderYawForActor(
+        playerActor, (scene.yaw || 0) * Math.PI / 180,
+      );
+      const playerRoll = actorRollAngle(playerActor, time);
+      const playerTint = actorHitFlashTint(
+        playerActor.powerUp > 0 ? COLORS.pickup
+          : playerActor.health < 50 ? COLORS.damaged
+          : COLORS.player,
+        playerActor.id, time,
+      );
       if (scene.playerId === undefined || scene.playerId > 0) {
         draw(playerModel?.meshes || [fallbackMeshes.actor], transform(
           [scene.playerX + (playerFlinchOffset ? playerFlinchOffset[0] : 0),
             scene.playerY + playerLift,
             scene.playerZ + (playerFlinchOffset ? playerFlinchOffset[1] : 0)],
           playerScale,
-          actorRollAngle(playerActor, time),
-        ), COLORS.player, time, viewProjection, [0, 0, 1, 1], playerSkinMatrices);
+          playerBaseYaw,
+          0,
+          playerRoll,
+        ), playerTint, time, viewProjection, [0, 0, 1, 1], playerSkinMatrices);
       }
 
       if (assets.hearts || assets.heartsBlue) {
@@ -2502,11 +2557,16 @@
           const point = scene.throwPreview[index];
           const terminal = index === scene.throwPreview.length - 1;
           const size = terminal ? 1.7 : 0.65;
-          draw([fallbackMeshes.solid], transform(
-            [point.x, point.y, point.z],
-            terminal ? [3.2, 0.16, 3.2] : [size, size, size],
-          ), terminal ? [1, 0.68, 0.2, 1] : [0.98, 0.86, 0.42, 0.9],
-          time, viewProjection);
+          draw(
+            terminal ? [fallbackMeshes.solid] : [fallbackMeshes.pickupGlint],
+            transform(
+              [point.x, point.y, point.z],
+              terminal ? [3.2, 0.16, 3.2] : [size, size, size],
+              terminal ? 0 : time * 0.002 + index * 0.2,
+            ),
+            terminal ? [1, 0.68, 0.2, 1] : [0.98, 0.86, 0.42, 0.9],
+            time, viewProjection,
+          );
         }
       }
 
@@ -2527,7 +2587,7 @@
             Math.atan2(-segment.dz, segment.dx),
             Math.atan2(segment.dy, horizontal),
           ),
-          [1, 1, 1, alpha], time, viewProjection,
+          [1.0, 0.94, 0.65, alpha * 0.9], time, viewProjection,
         );
       }
       gl.depthMask(true);
@@ -2703,7 +2763,9 @@
           ...Object.values(assets).flatMap((value) => value?.meshes || []),
           ...Object.values(vfxMeshes).filter(Boolean),
           ...Object.values(rampMeshes).flat(),
-        ];
+          heartMesh,
+          blueHeartMesh,
+        ].filter(Boolean);
         const textures = new Set();
         for (const model of kutterModels.values()) {
           if (model.meshes) disposeKutterModel(model);

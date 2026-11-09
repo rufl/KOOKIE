@@ -1718,39 +1718,78 @@
     const mapX = (x) => 8 + Math.max(0, Math.min(320, x)) * (width - 16) / 320;
     const mapZ = (z) => 8 + Math.max(0, Math.min(280, z)) * (height - 16) / 280;
     minimapContext.clearRect(0, 0, width, height);
-    minimapContext.fillStyle = "#06151d";
+    minimapContext.fillStyle = "rgba(7, 16, 13, 0.94)";
     minimapContext.fillRect(0, 0, width, height);
-    minimapContext.strokeStyle = "#24566b";
+    if (typeof minimapContext.moveTo === "function") {
+      minimapContext.strokeStyle = "rgba(74, 96, 80, 0.28)";
+      minimapContext.lineWidth = 1;
+      minimapContext.beginPath();
+      minimapContext.moveTo(width / 2, 8);
+      minimapContext.lineTo(width / 2, height - 8);
+      minimapContext.moveTo(8, height / 2);
+      minimapContext.lineTo(width - 8, height / 2);
+      minimapContext.stroke();
+    }
+    minimapContext.strokeStyle = "#56664d";
+    minimapContext.lineWidth = 1.5;
     minimapContext.strokeRect(8, 8, width - 16, height - 16);
     for (const actor of scene.actors) {
       if (actor.health <= 0) continue;
-      minimapContext.fillStyle = actor.kind === 2 ? "#60a5fa" : "#ef5366";
-      minimapContext.fillRect(mapX(actor.x) - 5, mapZ(actor.z) - 5, 10, 10);
+      const isCat = actor.kind === 2;
+      minimapContext.fillStyle = isCat ? "#38bdf8" : "#fb7185";
+      minimapContext.beginPath();
+      minimapContext.arc(mapX(actor.x), mapZ(actor.z), 4.5, 0, Math.PI * 2);
+      minimapContext.fill();
     }
     if (scene.role === GAME_ROLE_SPECTATOR && spectatorFollowActive) {
       const target = scene.actors.find((actor) =>
         actor.id === spectatorFollowTargetId && actor.health > 0);
       if (target) {
-        minimapContext.strokeStyle = "#fffbe9";
-        minimapContext.lineWidth = 3;
+        minimapContext.strokeStyle = "#fef08a";
+        minimapContext.lineWidth = 2.5;
         minimapContext.beginPath();
-        minimapContext.arc(mapX(target.x), mapZ(target.z), 9, 0, Math.PI * 2);
+        minimapContext.arc(mapX(target.x), mapZ(target.z), 8, 0, Math.PI * 2);
         minimapContext.stroke();
       }
     }
     if (scene.pickup) {
       minimapContext.fillStyle = "#4ade80";
-      minimapContext.fillRect(mapX(scene.pickup.x) - 4, mapZ(scene.pickup.z) - 4, 8, 8);
+      const px = mapX(scene.pickup.x);
+      const pz = mapZ(scene.pickup.z);
+      if (typeof minimapContext.moveTo === "function") {
+        minimapContext.beginPath();
+        minimapContext.moveTo(px, pz - 4.5);
+        minimapContext.lineTo(px + 4.5, pz);
+        minimapContext.lineTo(px, pz + 4.5);
+        minimapContext.lineTo(px - 4.5, pz);
+        if (typeof minimapContext.closePath === "function") minimapContext.closePath();
+        minimapContext.fill();
+      } else {
+        minimapContext.fillRect(px - 4, pz - 4, 8, 8);
+      }
     }
     if (scene.role !== GAME_ROLE_SPECTATOR) {
-      minimapContext.fillStyle = "#60a5fa";
+      const px = mapX(scene.playerX);
+      const pz = mapZ(scene.playerZ);
+      const yaw = ((scene.yaw || 0) * Math.PI) / 180;
+      minimapContext.fillStyle = "#facc15";
       minimapContext.beginPath();
-      minimapContext.arc(mapX(scene.playerX), mapZ(scene.playerZ), 7, 0, Math.PI * 2);
+      minimapContext.arc(px, pz, 5.5, 0, Math.PI * 2);
       minimapContext.fill();
+      if (typeof minimapContext.moveTo === "function") {
+        minimapContext.strokeStyle = "#ffffff";
+        minimapContext.lineWidth = 1.5;
+        minimapContext.beginPath();
+        minimapContext.moveTo(px, pz);
+        minimapContext.lineTo(px + Math.sin(yaw) * 11, pz + Math.cos(yaw) * 11);
+        minimapContext.stroke();
+      }
     }
-    minimapContext.fillStyle = "#facc15";
+    minimapContext.fillStyle = "#fde047";
     for (const projectile of scene.projectiles) {
-      minimapContext.fillRect(mapX(projectile.x) - 3, mapZ(projectile.z) - 3, 6, 6);
+      minimapContext.beginPath();
+      minimapContext.arc(mapX(projectile.x), mapZ(projectile.z), 2, 0, Math.PI * 2);
+      minimapContext.fill();
     }
   }
 
@@ -1786,9 +1825,10 @@
       element.setAttribute("aria-label", element.textContent);
       element.style.cssText = [
         "position:absolute;transform:translate(-50%,-100%)",
-        "padding:2px 5px;border-radius:4px",
-        "background:rgba(4,15,23,.82);color:#f8fafc",
-        "font:600 11px/1.2 monospace;white-space:nowrap",
+        "padding:2px 7px;border-radius:6px",
+        `background:rgba(11,20,16,.88);border:1px solid ${actor.kind === 2 ? '#38bdf877' : '#fb718577'}`,
+        "color:#f8fafc;font:700 11px/1.2 'Pixand',system-ui,sans-serif",
+        "box-shadow:0 2px 6px rgba(0,0,0,.6);white-space:nowrap",
         "text-shadow:0 1px 2px #000",
         `left:${projection.x * bounds.width}px`,
         `top:${projection.y * bounds.height}px`,
@@ -1813,9 +1853,10 @@
     element.setAttribute("aria-label", element.textContent);
     element.style.cssText = [
       "position:absolute;transform:translate(-50%,-100%)",
-      "padding:2px 5px;border-radius:4px",
-      "background:rgba(4,15,23,.82);color:#f8fafc",
-      "font:600 11px/1.2 monospace;white-space:nowrap",
+      "padding:2px 7px;border-radius:6px",
+      "background:rgba(11,20,16,.88);border:1px solid #facc15aa",
+      "color:#fef08a;font:700 11px/1.2 'Pixand',system-ui,sans-serif",
+      "box-shadow:0 2px 6px rgba(0,0,0,.6);white-space:nowrap",
       "text-shadow:0 1px 2px #000",
       `left:${projection.x * bounds.width}px`,
       `top:${projection.y * bounds.height}px`,
