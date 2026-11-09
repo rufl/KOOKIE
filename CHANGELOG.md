@@ -18,6 +18,7 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   0.603–0.619 ms across 507 ticks, versus 0.250 ms and 0.688 ms in the
   pre-change run. These single-host runs are directional, not a controlled
   statistical speedup claim; all had zero schedule overruns.
+
 - A fresh 8-second loopback Web benchmark with 8 players and 4 spectators
   collected 480 snapshot intervals: p95 21.60 ms; input ACK p95 18.91 ms;
   tick gap p95 1. Mean server tick work was 0.665 ms and schedule overruns
@@ -29,10 +30,10 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   removing one transient result record per hit candidate. A 0-warmup,
   unpaced 18,000-tick GDB comparison recorded 311,689 Kof allocations before
   and 22,665 after; tracked live bytes fell from 2,347,936 to 1,530,576.
-  The paced 18,000-tick / 600-warmup soak then passed the 4 MiB RSS gate:
-  +2,176 KiB over 61 samples, p95 296 µs, signature/checksum
-  `520690`/`606388`. Earlier runs exceeded the RSS gate, so longer/repeated
-  native memory stability remains to be qualified.
+  Two paced 18,000-tick / 600-warmup soaks passed the 4 MiB RSS gate with
+  identical +2,176 KiB growth over 61 samples and stable signature/checksum
+  `520690`/`606388`; simulation p95 was 296 and 292 µs. Earlier runs exceeded
+  the RSS gate, so long-duration native memory stability remains unqualified.
 
 
 - Native Kutter now dims Undo and Redo independently when the corresponding

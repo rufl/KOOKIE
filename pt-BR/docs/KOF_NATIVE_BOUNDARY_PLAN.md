@@ -59,15 +59,15 @@ Os perfis ritmados anteriores de 18.000 ticks mantiveram assinatura/checksum
 7.300–8.320 KiB; um perfil sob heaptrack cresceu 8.192 KiB. Esses resultados
 excederam o gate de 4 MiB e não provam vazamento de objetos vivos. Depois de
 remover a construção de `SegmentCollisionResult` para cada candidato no loop
-de consulta BVH, o primeiro soak ritmado correspondente (600 ticks de
-aquecimento e 18.000 medidos) passou o gate: crescimento/faixa de RSS de
-2.176 KiB em 61 amostras, p95 de simulação de 296 µs, assinatura/checksum
+de consulta BVH, dois soaks ritmados correspondentes (600 ticks de aquecimento
+e 18.000 medidos) passaram o gate: crescimento/faixa de RSS idênticos de
+2.176 KiB em 61 amostras, p95 de simulação de 296 e 292 µs e assinatura/checksum
 `520690`/`606388`.
 
 As estatísticas GDB do allocator em 18.000 ticks sem ritmo/aquecimento caíram de
-311.689 alocações e 2.347.936 bytes vivos para 22.665 e 1.530.576. Esse é um
-soak aprovado após falhas anteriores; repetição e qualificação de longa duração
-continuam pendentes. WASM/WASI e alvos fora do Linux seguem sem qualificação.
+311.689 alocações e 2.347.936 bytes vivos para 22.665 e 1.530.576. Falhas
+anteriores mantêm pendente a qualificação de longa duração. WASM/WASI e alvos
+fora do Linux seguem sem qualificação.
 
 Uma execução equivalente com amostragem esparsa cresceu 8.320 KiB usando apenas
 amostras inicial/final. O sampler lê `/proc/self/statm` em buffer fixo na stack

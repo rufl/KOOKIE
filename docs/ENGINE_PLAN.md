@@ -944,11 +944,12 @@ selected final result. A GDB `kof_memstats()` comparison on the same
 1,530,576 live bytes after. The measured work and resource signature were
 stable; these allocator counters are Kof arena statistics, not RSS.
 
-The first paced post-change soak (600 warm-up plus 18,000 measured ticks)
-passed the existing RSS gate: 2,176 KiB growth/range across 61 samples,
-simulation p50/p95/p99/max `198/296/353/1,238 µs`, resource signature
-`520690`, and workload checksum `606388`. Earlier runs failed the RSS gate;
-repeat/long-duration native memory stability remains to be established.
+Two paced post-change soaks (600 warm-up plus 18,000 measured ticks) passed the
+existing RSS gate with identical 2,176 KiB growth/range across 61 samples.
+Simulation p50/p95/p99/max were `198/296/353/1,238 µs` and
+`203/292/329/1,188 µs`; signature/checksum stayed `520690`/`606388`. Earlier
+runs failed the RSS gate, so long-duration native memory stability remains
+unqualified.
 
 
 `scripts/verify_dedicated_network.sh` runs one authenticated host and two client
