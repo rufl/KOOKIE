@@ -10,7 +10,7 @@ de evidência limitados, não uma promessa de suporte de produção.
 
 Instale o release oficial [Kof 0.7.2](https://github.com/KofLang/Kof4j), tag
 `kof-0.7.2-linux-x86_64`, no commit
-`ae76df622ed03d02aa979d16a4686f7612965c0a`. O SHA-256 do archive Linux é
+`330fe4a4a1c431404681cf97556284fc9b539276`. O SHA-256 do archive Linux é
 `3c6687438f2d9bebe24defee9f9250f9c8487d9194df4880057b274c5bce9692`.
 O build de release executa `scripts/prepare_kof_source.sh` antes do Maven;
 verifica a guarda de GC native upstream e normaliza os metadados do compilador.

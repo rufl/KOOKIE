@@ -93,7 +93,7 @@ entrypoint:
 
 The pinned Kof 0.7.2 Linux distribution is the official
 `kof-0.7.2-linux-x86_64` release at source commit
-`ae76df622ed03d02aa979d16a4686f7612965c0a`. Its archive SHA-256 is
+`330fe4a4a1c431404681cf97556284fc9b539276`. Its archive SHA-256 is
 `3c6687438f2d9bebe24defee9f9250f9c8487d9194df4880057b274c5bce9692`.
 The repository pin is the official 0.7.2 release; the native GatoGanso gameplay
 smoke passes with it. Kof 0.7.2 fixes a parser bug in operand-less `await` and

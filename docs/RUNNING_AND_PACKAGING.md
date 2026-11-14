@@ -22,7 +22,7 @@ not gameplay tuning.
 
 Install the official Kof 0.7.2 Linux release distribution, matching source tag
 `kof-0.7.2-linux-x86_64` and commit
-`ae76df622ed03d02aa979d16a4686f7612965c0a`. Its published archive SHA-256 is
+`330fe4a4a1c431404681cf97556284fc9b539276`. Its published archive SHA-256 is
 `3c6687438f2d9bebe24defee9f9250f9c8487d9194df4880057b274c5bce9692`.
 The release workflow builds the pinned source commit for its reproducible
 toolchain artifact; it does not consume that upstream archive.

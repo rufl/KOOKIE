@@ -9,7 +9,7 @@
 
 The active source/CI baseline is the official Kof `0.7.2` release tag
 `kof-0.7.2-linux-x86_64` at commit
-`ae76df622ed03d02aa979d16a4686f7612965c0a`. Current session documentation must
+`330fe4a4a1c431404681cf97556284fc9b539276`. Current session documentation must
 describe strict tick ordering, newer same-tick state-sequence revisions and
 fresh rewind history after checkpoint restore. Research pages retain their
 dated toolchain snapshots intentionally; refresh their scope and evidence

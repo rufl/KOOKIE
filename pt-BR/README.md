@@ -92,7 +92,7 @@ com artefatos Linux e Windows x86-64; o updater seleciona o asset do alvo.
 
 Instale o release oficial [Kof 0.7.2](https://github.com/KofLang/Kof4j),
 tag `kof-0.7.2-linux-x86_64`, no commit
-`ae76df622ed03d02aa979d16a4686f7612965c0a`. O SHA-256 do archive Linux é
+`330fe4a4a1c431404681cf97556284fc9b539276`. O SHA-256 do archive Linux é
 `3c6687438f2d9bebe24defee9f9250f9c8487d9194df4880057b274c5bce9692`.
 O pin do repositório usa o release oficial 0.7.2; o smoke de gameplay nativo
 do GatoGanso passou com ele. Kof 0.7.2 corrige um bug do parser ao tratar

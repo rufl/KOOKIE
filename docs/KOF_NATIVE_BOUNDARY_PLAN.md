@@ -9,7 +9,7 @@ Normative boundary and batch ABI: [Kof native-boundary and synchronous batch
 ABI](KOF_NATIVE_BOUNDARY_SPEC.md).
 
 Current source pin: official Kof `0.7.2` at
-`ae76df622ed03d02aa979d16a4686f7612965c0a`. The previous local proof was for
+`330fe4a4a1c431404681cf97556284fc9b539276`. The previous local proof was for
 `f42ed91dfbceae09880b7d0619d98f67490149d1`; that proof does not transfer
 automatically. Requalification for the pinned `0.7.2` is complete; current
 local evidence and remaining platform limits are recorded below.
@@ -116,7 +116,7 @@ alone did not explain the earlier RSS growth.
 1. Re-run `python3 scripts/update_kof_lab.py --check` immediately before the
    change.
 2. If adopting the candidate, apply it with
-   `--expected-commit ae76df622ed03d02aa979d16a4686f7612965c0a` and
+   `--expected-commit 330fe4a4a1c431404681cf97556284fc9b539276` and
    `--expected-version 0.7.2`; do not update a moving `lab` ref implicitly.
 3. Build the exact source archive and record source commit and archive hash.
 4. Re-run static/JVM, SIMD and the native/package gate with the exact source.
@@ -124,7 +124,7 @@ alone did not explain the earlier RSS growth.
    limits are explicitly recorded.
 
 **Exit gate:** active pin references name
-`ae76df622ed03d02aa979d16a4686f7612965c0a` and exact qualification results
+`330fe4a4a1c431404681cf97556284fc9b539276` and exact qualification results
 and remaining native/package limits are recorded. No migration claims
 “latest” before this gate.
 

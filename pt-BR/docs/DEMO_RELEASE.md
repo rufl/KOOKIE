@@ -34,7 +34,7 @@ dos alvos e receber aprovação de publicação.
 
 Novos candidatos usam o release oficial Kof `0.7.2`, tag
 `kof-0.7.2-linux-x86_64`, no commit
-`ae76df622ed03d02aa979d16a4686f7612965c0a`. O SHA-256 do archive Linux é
+`330fe4a4a1c431404681cf97556284fc9b539276`. O SHA-256 do archive Linux é
 `3c6687438f2d9bebe24defee9f9250f9c8487d9194df4880057b274c5bce9692`;
 o CI constrói a fonte fixada no artefato de toolchain normalizado. O digest do
 patch de release permanece

@@ -8,7 +8,7 @@ Status: **PROPOSTO**. Este plano é o documento de execução da decisão
 Fronteira normativa e ABI batch: [Fronteira nativa Kof e ABI batch síncrona](KOF_NATIVE_BOUNDARY_SPEC.md).
 
 Pin de fonte atual: Kof oficial `0.7.2` no commit
-`ae76df622ed03d02aa979d16a4686f7612965c0a`.
+`330fe4a4a1c431404681cf97556284fc9b539276`.
 
 ## 1. Resumo da decisão
 
@@ -110,7 +110,7 @@ referências ativas de CI/documentação.
 1. Rodar `python3 scripts/update_kof_lab.py --check` imediatamente antes da
    mudança.
 2. Se o candidato for adotado, aplicar com
-   `--expected-commit ae76df622ed03d02aa979d16a4686f7612965c0a` e
+   `--expected-commit 330fe4a4a1c431404681cf97556284fc9b539276` e
    `--expected-version 0.7.2`; nunca atualize implicitamente uma referência
    móvel `lab`.
 3. Construir o archive exato e registrar commit de origem e hash do archive.
@@ -119,7 +119,7 @@ referências ativas de CI/documentação.
    de seus limites estarem registrados de forma explícita.
 
 **Gate de saída:** as referências ativas nomeiam
-`ae76df622ed03d02aa979d16a4686f7612965c0a`, e os resultados exatos da
+`330fe4a4a1c431404681cf97556284fc9b539276`, e os resultados exatos da
 qualificação com os limites restantes estão registrados.
 Nenhuma migração chama a fonte de “latest” antes desse gate.
 

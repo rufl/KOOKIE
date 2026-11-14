@@ -81,7 +81,7 @@ de SPIR-V no runtime.
 
 A pinagem ativa do Kof4j `0.7.2` é o release oficial
 `kof-0.7.2-linux-x86_64`, no commit de fonte
-`ae76df622ed03d02aa979d16a4686f7612965c0a`. O
+`330fe4a4a1c431404681cf97556284fc9b539276`. O
 `scripts/verify_simd_dispatch.sh` qualifica o caminho síncrono e limitado de
 producer/copy-back `Buffer(U8)` em JVM e native x86-64; o suporte cross continua
 sem qualificação. O caminho selecionado `GPU_SCENE_VERTEX_V1` é um batch de

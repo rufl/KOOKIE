@@ -4,7 +4,7 @@ Research date: 2026-09-22. This is a working reference, not a claim of complete 
 
 The active source/CI baseline is the official Kof `0.7.2` release tag
 `kof-0.7.2-linux-x86_64` at commit
-[`ae76df622ed03d02aa979d16a4686f7612965c0a`](https://github.com/KofLang/Kof4j/tree/ae76df622ed03d02aa979d16a4686f7612965c0a).
+[`330fe4a4a1c431404681cf97556284fc9b539276`](https://github.com/KofLang/Kof4j/tree/330fe4a4a1c431404681cf97556284fc9b539276).
 Its Linux archive SHA-256 is
 `3c6687438f2d9bebe24defee9f9250f9c8487d9194df4880057b274c5bce9692`.
 CI independently builds this pinned source after verifying the upstream
@@ -201,11 +201,11 @@ Consequences:
    initialization proof. A version query does not prove allocator/TLS/thread-
    heavy library paths.
 
-Sources: [pinned Kof4j source](https://github.com/KofLang/Kof4j/tree/ae76df622ed03d02aa979d16a4686f7612965c0a),
-[KofBuffer.java](https://github.com/KofLang/Kof4j/blob/ae76df622ed03d02aa979d16a4686f7612965c0a/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java),
-[CompilerFfiBinding.java](https://github.com/KofLang/Kof4j/blob/ae76df622ed03d02aa979d16a4686f7612965c0a/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java),
+Sources: [pinned Kof4j source](https://github.com/KofLang/Kof4j/tree/330fe4a4a1c431404681cf97556284fc9b539276),
+[KofBuffer.java](https://github.com/KofLang/Kof4j/blob/330fe4a4a1c431404681cf97556284fc9b539276/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java),
+[CompilerFfiBinding.java](https://github.com/KofLang/Kof4j/blob/330fe4a4a1c431404681cf97556284fc9b539276/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java),
 [local Buffer gate](../scripts/verify_simd_dispatch.sh),
-[runtime ABI](https://github.com/KofLang/Kof4j/blob/ae76df622ed03d02aa979d16a4686f7612965c0a/docs/runtime/RUNTIME_ABI.md).
+[runtime ABI](https://github.com/KofLang/Kof4j/blob/330fe4a4a1c431404681cf97556284fc9b539276/docs/runtime/RUNTIME_ABI.md).
 
 ### Current 0.7.2 ABI boundary
 `bytes()` returns a managed copy; a native FFI payload is valid only for the

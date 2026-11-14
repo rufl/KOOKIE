@@ -90,7 +90,7 @@ ordering; it never parses or composes SPIR-V at runtime.
 
 The active Kof4j `0.7.2` pin is the official `kof-0.7.2-linux-x86_64`
 release tag at source commit
-`ae76df622ed03d02aa979d16a4686f7612965c0a`. The existing
+`330fe4a4a1c431404681cf97556284fc9b539276`. The existing
 `scripts/verify_simd_dispatch.sh` qualifies the bounded synchronous
 `Buffer(U8)` producer/copy-back path on JVM and native x86-64, and provides
 freestanding syntax proofs for AArch64 Linux, RISC-V Linux and x86-64/AArch64
