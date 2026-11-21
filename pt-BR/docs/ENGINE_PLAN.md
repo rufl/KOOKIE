@@ -980,7 +980,7 @@ medido, mas a memória continua falhando o gate. O verificador agora informa
 crescimento/faixa/amostras de RSS e encerra sem traceback de assertion do
 Python. No Arch/EndeavourOS, instale heaptrack com
 `sudo pacman -S --needed heaptrack`; execute sem `sudo`. O soak rejeita Kof
-diferente da versão `0.7.2` fixada.
+diferente da versão `0.8.0` fixada.
 
 O controle com amostragem esparsa manteve a carga de 18.000 ticks e mediu RSS
 somente no início/fim: o crescimento continuou em 8.320 KiB em duas amostras,

@@ -928,9 +928,9 @@ leak. The optimization reduced measured growth, but memory still fails the
 gate. The verifier now reports RSS growth/range/sample count and exits cleanly
 instead of raising a Python assertion traceback. Heaptrack is available on
 Arch/EndeavourOS with `sudo pacman -S --needed heaptrack`; run without `sudo`.
-The soak rejects Kof versions other than pinned `0.7.2`.
+The soak rejects Kof versions other than pinned `0.8.0`.
 
-The original Kof `0.7.2` paced profiles (600 warm-up plus 18,000 measured ticks,
+The original Kof `0.8.0` paced profiles (600 warm-up plus 18,000 measured ticks,
 64 enemies, 256 projectiles, 512 pickups) recorded p95 of 617 and 643 µs and
 RSS growth of 7,300 and 8,320 KiB. A later heaptrack soak grew 8,192 KiB.
 These runs exceeded the 4 MiB RSS gate; none proved a live-object leak.
