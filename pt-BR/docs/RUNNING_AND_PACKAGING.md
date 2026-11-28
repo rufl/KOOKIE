@@ -8,9 +8,9 @@ de evidência limitados, não uma promessa de suporte de produção.
 
 ## Execução de fonte/desenvolvimento
 
-Instale o release oficial [Kof 0.7.2](https://github.com/KofLang/Kof4j), tag
-`kof-0.7.2-linux-x86_64`, no commit
-`ae76df622ed03d02aa979d16a4686f7612965c0a`. O SHA-256 do archive Linux é
+Instale o release oficial [Kof 0.8.1](https://github.com/KofLang/Kof4j), tag
+`kof-0.8.1-linux-x86_64`, no commit
+`18ecec0a43d3e9d53343a5d7cdabc6f5ca0405b8`. O SHA-256 do archive Linux é
 `3c6687438f2d9bebe24defee9f9250f9c8487d9194df4880057b274c5bce9692`.
 O build de release executa `scripts/prepare_kof_source.sh` antes do Maven;
 verifica a guarda de GC native upstream e normaliza os metadados do compilador.
@@ -41,7 +41,7 @@ validação de evidências e tooling de rendezvous.
 
 ## Cliente de jogo no navegador (não WASM)
 
-O CLI Kof 0.7.2 anuncia `wasm` e `wasi` para build/check; o comando `run` não
+O CLI Kof 0.8.1 anuncia `wasm` e `wasi` para build/check; o comando `run` não
 executa esses alvos. O KOOKIE não distribui gameplay em build Kof/WASM: o
 entrypoint completo de `src` depende de SDL/GPU nativos e de APIs de filesystem,
 enquanto `apps/web_alpha` é um cliente HTML/WebGL2 independente:

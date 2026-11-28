@@ -2,9 +2,9 @@
 
 Research date: 2026-09-22. This is a working reference, not a claim of complete language conformance.
 
-The active source/CI baseline is the official Kof `0.7.2` release tag
-`kof-0.7.2-linux-x86_64` at commit
-[`ae76df622ed03d02aa979d16a4686f7612965c0a`](https://github.com/KofLang/Kof4j/tree/ae76df622ed03d02aa979d16a4686f7612965c0a).
+The active source/CI baseline is the official Kof `0.8.1` release tag
+`kof-0.8.1-linux-x86_64` at commit
+[`18ecec0a43d3e9d53343a5d7cdabc6f5ca0405b8`](https://github.com/KofLang/Kof4j/tree/18ecec0a43d3e9d53343a5d7cdabc6f5ca0405b8).
 Its Linux archive SHA-256 is
 `3c6687438f2d9bebe24defee9f9250f9c8487d9194df4880057b274c5bce9692`.
 CI independently builds this pinned source after verifying the upstream
@@ -16,7 +16,7 @@ without rerunning their gates.
   `scripts/kof-as/as` wrapper. The wrapper uses Clang's integrated assembler
   for Kof's `as -o OBJECT FILE.s` calls and delegates other assembler command
   lines to system `as`.
-- `scripts/verify_simd_dispatch.sh` now passes on Kof `0.7.2` for JVM/native
+- `scripts/verify_simd_dispatch.sh` now passes on Kof `0.8.1` for JVM/native
   x86-64; it reports fixture sums `809`/`1231`, equal scalar/SIMD totals and
   selected SIMD routing. Freestanding syntax proofs pass for AArch64 Linux,
   RISC-V Linux and x86-64/AArch64 macOS; these are not runtime qualification.
@@ -142,7 +142,7 @@ These repairs do not change the native runtime findings below.
 | Native x86-64 | Measured same probes pass; preferred Linux engine spike. Full SDL window/GPU/input/audio and long-running memory behavior still gates |
 | Native RISC-V / AArch64 | Real backend and scalar FFI support in pinned source/docs, not placeholders. Not executed here; not an initial shipping commitment |
 | JS / KofJS | ES modules with embedded GraalJS host facilities. Browser has a different host capability set; `extern` cannot simply access native libraries there |
-| WASM / WASI | 0.7.2 `check` accepted a pure scalar function on both; `build --target wasi` passed. A `main` using `println` was rejected (`WASM002`), so this is not full-program support. No WASI runtime was exercised; KOOKIE does not target these backends |
+| WASM / WASI | 0.8.1 `check` accepted a pure scalar function on both; `build --target wasi` passed. A `main` using `println` was rejected (`WASM002`), so this is not full-program support. No WASI runtime was exercised; KOOKIE does not target these backends |
 | Android | JVM-derived packaging path; not a native desktop port and not an initial target |
 | Script | Useful tooling exploration; not the real-time game runtime |
 
@@ -159,7 +159,7 @@ Source-verified scalar set: `Int`, `Long`, `Float`, `Double`, `Bool`/`Boolean`,
 `String`; `void` additionally allowed as a return. Native requires a library
 string and links by use with a direct ABI call, not runtime `dlopen`.
 
-Kof `0.7.2` has a byte-only `Buffer(U8)` contract with `buffer.alloc`,
+Kof `0.8.1` has a byte-only `Buffer(U8)` contract with `buffer.alloc`,
 `buffer.peek8/32/64`, `buffer.poke8/32/64` and `Buffer.bytes()`. The pinned
 implementation maps it to the `B` FFI token and a synchronous payload pointer;
 the local gate proves producer data, copy-in/copy-back and an INOUT reduction
@@ -170,12 +170,12 @@ macOS when Clang is available. Cross-target runtime support remains
 unqualified.
 
 The older 0.4.9 probe rejected `extern ... upload(Float[] values): void` on JVM
-and native. That result remains historical; current Kof `0.7.2` array/record
+and native. That result remains historical; current Kof `0.8.1` array/record
 binding is target-specific and does not establish a portable engine upload ABI.
 
 Returning SDL pointers as `Long` is never a supported substitute.
 
-The pinned `0.7.2` source implements synchronous, non-escaping FFI callbacks
+The pinned `0.8.1` source implements synchronous, non-escaping FFI callbacks
 on JVM, the host JS runner and Native x86-64/riscv64/aarch64 for scalar and
 `String` arguments with primitive or `void` returns. KOOKIE has not yet run a
 local callback probe against this source build, so it is not promoted as an
@@ -201,13 +201,13 @@ Consequences:
    initialization proof. A version query does not prove allocator/TLS/thread-
    heavy library paths.
 
-Sources: [pinned Kof4j source](https://github.com/KofLang/Kof4j/tree/ae76df622ed03d02aa979d16a4686f7612965c0a),
-[KofBuffer.java](https://github.com/KofLang/Kof4j/blob/ae76df622ed03d02aa979d16a4686f7612965c0a/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java),
-[CompilerFfiBinding.java](https://github.com/KofLang/Kof4j/blob/ae76df622ed03d02aa979d16a4686f7612965c0a/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java),
+Sources: [pinned Kof4j source](https://github.com/KofLang/Kof4j/tree/18ecec0a43d3e9d53343a5d7cdabc6f5ca0405b8),
+[KofBuffer.java](https://github.com/KofLang/Kof4j/blob/18ecec0a43d3e9d53343a5d7cdabc6f5ca0405b8/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java),
+[CompilerFfiBinding.java](https://github.com/KofLang/Kof4j/blob/18ecec0a43d3e9d53343a5d7cdabc6f5ca0405b8/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java),
 [local Buffer gate](../scripts/verify_simd_dispatch.sh),
-[runtime ABI](https://github.com/KofLang/Kof4j/blob/ae76df622ed03d02aa979d16a4686f7612965c0a/docs/runtime/RUNTIME_ABI.md).
+[runtime ABI](https://github.com/KofLang/Kof4j/blob/18ecec0a43d3e9d53343a5d7cdabc6f5ca0405b8/docs/runtime/RUNTIME_ABI.md).
 
-### Current 0.7.2 ABI boundary
+### Current 0.8.1 ABI boundary
 `bytes()` returns a managed copy; a native FFI payload is valid only for the
 downcall. The qualified source path now uses a bounded `Buffer(U8)` directly
 for `GPU_SCENE_VERTEX_V1`: Kof encodes six `i32_le` fields, C validates and
